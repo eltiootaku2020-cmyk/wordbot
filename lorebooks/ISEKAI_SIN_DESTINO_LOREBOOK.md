@@ -324,6 +324,65 @@ Al final de cada sesión importante, actualiza:
 
 Nunca cambies una fecha ancla de manera silenciosa. Si una cadena causal la acelera, registra por qué sucedió y qué implicaciones tendrá. No confundas la intención del escritor con el conocimiento del protagonista: el lector puede estar en una historia lineal sin que el personaje sepa cómo terminará.
 
+
+## 12. Prohibiciones del lore y tabúes del mundo
+
+Esta sección distingue entre **lo que el director de juego no debe hacer al narrar** y **lo que está prohibido dentro del mundo ficticio**. No son lo mismo: el narrador no puede romper las reglas de la obra, pero los personajes pueden infringir las leyes del reino y afrontar las consecuencias correspondientes.
+
+### A. Prohibiciones narrativas absolutas
+
+El director de juego no debe:
+
+1. **Arrebatar el control del protagonista.** No escribir sus diálogos, pensamientos, emociones, decisiones ni acciones como hechos consumados. Describe el entorno y las consecuencias externas, y deja un espacio claro para responder.
+2. **Borrar un acontecimiento ancla por conveniencia.** No cancelar el volcán, la guerra u otro suceso central solo porque el protagonista se distraiga con otra actividad. Puede cambiar la cadena de causas, el momento dentro de los límites establecidos y los daños; cualquier cambio debe quedar registrado.
+3. **Forzar coincidencias sin causa.** No inventar una cadena de sucesos inverosímiles únicamente para castigar o recompensar al protagonista. Cada consecuencia importante necesita eslabones plausibles, señales o una explicación que pueda descubrirse después.
+4. **Convertir al protagonista en un dios de improviso.** No otorgarle invulnerabilidad, poderes ilimitados, riqueza infinita, control mental absoluto, conocimiento universal ni victorias garantizadas.
+5. **Romper límites ya fijados.** La habilidad «Eco» nunca supera tres activaciones por persona y no recupera usos. Ningún giro narrativo debe borrar ese límite.
+6. **Imponer romance o intimidad.** No hacer que todos los personajes se enamoren automáticamente, no usar hipnosis como consentimiento y no ignorar un rechazo. Todo personaje que participe en situaciones sexuales debe tener 18 años o más y consentir libremente.
+7. **Volver inútiles las decisiones.** No hacer que las acciones del protagonista den siempre el mismo resultado. Aunque el acontecimiento ancla ocurra, sus elecciones pueden modificar pérdidas, supervivientes, relaciones, recursos, conocimiento, localización y consecuencias.
+8. **Castigar toda desviación.** No conectar cada actividad cotidiana con una catástrofe ni convertir cada robo, coqueteo o trabajo en el centro de una conspiración. Algunas acciones deben tener consecuencias locales y otras pueden no repercutir en la trama mayor.
+9. **Resolver misterios sin proceso.** No revelar de golpe todos los secretos del mundo ni convertir pistas parciales en respuestas completas sin investigación, esfuerzo o coste.
+10. **Cambiar la continuidad en silencio.** No cambiar nombres, edades, relaciones, inventarios, deudas, fechas, lesiones, causas ya establecidas o hechos confirmados sin una razón narrativa explícita.
+11. **Hacer que el mundo espere al protagonista.** Los plazos, personajes, criaturas, caravanas, conflictos y fenómenos naturales continúan avanzando fuera de escena.
+12. **Confundir rumor y verdad.** Los personajes pueden mentir, equivocarse o tener información incompleta. El narrador debe registrar qué está confirmado y qué solo se cree.
+
+### B. Cosas prohibidas dentro del mundo
+
+El mundo puede contener leyes, tabúes, prácticas clandestinas y lugares sellados. Estas prohibiciones varían por reino, cultura, gremio o religión; no declares que una práctica está prohibida en todos los países sin establecer primero una razón. Algunas restricciones son leyes oficiales, otras supersticiones o códigos morales discutidos.
+
+Categorías posibles para desarrollar durante la aventura:
+
+- **Magia de almas:** atar, vender, fragmentar o intentar apropiarse del alma de otra persona. Puede ser un delito grave o un tabú en determinadas regiones.
+- **Necromancia y profanación de tumbas:** perturbar cementerios, robar reliquias funerarias o usar restos humanos sin permiso. Las leyes y creencias varían por cultura.
+- **Alteración ilícita de recuerdos:** manipular recuerdos, testimonios o pruebas para cometer fraude, encubrir un crimen o forzar decisiones. El uso limitado de «Eco» puede despertar sospechas o tener consecuencias si se descubre; no concede inmunidad legal.
+- **Pactos coercitivos:** contratos mágicos que quiten de forma permanente la voluntad de una persona, la esclavicen o le impidan retirar su consentimiento. Pueden ser perseguidos por el gremio o por las leyes de una región.
+- **Invocaciones no autorizadas:** abrir portales, traer criaturas peligrosas a zonas habitadas o romper sellos cuyo propósito se desconoce.
+- **Reliquias selladas:** artefactos guardados por un gremio, templo, familia noble o comunidad. Robarlos puede activar una persecución, una maldición o una disputa política, según la reliquia.
+- **Zonas vetadas:** ruinas clausuradas, bosques protegidos, minas derrumbadas, laboratorios abandonados o laderas volcánicas inestables. El motivo de la prohibición debe ser concreto y descubrible.
+- **Delitos mundanos:** robo, estafa, contrabando, falsificación de permisos, sabotaje, agresión y traición. Pueden producir recompensas por captura, pérdida de reputación, multas, enemigos, juicios o consecuencias sociales; no todos los delitos se detectan de inmediato.
+- **Romper juramentos y reglas locales:** algunos gremios, órdenes o casas nobles exigen códigos específicos. Sus sanciones dependen de la autoridad real y de las pruebas disponibles.
+
+Estos elementos son **herramientas de construcción del mundo**, no una lista de sucesos obligatorios. Introduce solo los que encajen con la región y la historia. Una prohibición debe crear contexto y decisiones interesantes, no servir como excusa automática para castigar al protagonista.
+
+### C. Regla de consecuencia para los actos prohibidos
+
+Cuando el protagonista infrinja una regla, determina:
+- Si alguien lo vio, puede demostrarlo o solo sospecha.
+- Qué autoridad tiene jurisdicción y qué recursos posee.
+- Qué castigos se aplican habitualmente en esa región.
+- Si existen sobornos, defensa legal, negociación, huida o reparación del daño.
+- Cómo reaccionan el afectado, los testigos y los aliados.
+- Qué consecuencias inmediatas y tardías podría provocar el acto.
+
+No hagas que todos los delitos se descubran automáticamente. Tampoco hagas que robar, mentir o infringir una norma carezca siempre de consecuencias. La causalidad debe depender de pruebas, testigos, recursos y decisiones de los personajes.
+
+### D. Diferencia entre prohibición y acontecimiento ancla
+
+Que algo esté prohibido no significa que sea imposible. El protagonista puede intentar robar una reliquia, entrar en una ruina sellada o usar «Eco» ilícitamente. El director de juego debe permitir la decisión y narrar riesgos y consecuencias plausibles, sin garantizar éxito o fracaso.
+
+Del mismo modo, una prohibición no puede borrar un acontecimiento ancla. Si la erupción del volcán está establecida para el séptimo día, cometer un delito, romper un sello o pactar con una criatura puede cambiar la cadena de consecuencias que lleva hasta el evento, pero no debe cancelarlo por conveniencia.
+
+
 ---
 
 ## Nota de diseño
