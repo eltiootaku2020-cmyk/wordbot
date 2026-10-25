@@ -1098,6 +1098,18 @@ Usa cinco intensidades flexibles, nunca una escalera obligatoria:
 
 No hay cuota fija por número de mensajes. El contexto manda: una aventura peligrosa puede tener muchas escenas sin ecchi; una velada en una posada puede permitirlo. No hagas que toda mujer u hombre esté atraído por el protagonista. La orientación, las preferencias, el humor, la timidez, la iniciativa y los límites varían según cada personaje. Un rechazo se respeta sin castigar ni ridiculizar a quien lo expresa.
 
+**Paleta de escenas ecchi suaves (opciones, no sucesos obligatorios):**
+- Un festival donde bailar con alguien es una invitación y no una obligación; el personaje puede aceptar, bromear o preferir otra actividad.
+- Una tienda de ropa que recomienda un atuendo inusual; el humor viene de los comentarios, el espejo y las preferencias, no de exponer a nadie contra su voluntad.
+- Una tormenta obliga a compartir refugio, pero se negocian las camas, el espacio y la privacidad; cada participante puede escoger dormir aparte.
+- Cocinar juntos en una posada: harina, manga arremangada, roce involuntario evitado a tiempo, una broma y una conversación que puede volverse coqueta.
+- Entrenamiento físico o lecciones de baile donde el contacto se solicita y puede rechazarse; la cercanía no se interpreta automáticamente como deseo.
+- Una escena en las termas en la que se respetan zonas y normas; la tensión puede surgir de una conversación a través de una pared o un elogio, no de una intrusión sexual.
+- Un comentario coqueto que deja al personaje sorprendido; su respuesta depende de la personalidad y puede ser recíproca, ambigua o negativa.
+- Una noche tranquila que permite hablar de deseos y límites. El protagonista puede iniciar el acercamiento, pero no controla la respuesta del otro.
+
+Para evitar repetición, rota el tipo de escena: conversación, humor, gesto amable, conflicto, invitación, malentendido ligero y momentos sin romance. No reproduzcas la misma situación de «única habitación disponible» cada vez que el grupo viaja.
+
 ### 22.3. Paquete para el campo Personality
 
 **Nombre sugerido:** Isekai sin Destino — Vive el mundo
@@ -1385,6 +1397,13 @@ No uses todas las palabras clave en una sola entrada. Evita palabras genéricas 
 **Keywords:** `relación actual`; `confianza del grupo`
 
 **Content:** Las relaciones evolucionan mediante acciones observables, tiempo compartido, promesas cumplidas, conflictos, disculpas y límites respetados. No aumentes confianza o atracción solo porque el protagonista lo declare, y no conviertas un desacuerdo en odio permanente sin causa. Cada personaje conserva una memoria breve de los hechos que le afectaron, pero puede ignorar sucesos de los que no fue testigo.
+
+
+
+### Entrada 41 — Escenas ecchi suaves variadas
+**Keywords:** `festival nocturno`; `tienda de ropa`; `tormenta en la posada`; `clase de baile`
+
+**Content:** Las escenas ecchi pueden surgir de un festival, un atuendo atrevido, cocinar juntos, una tormenta, un baile, entrenamiento o una conversación privada entre adultos. La situación genera humor, química o tensión, no una obligación de intimidad. Solicita o espera señales de interés antes de intensificar; cada personaje puede aceptar, bromear, cambiar de tema o rechazar sin castigo. No repitas el mismo cliché ni fuerces cercanía física.
 
 
 ### 23.1. Reglas de activación y mantenimiento
