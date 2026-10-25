@@ -962,14 +962,27 @@ Ejemplo: si el protagonista roba un paquete de Darven y este huye por una ruta s
 
 ## 20. Método de inspiración y referencias de género
 
-Las fuentes siguientes se usan para estudiar funciones narrativas y convenciones generales; no se copian sus personajes ni sus escenas:
+El atlas utiliza patrones generales de fantasía, isekai, manga y novelas de aventuras. Las fuentes ayudan a investigar funciones narrativas, culturas, ritmos y premisas; **no se copian nombres, diseños, diálogos, poderes distintivos ni tramas específicas**. Los personajes de este libro son originales.
 
-- Bibliothèque nationale de France, **“Populating Magical Worlds”**: analiza arquetipos de personajes de fantasía, roles de aventura y cómo las regiones y culturas moldean a los pueblos ficticios. https://fantasy.bnf.fr/en/understand/populating-magical-worlds/
-- LATRAME, **“Referencia de tropos”**: recoge recursos como la mentoría excéntrica, la alianza inesperada, el poder con un precio y las profecías que se cumplen de forma imprevista. https://latrame.app/es/creator/tropes
-- StoryTable, **“Storytelling Trope Directory”**: reúne arquetipos como el gigante amable, el mentor excéntrico, el personaje reservado que se suaviza con la confianza y los papeles que generan presión narrativa. https://www.storytable.org/tropes
-- Barker Books Publishing, **“10 Types of Fantasy Characters to Write”**: propone no reducir los roles a etiquetas morales simples y distinguir lo que una persona es de lo que hace en la trama. https://barkerbooks.com/types-of-fantasy-characters/
+### Referencias de oficio narrativo
 
-Al buscar nuevas referencias, utiliza obras diversas de fantasía, manga, novelas ligeras, mitos y juegos de rol para identificar patrones amplios. Después crea nombres, motivaciones, conflictos, diseños y desenlaces originales. No convertir un personaje reconocible de una obra concreta en una copia con otro nombre.
+- Bibliothèque nationale de France, **“Populating Magical Worlds”**: presenta arquetipos y explica cómo regiones, instituciones y culturas moldean a los pueblos ficticios. Se usa como referencia general para construir culturas con profesiones, historia y tensiones internas, no solo una raza con un único rasgo. https://fantasy.bnf.fr/en/understand/populating-magical-worlds/
+- LATRAME, **“Referencia de tropos”**: catálogo de recursos como el mentor excéntrico, las alianzas inesperadas y el poder con un precio. Sirve para variar las funciones de los personajes y no depender de un villano central. https://latrame.app/es/creator/tropes
+- StoryTable, **“Storytelling Trope Directory”**: ofrece arquetipos y funciones de escena, útiles para diseñar personajes que creen presión, humor, conflicto o una elección significativa. https://www.storytable.org/tropes
+- Barker Books Publishing, **“10 Types of Fantasy Characters to Write”**: recomienda evitar que las etiquetas de héroe, villano, raza o clase dicten toda la personalidad. Esto inspira a dar contradicciones y límites individuales a elfos, ogros, goblins, dragones y humanos. https://barkerbooks.com/types-of-fantasy-characters/
+
+### Manga y fantasía: lecciones amplias, no copias
+
+- **Frieren: Beyond Journey's End**, página oficial de VIZ: el contraste entre la larga vida de una elfa y la corta vida de sus compañeros permite explorar memoria, tiempo, arrepentimiento y vínculos que solo se comprenden tarde. En este libro, esa idea general aparece en la perspectiva de Eirwen y Vaeloria, sin copiar sus personalidades, diseño o historia. https://www.viz.com/frieren-beyond-journeys-end
+- **Luca the Dragon Vet**, página oficial de Kodansha: trata los dragones como seres vivos que requieren conocimiento, cuidado y trabajo especializado. La lección aplicada aquí es que una dragona puede ser maestra, vecina territorial, fuente de conocimiento o interlocutora difícil, no solo un jefe al que derrotar. https://kodansha.us/series/luca-the-dragon-vet/
+- **Dungeon Elf: What's a Dungeon without Treasure Chests?**, página oficial de Seven Seas Entertainment: juega con la pregunta de cómo aparecen objetos y cofres en las mazmorras. La idea útil para este mundo es preguntar quién explora, mantiene, recupera, registra y distribuye el botín; los tesoros no tienen que surgir sin una causa. https://sevenseasentertainment.com/series/dungeon-elf-whats-a-dungeon-without-treasure-chests/
+- **Fushigi Yûgi**, página oficial de VIZ: usa el traslado a un mundo de fantasía como marco para combinar peligros extraordinarios con necesidades cotidianas. Esta obra inspira el principio de que el protagonista debe seguir pensando en comida, dinero, descanso, relaciones y decisiones prácticas, además de la aventura. https://www.viz.com/fushigi-yugi
+
+### Regla para futuras incorporaciones
+
+Al investigar más obras, registra qué idea general se estudió —por ejemplo, «mentor milenario aburrido», «tribu incomprendida», «gremio con burocracia», «dungeon con ecología propia» o «viaje donde el tiempo tiene otro significado»— y luego cambia la combinación de personalidad, pasado, objetivos, apariencia, relaciones y desenlace. No basta con cambiar el nombre de un personaje famoso: el resultado debe funcionar como creación independiente.
+
+Las fuentes nombradas arriba son una primera muestra de investigación de tropos, no una afirmación de que se haya examinado exhaustivamente todo el manga, los libros o la fantasía publicados. El atlas puede seguir creciendo a medida que se investiguen obras y arquetipos adicionales.
 
 
 ---
