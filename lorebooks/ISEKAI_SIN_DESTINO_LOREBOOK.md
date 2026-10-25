@@ -985,6 +985,85 @@ Al investigar más obras, registra qué idea general se estudió —por ejemplo,
 Las fuentes nombradas arriba son una primera muestra de investigación de tropos, no una afirmación de que se haya examinado exhaustivamente todo el manga, los libros o la fantasía publicados. El atlas puede seguir creciendo a medida que se investiguen obras y arquetipos adicionales.
 
 
+
+## 21. Columna vertebral de la historia: vivir en un mundo que no se detiene
+
+### Propósito general
+
+La meta del protagonista no es convertirse en el elegido, derrotar a un Rey Demonio ni salvar obligatoriamente al mundo. Su meta básica es **vivir**: encontrar comida, un lugar donde dormir, trabajo, seguridad, amistades, experiencias, quizá amor, y descubrir qué clase de vida quiere construir en este mundo.
+
+Mientras lo hace, el mundo atraviesa acontecimientos que no dependen de él. Puede involucrarse, ayudar, sacar provecho, investigar, huir o no prestar atención. La aventura debe permitir una vida personal genuina sin perder el hilo de lo que está ocurriendo alrededor.
+
+La primera gran trama regional gira en torno a una erupción volcánica inminente. No es el fin del mundo ni una misión obligatoria. Es un hecho geográfico y social que afectará a unas regiones más que a otras. Servirá para comprobar la regla de los acontecimientos ancla y la causalidad emergente.
+
+**Regla editorial:** el calendario de abajo fija lo que sucede en el mundo, no una lista de escenas que el protagonista deba vivir. Un evento puede desarrollarse fuera de cámara y llegarle como noticia, consecuencia, rumor o pérdida de una ruta. El jugador no tiene que participar para que el mundo continúe.
+
+### Calendario de los primeros catorce días
+
+Los días se cuentan dentro del mundo, no por número de mensajes. La jornada avanza con el paso natural del tiempo, el descanso o los comandos explícitos de salto temporal. No se omiten automáticamente horas o escenas importantes para acelerar la trama.
+
+| Día | Acontecimiento del mundo | Libertad del protagonista |
+|---|---|---|
+| **Día 1** | El protagonista aparece en el Bosque de los Siete Ecos y se encuentra con los cinco aventureros adultos. En la distancia se oye un estruendo grave que podría ser un desprendimiento. Nadie sabe aún qué lo causó. | Puede conversar, desconfiar, pedir ayuda, rechazarla, desviarse del camino o separarse del grupo. El encuentro no obliga a viajar con ellos. |
+| **Día 2** | En Brumaclara, los viajeros comentan un temblor nocturno muy leve. El pozo de una calle tiene un sabor mineral extraño, pero también puede ser un problema de la bomba o de las tuberías. La mayoría sigue con sus rutinas. | Puede trabajar, buscar ropa, descansar, conocer gente, gastar dinero, evitar el tema o ni siquiera enterarse del rumor. |
+| **Día 3** | Se registra un segundo temblor en la región oriental. Un camino secundario queda bloqueado por una pequeña caída de piedras. No hay pruebas suficientes para declarar un desastre. | Puede completar el primer encargo, investigar el bloqueo, aprovechar una ruta alternativa o hacer algo totalmente distinto. La recompensa depende del encargo y de sus resultados. |
+| **Día 4** | Una caravana procedente del este llega tarde a su destino. Sus conductores describen vapor sobre unas laderas y una vibración bajo los pies, pero los relatos se contradicen. Berta pide que no se difunda una alarma sin pruebas. | Puede ir a Valdoria, quedarse en Brumaclara, viajar con la caravana, ayudar a los viajeros o ignorar el asunto. El viaje a la ciudad nunca es obligatorio. |
+| **Día 5** | En la Cuenca del Vidrio Negro ocurre un temblor más fuerte. Se abre una grieta en una galería antigua y aparece vapor caliente. Hilda pide que se cierre el acceso hasta inspeccionarlo. Las autoridades de la zona empiezan a discutir si deben evacuar asentamientos cercanos. | Puede encontrarse lejos y conocerlo por noticias posteriores, o estar cerca y decidir qué hacer. El bot no teletransporta al protagonista al lugar ni lo obliga a investigar. |
+| **Día 6** | Un nuevo temblor arroja ceniza oscura sobre algunos caminos orientales. Las autoridades locales emiten una advertencia de evacuación para los asentamientos más expuestos; algunas personas obedecen y otras se niegan por miedo a perder sus casas, cosechas o ganado. | Puede ayudar, transportar suministros, buscar empleo, refugiarse, sacar provecho de los precios alterados, marcharse o continuar con su vida en una zona segura. Las decisiones afectarán a personas y rutas concretas, no controlarán toda la región. |
+| **Día 7** | **Acontecimiento ancla: el volcán entra en erupción.** La erupción sucede a más tardar al final de este día de la cronología inicial. Si una cadena causal previa acelera el proceso, puede ocurrir antes. No se cancela por una acción casual del protagonista. | Su ubicación y sus preparativos determinan qué ve y qué riesgos enfrenta. Si está lejos, puede ver la columna de humo o enterarse por viajeros. Si está en peligro, el narrador presenta señales, obstáculos y opciones; nunca decide automáticamente que el protagonista escapa, se sacrifica o muere. |
+| **Día 8** | Las rutas más cercanas al volcán quedan cortadas o se vuelven inseguras. Llegan refugiados a las poblaciones conectadas por caminos transitables. Cambian los precios de ciertos alimentos, animales de carga y alojamientos en los lugares afectados. | Puede ofrecer ayuda, comerciar, buscar trabajo, viajar por otra ruta, evitar la zona o perseguir un objetivo personal. No todos los lugares sufren escasez ni todos los comerciantes se aprovechan de la crisis. |
+| **Día 9** | El gremio y varias comunidades publican contratos de rescate, entrega de medicinas, búsqueda de desaparecidos, reparación de caminos y protección de almacenes. Los contratos tienen pagos y riesgos distintos. | Puede aceptar uno, negociar su recompensa, ayudar sin contrato, rechazar todo o continuar con otra actividad. |
+| **Día 10** | Hilda comunica sus primeras observaciones sobre los túneles y las vibraciones. No ofrece una explicación completa: necesita comparar mediciones y testimonios. Las versiones oficiales sobre la causa de la erupción difieren. | Puede investigar, buscar fuentes independientes o no involucrarse. No se confirma automáticamente una conspiración, un hechizo o un culpable. |
+| **Día 11** | Las comunidades empiezan a discutir sobre las rutas, los daños, la responsabilidad y el reparto de suministros. Algunos rumores son verdaderos, otros exagerados y otros interesadamente falsos. | Puede mediar, comerciar, viajar, escuchar rumores o crear relaciones. Sus palabras pueden influir en quienes le escuchen, pero no deciden por sí solas el resultado político. |
+| **Día 12** | Se abre una ruta provisional tras las primeras inspecciones. No todos los caminos están despejados y algunas caravanas siguen desviándose por seguridad. | Puede viajar, quedarse, explorar trabajos nuevos o ayudar a mejorar el camino. La duración y el coste del viaje dependen de la ruta real disponible. |
+| **Día 13** | La vida cotidiana vuelve de forma desigual: hay mercados que reabren, familias que regresan y otras que deciden marcharse. Las consecuencias personales y económicas siguen presentes. | Puede construir una rutina, establecerse, cambiar de profesión, formar una relación, buscar aventuras o continuar viajando. No existe una misión que deba aceptar. |
+| **Día 14** | Se celebra una reunión regional para coordinar reparaciones, rutas comerciales y asistencia a quienes lo perdieron todo. No resuelve todos los desacuerdos; define prioridades y deja problemas pendientes para futuras tramas. | Puede asistir, trabajar durante la reunión, aprovechar el mercado, ignorar la política o marcharse a otra región. Las futuras historias pueden desarrollarse a partir de las decisiones tomadas, pero no se imponen todas al protagonista. |
+
+### Qué está fijado y qué queda abierto
+
+**Fijado para esta primera trama:**
+- El protagonista llega al mundo sin recursos especiales y conoce al grupo inicial el día 1.
+- En los primeros días aparecen señales cada vez más claras de un problema geológico en la región oriental.
+- La población recibe avisos y tiene oportunidad de reaccionar, aunque no toda la gente les haga caso.
+- La erupción volcánica sucede como máximo el día 7 de esta cronología inicial, salvo que una cadena causal coherente la adelante.
+- Después hay consecuencias reales: rutas bloqueadas, desplazamientos, cambios de precio, trabajos de ayuda, disputas sobre recursos y recuperación desigual.
+
+**No fijado:**
+- Si el protagonista estará cerca del volcán.
+- Si salvará a alguien concreto, sufrirá una pérdida o no tendrá daños directos.
+- Si se hará aventurero, comerciante, trabajador, ladrón, investigador, pareja de alguien o viajero independiente.
+- Qué personajes se volverán sus amigos, rivales o parejas.
+- Quién tiene la razón en cada disputa o qué rumores resultarán verdaderos.
+- Si las acciones previas del protagonista aceleran el volcán, alteran el daño o no afectan directamente al fenómeno.
+- Qué gran acontecimiento llegará después del día 14. Esa etapa se planificará cuando se decida qué regiones y temas interesa desarrollar.
+
+### Reglas para evitar que la historia se desvíe o se vuelva rígida
+
+1. **Un ancla no es una escena obligatoria.** El evento pasa en el mundo, pero el protagonista no tiene que verlo ni participar.
+2. **No conviertas cada actividad secundaria en una pista volcánica.** El romance, el trabajo, los robos, las compras, las amistades y los viajes pueden tener consecuencias locales y existir por sí mismos.
+3. **Los plazos no se detienen.** Si el protagonista pasa varios días en la posada y utiliza `/salto`, el calendario sigue avanzando; el mundo no espera a que termine su romance o su trabajo.
+4. **No saltes escenas por cuenta propia.** Aunque la cronología avance, narra la situación actual y espera las decisiones. Solo resume el intervalo que el usuario haya autorizado saltar.
+5. **Las consecuencias deben ser proporcionales y trazables.** Una infracción menor no debe provocar una catástrofe sin una cadena de causas; una acción pequeña sí puede desencadenar consecuencias grandes si los eslabones son plausibles.
+6. **La erupción no es un examen moral.** El protagonista no tiene que salvar a nadie para ser válido como protagonista; el mundo tendrá que continuar con o sin su ayuda.
+7. **No garantices seguridad o desastre personal.** La ubicación, la preparación y las decisiones influyen en los riesgos, pero no prometas supervivencia automática ni impongas una muerte sin dar espacio a resolver una situación jugable.
+8. **El objetivo es vivir.** La historia debe dejar tiempo y espacio para rutinas, humor, descubrimientos, descanso, intimidad consensuada entre adultos, problemas ordinarios y decisiones egoístas o generosas. La trama mayor forma parte de ese mundo, no reemplaza la vida del protagonista.
+
+### Hoja de seguimiento de días
+
+Al cerrar una sesión, conservar este resumen:
+- Día del mundo y franja horaria:
+- Lugar actual del protagonista:
+- Próximo acontecimiento ancla y tiempo estimado:
+- Señales del evento que el protagonista conoce:
+- Qué ha ocurrido realmente fuera de su vista:
+- Rutas disponibles y rutas afectadas:
+- Personas y comunidades afectadas por sus acciones:
+- Consecuencias secundarias pendientes:
+- Dinero, inventario, heridas y compromisos:
+- Rumores todavía no confirmados:
+
+Nunca revelar automáticamente al protagonista la columna vertebral completa. El escritor puede saber que el volcán entrará en erupción el día 7; el personaje solo sabe lo que ha visto, escuchado o investigado.
+
 ---
 
 ## Nota de diseño
