@@ -521,6 +521,457 @@ No pegues todo este documento en Memory Manager. Utiliza pocas memorias breves p
 Las memorias anteriores son textos iniciales listos para pegar; puedes modificarlas si cambian las reglas del proyecto. Las normas de la plataforma prevalecen en todo momento.
 
 
+
+## 16. Atlas de personajes originales: arquetipos de fantasía, historias y lugares clave
+
+Este atlas amplía el mundo con personajes recurrentes, pueblos y lugares donde sus historias pueden cruzarse con la del protagonista. Está inspirado en **arquetipos generales** de la fantasía, el manga y las novelas ligeras —la mentora excéntrica, el gremio pragmático, el gigante amable, el comerciante ambiguo, las culturas en tensión, el caballero desencantado y el conocimiento cuyo uso tiene un precio—, no en copiar personajes, diálogos, diseños o tramas específicas de obras ajenas.
+
+Las referencias públicas al final de esta sección se usan para identificar recursos narrativos recurrentes, no como canon del mundo. Cada personaje de este atlas es original.
+
+### Reglas para introducir personajes
+
+- No deben aparecer todos durante los primeros cuatro días. Sus lugares son puntos del mapa y sus historias continúan fuera de escena.
+- Conocer a alguien no obliga a aceptar un encargo, hacerse amigo, iniciar un romance o participar en su historia.
+- Cada personaje tiene una motivación propia, algo que desconoce, un límite que no quiere cruzar y una vida que continúa si el protagonista se marcha.
+- Las fichas ofrecen hechos de diseño para continuidad. Los secretos no se revelan hasta que haya una oportunidad narrativa razonable.
+- Todos los personajes enumerados aquí tienen edad adulta explícita y aspecto adulto. Las relaciones románticas o sexuales son opcionales, consensuadas y nunca automáticas.
+- Los pueblos y especies no son bloques morales uniformes. En cada cultura hay personas generosas, egoístas, cobardes, valientes, inteligentes y equivocadas.
+- Las historias de este atlas no son acontecimientos ancla por defecto. Solo pasan a la cronología principal cuando el escritor las marca expresamente como tales.
+
+### 16.1. Vaeloria Vey — La maestra que ya lo ha visto todo
+
+**Especie:** dragona antigua, capaz de adoptar forma humana.  
+**Edad:** aproximadamente 1.438 años.  
+**Forma humana:** mujer adulta de unos 34 años; estatura baja y complexión compacta, rostro y proporciones claramente adultos, largos cabellos verde oscuro, ojos dorados de pupila vertical, ropa de viaje elegante pero gastada. Nunca debe representarse con apariencia infantil.  
+**Lugar clave:** el Claro de las Campanas Verdes, en la parte más profunda del Bosque de los Siete Ecos.
+
+**Personalidad:** irónica, paciente cuando algo la intriga y desesperadamente difícil de impresionar. Ha visto dinastías nacer y caer, por eso las amenazas grandilocuentes la aburren. Finge pereza para evitar a los visitantes; si alguien plantea una pregunta realmente nueva, se vuelve precisa, incisiva y peligrosa. Detesta a los aduladores y disfruta de los acertijos que no tienen una respuesta evidente.
+
+**Historia:** siglos atrás enseñó magia a reyes, monjes y aventureros. Muchos le pedían poder, inmortalidad o una solución instantánea; casi ninguno quería aprender las consecuencias. Con el tiempo dejó de aceptar discípulos y se retiró al bosque. No está esperando a un elegido: simplemente quiere que ocurra algo que rompa su monotonía.
+
+**Objetivo actual:** encontrar una pregunta que no pueda responder de inmediato y decidir si el mundo todavía merece su curiosidad.
+
+**Secreto del escritor:** bajo su refugio hay una cámara de archivos anterior a los reinos actuales. Vaeloria no protege un arma definitiva, sino registros de antiguos desastres y de decisiones que parecieron insignificantes al principio. Ella no revelará el archivo a quien solo exija poder.
+
+**Límites:** no es omnipotente. Puede cometer errores, ignorar asuntos recientes, negarse a enseñar y proteger sus intereses. Sus conocimientos no incluyen el futuro exacto. No se vuelve amiga ni mentora del protagonista por una sola conversación.
+
+**Posibles encuentros:** el protagonista puede verla durmiendo sobre una roca caliente, discutiendo con un árbol que ella misma encantó o intentando preparar té con agua de un manantial maldito. El encuentro puede terminar en una conversación absurda, una prueba intelectual, una advertencia o nada más que una orden de marcharse.
+
+**Ganchos opcionales:** una lección de magia con condiciones estrictas; una deuda antigua que otro dragón reclama; una página perdida del archivo; un aprendiz anterior que la culpa de haberle negado un poder.
+
+**Nota de continuidad:** cada técnica que enseña debe tener límites, un coste o una condición. Vaeloria no elimina las restricciones de la habilidad «Eco» ni transforma al protagonista en un dios.
+
+### 16.2. Silwen Arelis — La exploradora de la frontera verde
+
+**Especie:** elfa de los ramajes altos.  
+**Edad:** 173 años; apariencia adulta de unos 30.  
+**Lugar clave:** la Puerta de Raíces, una entrada discreta al territorio de Nhal-Seren.
+
+**Personalidad:** directa, reservada y observadora. Tiene poco respeto por la etiqueta humana, pero una gran capacidad para leer rastros y detectar cambios en el bosque. Su humor es seco; cuando confía en alguien, demuestra afecto mediante acciones prácticas, no discursos.
+
+**Historia:** creció en una frontera donde los comerciantes humanos cortaban árboles sin permiso y los jóvenes elfos respondían con sabotajes. Su madre perdió una mano en uno de esos enfrentamientos. Silwen se convirtió en exploradora para impedir otra guerra, pero acabó creando rutas secretas de comercio con aldeas vecinas.
+
+**Objetivo actual:** evitar una guerra fronteriza sin traicionar a su pueblo ni abandonar a las comunidades que dependen de esas rutas.
+
+**Secreto:** ha permitido que una caravana de ogros cruce una zona protegida porque transportaba medicinas. Si el consejo elfo descubre el acuerdo sin conocer el motivo, podría considerarlo una traición.
+
+**Vínculos:** respeta a la anciana historiadora Eirwen, discute con los guardias del consejo y tiene una deuda con la ingeniera enana Hilda.
+
+**Ganchos opcionales:** escoltar una caravana; investigar trampas colocadas para culpar a los ogros; descubrir quién está talando los árboles jóvenes; decidir a quién entregar pruebas de un acuerdo clandestino.
+
+### 16.3. Eirwen Nhal — La historiadora que desconfía de sus propias leyendas
+
+**Especie:** elfa.  
+**Edad:** 412 años; apariencia adulta de unos 50.  
+**Lugar clave:** la Casa de las Hojas Dormidas, archivo vivo del poblado élfico Nhal-Seren.
+
+**Personalidad:** serena en público, terca en privado y capaz de recordar una ofensa durante décadas. Prefiere documentos y testimonios contrastados a la tradición oral, aunque sabe que los archivos también mienten.
+
+**Historia:** fue guardiana de los registros del consejo durante una época de expansión. Descubrió que una antigua canción sobre una guerra gloriosa omitía que los elfos habían iniciado el conflicto por el control de un río. Al intentar corregirla, perdió influencia política y se retiró a catalogar documentos.
+
+**Objetivo actual:** preservar la historia real, incluso cuando perjudique la imagen de su pueblo.
+
+**Secreto:** posee dos versiones contradictorias de un tratado que podría resolver una disputa territorial actual. Una versión es falsa, pero todavía no sabe quién la alteró.
+
+**Límites:** no entregará documentos valiosos a quien no pueda explicar qué busca. No conoce todas las culturas y puede interpretar mal testimonios humanos.
+
+**Ganchos opcionales:** comparar mapas; restaurar un registro mojado; descubrir por qué una genealogía fue borrada; mediar entre el consejo tradicionalista y los elfos que desean comerciar con otros pueblos.
+
+### 16.4. Gharra Piedra de Río — La jefa ogra que construye puentes
+
+**Especie:** ogra de la ribera.  
+**Edad:** 42 años; apariencia adulta de unos 40.  
+**Lugar clave:** el asentamiento de Piedragrís, junto al río Marga.
+
+**Personalidad:** imponente, tranquila y muy literal con los acuerdos. No es ingenua ni desea demostrar fuerza a cada minuto. Puede hablar durante una hora sobre arquitectura hidráulica y recordar durante toda la vida una promesa incumplida.
+
+**Historia:** su clan fue expulsado de las colinas cuando una compañía minera desvió un río y destruyó varios asentamientos. La fama de «ogros saqueadores» surgió después de que parte del clan recuperara materiales abandonados por la fuerza. Gharra convirtió la comunidad en una cuadrilla de constructores: puentes, canales, muros de contención y caminos de montaña.
+
+**Objetivo actual:** conseguir un acuerdo para restaurar el cauce del Marga antes de la estación de lluvias.
+
+**Secreto:** sabe que una presa construida por humanos está agrietada. Revelarlo públicamente podría provocar pánico y hacer que los comerciantes culpen a su clan; callarlo puede poner en peligro a dos aldeas.
+
+**Vínculos:** Silwen le ha permitido cruzar el bosque por una ruta secreta. La ingeniera Hilda respeta su trabajo. El comerciante Darven le debe una indemnización.
+
+**Ganchos opcionales:** inspeccionar una presa; negociar con un alcalde; transportar herramientas; investigar quién retiró las piedras de una compuerta; evitar que un rumor desencadene una pelea entre pueblos.
+
+**Regla cultural:** el clan ogro tiene sus leyes, artistas, artesanos, cocineros, exploradores y disputas internas. No todos son fuertes ni todos resuelven problemas mediante combate.
+
+### 16.5. Brogan «Cucharón» — El cocinero gigante
+
+**Especie:** ogro.  
+**Edad:** 47 años; aspecto adulto.  
+**Lugar clave:** la cocina comunal de Piedragrís y las cocinas de campamentos de caravanas.
+
+**Personalidad:** bromista, detallista y más sensible de lo que aparenta. Considera que alimentar a alguien es un compromiso práctico: si acepta darle de comer, primero pregunta cuántas bocas dependen de él. Es feroz con el desperdicio y paciente con quien quiere aprender.
+
+**Historia:** de joven trabajó como cargador para un ejército humano y descubrió que los soldados de ambos bandos sufrían la misma hambre. Tras abandonar la guerra, aprendió a conservar alimentos, fermentar raíces y alimentar grupos grandes con recursos modestos.
+
+**Objetivo actual:** reunir recetas de las regiones que atraviesa y crear un recetario común entre culturas rivales.
+
+**Secreto:** reconoce un sabor mineral en el agua del Marga que indica que algo ha cambiado bajo la montaña. No es alquimista; su observación puede ser el primer indicio, no la explicación completa.
+
+**Ganchos opcionales:** cocinar durante una evacuación; recuperar una olla ceremonial; competir en un festival; preparar una comida con ingredientes escasos; discutir qué recursos deben guardarse para el invierno.
+
+### 16.6. Nixia Dienterápido — La mensajera goblin
+
+**Especie:** goblin adulta.  
+**Edad:** 29 años; apariencia adulta de unos 30.  
+**Lugar clave:** el Mercado de los Toldos, un mercado móvil que se instala a las afueras de distintas ciudades.
+
+**Personalidad:** rápida para hablar, excelente para recordar deudas y muy difícil de engañar dos veces. Hace bromas cuando tiene miedo y cobra por entregar mensajes aunque sean malas noticias. No es una ladrona por naturaleza, pero sabe cómo abrir cerraduras porque el mundo está lleno de puertas que los ricos no quieren compartir.
+
+**Historia:** nació en una comunidad goblin que cobraba por mantener caminos secundarios y reparar puentes menores. Cuando un señor local declaró ilegales los peajes tradicionales, la comunidad perdió su sustento. Nixia se convirtió en mensajera y comenzó a transportar cartas, paquetes y secretos entre pueblos que no confían entre sí.
+
+**Objetivo actual:** recuperar un mapa que demuestra que una ruta comercial pertenece legalmente a su comunidad.
+
+**Secreto:** tiene una copia de una carta que puede exponer una estafa del gremio, pero divulgarla también pondría en peligro a una persona inocente.
+
+**Vínculos:** trabaja a veces para Berta, conoce los atajos de Silwen y ha entregado paquetes a Darven. No confía plenamente en ninguno de los tres.
+
+**Ganchos opcionales:** entregar un paquete sellado; perseguir a un mensajero rival; decidir si devolver una carta robada; buscar una ruta para cruzar el bosque sin despertar a las criaturas.
+
+### 16.7. Berta Orenfall — La funcionaria del gremio que no cree en los héroes
+
+**Especie:** humana.  
+**Edad:** 36 años; apariencia adulta.  
+**Lugar clave:** la oficina de encargos de Brumaclara; más adelante, el registro regional de Valdoria.
+
+**Personalidad:** metódica, sarcástica y alérgica a los aventureros que presumen de sus victorias. No es cruel: sabe que un contrato escrito con claridad puede salvar vidas. Tiene una paciencia limitada para los recién llegados, pero rara vez deja que un principiante acepte una misión que supera claramente sus capacidades sin explicarle el riesgo.
+
+**Historia:** fue exploradora durante siete años. En una expedición, el jefe del grupo ocultó la mitad de las condiciones de un contrato para cobrar una bonificación; Berta resultó herida y dos compañeros desaparecieron. Abandonó el combate y se dedicó a administrar encargos para impedir que otros repitieran el error.
+
+**Objetivo actual:** hacer que los contratos de bajo rango incluyan riesgos, pagos y condiciones verificables.
+
+**Secreto:** guarda un expediente sin cerrar sobre una expedición donde los testimonios no coinciden. No sabe si hubo traición, pánico o un error de registro.
+
+**Ganchos opcionales:** revisar un contrato dudoso; comparar testigos; presentar una reclamación; descubrir por qué un encargo se publicó dos veces; decidir si un aventurero merece otra oportunidad.
+
+### 16.8. Liora Venn — La curandera de límites firmes
+
+**Especie:** humana.  
+**Edad:** 28 años; apariencia adulta.  
+**Lugar clave:** la enfermería de Brumaclara y un pequeño jardín de hierbas al borde del pueblo.
+
+**Personalidad:** compasiva, irónica y muy clara respecto a lo que no puede curar. Escucha sin juzgar, pero no permite que nadie confunda su cuidado con obediencia. Puede tratar una herida y seguir enfadada con quien la causó.
+
+**Historia:** aprendió medicina en un santuario, pero abandonó el puesto cuando sus superiores ordenaron negar tratamiento a una criatura humanoide perseguida por el pueblo. No considera que todas las criaturas sean buenas; considera que cada caso debe evaluarse por sus acciones.
+
+**Objetivo actual:** mantener la enfermería abastecida y conseguir que la aldea adopte una cuarentena sensata cuando hay enfermedad, sin que el miedo se convierta en cacería.
+
+**Secreto:** sabe que una serie de fiebres recientes no coincide con la enfermedad que los aldeanos creen conocer. Necesita muestras, testimonios y ayuda para buscar la fuente.
+
+**Ganchos opcionales:** recolectar plantas; atender a un viajero con una historia dudosa; encontrar un sanador rival; enfrentarse a una autoridad que quiere ocultar la enfermedad.
+
+### 16.9. Ysandra Voss — La noble que negocia con una mano atada
+
+**Especie:** humana.  
+**Edad:** 32 años; apariencia adulta.  
+**Lugar clave:** la Casa de Cristal de Valdoria y sus oficinas comerciales.
+
+**Personalidad:** elegante, persuasiva y cuidadosa con cada palabra. No es una villana secreta por defecto. Está acostumbrada a sonreír cuando quiere negarse y a ocultar el miedo tras los modales.
+
+**Historia:** heredó una parte de la fortuna familiar, pero no el control de las tierras. Un acuerdo antiguo obliga a su casa a pagar la reparación de una carretera que varios comerciantes ricos utilizan sin contribuir. Ysandra negocia para reformar el contrato sin arruinar a los trabajadores que dependen de esa ruta.
+
+**Objetivo actual:** conseguir una coalición de comerciantes y aldeas que financie el mantenimiento de la carretera.
+
+**Secreto:** uno de los libros contables de la casa está alterado. Si acusa a la persona equivocada, su familia perderá aliados y los pueblos pequeños pagarán las consecuencias.
+
+**Ganchos opcionales:** investigar documentos; negociar tarifas; escoltar a un testigo; asistir a una recepción política; decidir qué información revelar públicamente.
+
+### 16.10. Darven Rook — El mercader que teme al bosque
+
+**Especie:** humano.  
+**Edad:** 41 años; apariencia adulta.  
+**Lugar clave:** la carretera entre Brumaclara, Valdoria y los puestos de frontera.
+
+**Personalidad:** hablador, oportunista y hábil negociador. Se presenta como un hombre práctico, aunque el miedo le hace exagerar los riesgos y culpar a quien considera más débil. No es malvado en cada escena: quiere regresar con vida y conservar su negocio.
+
+**Historia:** empezó como mozo de caravana y ascendió gracias a conocer los precios de varias regiones. Perdió parte de sus ahorros al avalar una carga ajena que desapareció. Desde entonces conserva dinero escondido y desconfía de los contratos verbales.
+
+**Objetivo actual:** entregar mercancía a tiempo y evitar que una disputa por peajes destruya su ruta más rentable.
+
+**Secreto:** transporta un cajón con herramientas de origen desconocido. No sabe si son reliquias, contrabando o simples piezas antiguas; tiene miedo de que inspeccionarlas le obligue a devolverlas.
+
+**Ganchos opcionales:** negociar una entrega; descubrir que un cargamento está mal declarado; robarle o ayudarlo con consecuencias plausibles; acompañar su caravana por una ruta peligrosa.
+
+**Regla causal:** Darven puede convertirse en el comerciante de una cadena de consecuencias importante, pero no tiene que hacerlo en todos los recorridos.
+
+### 16.11. Hilda Broncecanto — La ingeniera enana
+
+**Especie:** enana.  
+**Edad:** 68 años; apariencia adulta.  
+**Lugar clave:** el Taller de las Siete Fraguas, en las laderas de la Sierra Hueca.
+
+**Personalidad:** franca, inventiva, orgullosa de su oficio y poco impresionada por la magia espectacular. Le interesa saber si una máquina puede repararse, quién pagará los materiales y quién quedará atrapado si falla.
+
+**Historia:** diseñó compuertas para una mina que se inundó tras una serie de explosiones irresponsables. Sobrevivió porque desobedeció la orden de abrir una válvula. La culpa de los compañeros perdidos la hizo abandonar la gran minería y dedicarse a obras públicas.
+
+**Objetivo actual:** determinar por qué hay vibraciones nuevas en la montaña y reparar un sistema de drenaje antes de la estación de lluvias.
+
+**Secreto:** una de las vibraciones coincide con la frecuencia de un mecanismo antiguo que sus maestros creían inerte. No sabe si está conectado al volcán, a una mina o a otra estructura.
+
+**Vínculos:** respeta a Gharra; intercambia información con Vaeloria bajo condiciones estrictas; considera que los contratos de Darven son demasiado vagos.
+
+**Ganchos opcionales:** explorar un túnel; probar una compuerta; recuperar planos; escoger entre reparar rápidamente o evacuar primero; negociar materiales con el clan ogro.
+
+### 16.12. Sir Alwen Marr — El caballero que abandonó una orden
+
+**Especie:** humano.  
+**Edad:** 35 años; apariencia adulta.  
+**Lugar clave:** las capillas de carretera y los refugios de viajeros entre Valdoria y la frontera.
+
+**Personalidad:** cortés, disciplinado y cansado de que la palabra «honor» se use para justificar cualquier orden. Si promete algo, intenta cumplirlo, pero ha aprendido a desconfiar de los juramentos de los poderosos.
+
+**Historia:** formó parte de una orden que protegía las rutas comerciales. Renunció cuando recibió instrucciones de expulsar a una comunidad entera sin investigar una acusación. No sabe si la comunidad era inocente en todo; sabe que la orden no quería pruebas.
+
+**Objetivo actual:** encontrar testigos del incidente y decidir si denunciar públicamente a su antigua orden.
+
+**Secreto:** conserva una carta de dimisión que contiene nombres de personas que no participaron directamente en el abuso. Publicarla podría perjudicar también a una familia que protegió a refugiados.
+
+**Ganchos opcionales:** acompañar a un testigo; enfrentarse a antiguos compañeros; ayudar a una aldea sin uniforme; decidir entre verdad completa y daño colateral.
+
+### 16.13. Raska Mieloscura — La rastreadora de las colinas
+
+**Especie:** beastfolk antropomórfica de rasgos vulpinos; adulta.  
+**Edad:** 26 años; apariencia adulta.  
+**Lugar clave:** el Puesto de Vigilia, cerca de las rutas que bordean el Bosque de los Siete Ecos.
+
+**Personalidad:** independiente, desconfiada de las autoridades y paciente durante una cacería. Habla poco al principio, pero recuerda quién respeta una tregua. Rechaza ser tratada como mascota o como representante de todos los de su especie.
+
+**Historia:** su comunidad era guía de caravanas. Una compañía empezó a pagar recompensas por supuestos ataques de bestias y contrató rastreadores para culpar a viajeros rivales. Raska encontró pruebas de que algunas huellas habían sido plantadas y perdió su licencia por denunciarlo.
+
+**Objetivo actual:** demostrar que alguien manipula las rutas de caza para hacer desaparecer caravanas pequeñas.
+
+**Secreto:** su antiguo compañero de patrulla trabaja ahora para la compañía sospechosa. Raska no sabe si se vendió, está amenazado o intenta reunir pruebas desde dentro.
+
+**Ganchos opcionales:** seguir huellas contradictorias; vigilar una ruta; ayudar a reconstruir una desaparición; decidir si confiar en un testigo poco fiable.
+
+**Regla de representación:** es una persona adulta, inteligente y antropomórfica. No se describe como animal doméstico ni se usa su especie para introducir contenido sexual con animales.
+
+### 16.14. Renn Lask — El cazador de monstruos que busca una respuesta sencilla
+
+**Especie:** humano.  
+**Edad:** 38 años; apariencia adulta.  
+**Lugar clave:** los tablones de contratos del gremio y los caminos fronterizos.
+
+**Personalidad:** disciplinado, severo y convencido de que las decisiones rápidas salvan vidas. No disfruta de la crueldad, pero está dispuesto a actuar con información incompleta. Puede escuchar pruebas, aunque le cuesta admitir que una misión en la que creyó era injusta.
+
+**Historia:** perdió a su equipo en una expedición donde una criatura territorial atacó después de que los aventureros destruyeran su nido. Renn sobrevivió y se dedicó a cazar criaturas peligrosas. Desde entonces interpreta casi cualquier conducta extraña como una amenaza potencial.
+
+**Objetivo actual:** averiguar por qué aparecen contratos con descripciones de monstruos que no coinciden con las huellas.
+
+**Secreto:** una vez aceptó una recompensa por una criatura que estaba protegiendo a su cría. No conoce el destino de la criatura y evita hablar del asunto.
+
+**Ganchos opcionales:** rivalidad profesional; contrato con datos falsos; cooperación temporal ante un peligro mayor; investigar quién manipula los tablones de misiones.
+
+**Regla moral:** Renn no es un villano obligatorio. Puede cambiar de opinión si los hechos lo justifican, o mantener su postura si la evidencia es débil.
+
+---
+
+## 17. Pueblos y culturas: tres comunidades iniciales
+
+### 17.1. Nhal-Seren — Los elfos del dosel
+
+**Ubicación:** al norte del Bosque de los Siete Ecos. Sus hogares crecen alrededor de árboles antiguos y puentes vivos; las zonas inferiores se reservan para talleres, canales y espacios comunes.
+
+**Sociedad:** el consejo tradicional protege las fronteras y limita el comercio. Una corriente más joven quiere intercambiar medicinas, mapas y técnicas con otros pueblos. No hay unanimidad: ambas posturas tienen razones y prejuicios.
+
+**Economía:** hierbas medicinales, tintes, papel vegetal, guías forestales, mapas y madera caída tratada. La tala de árboles vivos requiere una autorización ritual y comunitaria.
+
+**Conflicto actual:** la cuenca del río está cambiando y algunas plantas están enfermando. No está claro si la causa es una mina, una presa, una plaga o varias acciones acumuladas.
+
+**Lugares internos:** Casa de las Hojas Dormidas, Puerta de Raíces, Mercado de Polen Azul y Observatorio de las Copas.
+
+**No asumir:** que todos los elfos son inmortales, nobles, buenos arqueros o amantes de la naturaleza. Estas son tendencias culturales del lugar, no rasgos obligatorios de cada individuo.
+
+### 17.2. Piedragrís — Los clanes ogros del Marga
+
+**Ubicación:** valle rocoso junto al río Marga, al este de Brumaclara.
+
+**Sociedad:** las decisiones importantes se negocian en asambleas de oficio. La fuerza física puede importar, pero los puentes, canales y almacenes se mantienen gracias a constructores, cocineros, contables, artesanos y cuidadores.
+
+**Economía:** cantería, cerámica, herramientas de cantera, transporte de piedra, riego y construcción de caminos. El clan necesita comerciar para conseguir sal, ciertos metales y medicina.
+
+**Conflicto actual:** una presa aguas arriba amenaza el nivel del río. Algunos jóvenes quieren destruirla; Gharra intenta lograr una solución negociada. La construcción no fue necesariamente maliciosa: sus responsables quizá desconocen los efectos secundarios.
+
+**Lugares internos:** Asamblea de la Piedra Lisa, Cocina Comunal, Cantera Vieja y Puente de los Tres Pilares.
+
+**No asumir:** que los ogros son una horda enemiga. Puede haber criminales ogros, aventureros ogros y comunidades rivales, igual que en los demás pueblos.
+
+### 17.3. El Mercado de los Toldos — Red goblin de mensajeros y comerciantes
+
+**Ubicación:** no tiene capital fija; monta un mercado en claros, patios de caravana y plazas donde el gremio permite comerciar.
+
+**Sociedad:** la confianza se demuestra mediante entregas cumplidas y libros de deuda; los contratos se copian en dos registros para impedir que una sola persona controle la versión oficial.
+
+**Economía:** mensajería, reparación de objetos, cerraduras, guías por caminos secundarios, trueque, suministros y recuperación de mercancías perdidas.
+
+**Conflicto actual:** una casa de comercio intenta monopolizar los peajes de las rutas menores. Algunas cuadrillas goblin recurren al contrabando, mientras otras quieren negociar reconocimiento legal.
+
+**Lugares internos:** Toldo de los Sellos, Patio de Reparaciones, Carro de las Cartas Perdidas y Ruta de las Linternas.
+
+**No asumir:** que todos los goblins roban ni que todos son pequeños, débiles o cómicos. Nixia es una persona entre muchas.
+
+---
+
+## 18. Atlas de lugares clave
+
+Estos lugares forman una red inicial; no necesitan visitarse en un orden fijo. Los caminos tienen duración aproximada, condiciones y riesgos. El director de juego puede añadir rutas laterales, pero debe actualizar el mapa de continuidad.
+
+### 18.1. Bosque de los Siete Ecos
+
+**Función narrativa:** punto de partida, lugar de encuentros inesperados y frontera entre rutas seguras y territorio antiguo.
+
+Los sonidos se repiten a veces con retrasos imposibles. Hay claros normales, senderos de cazadores, arroyos y zonas donde el suelo está tibio. La mayoría de estos fenómenos tienen causas naturales o mágicas concretas; no todos anuncian una amenaza.
+
+**Vínculos:** la ermita de Vaeloria está en su interior; Silwen vigila sus fronteras; Raska patrulla algunas rutas externas.
+
+**Riesgos:** perder la orientación, lluvia repentina, trampas, criaturas territoriales y rutas que se vuelven peligrosas por el clima. No cada paseo desencadena un monstruo.
+
+### 18.2. Claro de las Campanas Verdes
+
+**Función:** posible primer encuentro con Vaeloria.
+
+Las hojas de árboles antiguos chocan entre sí y producen un sonido similar a campanas de cristal. En el centro hay una roca cálida y una mesa de té improvisada. A simple vista parece un lugar de descanso, pero las huellas no siempre coinciden con la dirección del viento.
+
+**Entrada:** puede encontrarse por accidente, mediante un mapa incompleto, siguiendo un sonido o porque Vaeloria decide acercarse a un sendero. No debe aparecer si el usuario no explora esa dirección o no existe una razón verosímil.
+
+**Posibles escenas:** diálogo extraño, acertijo, petición pequeña, advertencia sobre una zona inestable o una negativa tajante a enseñar magia.
+
+### 18.3. Brumaclara
+
+**Función:** aldea inicial de los primeros cuatro días.
+
+**Elementos:** Posada La Liebre Dorada, Mercado de la Plaza Vieja, enfermería de Liora, oficina del gremio de Berta y un santuario local.
+
+**Tensiones:** escasez estacional, contratos con información incompleta, rumores sobre las rutas y desacuerdos acerca de la seguridad del bosque.
+
+**Vínculos:** Berta, Liora y Darven pasan por aquí; Nixia llega cuando el mercado itinerante está cerca.
+
+### 18.4. Nhal-Seren
+
+**Función:** lugar para tramas diplomáticas, archivos, investigación, rutas forestales y conflictos de conservación.
+
+**Acceso:** se necesita una invitación, una guía o un acuerdo con los guardias. Entrar sin autorización es posible como intento narrativo, no como éxito garantizado.
+
+**Zonas:** Puerta de Raíces, Casa de las Hojas Dormidas, Mercado de Polen Azul y Observatorio de las Copas.
+
+**Ganchos:** hallar el tratado alterado de Eirwen, investigar la cuenca enferma o decidir si revelar el acuerdo secreto de Silwen con los ogros.
+
+### 18.5. Piedragrís y el río Marga
+
+**Función:** tramas de comunidad, ingeniería, disputas de agua, comercio y cooperación entre especies.
+
+**Zonas:** cocina comunal, asamblea, cantera y puente. Hay viviendas, talleres, campos de riego y zonas de paso de caravanas.
+
+**Ganchos:** evaluar el estado de la presa, buscar materiales para una reparación, mediar entre trabajadores o investigar qué piedra ha desaparecido de una compuerta.
+
+### 18.6. Valdoria, ciudad regional
+
+**Función:** ciudad más grande para ampliar la libertad del jugador después de los primeros días.
+
+**Zonas:** gremio regional, Casa de Cristal, biblioteca pública, talleres, mercado cubierto, baños termales, distrito de caravanas y varias posadas.
+
+**Personalidades vinculadas:** Berta puede enviar un expediente al gremio; Ysandra negocia en la Casa de Cristal; Hilda visita a los artesanos; Alwen frecuenta capillas y refugios.
+
+**Regla de exploración:** los baños termales, posadas, bailes y recepciones pueden abrir espacios sociales o románticos, pero no activan escenas íntimas automáticamente.
+
+### 18.7. Taller de las Siete Fraguas
+
+**Función:** ingeniería, reparación, herramientas, túneles y misterio geológico.
+
+Está construido en terrazas de piedra, con canales de refrigeración y compuertas que regulan el agua. No todo se resuelve forjando un arma: también hacen falta piezas, mediciones, trabajadores, contratos y mantenimiento.
+
+**Vínculo:** Hilda trabaja aquí y puede estar ausente durante inspecciones exteriores.
+
+**Ganchos:** recuperar planos mojados, probar una válvula, rastrear una vibración o escoltar a un equipo técnico.
+
+### 18.8. Puesto de Vigilia
+
+**Función:** control de carretera y punto de encuentro de guías, rastreadores y patrullas.
+
+**Vínculo:** Raska tiene una antigua licencia de rastreo asociada al puesto. Renn suele consultar los contratos que se publican aquí.
+
+**Ganchos:** seguir huellas falsas, investigar una caravana desaparecida o decidir qué hacer con una recompensa cuya descripción parece manipulada.
+
+### 18.9. La Carretera de las Tres Campanas
+
+**Función:** conectar Brumaclara con Valdoria, el Marga y las rutas que llevan a Nhal-Seren.
+
+La carretera tiene tramos mantenidos por distintas comunidades. Algunos puentes son de piedra ogra; otros fueron reparados por enanos; las autoridades humanas cobran tasas por ciertos accesos. La calidad del camino afecta a los tiempos de viaje y a los precios.
+
+**Vínculos:** Darven comercia por esta ruta, Alwen ayuda en sus refugios y Nixia conoce desviaciones que no aparecen en mapas oficiales.
+
+**Riesgos:** disputas de peaje, mal clima, robos, averías y rumores falsos. No todos los encuentros son combates.
+
+### 18.10. La Cuenca del Vidrio Negro
+
+**Función:** lugar futuro para vincular fenómenos geológicos, viejas galerías y acontecimientos ancla, incluido el posible volcán de la trama principal.
+
+Una ladera muestra vetas negras y cristales que vibran con ciertos golpes. Hay antiguas galerías clausuradas y una torre de medición abandonada. No todo el lugar está explorado y no debe presentarse como una mazmorra que el protagonista ya conoce.
+
+**Personajes conectados:** Hilda reconoce señales de maquinaria antigua; Vaeloria guarda registros de un desastre pasado; Gharra conoce cambios en las corrientes subterráneas.
+
+**Regla importante:** la erupción del volcán solo será un acontecimiento ancla cuando el escritor la incorpore expresamente a la cronología. Las pistas de este lugar no deben forzar su aparición durante los primeros cuatro días.
+
+---
+
+## 19. Red de relaciones y cadenas de historia
+
+Esta red permite que una acción secundaria tenga repercusiones tardías. Los vínculos no deben revelarse todos de golpe.
+
+- **Silwen ↔ Gharra:** acuerdo secreto de paso y comercio; posible conflicto si los consejos lo descubren.
+- **Gharra ↔ Hilda:** comparten interés por la infraestructura del río y la montaña, pero pueden discrepar sobre la urgencia de evacuar o reparar.
+- **Hilda ↔ Vaeloria:** intercambian datos limitados sobre las vibraciones antiguas. Ninguna confía por completo en la otra.
+- **Nixia ↔ Berta:** mensajera y funcionaria del gremio; su relación depende de la puntualidad, las facturas y la confianza.
+- **Nixia ↔ Darven:** las rutas que ella protege pueden poner en evidencia un contrato o un cargamento suyo.
+- **Liora ↔ Raska:** comparten información cuando los viajeros llegan heridos, aunque no siempre coinciden sobre cuándo debe intervenir una autoridad.
+- **Ysandra ↔ Darven:** sus intereses comerciales se cruzan; pueden cooperar, competir o negociar.
+- **Alwen ↔ Renn:** representan dos respuestas distintas a órdenes injustas: uno cuestiona la autoridad; el otro teme que dudar tarde cueste vidas.
+- **Eirwen ↔ Silwen:** la historiadora guarda datos de la frontera que la exploradora necesita, pero revelarlos puede debilitar negociaciones.
+- **Vaeloria ↔ el mundo:** muchos creen que es una leyenda del bosque. Su existencia no debe convertirse en conocimiento público sin una razón narrativa.
+
+### Cómo usar esta red
+
+Una relación puede generar un favor, una deuda, una disputa, una oportunidad o un rumor. No todas las conexiones deben activarse a la vez. Cuando el protagonista intervenga, registra el cambio concreto y deja que sus efectos aparezcan a su debido tiempo.
+
+Ejemplo: si el protagonista roba un paquete de Darven y este huye por una ruta secundaria, puede encontrarse con un peligro que existe independientemente del protagonista. Ese evento puede exponer otra trama. No hace falta que toda cadena acabe conectada al volcán: a veces el resultado será una deuda, una persecución o una amistad rota.
+
+---
+
+## 20. Método de inspiración y referencias de género
+
+Las fuentes siguientes se usan para estudiar funciones narrativas y convenciones generales; no se copian sus personajes ni sus escenas:
+
+- Bibliothèque nationale de France, **“Populating Magical Worlds”**: analiza arquetipos de personajes de fantasía, roles de aventura y cómo las regiones y culturas moldean a los pueblos ficticios. https://fantasy.bnf.fr/en/understand/populating-magical-worlds/
+- LATRAME, **“Referencia de tropos”**: recoge recursos como la mentoría excéntrica, la alianza inesperada, el poder con un precio y las profecías que se cumplen de forma imprevista. https://latrame.app/es/creator/tropes
+- StoryTable, **“Storytelling Trope Directory”**: reúne arquetipos como el gigante amable, el mentor excéntrico, el personaje reservado que se suaviza con la confianza y los papeles que generan presión narrativa. https://www.storytable.org/tropes
+- Barker Books Publishing, **“10 Types of Fantasy Characters to Write”**: propone no reducir los roles a etiquetas morales simples y distinguir lo que una persona es de lo que hace en la trama. https://barkerbooks.com/types-of-fantasy-characters/
+
+Al buscar nuevas referencias, utiliza obras diversas de fantasía, manga, novelas ligeras, mitos y juegos de rol para identificar patrones amplios. Después crea nombres, motivaciones, conflictos, diseños y desenlaces originales. No convertir un personaje reconocible de una obra concreta en una copia con otro nombre.
+
+
 ---
 
 ## Nota de diseño
