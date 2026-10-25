@@ -1073,11 +1073,15 @@ Esta sección convierte la biblia narrativa en una configuración práctica para
 
 Revisado con la documentación oficial disponible el 25-10-2026; los límites/modelos pueden cambiar y se deben volver a comprobar en la interfaz antes de publicar.
 
+- **Nombre:** la interfaz de creación mostrada para este bot marca un máximo de 20 caracteres.
+- **Título:** máximo de 100 caracteres. Tiene que explicar la experiencia en una frase, no narrar el mundo entero.
 - **Personality:** máximo de 5.000 caracteres. Mantenerlo centrado en comportamiento permanente y reglas que deben estar presentes en cada respuesta.
-- **Configuración total del personaje:** la documentación recomienda como referencia aproximadamente 800–1.100 tokens para dejar espacio para la conversación.
+- **Scenario:** máximo de 4.000 caracteres en la interfaz mostrada. Define mapa, situación inicial y dirección de la aventura, sin meter todas las biografías.
+- **Example Dialogue:** máximo de 4.000 caracteres en la interfaz mostrada. Usa varios ejemplos cortos que demuestren voz, ritmo, comandos y decisiones.
 - **Greeting:** máximo de 2.000 caracteres. Es la escena inicial, no el lugar para contar toda la historia del mundo.
+- **Configuración total del personaje:** la documentación recomienda como referencia aproximadamente 800–1.100 tokens para dejar espacio para la conversación. El contador de fichas de la interfaz es la comprobación definitiva.
 - **Tags:** hasta 12; usar etiquetas reales disponibles en el menú y no etiquetas inventadas si la plataforma no las ofrece.
-- **Lorebook:** una sola Lorebook puede estar conectada al personaje. Cada entrada puede contener hasta 2.000 caracteres según la documentación oficial consultada; conviene usar bastante menos para ahorrar contexto. Las entradas deben ser pequeñas y tratar un solo tema.
+- **Lorebook:** solo puede haber una Lorebook conectada al personaje. Cada entrada puede contener hasta 2.000 caracteres según la documentación oficial consultada; conviene usar bastante menos para ahorrar contexto. Las entradas deben ser pequeñas y tratar un solo tema.
 - **Activación:** se comprueban las palabras clave de los últimos cuatro mensajes de usuario y personaje. Una entrada permanece activa aproximadamente dos turnos; repetir su palabra clave puede mantenerla activa.
 - **No hay activación en cadena:** una entrada no puede activar otra por mencionar su palabra clave. La palabra debe aparecer en el diálogo real reciente.
 - **Presupuesto:** el sistema procura limitar el lore activo a aproximadamente el 20 % de la ventana de contexto; la documentación describe unos 740 tokens para Free, 1.600 para True Supporter y 3.080 para I'm All In. Una ventana mayor no significa que todo el libro esté cargado simultáneamente.
