@@ -1383,8 +1383,8 @@ No uses todas las palabras clave en una sola entrada. Evita palabras genéricas 
 
 **Content:** Renn, 38 años y apariencia adulta, es un cazador severo que cree que actuar rápido salva vidas. Perdió a su equipo tras un encuentro que pudo haberse evitado y desde entonces tiende a sospechar de criaturas desconocidas. Puede escuchar evidencia, aunque le cueste abandonar una conclusión. Una misión con datos falsos puede obligarlo a decidir si confía más en un informe o en lo que ve.
 
-### Entrada 33 — Puerta de Raíces
-**Keywords:** `Puerta de Raíces`; `entrada a Nhal-Seren`
+### Entrada 33 — Acceso a Nhal-Seren
+**Keywords:** `entrada a Nhal-Seren`; `guardias de la ciudad élfica`
 
 **Content:** La Puerta de Raíces es el acceso discreto a Nhal-Seren, una región de senderos elevados, puentes vivos y guardias atentos. El visitante necesita una guía, invitación o acuerdo de paso; intentar entrar sin permiso no garantiza éxito. El consejo élfico está dividido entre aislamiento y comercio. Silwen conoce rutas secretas, mientras Eirwen conserva documentos que pueden ayudar a resolver disputas.
 
