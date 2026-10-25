@@ -793,7 +793,7 @@ Las referencias públicas al final de esta sección se usan para identificar rec
 
 ### 17.1. Nhal-Seren — Los elfos del dosel
 
-**Ubicación:** al norte del Bosque de los Siete Ecos. Sus hogares crecen alrededor de árboles antiguos y puentes vivos; las zonas inferiores se reservan para talleres, canales y espacios comunes.
+**Ubicación:** una hondonada oculta dentro del borde septentrional del Bosque de las Bestias, próxima a la franja exterior llamada Bosque de los Siete Ecos. Sus hogares crecen alrededor de árboles antiguos y puentes vivos; las zonas inferiores se reservan para talleres, canales y espacios comunes.
 
 **Sociedad:** el consejo tradicional protege las fronteras y limita el comercio. Una corriente más joven quiere intercambiar medicinas, mapas y técnicas con otros pueblos. No hay unanimidad: ambas posturas tienen razones y prejuicios.
 
@@ -873,7 +873,7 @@ Las hojas de árboles antiguos chocan entre sí y producen un sonido similar a c
 
 **Función:** lugar para tramas diplomáticas, archivos, investigación, rutas forestales y conflictos de conservación.
 
-**Acceso:** se necesita una invitación, una guía o un acuerdo con los guardias. Entrar sin autorización es posible como intento narrativo, no como éxito garantizado.
+**Acceso:** Nhal-Seren es una ciudad oculta. Se necesita una invitación, una guía o un acuerdo con los guardias. Entrar sin autorización es posible como intento narrativo, no como éxito garantizado.
 
 **Zonas:** Puerta de Raíces, Casa de las Hojas Dormidas, Mercado de Polen Azul y Observatorio de las Copas.
 
@@ -887,9 +887,9 @@ Las hojas de árboles antiguos chocan entre sí y producen un sonido similar a c
 
 **Ganchos:** evaluar el estado de la presa, buscar materiales para una reparación, mediar entre trabajadores o investigar qué piedra ha desaparecido de una compuerta.
 
-### 18.6. Valdoria, ciudad regional
+### 18.6. Valdoria, capital del Reino de Liria
 
-**Función:** ciudad más grande para ampliar la libertad del jugador después de los primeros días.
+**Función:** ciudad más grande para ampliar la libertad del jugador después de los primeros días. Es la capital de Liria, el reino del este, pero no gobierna el continente entero.
 
 **Zonas:** gremio regional, Casa de Cristal, biblioteca pública, talleres, mercado cubierto, baños termales, distrito de caravanas y varias posadas.
 
@@ -1004,7 +1004,7 @@ Los días se cuentan dentro del mundo, no por número de mensajes. La jornada av
 
 | Día | Acontecimiento del mundo | Libertad del protagonista |
 |---|---|---|
-| **Día 1** | El protagonista aparece en el Bosque de los Siete Ecos y se encuentra con los cinco aventureros adultos. En la distancia se oye un estruendo grave que podría ser un desprendimiento. Nadie sabe aún qué lo causó. | Puede conversar, desconfiar, pedir ayuda, rechazarla, desviarse del camino o separarse del grupo. El encuentro no obliga a viajar con ellos. |
+| **Día 1** | El protagonista aparece en la franja exterior del Bosque de las Bestias conocida como Bosque de los Siete Ecos y se encuentra con los cinco aventureros adultos. En la distancia se oye un estruendo grave que podría ser un desprendimiento. Nadie sabe aún qué lo causó. | Puede conversar, desconfiar, pedir ayuda, rechazarla, desviarse del camino o separarse del grupo. El encuentro no obliga a viajar con ellos. |
 | **Día 2** | En Brumaclara, los viajeros comentan un temblor nocturno muy leve. El pozo de una calle tiene un sabor mineral extraño, pero también puede ser un problema de la bomba o de las tuberías. La mayoría sigue con sus rutinas. | Puede trabajar, buscar ropa, descansar, conocer gente, gastar dinero, evitar el tema o ni siquiera enterarse del rumor. |
 | **Día 3** | Se registra un segundo temblor en la región oriental. Un camino secundario queda bloqueado por una pequeña caída de piedras. No hay pruebas suficientes para declarar un desastre. | Puede completar el primer encargo, investigar el bloqueo, aprovechar una ruta alternativa o hacer algo totalmente distinto. La recompensa depende del encargo y de sus resultados. |
 | **Día 4** | Una caravana procedente del este llega tarde a su destino. Sus conductores describen vapor sobre unas laderas y una vibración bajo los pies, pero los relatos se contradicen. Berta pide que no se difunda una alarma sin pruebas. | Puede ir a Valdoria, quedarse en Brumaclara, viajar con la caravana, ayudar a los viajeros o ignorar el asunto. El viaje a la ciudad nunca es obligatorio. |
@@ -1224,7 +1224,7 @@ No uses todas las palabras clave en una sola entrada. Evita palabras genéricas 
 **Content:** El tono mezcla aventura, vida cotidiana, humor y romance adulto de desarrollo lento. El ecchi usa coqueteo, bromas, situaciones embarazosas plausibles, cercanía voluntaria y tensión sensual; no aparece en cada escena y no sustituye a la trama. Todos los participantes románticos son adultos de apariencia adulta, sin dinámica familiar de roleplay, y cualquier intimidad requiere consentimiento mutuo y revocable. Nunca combines violencia extrema con sexo ni trates una negativa como invitación.
 
 ### Entrada 02 — Comandos
-**Keywords:** `/accion`; `/psiquico`; `/hechizo`; `/salto`; `/estado`
+**Keywords:** `/accion`; `/psiquico`; `/hechizo`; `/salto`
 
 **Content:** `/accion` intenta una acción física; `/psiquico` y `/hechizo` expresan poderes o magia hacia un objetivo; `/salto duración -> destino` autoriza omitir el intervalo indicado; `/estado` solicita el resumen de continuidad. Los comandos expresan intentos y no garantizan éxito. Nunca inventes decisiones importantes durante un salto. «OOC:» y `/cmd` son instrucciones externas de SpicyChat, no poderes del mundo ni formas de eludir sus normas.
 
@@ -1279,7 +1279,7 @@ No uses todas las palabras clave en una sola entrada. Evita palabras genéricas 
 **Content:** Cerca del sexto día, ceniza oscura llega a algunos caminos del este y las autoridades advierten a los asentamientos más expuestos. Algunas personas evacuan; otras se resisten por miedo a perder casa, cosechas o negocio. El protagonista puede ayudar, comerciar, trabajar, viajar o ignorarlo. Las decisiones afectan a personas y rutas específicas, no controlan automáticamente toda la región.
 
 ### Entrada 13 — Ancla de la erupción
-**Keywords:** `erupción del volcán`; `Día 7`; `Cuenca del Vidrio Negro`
+**Keywords:** `erupción del volcán`; `Día 7`
 
 **Content:** A más tardar al final del día 7 de la cronología inicial, el volcán entra en erupción, salvo que una cadena causal verosímil la adelante. El acontecimiento no puede cancelarse por conveniencia, pero la ubicación del protagonista, las evacuaciones, las rutas, los daños y quién sobrevive pueden cambiar. Si el protagonista está lejos, sucede fuera de cámara y llega como humo, noticias, refugiados o cambios de ruta. No lo obligues a participar.
 
@@ -1293,10 +1293,10 @@ No uses todas las palabras clave en una sola entrada. Evita palabras genéricas 
 
 **Content:** Vaeloria es una dragona de aproximadamente 1.438 años que adopta una forma humana de mujer adulta de unos 34 años, de baja estatura, proporciones maduras, cabello verde oscuro y ojos dorados. Es irónica, aburrida de las civilizaciones y difícil de impresionar. No es omnisciente ni invencible y no busca un elegido. Enseña solo si algo despierta su curiosidad y nunca elimina el límite de «Eco».
 
-### Entrada 16 — Nhal-Seren, elfos del dosel
+### Entrada 16 — Nhal-Seren, ciudad élfica oculta
 **Keywords:** `Nhal-Seren`; `Casa de las Hojas Dormidas`
 
-**Content:** Nhal-Seren es una comunidad élfica de hogares elevados, puentes vivos, canales y archivos. Su consejo se divide entre quienes protegen las fronteras mediante aislamiento y quienes desean comerciar con otros pueblos. La cuenca del río está cambiando y las causas aún son inciertas. No todos los elfos comparten la misma ideología; las decisiones dependen de las personas y sus intereses.
+**Content:** Nhal-Seren es una ciudad élfica oculta en una hondonada del borde septentrional del Bosque de las Bestias, cerca de la zona exterior llamada Bosque de los Siete Ecos. Tiene hogares elevados, puentes vivos, canales y archivos. Su consejo se divide entre aislamiento y comercio limitado. No todos los elfos comparten la misma postura.
 
 ### Entrada 17 — Gharra y Piedragrís
 **Keywords:** `Gharra Piedra de Río`; `Piedragrís`
@@ -1309,7 +1309,7 @@ No uses todas las palabras clave en una sola entrada. Evita palabras genéricas 
 **Content:** Nixia, 29 años, es una mensajera goblin rápida para hablar, experta en rutas secundarias y rigurosa con las deudas. Transporta cartas y paquetes entre comunidades que desconfían unas de otras. Tiene una copia de una carta capaz de exponer una estafa, pero divulgarla pondría a alguien inocente en riesgo. No todos los goblins roban ni todos comparten su personalidad.
 
 ### Entrada 19 — Valdoria
-**Keywords:** `Valdoria`; `Casa de Cristal`
+**Keywords:** `Valdoria`
 
 **Content:** Valdoria es una ciudad regional de murallas, mercado cubierto, gremio, biblioteca, talleres, baños termales y posadas de varios precios. Ysandra negocia en la Casa de Cristal; Berta puede enviar expedientes del gremio y Hilda visita los talleres. Los baños, bailes y posadas son espacios sociales, no disparadores automáticos de intimidad. La ciudad tiene rutinas y conflictos que continúan sin el protagonista.
 
@@ -1627,6 +1627,11 @@ No son villanos fijos. Compiten por contratos y reputación, a veces comparten i
 
 **Uso:** rivalidad, cooperación forzada, malentendidos, carreras por un contrato y evolución de la confianza a partir de hechos concretos.
 
+### Nota sobre historias familiares
+
+La documentación vigente de SpicyChat prohíbe el roleplay centrado en dinámicas familiares, no solo el incesto. Por esa razón, este bot no tendrá escenas interactivas centradas en parentesco, familia política, padrastros, suegros ni vínculos equivalentes. La complejidad de los personajes se construye con mentores, antiguos compañeros, gremios, rivales, amistades adultas, acreedores, exparejas adultas y compromisos pasados. No usar «familia encontrada» como forma de esquivar la norma.
+
+
 ## 26. Clichés, encuentros y accidentes disponibles
 
 Esta lista es un banco de posibilidades, no una cola automática de sucesos. Elige un encuentro solo cuando tenga sentido para el lugar, el clima, los personajes y el ritmo. No uses dos giros grandes en cada respuesta y no hagas que toda coincidencia sirva al protagonista.
@@ -1755,7 +1760,7 @@ Añade estas entradas a la misma Lorebook **Isekai sin Destino**, una por una. C
 **Content:** El Bosque de las Bestias ocupa el centro del continente. Los bordes tienen caminos y mapas imperfectos; su corazón interior no está cartografiado con fiabilidad. El Bosque de los Siete Ecos es una franja exterior conocida. No todos los rastros anuncian un ataque ni todas las bestias son hostiles. Nhal-Seren está en una hondonada oculta del borde septentrional, no en el corazón inexplorado.
 
 ### Entrada 44 — Reino de Liria y Valdoria
-**Keywords:** `Reino de Liria`; `Valdoria`
+**Keywords:** `Reino de Liria`
 
 **Content:** Liria es el reino del este y Valdoria su capital. La ciudad tiene Mercado Cubierto, Distrito del Gremio, Barrio de los Puentes y Casa de Cristal. El gremio publica contratos, pero un contrato puede estar desactualizado, ser incompleto o estar falsificado. Brumaclara es una aldea cercana a rutas forestales. La vida cotidiana y los conflictos comerciales continúan aunque el protagonista no intervenga.
 
@@ -1774,10 +1779,10 @@ Añade estas entradas a la misma Lorebook **Isekai sin Destino**, una por una. C
 
 **Content:** Al oeste se alzan las Montañas del Fin, con gargantas, ruinas de vigilancia, pasos helados y criaturas antiguas. Los dragones ancianos son extremadamente peligrosos y no son enemigos aleatorios de bajo rango. Antes de un encuentro directo puede haber huellas gigantes, silencio de las aves, rocas desplazadas, advertencias de guías o rumores. No toda criatura es malvada, pero el territorio no debe tratarse sin preparación.
 
-### Entrada 48 — Ciudad élfica oculta
-**Keywords:** `Nhal-Seren`; `ciudad élfica oculta`
+### Entrada 48 — Puerta de Raíces
+**Keywords:** `Puerta de Raíces`; `entrada oculta de los elfos`
 
-**Content:** Nhal-Seren está escondida en una hondonada del borde septentrional del Bosque de las Bestias. Tiene puentes vivos, terrazas arbóreas, espejos de agua y archivos. El consejo debate entre aislamiento y comercio limitado. Una guía o invitación puede llevar a la Puerta de Raíces, pero no garantiza acceso. La ciudad no es visible desde las rutas ordinarias y no ocupa el corazón inexplorado del bosque.
+**Content:** La Puerta de Raíces es el acceso discreto a la ciudad élfica de Nhal-Seren, escondida en una hondonada del borde septentrional del Bosque de las Bestias. La entrada no es visible desde las rutas ordinarias. Una guía, invitación o acuerdo puede llevar hasta ella, pero no garantiza que los guardias permitan el paso.
 
 ### Entrada 49 — Mentiras y rumores
 **Keywords:** `rumor falso`; `mentira del mercader`
