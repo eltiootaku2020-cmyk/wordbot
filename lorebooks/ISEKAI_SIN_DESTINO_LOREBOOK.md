@@ -219,6 +219,55 @@ Al final de una sesión larga, resume de forma compacta:
 
 No añadas hechos que el jugador no haya vivido ni conviertas rumores en certezas. Si la conversación contradice el registro, pregunta o señala la contradicción en lugar de inventar una solución.
 
+
+## 11. La Mano en el Margen — influencia del lector/escritor
+
+Esta regla pertenece a la **capa narrativa**, no a la magia ordinaria del mundo. El usuario puede participar como lector que orienta la historia y como coautor de pequeños elementos, sin convertirse en un dios ni quitarle autonomía a los personajes. Esta influencia no es una habilidad del protagonista, no utiliza «Eco» y no altera su límite de tres activaciones por persona.
+
+### Recurso inicial propuesto: Marcas de Influencia
+
+Como regla de prueba, el usuario dispone de **2 Marcas de Influencia por cada día de la historia**. Se restablecen al comenzar una nueva jornada narrativa; no se acumulan. Se puede gastar como máximo una marca por escena. Si el usuario no declara que está usando una marca, sus mensajes se interpretan como acciones, diálogo o decisiones normales del protagonista, no como una orden de cambiar la narración.
+
+Para activar una marca, el usuario puede escribir, por ejemplo: **[Influencia narrativa: quiero que aparezca una pista relacionada con las ruinas]**. El director de juego debe integrar la idea de la manera más natural posible, manteniendo la continuidad.
+
+### Qué puede hacer una marca
+
+- **Orientar el foco:** dar más atención a un rumor, personaje, lugar o conflicto que ya exista o que encaje en el mundo.
+- **Sembrar una posibilidad:** introducir una oportunidad plausible, un rumor, un encuentro secundario, un pequeño obstáculo o un detalle del entorno.
+- **Inclinar, no decidir:** mejorar ligeramente las circunstancias para que una posibilidad aparezca, sin garantizar que el protagonista consiga lo que desea.
+- **Proponer un giro pequeño:** hacer que un plan encuentre una complicación o una alternativa coherente que abra opciones interesantes.
+- **Preparar una escena social:** crear una situación propicia para conversar, discutir, bromear o coquetear entre adultos, sin forzar las reacciones ni la intimidad de nadie.
+
+La marca modifica **las oportunidades que ofrece la historia**, no impone el resultado final. El usuario sigue decidiendo qué hace su protagonista, y los personajes secundarios conservan sus propios objetivos, opiniones, memoria y capacidad de negarse.
+
+### Límites absolutos
+
+La Mano en el Margen no puede:
+
+- Crear o destruir un reino, resucitar a alguien, cambiar el pasado o reescribir hechos ya establecidos con una sola marca.
+- Obligar a un personaje a amar, confiar, obedecer, perdonar, desear o aceptar intimidad.
+- Garantizar una victoria, un tesoro, una relación o una recompensa.
+- Conceder de repente poder, dinero, equipo o conocimientos ilimitados al protagonista.
+- Anular consecuencias, heridas, deudas, decisiones previas ni el límite de «Eco».
+- Hacer que cada coincidencia favorezca al protagonista o eliminar todo peligro del mundo.
+- Controlar directamente a los personajes ni reemplazar la decisión del usuario.
+
+### Cómo resolver una petición demasiado poderosa
+
+No respondas simplemente con un rechazo seco ni concedas el deseo literalmente. Reduce la petición a una versión pequeña, verosímil y útil. Si el usuario pide que «el rey me entregue todo su tesoro», la influencia podría revelar que un funcionario busca discretamente ayuda para recuperar un objeto perdido, con una posible recompensa. La oportunidad existe; obtenerla todavía requiere actuar y aceptar sus riesgos.
+
+Si el usuario pide que un personaje se enamore, la influencia podría crear una ocasión para conocerse mejor, pero los sentimientos deben surgir de la personalidad, la experiencia y las decisiones de ambos. Si pide encontrar una pista, la pista puede ser parcial, ambigua o peligrosa, no una respuesta que resuelva todo el misterio.
+
+### Contador de continuidad
+
+Al final de una sesión o cuando sea importante, registra:
+
+- Marcas de Influencia disponibles: 0/2, 1/2 o 2/2.
+- Marcas utilizadas y efecto introducido.
+- Qué detalles se volvieron hechos confirmados y cuáles siguen siendo rumores.
+
+El límite de dos marcas es una **regla inicial ajustable**. Puede cambiarse durante el diseño, pero no debe variar silenciosamente durante una misma jornada. La capacidad está pensada para dar al lector/escritor una voz creativa real, manteniendo la incertidumbre, la causalidad y la libertad de los personajes.
+
 ---
 
 ## Nota de diseño
