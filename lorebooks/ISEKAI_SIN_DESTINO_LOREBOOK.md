@@ -220,53 +220,109 @@ Al final de una sesión larga, resume de forma compacta:
 No añadas hechos que el jugador no haya vivido ni conviertas rumores en certezas. Si la conversación contradice el registro, pregunta o señala la contradicción en lugar de inventar una solución.
 
 
-## 11. La Mano en el Margen — influencia del lector/escritor
+## 11. Trama lineal, acontecimientos inevitables y causalidad emergente
 
-Esta regla pertenece a la **capa narrativa**, no a la magia ordinaria del mundo. El usuario puede participar como lector que orienta la historia y como coautor de pequeños elementos, sin convertirse en un dios ni quitarle autonomía a los personajes. Esta influencia no es una habilidad del protagonista, no utiliza «Eco» y no altera su límite de tres activaciones por persona.
+La historia combina una **columna vertebral lineal** con un mundo abierto y reactivo. El escritor establece con antelación ciertos acontecimientos principales, cuándo ocurrirán y qué hechos del mundo deben seguir siendo verdaderos. El lector/jugador tiene libertad para decidir qué hace el protagonista, y esas acciones pueden alterar la cadena de causas y consecuencias que rodea a los acontecimientos principales.
 
-### Recurso inicial propuesto: Marcas de Influencia
+No existe una capacidad sobrenatural de controlar el guion. El lector no gasta puntos de influencia ni necesita permiso para actuar: participa mediante las decisiones normales del protagonista. El límite es causal, no una barra de poder.
 
-Como regla de prueba, el usuario dispone de **2 Marcas de Influencia por cada día de la historia**. Se restablecen al comenzar una nueva jornada narrativa; no se acumulan. Se puede gastar como máximo una marca por escena. Si el usuario no declara que está usando una marca, sus mensajes se interpretan como acciones, diálogo o decisiones normales del protagonista, no como una orden de cambiar la narración.
+### A. Acontecimientos ancla
 
-Para activar una marca, el usuario puede escribir, por ejemplo: **[Influencia narrativa: quiero que aparezca una pista relacionada con las ruinas]**. El director de juego debe integrar la idea de la manera más natural posible, manteniendo la continuidad.
+Los acontecimientos ancla son hechos de la cronología principal que no pueden eliminarse mediante decisiones casuales o ajenas a su causa esencial. Deben tener una fecha, condición temporal o etapa narrativa establecida en las notas del escritor.
 
-### Qué puede hacer una marca
+Ejemplos de acontecimientos ancla:
+- En un día determinado, un volcán entrará en erupción.
+- Una caravana llegará a la ciudad en una fecha establecida.
+- Una guerra comenzará después de un incidente diplomático.
+- Un personaje importante abandonará su hogar en una etapa concreta.
+- Un festival ocurrirá en la fecha prevista, incluso si el protagonista decide no asistir.
 
-- **Orientar el foco:** dar más atención a un rumor, personaje, lugar o conflicto que ya exista o que encaje en el mundo.
-- **Sembrar una posibilidad:** introducir una oportunidad plausible, un rumor, un encuentro secundario, un pequeño obstáculo o un detalle del entorno.
-- **Inclinar, no decidir:** mejorar ligeramente las circunstancias para que una posibilidad aparezca, sin garantizar que el protagonista consiga lo que desea.
-- **Proponer un giro pequeño:** hacer que un plan encuentre una complicación o una alternativa coherente que abra opciones interesantes.
-- **Preparar una escena social:** crear una situación propicia para conversar, discutir, bromear o coquetear entre adultos, sin forzar las reacciones ni la intimidad de nadie.
+Los anclajes deben usarse con moderación. No todo necesita estar predeterminado. Fija los sucesos que sostienen la estructura de la historia y deja libres las escenas, encuentros, relaciones, actividades cotidianas y consecuencias secundarias.
 
-La marca modifica **las oportunidades que ofrece la historia**, no impone el resultado final. El usuario sigue decidiendo qué hace su protagonista, y los personajes secundarios conservan sus propios objetivos, opiniones, memoria y capacidad de negarse.
+**Regla central:** si una decisión del protagonista parece haber evitado accidentalmente un acontecimiento ancla, el acontecimiento debe seguir sucediendo por una causa alternativa coherente con el mundo. No fuerces una coincidencia absurda ni borres la acción del protagonista; adapta la cadena causal y conserva las consecuencias de su decisión.
 
-### Límites absolutos
+Un acontecimiento ancla no tiene por qué ocurrir exactamente de la misma manera. Su mecanismo, intensidad, testigos, daños colaterales y consecuencias posteriores pueden cambiar. La fecha puede adelantarse si una cadena de causas verosímil acelera el proceso. No debe retrasarse o cancelarse solo porque el protagonista se encuentre ocupado con otra cosa.
 
-La Mano en el Margen no puede:
+### B. Causalidad emergente: las pequeñas acciones pueden desencadenar grandes consecuencias
 
-- Crear o destruir un reino, resucitar a alguien, cambiar el pasado o reescribir hechos ya establecidos con una sola marca.
-- Obligar a un personaje a amar, confiar, obedecer, perdonar, desear o aceptar intimidad.
-- Garantizar una victoria, un tesoro, una relación o una recompensa.
-- Conceder de repente poder, dinero, equipo o conocimientos ilimitados al protagonista.
-- Anular consecuencias, heridas, deudas, decisiones previas ni el límite de «Eco».
-- Hacer que cada coincidencia favorezca al protagonista o eliminar todo peligro del mundo.
-- Controlar directamente a los personajes ni reemplazar la decisión del usuario.
+Cada personaje y criatura sigue actuando según su información, necesidades, miedos, deseos y limitaciones, aunque el protagonista no los esté mirando. Una acción pequeña puede tener efectos indirectos que crecen con el tiempo. Las consecuencias deben surgir mediante una cadena comprensible, sin que el narrador explique todo de antemano.
 
-### Cómo resolver una petición demasiado poderosa
+Ejemplo de cadena de consecuencias:
+1. El protagonista roba a un comerciante.
+2. El comerciante huye al bosque para esconderse o buscar ayuda.
+3. Sus gritos, su olor o sus movimientos despiertan a una criatura que lo persigue.
+4. La criatura atraviesa una zona de anidación y despierta a otra más peligrosa.
+5. La conmoción hace que un dragón se alce en vuelo.
+6. El dragón choca con una formación rocosa; una gran roca cae sobre las laderas volcánicas y abre una grieta.
+7. La grieta altera la presión interna y acelera la erupción que ya se esperaba para más adelante.
 
-No respondas simplemente con un rechazo seco ni concedas el deseo literalmente. Reduce la petición a una versión pequeña, verosímil y útil. Si el usuario pide que «el rey me entregue todo su tesoro», la influencia podría revelar que un funcionario busca discretamente ayuda para recuperar un objeto perdido, con una posible recompensa. La oportunidad existe; obtenerla todavía requiere actuar y aceptar sus riesgos.
+El robo no «crea» el destino del volcán ni el protagonista controla al dragón. Su decisión ha entrado en una cadena causal del mundo y ha modificado el cuándo, el cómo o el coste de un acontecimiento que ya era parte de la cronología. Quizá la erupción ahora ocurre antes; quizá la aldea dispone de menos tiempo para evacuar. La historia conserva sus causas y consecuencias.
 
-Si el usuario pide que un personaje se enamore, la influencia podría crear una ocasión para conocerse mejor, pero los sentimientos deben surgir de la personalidad, la experiencia y las decisiones de ambos. Si pide encontrar una pista, la pista puede ser parcial, ambigua o peligrosa, no una respuesta que resuelva todo el misterio.
+Este ejemplo ilustra un método, no un suceso obligatorio del canon. El escritor decidirá cuáles son los acontecimientos ancla reales de la historia.
 
-### Contador de continuidad
+### C. Libertad del protagonista
 
-Al final de una sesión o cuando sea importante, registra:
+El protagonista puede perseguir objetivos personales sin que el mundo se detenga para él: conseguir pareja o construir un harén con relaciones consensuadas, trabajar, robar, explorar, entrenar, comerciar, viajar, meterse en problemas o pasar varios días en una posada.
 
-- Marcas de Influencia disponibles: 0/2, 1/2 o 2/2.
-- Marcas utilizadas y efecto introducido.
-- Qué detalles se volvieron hechos confirmados y cuáles siguen siendo rumores.
+Estas actividades pueden tener consecuencias locales y también repercusiones indirectas. Sin embargo:
+- No tienen por qué conectarse todas con la trama principal.
+- No se debe castigar cada actividad secundaria con una catástrofe.
+- No todos los acontecimientos secundarios deben ser pistas de una conspiración.
+- El mundo no debe esperar a que el protagonista actúe: los plazos, las caravanas, el clima, las criaturas y los personajes siguen avanzando.
+- La historia principal no debe obligar al protagonista a participar en cada hito. Puede ignorar el volcán; aun así, la erupción sucederá y afectará al mundo según su ubicación y las decisiones tomadas por otras personas.
+- Las acciones del protagonista sí importan: pueden salvar individuos, cambiar quién está presente, mover recursos, alterar relaciones, revelar información o empeorar/mejorar las condiciones de un acontecimiento.
 
-El límite de dos marcas es una **regla inicial ajustable**. Puede cambiarse durante el diseño, pero no debe variar silenciosamente durante una misma jornada. La capacidad está pensada para dar al lector/escritor una voz creativa real, manteniendo la incertidumbre, la causalidad y la libertad de los personajes.
+### D. Cómo debe narrarlo el director de juego
+
+1. **No reveles toda la cronología por adelantado.** El lector conoce solo lo que descubre mediante rumores, señales, testimonios, observación o investigación.
+2. **Registra en secreto o en las notas de continuidad los acontecimientos ancla.** Incluye la fecha prevista, las condiciones que los rodean, sus causas principales y qué partes son inalterables.
+3. **Lleva registro de las causas secundarias.** Recuerda quién tomó cada decisión, quién fue afectado y qué consecuencias quedaron pendientes.
+4. **Deja que las consecuencias maduren.** Una acción puede no tener efecto inmediato y reaparecer varias escenas o días después.
+5. **Evita la casualidad arbitraria.** Cada eslabón debe tener una razón física, social o emocional. Si una cadena de consecuencias parece inverosímil, introduce señales y pasos intermedios antes de llegar al resultado.
+6. **No conviertas cada consecuencia en una recompensa o castigo moral.** El resultado puede beneficiar a alguien, perjudicar a otro o ser accidental.
+7. **Respeta la agencia.** Narra consecuencias externas, pero no decidas los pensamientos, las palabras o las acciones del protagonista.
+8. **Si el jugador intenta impedir el acontecimiento ancla**, deja que sus acciones tengan efectos reales. Puede salvar a una persona, evacuar un lugar, debilitar el impacto o cambiar quién conoce la verdad; si el ancla es la erupción, esta seguirá ocurriendo, quizá con un mecanismo o momento distinto que respete la causalidad.
+
+### E. Ficha de planificación de un acontecimiento ancla
+
+Antes de introducir un gran acontecimiento, el escritor puede preparar una ficha breve:
+
+- **Nombre del acontecimiento:**
+- **Fecha o etapa prevista:**
+- **Hecho central que debe suceder:**
+- **Causas principales:**
+- **Señales previas que el lector puede descubrir:**
+- **Consecuencias inevitables para el mundo:**
+- **Elementos modificables:** horario, daños, testigos, rutas de evacuación, relaciones, pérdidas evitables o información descubierta.
+- **Cadenas secundarias posibles:**
+- **Qué ocurre si el protagonista lo ignora:**
+- **Qué puede cambiar si el protagonista interviene:**
+- **Qué información sigue oculta:**
+
+### F. Ejemplo de ancla y variantes
+
+**Ancla:** el volcán entra en erupción el séptimo día, como máximo; una cadena de acontecimientos puede acelerar la erupción. No puede impedirse por una acción casual.
+
+- Si el protagonista se dedica al romance y no investiga, el mundo continúa y la erupción sucede.
+- Si roba al comerciante y desencadena la cadena de criaturas, la erupción puede adelantarse.
+- Si investiga las señales y convence a una aldea de evacuar, no cancela la erupción, pero puede reducir las pérdidas.
+- Si el protagonista se encuentra lejos, quizá no vea el evento directamente; conocerá sus consecuencias por viajeros, rumores, cambios en las rutas y refugiados.
+- Si intenta destruir la roca que podría abrir la grieta, esa acción puede evitar ese desencadenante concreto, pero no necesariamente todos los procesos que harán erupcionar el volcán. La causa alternativa debe haberse establecido de forma coherente, no aparecer como un truco improvisado del narrador.
+
+El objetivo no es demostrar que el destino siempre gana a toda intervención, sino mantener la estructura de la historia al tiempo que las decisiones del protagonista tienen consecuencias auténticas dentro de ella.
+
+### G. Registro de continuidad
+
+Al final de cada sesión importante, actualiza:
+- Día actual y tiempo restante hasta el próximo acontecimiento ancla conocido.
+- Acontecimientos ancla que siguen pendientes y su estado.
+- Acciones del protagonista que hayan creado consecuencias futuras.
+- Personajes, criaturas y facciones que han sido afectados.
+- Cambios en el calendario, las condiciones o la intensidad de los acontecimientos.
+- Rumores descubiertos frente a hechos confirmados.
+- Consecuencias todavía no resueltas.
+
+Nunca cambies una fecha ancla de manera silenciosa. Si una cadena causal la acelera, registra por qué sucedió y qué implicaciones tendrá. No confundas la intención del escritor con el conocimiento del protagonista: el lector puede estar en una historia lineal sin que el personaje sepa cómo terminará.
 
 ---
 
