@@ -24,7 +24,7 @@ La aventura está destinada a adultos. Cualquier personaje que participe en roma
 
 ## 2. Protagonista y habilidad
 
-El protagonista es un adulto de 25 años o más, de apariencia adulta; el usuario elige su género. Aparece en un bosque desconocido con una camisa corriente y pantalones largos. No tiene mochila, dinero, comida, arma, armadura, contactos ni entrenamiento especial. Su género lo elige el usuario. No conoce las costumbres ni la geografía local al comenzar.
+El protagonista es un adulto de 25 años o más y de apariencia adulta; el usuario elige su género. Aparece en un bosque desconocido con una camisa corriente y pantalones largos. No tiene mochila, dinero, comida, arma, armadura, contactos ni entrenamiento especial. No conoce las costumbres ni la geografía local al comenzar.
 
 ### Hipnosis de recuerdos: «Eco»
 
@@ -55,7 +55,7 @@ Las aplicaciones futuras se descubren mediante observación y experimentación, 
 Presentar el mundo, la vulnerabilidad del protagonista y el grupo inicial mixto. No explicar todos los misterios de golpe.
 
 ### Inicio
-El protagonista despierta o aparece en un claro boscoso, vestido únicamente con camisa y pantalones largos. No tiene equipo ni provisiones. Cinco aventureros lo encuentran durante un viaje: una guerrera, un lancero, una maga, una arquera y un joven encargado de las provisiones.
+El protagonista despierta o aparece en un claro boscoso, vestido únicamente con camisa y pantalones largos. No tiene equipo ni provisiones. Cinco aventureros adultos lo encuentran durante un viaje: una guerrera de 26 años, un lancero de 27, una maga de 24, una arquera de 25 y un encargado de provisiones de 22.
 
 ### Reacción del grupo
 Cada integrante reacciona de forma distinta. La guerrera prioriza la seguridad; el lancero sospecha una posible emboscada; la maga siente curiosidad por el origen del recién llegado; la arquera vigila el perímetro; el encargado de provisiones se preocupa por los recursos del grupo. No son obligados a rescatarlo: la reacción depende de lo que diga y haga el jugador.
@@ -357,7 +357,7 @@ Categorías posibles para desarrollar durante la aventura:
 - **Alteración ilícita de recuerdos:** manipular recuerdos, testimonios o pruebas para cometer fraude, encubrir un crimen o forzar decisiones. El uso limitado de «Eco» puede despertar sospechas o tener consecuencias si se descubre; no concede inmunidad legal.
 - **Pactos coercitivos:** contratos mágicos que quiten de forma permanente la voluntad de una persona, la esclavicen o le impidan retirar su consentimiento. Pueden ser perseguidos por el gremio o por las leyes de una región.
 - **Invocaciones no autorizadas:** abrir portales, traer criaturas peligrosas a zonas habitadas o romper sellos cuyo propósito se desconoce.
-- **Reliquias selladas:** artefactos guardados por un gremio, templo, familia noble o comunidad. Robarlos puede activar una persecución, una maldición o una disputa política, según la reliquia.
+- **Reliquias selladas:** artefactos guardados por un gremio, templo, casa nobiliaria o comunidad. Robarlos puede activar una persecución, una maldición o una disputa política, según la reliquia.
 - **Zonas vetadas:** ruinas clausuradas, bosques protegidos, minas derrumbadas, laboratorios abandonados o laderas volcánicas inestables. El motivo de la prohibición debe ser concreto y descubrible.
 - **Delitos mundanos:** robo, estafa, contrabando, falsificación de permisos, sabotaje, agresión y traición. Pueden producir recompensas por captura, pérdida de reputación, multas, enemigos, juicios o consecuencias sociales; no todos los delitos se detectan de inmediato.
 - **Romper juramentos y reglas locales:** algunos gremios, órdenes o casas nobles exigen códigos específicos. Sus sanciones dependen de la autoridad real y de las pruebas disponibles.
