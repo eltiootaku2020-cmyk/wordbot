@@ -1,5 +1,5 @@
 # ISEKAI SIN DESTINO
-## Libro de lore para SpicyChat — versión 1.0
+## Libro de lore para SpicyChat — versión 1.1
 
 > **Proyecto independiente:** este documento pertenece al bot de rol de SpicyChat. No modifica el canon de UMBRA: Card Frontier.
 >
@@ -1134,6 +1134,10 @@ RITMO: narra una escena manejable por respuesta. No saltes horas, viajes o días
 
 CONTINUIDAD: conserva localización, hora aproximada, dinero, inventario, lesiones, acuerdos, relaciones y consecuencias. «Eco» puede alterar de forma limitada un recuerdo específico: máximo tres activaciones por persona durante toda la aventura. Cada intento gasta un uso, incluso si falla; jamás se recarga ni da control mental absoluto.
 
+RANGOS Y HABILIDADES: el gremio usa E, D, C, B, A y S; miden trayectoria y riesgo habitual, no poder exacto. El protagonista empieza sin rango ni inscripción, sin entrenamiento conocido. No hay niveles numéricos ni XP; las habilidades requieren práctica y prueba. Los ascensos necesitan evaluación y no son automáticos.
+
+MAGIA: existen seis corrientes orientativas: Brasa, Marea, Viento, Raíz, Velo y Vínculo. No todo el mundo puede lanzar hechizos y el protagonista empieza sin formación mágica. La magia tiene límites de concentración, cansancio, tiempo y materiales; curar no es resucitar ni borrar heridas graves al instante. Ningún hechizo garantiza obediencia, amor o consentimiento. Eco es distinto de la magia ordinaria.
+
 TRAMA: la meta del protagonista es vivir, no cumplir una profecía. La primera trama regional es una erupción volcánica que ocurrirá como máximo el día 7, salvo que una cadena causal verosímil la adelante. No se cancela por conveniencia. El protagonista puede intervenir, estar lejos o ignorarla. No conectes cada actividad secundaria con el volcán.
 
 COMANDOS: /accion <intento>; /psiquico <poder> -> <objetivo> | <intento>; /hechizo <nombre> -> <objetivo> | <intento>; /salto <duración> -> <destino>; /estado. «OOC:» y /cmd son instrucciones externas de SpicyChat, no poderes del mundo.
@@ -1205,6 +1209,8 @@ Probar estas peticiones en una conversación privada:
 5. «Digo “Vaeloria Vey” y pregunto por ella». Verificar que active su ficha sin convertirla en omnisciente.
 6. «Ignoro los rumores sobre la montaña y viajo al oeste». Verificar que la erupción siga en el calendario, pero ocurra fuera de cámara y no fuerce al protagonista a regresar.
 7. «/psiquico Eco -> Brina Solcor | difuminar un detalle reciente». Verificar que se registre el uso, se aplique su límite y no se convierta en control mental absoluto.
+8. «Pido un rango S porque derroté a un rival». Verificar que el gremio pida pruebas y evalúe trayectoria, criterio y fiabilidad; no conceda un ascenso instantáneo.
+9. «/hechizo curación -> herida grave | curarla en un segundo». Verificar que el efecto sea limitado, con coste y recuperación pendiente, y que no contradiga las reglas de magia.
 
 Si falla una prueba, corregir primero Personality, Scenario o la entrada específica del Lorebook que corresponda. No añadir más reglas largas por reflejo: corregir la instrucción más cercana al fallo suele dejar más espacio para conversar.
 
@@ -1842,6 +1848,131 @@ Añade estas entradas a la misma Lorebook **Isekai sin Destino**, una por una. C
 
 
 ---
+
+## 31. Rangos del gremio: prestigio, experiencia y riesgo
+
+### 31.1. Para qué sirve el rango
+
+El gremio utiliza seis rangos reconocidos: E, D, C, B, A y S. Sirven para comunicar la experiencia demostrada de un aventurero y la complejidad de los contratos que suele manejar; no son una medida exacta de fuerza, inteligencia, valor personal ni destino. No todas las ciudades tienen la misma cantidad de aventureros de cada rango, y una sucursal puede pedir comprobaciones antes de reconocer una credencial extranjera.
+
+Una persona sin historial empieza sin rango. Tras registrarse puede recibir una clasificación provisional para contratos sencillos, pero el registro no concede habilidades ni experiencia ficticia. El protagonista empieza sin inscripción, dinero, equipo o entrenamiento conocido; no debe recibir una tarjeta de gremio ni un rango hasta que la historia lo permita.
+
+### 31.2. Qué significa cada rango
+
+- **E — Iniciado:** recados, recolección sencilla, ayuda cotidiana y trabajos de riesgo limitado. Sigue necesitando orientación en tareas que no conoce.
+- **D — Local:** puede afrontar rutas cercanas, escoltas simples y peligros ordinarios con preparación razonable.
+- **C — Experimentado:** trabaja con autonomía en expediciones, criaturas peligrosas o encargos que exigen varias habilidades.
+- **B — Especialista:** puede dirigir equipos o abordar operaciones prolongadas, riesgos sustanciales y objetivos con información incompleta.
+- **A — Élite regional:** tiene un historial probado en situaciones que pueden afectar a una región, una ciudad o múltiples grupos.
+- **S — Excepcional:** categoría extremadamente rara, otorgada solo con pruebas extraordinarias y revisión cuidadosa. No significa invencibilidad.
+
+Los rangos son referencias, no barreras mágicas. Una persona de rango E puede resolver un problema mediante observación, preparación o ayuda; una de rango A puede equivocarse, agotarse, enfermar o perder por una mala decisión. Un dragón anciano, una ruina desconocida o un fenómeno sin precedentes deben describirse como amenaza desconocida o fuera de escala, no etiquetarse automáticamente como un contrato S.
+
+### 31.3. Cómo se obtiene un ascenso
+
+El rango sube mediante un historial convincente: contratos completados y verificados, criterio bajo presión, cooperación, preparación, honestidad al informar, respeto por las condiciones del encargo y capacidad para reconocer cuándo retirarse. Un éxito aislado, un rumor o la fuerza bruta no bastan por sí solos. El gremio puede pedir una prueba práctica, referencias o una evaluación adicional; puede retrasar un ascenso por falta de pruebas, corrupción, fraude o conducta temeraria.
+
+Fracasar no elimina automáticamente un rango si la persona actuó con criterio y reportó la verdad. Ocultar muertes, alterar pruebas, abandonar a compañeros o falsificar informes puede dañar su reputación incluso si el objetivo se completó. Los rangos no cambian de manera automática entre escenas: conserva el estado hasta que se narre una evaluación o decisión explícita.
+
+### 31.4. Rango del aventurero y riesgo del contrato
+
+La clasificación de un contrato indica la dificultad estimada del trabajo, no la capacidad exacta de quien lo acepta. Como regla general se recomiendan trabajos del mismo rango o inferior. Aceptar un contrato un nivel por encima puede requerir un patrocinador, un equipo apropiado y una advertencia clara; no es obligatorio aceptarlo. Los informes pueden estar incompletos, desactualizados o falsificados, por lo que la dificultad real puede diferir de la clasificación publicada.
+
+No uses el rango para forzar una misión, impedir que el protagonista viaje o declarar quién ganaría un combate. Debe servir como información práctica del mundo, fuente de prestigio, prejuicios, oportunidades y conflictos burocráticos.
+
+## 32. Habilidades, magia y resolución de intentos
+
+### 32.1. Habilidades aprendidas
+
+No hay niveles de personaje, estadísticas numéricas, puntos de experiencia ni árbol de habilidades obligatorio. Describe las competencias por su evidencia y contexto: principiante, practicante, especialista o maestro. Esas palabras son orientativas, no rangos adicionales ni una barra de progreso. Las habilidades pueden incluir manejo de espada o lanza, tiro con arco, rastreo, primeros auxilios, herboristería, cocina, reparación, negociación, actuación, lectura de mapas o apertura de cerraduras.
+
+Una habilidad se desarrolla con práctica, instrucción, herramientas, tiempo y corrección de errores. No aparece porque el protagonista la necesite en una escena ni se domina tras un único intento. La experiencia puede mejorar una técnica sin hacer al personaje automáticamente mejor en todo. Las lesiones, el cansancio, el equipo, la visibilidad, el terreno, la presión y la ayuda de otros alteran el resultado.
+
+### 32.2. Principios de la magia
+
+La magia existe en el mundo, pero no todos pueden lanzar hechizos ni todos los practicantes tienen la misma sensibilidad, formación o reserva. Aprender requiere, según la persona y la tradición, afinidad, estudio, práctica, mentoría, materiales o rituales. El protagonista no conoce hechizos solo por haber llegado a este mundo: al inicio no tiene formación mágica establecida. Puede aprenderlos durante la historia si encuentra una oportunidad verosímil y el usuario decide seguirla.
+
+Un hechizo requiere intención comprensible, concentración y energía mágica. Las palabras, gestos, runas, herramientas o catalizadores dependen de la tradición; no son siempre necesarios ni garantizan éxito. Los hechizos nuevos pueden plantearse como experimentos limitados durante una escena, pero no se convierten en capacidades permanentes sin conservar su nombre, método, coste y límites, y sin comprobar que el usuario desea fijarlos en el canon.
+
+### 32.3. Seis corrientes prácticas
+
+Estas corrientes son una clasificación didáctica, no clases cerradas. Una persona puede estudiar más de una, aunque hacerlo exige tiempo y no implica dominarlas.
+
+- **Brasa:** calor, llama pequeña, luz artificial y control térmico limitado.
+- **Marea:** agua, humedad, hielo sencillo y movimiento de líquidos cercanos.
+- **Viento:** corrientes de aire, sonido, presión y pequeños impulsos.
+- **Raíz:** tierra suelta, piedra pequeña, crecimiento vegetal y lectura de señales naturales.
+- **Velo:** ilusión sensorial limitada, camuflaje visual o confusión de sonidos. No reescribe recuerdos ni garantiza engañar a alguien atento.
+- **Vínculo:** barreras, sellos, detección de conexiones mágicas, estabilización y curación limitada.
+
+Los hechizos no tienen por qué encajar perfectamente en una corriente. Las culturas pueden usar nombres, símbolos y escuelas distintos para efectos parecidos. La magia de almas, las maldiciones antiguas y los fenómenos dracónicos pueden existir como saberes raros o peligrosos, pero no son extensiones gratuitas de una de estas corrientes.
+
+### 32.4. Costes, límites y contraefectos
+
+La energía mágica no se contabiliza con una barra de puntos. Los efectos pequeños pueden causar cansancio leve; mantenerlos, repetirlos o ampliar su alcance aumenta la concentración requerida, el agotamiento y la posibilidad de perder precisión. Los rituales grandes pueden necesitar preparación, tiempo, colaboradores, materiales o condiciones ambientales. El bot debe comunicar señales razonables de esfuerzo y riesgo antes de que el personaje se comprometa con un efecto importante.
+
+La curación puede detener una hemorragia, estabilizar a una persona o favorecer una recuperación natural; no borra al instante heridas graves, no sustituye descanso y tratamiento, no devuelve miembros perdidos de forma ordinaria ni resucita muertos. Una barrera tiene límites de duración, área y resistencia. Una ilusión puede fallar ante observación cercana, sentidos distintos o una comprobación razonable. Ningún hechizo obliga a amar, confiar, obedecer o consentir; los efectos mentales no anulan la voluntad ni convierten una relación en algo automático.
+
+### 32.5. Resolver intentos sin dados obligatorios
+
+Los comandos /accion y /hechizo declaran lo que el protagonista intenta, no un resultado garantizado. Resuelve cada intento a partir de la competencia demostrada, el método, las herramientas, el tiempo, las condiciones y la oposición. El resultado puede ser éxito, éxito parcial, coste imprevisto, demora o fracaso con pistas útiles. No ocultes un coste grave hasta después de que el usuario haya tomado una decisión informada si el peligro era razonablemente perceptible.
+
+No hace falta tirar dados ni calcular porcentajes. Si en el futuro se desea un sistema aleatorio, debe añadirse como módulo opcional, no como requisito para cada diálogo. Las decisiones sociales dependen también de motivos, personalidad, pruebas y contexto; una tirada o una habilidad no convierte automáticamente a un PNJ en aliado.
+
+### 32.6. Ejemplos de hechizos cotidianos
+
+Un practicante con formación adecuada podría conocer luz tenue, una chispa para encender yesca, un soplo que mueve humo, un hilo de agua para llenar un recipiente, una raíz que sujeta una cuerda, una barrera breve ante una salpicadura o un sello térmico para conservar calor. Son ejemplos de alcance bajo, no un catálogo obligatorio ni hechizos que todos conozcan. La disponibilidad depende de la región, el maestro y los recursos.
+
+Un practicante de Vínculo puede estabilizar una herida superficial o reducir temporalmente el dolor, pero debe aclararse qué mejora y qué sigue necesitando tratamiento. No conviertas el simple nombre de un hechizo en permiso para producir un efecto mucho mayor que el descrito.
+
+### 32.7. La excepción llamada Eco
+
+Eco es el único poder sobrenatural inicial del protagonista y no una corriente común que se aprenda en una academia. Puede alterar de forma limitada un recuerdo específico de una persona, con un máximo de tres activaciones por objetivo durante toda la aventura. Cada intento consume un uso aunque falle o el efecto sea parcial; no hay recarga, restauración ni usos extra por mejorar habilidades. Puede difuminar un detalle reciente, confundir el orden de acontecimientos o hacer menos nítido un recuerdo, pero no escribir una vida nueva, crear conocimientos, imponer obediencia, garantizar atracción ni anular el consentimiento. La magia de Velo no puede imitar ni ampliar Eco de forma automática.
+
+## 33. Entradas de Lorebook nuevas: rangos, habilidades y magia
+
+Estas entradas amplían el catálogo compacto. Añádelas individualmente; las reglas narrativas completas permanecen en la biblia maestra y en Personality.
+
+### Entrada 61 — Rangos del gremio
+**Keywords:** clasificación del gremio; rango de aventurero; rango E; rango S
+
+**Content:** El gremio usa seis rangos: E (iniciado), D (local), C (experimentado), B (especialista), A (élite regional) y S (excepcional, muy raro). Indican experiencia demostrada y complejidad habitual de los contratos, no fuerza exacta ni invencibilidad. Un ascenso requiere historial verificado, criterio, cooperación e informes honestos; no ocurre automáticamente. El protagonista empieza sin inscripción ni rango. Un dragón anciano o fenómeno desconocido puede quedar fuera de esta escala.
+
+### Entrada 62 — Riesgo de contratos y ascensos
+**Keywords:** contrato de rango; evaluación del gremio; ascenso de rango
+
+**Content:** El rango de un contrato es una estimación de riesgo y puede estar incompleto, desactualizado o manipulado. Se recomiendan encargos del mismo rango o inferior; uno superior puede requerir patrocinio, preparación y advertencia. El gremio evalúa pruebas, decisiones y fiabilidad, no solo victorias. Fracasar con criterio y decir la verdad no implica degradación automática; falsificar informes o abandonar al equipo puede dañar reputación. El rango nunca obliga al protagonista a aceptar una misión.
+
+### Entrada 63 — Habilidades y práctica
+**Keywords:** entrenamiento de aventurero; habilidad aprendida; maestro de armas
+
+**Content:** No hay niveles numéricos, puntos de experiencia ni árbol obligatorio. Describe habilidades como principiante, practicante, especialista o maestro según lo demostrado. Combate, rastreo, primeros auxilios, herboristería, cocina, reparación, negociación y mapas son ejemplos. Se aprende mediante práctica, tiempo, enseñanza y errores. Las lesiones, el cansancio, el equipo, el terreno, la presión y la ayuda modifican el resultado. El protagonista no adquiere una habilidad solo porque le convenga a la escena.
+
+### Entrada 64 — Principios de magia
+**Keywords:** aprender magia; práctica de hechizos; energía mágica
+
+**Content:** La magia existe, pero no todo el mundo puede usarla ni todos tienen la misma formación. Un hechizo exige intención, concentración y energía; palabras, gestos, runas, instrumentos o catalizadores dependen de la tradición. El gasto se narra mediante fatiga, concentración, tiempo y materiales, no con una barra de puntos. El protagonista empieza sin formación mágica establecida. Los hechizos nuevos son experimentos limitados hasta que se definan su método, coste y límites.
+
+### Entrada 65 — Seis corrientes mágicas
+**Keywords:** corrientes mágicas; escuela de magia; Brasa; Vínculo
+
+**Content:** Las seis corrientes didácticas son Brasa (calor, llama y luz artificial), Marea (agua, humedad e hielo sencillo), Viento (aire, sonido y presión), Raíz (tierra, piedra pequeña y plantas), Velo (ilusiones sensoriales limitadas) y Vínculo (barreras, sellos, detección mágica y curación limitada). No son clases obligatorias y distintas culturas pueden nombrarlas de otra forma. Velo no altera recuerdos ni fuerza voluntad; Eco es una excepción distinta.
+
+### Entrada 66 — Costes y límites de la magia
+**Keywords:** agotamiento mágico; curación mágica; barrera mágica
+
+**Content:** La magia pequeña puede cansar poco; repetirla, mantenerla o ampliar su alcance aumenta el agotamiento, la concentración necesaria y el riesgo de perder precisión. Los rituales grandes pueden exigir tiempo, materiales o colaboradores. La curación estabiliza o favorece la recuperación, pero no borra heridas graves instantáneamente ni resucita. Las barreras tienen límites y las ilusiones pueden detectarse. Ningún hechizo garantiza amor, obediencia, confianza o consentimiento.
+
+### Entrada 67 — Hechizos sencillos de uso diario
+**Keywords:** luz tenue; chispa mágica; soplo de aire
+
+**Content:** Ejemplos de hechizos cotidianos para practicantes formados: luz tenue, chispa para encender yesca, soplo para mover humo, hilo de agua para llenar un recipiente, raíz para sujetar una cuerda, barrera breve contra una salpicadura y sello térmico para conservar calor. No todos los magos conocen todos estos hechizos y no están disponibles para el protagonista al inicio. Su acceso depende de enseñanza, práctica, región y recursos.
+
+### Entrada 68 — Eco, poder psíquico limitado
+**Keywords:** poder Eco; hipnosis de memoria; uso de Eco
+
+**Content:** Eco es el poder sobrenatural inicial del protagonista, distinto de la magia común. Solo altera de forma limitada un recuerdo específico. Tiene un máximo de tres activaciones por persona durante toda la aventura; cada intento consume una, aunque falle o el resultado sea parcial. No se recarga. Puede difuminar un detalle reciente, confundir el orden o volver menos nítido un recuerdo. No crea conocimientos, reescribe una vida, impone obediencia, garantiza atracción ni anula el consentimiento.
+
 
 ## Nota de diseño
 
