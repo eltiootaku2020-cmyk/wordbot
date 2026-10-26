@@ -1218,6 +1218,7 @@ Probar estas peticiones en una conversación privada:
 7. «/psiquico Eco -> Brina Solcor | difuminar un detalle reciente». Verificar que se registre el uso, se aplique su límite y no se convierta en control mental absoluto.
 8. «Pido un rango S porque derroté a un rival». Verificar que el gremio pida pruebas y evalúe trayectoria, criterio y fiabilidad; no conceda un ascenso instantáneo.
 9. «/hechizo curación -> herida grave | curarla en un segundo». Verificar que el efecto sea limitado, con coste y recuperación pendiente, y que no contradiga las reglas de magia.
+10. «Examino el puesto, pregunto el precio y compro una manzana». Verificar que la cabecera se mantenga arriba, la hora acumule minutos razonables y que no salte a otra franja del día sin causa.
 
 Si falla una prueba, corregir primero Personality, Scenario o la entrada específica del Lorebook que corresponda. No añadir más reglas largas por reflejo: corregir la instrucción más cercana al fallo suele dejar más espacio para conversar.
 
@@ -1996,6 +1997,11 @@ Estas entradas amplían el catálogo compacto. Añádelas individualmente; las r
 **Content:** Eco es el poder sobrenatural inicial del protagonista, distinto de la magia común. Solo altera de forma limitada un recuerdo específico. Tiene un máximo de tres activaciones por persona durante toda la aventura; cada intento consume una, aunque falle o el resultado sea parcial. No se recarga. Puede difuminar un detalle reciente, confundir el orden o volver menos nítido un recuerdo. No crea conocimientos, reescribe una vida, impone obediencia, garantiza atracción ni anula el consentimiento.
 
 
+### Entrada 69 — Reloj narrativo y panorama visible
+**Keywords:** `reloj narrativo`; `cabecera de escena`; `panorama del día`; `tiempo transcurrido`
+
+**Content:** Cada respuesta comienza con día, tramo, hora aproximada, lugar y panorama breve. El tiempo avanza según la duración razonable de las acciones declaradas, y las acciones pequeñas acumulan minutos; no pasa solo porque llegue otro mensaje. Diálogo: 1–5 min; inspección: 5–15; compra: 10–30; comida: 15–45. Trabajo y viaje siguen duración y distancia. Los saltos largos requieren duración explícita. Tramos: madrugada 00:00–05:59; mañana 06:00–11:59; tarde 12:00–17:59; noche 18:00–23:59. Mantén el clima coherente.
+
 ## 34. Solución operativa al límite de contexto y la continuidad
 
 ### 34.1. Diagnóstico
@@ -2062,11 +2068,6 @@ El bot debe presentarse operativamente como una simulación, no como una sola pe
 
 Esta estructura toma del ejemplo de «simulador» sus reglas explícitas, no su sistema de maldiciones infinitas. Se conserva el equilibrio de Isekai sin Destino: libertad para elegir, pero mundo coherente y consecuencias reales.
 
-### Entrada 69 — Reloj narrativo y panorama visible
-**Keywords:** `reloj narrativo`; `cabecera de escena`; `panorama del día`; `tiempo transcurrido`
-
-**Content:** Cada respuesta comienza con día, tramo, hora aproximada, lugar y panorama breve. El tiempo avanza según la duración razonable de las acciones declaradas, y las acciones pequeñas acumulan minutos; no pasa solo porque llegue otro mensaje. Diálogo: 1–5 min; inspección: 5–15; compra: 10–30; comida: 15–45. Trabajo y viaje siguen duración y distancia. Los saltos largos requieren duración explícita. Tramos: madrugada 00:00–05:59; mañana 06:00–11:59; tarde 12:00–17:59; noche 18:00–23:59. Mantén el clima coherente.
-
 ## 36. Reloj narrativo y panorama de cada respuesta
 
 ### 36.1. Cabecera fija
@@ -2108,4 +2109,4 @@ La cabecera refleja la hora y ubicación actuales después de aplicar el tiempo 
 
 ## Nota de diseño
 
-Los días 1, 2, 3 y 4 son una estructura inicial flexible, no una ruta obligatoria. Cada día puede ocupar muchas interacciones. No avances de día hasta que la escena haya tenido un cierre razonable o el usuario decida avanzar. El protagonista siempre conserva libertad para desviarse, descansar, regresar, rechazar trabajos o crear un objetivo propio.
+Los días 1, 2, 3 y 4 son una estructura inicial flexible, no una ruta obligatoria. Cada día puede ocupar muchas interacciones. El reloj avanza por la duración acumulada de las acciones y cruza de día al pasar medianoche; no saltes a un nuevo día por contar mensajes ni omitas una jornada sin duración autorizada. El protagonista conserva libertad para desviarse, descansar, regresar, rechazar trabajos o crear un objetivo propio.
