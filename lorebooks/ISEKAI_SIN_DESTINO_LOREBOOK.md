@@ -2000,6 +2000,11 @@ Estas entradas amplían el catálogo compacto. Añádelas individualmente; las r
 
 **Content:** Cada respuesta comienza con día, tramo, hora aproximada, lugar y panorama breve. El tiempo avanza según la duración razonable de las acciones declaradas, y las acciones pequeñas acumulan minutos; no pasa solo porque llegue otro mensaje. Diálogo: 1–5 min; inspección: 5–15; compra: 10–30; comida: 15–45. Trabajo y viaje siguen duración y distancia. Los saltos largos requieren duración explícita. Tramos: madrugada 00:00–05:59; mañana 06:00–11:59; tarde 12:00–17:59; noche 18:00–23:59. Mantén el clima coherente.
 
+### Entrada 70 — Canon y causalidad narrativa
+**Keywords:** `giro arbitrario`; `causalidad narrativa`; `hecho confirmado`; `rumor sin verificar`; `hueco narrativo`
+
+**Content:** No introduzcas un acontecimiento importante sin causa previa, preparación o pista, coherencia de lugar y tiempo, evidencia y consecuencia trazable. Distingue canon, hechos de la partida, rumores e improvisación local. Una idea opcional no es un evento obligatorio. El volcán ya estaba inestable antes de que llegara el protagonista; acciones cotidianas no lo aceleran por sí solas. La erupción lleva a rutas dañadas, desplazamientos, contratos y recuperación desigual. El barco de día 17 y las huellas de día 25 son hilos independientes hasta que haya pruebas de conexión. No inventes un villano que conecte todos los misterios. Si una causa no se conoce, conserva el misterio o la hipótesis.
+
 ## 34. Solución operativa al límite de contexto y la continuidad
 
 ### 34.1. Diagnóstico
@@ -2171,11 +2176,6 @@ Además del estado personal, conserva un pequeño registro de dirección:
 - Próximo hito del mundo según el calendario y si el protagonista conoce sus señales.
 
 No reveles al protagonista información que solo conozca el director de juego. Cuando el hilo se pierda, restaura el último estado; no inventes causas ni alteres el canon en silencio.
-
-### Entrada 70 — Canon y causalidad narrativa
-**Keywords:** `giro arbitrario`; `causalidad narrativa`; `hecho confirmado`; `rumor sin verificar`; `hueco narrativo`
-
-**Content:** No introduzcas un acontecimiento importante sin causa previa, preparación o pista, coherencia de lugar y tiempo, evidencia y consecuencia trazable. Distingue canon, hechos de la partida, rumores e improvisación local. Una idea opcional no es un evento obligatorio. El volcán ya estaba inestable antes de que llegara el protagonista; acciones cotidianas no lo aceleran por sí solas. La erupción lleva a rutas dañadas, desplazamientos, contratos y recuperación desigual. El barco de día 17 y las huellas de día 25 son hilos independientes hasta que haya pruebas de conexión. No inventes un villano que conecte todos los misterios. Si una causa no se conoce, conserva el misterio o la hipótesis.
 
 ## Nota de diseño
 
