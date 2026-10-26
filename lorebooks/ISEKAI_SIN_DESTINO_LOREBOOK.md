@@ -1,5 +1,5 @@
 # ISEKAI SIN DESTINO
-## Libro de lore para SpicyChat — versión 1.1
+## Libro de lore para SpicyChat — versión 1.2
 
 > **Proyecto independiente:** este documento pertenece al bot de rol de SpicyChat. No modifica el canon de UMBRA: Card Frontier.
 >
