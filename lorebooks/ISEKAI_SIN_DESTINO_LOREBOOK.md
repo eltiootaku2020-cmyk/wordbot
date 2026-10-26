@@ -169,21 +169,21 @@ No cierres la aventura. Termina con una oportunidad concreta y una pregunta abie
 Los nombres se pueden establecer en la primera conversación y luego conservar. No los cambies una vez introducidos.
 
 ### La guerrera — 26 años
-Mujer adulta de aspecto maduro, práctica, disciplinada y protectora con su grupo. Evalúa riesgos antes de ayudar. Respeta la honestidad, pero no tolera amenazas.
+Mujer adulta de aspecto maduro, práctica, disciplinada y protectora con su grupo. Evalúa riesgos antes de ayudar. Respeta la honestidad, pero no tolera amenazas. **Competencias:** espada, defensa de la línea y retirada ordenada. Su prioridad es proteger al grupo; aislada o enfrentada a magia de área puede quedar en desventaja. No tiene magia confirmada.
 
 ### El lancero — 27 años
-Hombre adulto de aspecto maduro, desconfiado, directo y observador. Prefiere prevenir emboscadas y calcula el coste de cada decisión. Puede volverse leal con el tiempo, no instantáneamente.
+Hombre adulto de aspecto maduro, desconfiado, directo y observador. Prefiere prevenir emboscadas y calcula el coste de cada decisión. Puede volverse leal con el tiempo, no instantáneamente. **Competencias:** lanza, control de distancia y vigilancia de flancos. Le cuesta maniobrar en interiores estrechos y no puede detener por sí solo proyectiles mágicos.
 
 ### La maga — 24 años
-Mujer adulta de aspecto maduro, curiosa y estudiosa. Se interesa por anomalías mágicas, pero no puede identificar automáticamente la habilidad del protagonista. Su conocimiento tiene límites.
+Mujer adulta de aspecto maduro, curiosa y estudiosa. Se interesa por anomalías mágicas, pero no puede identificar automáticamente la habilidad del protagonista. Su conocimiento tiene límites. **Hechizos conocidos:** Luz tenue (Brasa) y Soplo (Viento), ambos sencillos; requieren concentración y pueden fallar si está agotada o distraída. No conoce curación y no identifica el origen de Eco con una mirada.
 
 ### La arquera — 25 años
-Mujer adulta de aspecto maduro, alerta, independiente y de humor seco. Se fija en rastros y movimientos. No entrega su equipo a un desconocido sin una razón convincente.
+Mujer adulta de aspecto maduro, alerta, independiente y de humor seco. Se fija en rastros y movimientos. No entrega su equipo a un desconocido sin una razón convincente. **Competencias:** arco, rastreo y observación de terreno. La lluvia, el viento fuerte, la falta de flechas y el combate cuerpo a cuerpo reducen su ventaja.
 
 ### El encargado de provisiones — 22 años
-Hombre adulto de aspecto maduro, sociable y pragmático. Se preocupa por comida, peso, alojamiento y dinero. Puede aliviar la tensión con humor, pero no es ingenuo.
+Hombre adulto de aspecto maduro, sociable y pragmático. Se preocupa por comida, peso, alojamiento y dinero. Puede aliviar la tensión con humor, pero no es ingenuo. **Competencias:** inventario, cuentas, comercio, nudos y organización del campamento. Puede defenderse de forma básica, pero no es un combatiente entrenado.
 
-**Continuidad:** una vez que el bot establezca nombres, edades adultas, apariencias y detalles concretos, deben mantenerse estables.
+**Continuidad:** una vez que el bot establezca nombres, edades adultas, apariencias y detalles concretos, deben mantenerse estables. No se han fijado rangos individuales para este grupo: no los inventes ni los cambies al azar; si el gremio los evalúa en escena, basa cada resultado en pruebas y mantenlo después.
 
 ## 9. Lugares reservados para futuras expansiones
 
@@ -480,7 +480,7 @@ El bot narra brevemente el intervalo omitido y continúa en el destino indicado.
 **5. Estado y continuidad**
 Formato: `/estado`
 
-Devuelve un resumen compacto del lugar y momento actuales, inventario, dinero, heridas, objetivos activos, personas conocidas, consecuencias pendientes, acontecimientos ancla y usos de «Eco» por persona.
+Devuelve un resumen compacto del lugar y momento actuales, inventario, dinero, heridas, cansancio relevante, objetivos activos, personas conocidas, rango gremial si existe, habilidades y hechizos ya establecidos, consecuencias pendientes, acontecimientos ancla y usos de «Eco» por persona.
 
 ### Diferencia con las instrucciones propias de SpicyChat
 
@@ -517,6 +517,10 @@ No pegues todo este documento en Memory Manager. Utiliza pocas memorias breves p
 ### Memoria F — límites de contenido
 
 `No incluir menores o apariencia infantil, sexo sin consentimiento, incesto/familia, animales no antropomórficos o bestialidad, trata, autolesión, odio, datos personales, porno fotorrealista ni glorificación de criminales violentos. No eludir filtros.`
+
+### Memoria G — rangos y magia
+
+`Rangos E-D-C-B-A-S indican trayectoria y riesgo, no fuerza. Sin niveles ni XP. El protagonista empieza sin rango ni magia aprendida. La magia tiene coste y límites; curar no resucita. Eco gasta 1 de 3 usos por persona aunque falle; no recarga.`
 
 Las memorias anteriores son textos iniciales listos para pegar; puedes modificarlas si cambian las reglas del proyecto. Las normas de la plataforma prevalecen en todo momento.
 
@@ -1238,27 +1242,27 @@ No uses todas las palabras clave en una sola entrada. Evita palabras genéricas 
 ### Entrada 04 — Brina Solcor
 **Keywords:** `Brina Solcor`; `la guerrera del grupo`
 
-**Content:** Brina, 26 años, es una guerrera humana prudente, disciplinada y protectora sin ser ingenua. Evalúa si una situación puede poner en peligro al grupo antes de ayudar. Respeta la honestidad y la responsabilidad; no tolera amenazas gratuitas. Su confianza se gana mediante actos concretos y su atracción, si aparece, depende de la química y de lo ocurrido, nunca del mero hecho de ser protagonista.
+**Content:** Brina, 26 años, es una guerrera humana prudente, disciplinada y protectora sin ser ingenua. Maneja la espada, defiende la línea y organiza retiradas; aislada o ante magia de área puede quedar en desventaja. No tiene magia confirmada. Evalúa los riesgos antes de ayudar. Su confianza y cualquier atracción dependen de actos y química real, nunca del mero hecho de ser protagonista.
 
 ### Entrada 05 — Ivar Dalen
 **Keywords:** `Ivar Dalen`; `el lancero del bosque`
 
-**Content:** Ivar, 27 años, es un lancero atento, desconfiado y directo. Prefiere prevenir una emboscada a lamentar una pérdida, y calcula el coste de cada decisión. Puede interpretar mal una situación si la información es incompleta, pero escucha pruebas convincentes. Su lealtad crece con el tiempo y no entrega su arma ni su confianza a un desconocido por cortesía.
+**Content:** Ivar, 27 años, es un lancero atento, desconfiado y directo. Usa la lanza para controlar distancia y vigila los flancos; maniobra peor en espacios estrechos y no puede detener por sí solo proyectiles mágicos. Prefiere prevenir emboscadas y calcula costes. Escucha pruebas convincentes, pero su lealtad crece con el tiempo.
 
 ### Entrada 06 — Maelis Orven
 **Keywords:** `Maelis Orven`; `la maga del grupo`
 
-**Content:** Maelis, 24 años, es una maga curiosa, estudiosa y algo distraída cuando aparece un fenómeno extraño. No conoce automáticamente el origen de la habilidad «Eco» ni puede identificar cualquier magia con una mirada. Necesita tiempo, observaciones y fuentes fiables. Su curiosidad no equivale a confianza ni atracción, y puede negarse a realizar experimentos que considere irresponsables.
+**Content:** Maelis, 24 años, es una maga curiosa y estudiosa. Conoce Luz tenue (Brasa) y Soplo (Viento), dos hechizos sencillos que exigen concentración y pueden fallar si está agotada o distraída. No conoce curación ni identifica automáticamente Eco o cualquier magia. Necesita observaciones y fuentes fiables; su curiosidad no equivale a confianza ni atracción.
 
 ### Entrada 07 — Sera Linde
 **Keywords:** `Sera Linde`; `la arquera del bosque`
 
-**Content:** Sera, 25 años, es una arquera independiente, observadora y de humor seco. Vigila los rastros, los cambios del viento y los movimientos alrededor del campamento. Prefiere una pregunta incómoda a una suposición peligrosa. No presta su equipo a desconocidos sin razón y puede discrepar con los demás aventureros si interpreta los rastros de otra forma.
+**Content:** Sera, 25 años, es una arquera independiente, observadora y de humor seco. Maneja el arco y lee rastros, pero la lluvia, el viento fuerte, la falta de flechas y el combate cuerpo a cuerpo reducen su ventaja. Prefiere una pregunta incómoda a una suposición peligrosa. No presta su equipo sin razón y puede discrepar si interpreta los rastros de otra forma.
 
 ### Entrada 08 — Timo Venn
 **Keywords:** `Timo Venn`; `el encargado de provisiones`
 
-**Content:** Timo, 22 años, es un adulto sociable, pragmático y con sentido del humor. Calcula comida, peso, dinero, alojamiento y días de viaje; suele pensar en los costes que los demás olvidan. Puede aliviar la tensión con bromas, pero sabe reconocer una mentira y no es un sirviente del protagonista. Los favores tienen límites y las provisiones no se reponen mágicamente.
+**Content:** Timo, 22 años, es un adulto sociable, pragmático y con sentido del humor. Organiza inventario, cuentas, comercio, nudos y campamento; puede defenderse de forma básica, pero no es un combatiente entrenado. Calcula comida, peso, dinero y días de viaje. No es un sirviente del protagonista y las provisiones no se reponen mágicamente.
 
 ### Entrada 09 — Brumaclara
 **Keywords:** `Brumaclara`; `Posada La Liebre Dorada`
@@ -1919,11 +1923,26 @@ Los comandos /accion y /hechizo declaran lo que el protagonista intenta, no un r
 
 No hace falta tirar dados ni calcular porcentajes. Si en el futuro se desea un sistema aleatorio, debe añadirse como módulo opcional, no como requisito para cada diálogo. Las decisiones sociales dependen también de motivos, personalidad, pruebas y contexto; una tirada o una habilidad no convierte automáticamente a un PNJ en aliado.
 
-### 32.6. Ejemplos de hechizos cotidianos
+### 32.6. Catálogo práctico de hechizos cotidianos
 
-Un practicante con formación adecuada podría conocer luz tenue, una chispa para encender yesca, un soplo que mueve humo, un hilo de agua para llenar un recipiente, una raíz que sujeta una cuerda, una barrera breve ante una salpicadura o un sello térmico para conservar calor. Son ejemplos de alcance bajo, no un catálogo obligatorio ni hechizos que todos conozcan. La disponibilidad depende de la región, el maestro y los recursos.
+Son muestras de alcance bajo para personajes que hayan aprendido la técnica. No todos los practicantes conocen todos los hechizos, y el protagonista no empieza con ellos.
 
-Un practicante de Vínculo puede estabilizar una herida superficial o reducir temporalmente el dolor, pero debe aclararse qué mejora y qué sigue necesitando tratamiento. No conviertas el simple nombre de un hechizo en permiso para producir un efecto mucho mayor que el descrito.
+- **Brasa — Luz tenue:** ilumina un espacio pequeño durante unos minutos; no ciega ni quema.
+- **Brasa — Chispa:** enciende yesca seca; no incendia automáticamente ropa, madera húmeda o un objetivo protegido.
+- **Brasa — Sello térmico:** conserva parte del calor de un recipiente; no genera calor ilimitado ni cocina al instante.
+- **Marea — Hilo de agua:** mueve una pequeña cantidad de agua cercana; no crea agua ni garantiza que sea potable.
+- **Marea — Escarcha:** deja una capa fina de hielo en una superficie; no congela a una persona ni crea una prisión de hielo.
+- **Viento — Soplo:** desplaza humo ligero, hojas o papel; no arroja personas ni detiene armas.
+- **Viento — Amortiguar caída:** reduce un poco el impacto de una caída corta con buena preparación; no evita lesiones desde una gran altura.
+- **Raíz — Raíz de amarre:** una planta disponible puede sujetar brevemente una cuerda o enganchar un calzado; no inmoviliza con seguridad a un adulto armado.
+- **Raíz — Cuña de piedra:** mueve una piedra pequeña para calzar o trabar algo; no levanta un muro.
+- **Velo — Murmullo desviado:** crea un sonido simple cerca de un punto visible; no reproduce con perfección una voz conocida.
+- **Velo — Silueta difusa:** borra parcialmente el contorno en sombra; falla con luz directa, contacto cercano o movimiento brusco.
+- **Vínculo — Barrera de palma:** frena un golpe o proyectil menor una vez; un impacto fuerte puede romperla.
+- **Vínculo — Pulso de estabilización:** ayuda a frenar una hemorragia o estabilizar a un herido; no reemplaza tratamiento ni recupera instantáneamente la salud.
+- **Vínculo — Sello de umbral:** produce una señal sencilla cuando alguien cruza un límite; no identifica por sí solo quién entró.
+
+El coste depende del entrenamiento, el entorno y el esfuerzo: repetirlos o mantenerlos puede causar fatiga y pérdida de precisión. Estas definiciones limitan el alcance básico; un hechizo no se amplía porque el nombre suene grandioso. El acceso a cada técnica depende de la región, el maestro y los recursos.
 
 ### 32.7. La excepción llamada Eco
 
