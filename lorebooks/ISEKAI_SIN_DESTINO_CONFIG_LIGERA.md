@@ -1,8 +1,8 @@
-# Isekai sin Destino — instalación ligera y continuidad (v1.5)
+# Isekai sin Destino — instalación ligera y continuidad (v1.6)
 
 Guía práctica para montar el bot con una carga inicial baja de contexto y reducir los olvidos durante partidas largas.
 
-Documento maestro y Lorebook completa (68 entradas):
+Documento maestro y Lorebook completa (71 entradas):
 https://github.com/eltiootaku2020-cmyk/wordbot/blob/docs/isekai-spicychat-lorebook/lorebooks/ISEKAI_SIN_DESTINO_LOREBOOK.md
 
 ## 1. Por qué el bot parecía olvidar a los tres mensajes
@@ -39,7 +39,7 @@ Vive, explora y enamórate en un mundo que no espera por ti.
 
 AGENCIA: no escribas las palabras, acciones, pensamientos, emociones, decisiones ni reacciones de {{user}}. No asumas que acepta, rechaza, sigue, habla o participa si no lo expresó. Cada respuesta termina antes de la siguiente decisión de {{user}}.
 
-CABECERA: abre cada respuesta con «【DÍA 1 · MAÑANA · 08:00 | LUGAR: Bosque de las Bestias | PANORAMA: fresco, bruma baja】». Incluye día, tramo, hora aproximada, lugar y panorama breve.
+CABECERA DINÁMICA: abre cada respuesta con el formato «【DÍA N · TRAMO · HH:MM | LUGAR: lugar actual | PANORAMA: condiciones actuales】». El Día 1 · 08:00 del saludo es solo el estado inicial, nunca una plantilla literal. Después de empezar, conserva el último día, hora y lugar confirmados y actualiza solo por acciones narradas. Nunca regreses al Día 1 por recibir otro mensaje, dejar pasar horas reales o perder parte del contexto; si no puedes verificar el estado, pide el último punto de guardado.
 
 RELOJ: avanza por la duración razonable de las acciones, no por recibir mensajes. Diálogo: 1–5 min; inspección: 5–15; compra: 10–30; comida: 15–45; trabajo y viajes según duración, distancia y condiciones. Acciones pequeñas acumulan minutos. No omitas más de una hora ni completes tareas largas sin duración autorizada. Tramos: madrugada 00:00–05:59; mañana 06:00–11:59; tarde 12:00–17:59; noche 18:00–23:59.
 
@@ -53,11 +53,11 @@ CANON: distingue reglas fijas, hechos ya ocurridos, rumores e hipótesis. Respet
 
 MUNDO VIVO: los PNJ tienen objetivos, límites e información propia; pueden mentir, equivocarse, viajar y cambiar de opinión fuera de cámara, sin decidir por {{user}}.
 
-REGISTRO: cada tres respuestas del bot y tras cambios importantes, conserva día/hora/lugar/panorama, dinero, equipo, salud, objetivo, vínculos, habilidades, hechizos, usos de Eco por persona, hechos confirmados, rumores y consecuencias pendientes. /estado devuelve lo conocido y marca lo desconocido.
+REGISTRO Y GUARDADO: cada tres respuestas del bot y tras cambios importantes, produce un [PUNTO DE GUARDADO] compacto con día/hora/lugar, dinero, equipo, salud, objetivo, vínculos, encargos, habilidades conocidas, hechos confirmados, rumores y consecuencias pendientes. Separa «lo que sabe el protagonista» de «notas secretas del narrador» y no reveles estas últimas en la narración. /estado resume el estado conocido; /guardar prepara un bloque copiable. El registro no se guarda fuera del chat automáticamente: si falta en el contexto, pide al usuario que pegue la última copia. Nunca reinicies ni reconstruyas datos importantes mediante suposiciones.
 
 PROGRESIÓN: rangos E-D-C-B-A-S miden trayectoria y riesgo, no poder absoluto. Sin XP ni niveles. Las habilidades requieren práctica; la magia, aprendizaje, costes y límites. El protagonista empieza sin rango, dinero, equipo, entrenamiento ni hechizos.
 
-ECO: altera de forma limitada un recuerdo concreto. Máximo tres usos por persona durante toda la aventura; cada intento gasta uno aunque falle y no se recarga. No crea conocimientos ni impone obediencia, amor, confianza o consentimiento.
+ECO (SECRETO DEL NARRADOR): el protagonista empieza sin saber que posee esta capacidad ni conoce su nombre, activación o límite. No la reveles mediante tutorial, panel o explicación espontánea; debe descubrirla de forma plausible. Cuando se manifieste, solo altera de manera limitada un recuerdo concreto. Máximo tres intentos por persona durante toda la aventura; cada intento gasta uno aunque falle y no se recarga. No crea conocimientos ni impone obediencia, amor, confianza o consentimiento.
 
 TONO Y SEGURIDAD: fantasía abierta, supervivencia, vida cotidiana, humor y romance adulto opcional. No fuerces atracción ni intimidad. Cumple las reglas vigentes de SpicyChat.
 
@@ -154,11 +154,13 @@ No conviertas palabras genéricas como «la maga», «bosque», «aventurero» o
 
 ## 6. Reloj narrativo: día, hora, lugar y panorama
 
-Cada respuesta empieza con una línea como esta:
+Cada respuesta empieza con una cabecera dinámica. Esta es solo una muestra del estado inicial, no una línea que deba repetirse:
 
 ~~~text
 【DÍA 1 · MAÑANA · 08:00 | LUGAR: Bosque de las Bestias | PANORAMA: aire fresco, bruma ligera y suelo húmedo】
 ~~~
+
+**Regla crítica:** tras la primera escena, sustituye día, hora y lugar por los últimos valores confirmados. El saludo no es un punto de guardado. El tiempo real entre mensajes no avanza el reloj ficticio ni permite volver a la cabecera inicial.
 
 La cabecera muestra la hora actual después de aplicar el tiempo que consume la acción declarada. La hora avanza por las acciones, no porque el chat reciba otro mensaje. Las acciones pequeñas acumulan tiempo:
 
@@ -183,15 +185,15 @@ Formato de referencia:
 [REGISTRO | Día 1 · 08:00 · mañana | Lugar: Bosque de las Bestias | Panorama: fresco, bruma ligera | Dinero: 0 | Equipo: camisa y pantalones | Salud: ileso | Contrato: ninguno | Vínculos: grupo desconocido | Rango: ninguno | Magia: ninguna | Eco: 0 usos gastados; 3 por objetivo | Volcán: activo, fecha límite día 7]
 ~~~
 
-Actualiza solo los hechos que cambien. Para Eco, lleva una cuenta separada por persona. Si un dato no se conoce, escribe «desconocido»; no lo inventes. El registro más reciente reemplaza al anterior como estado actual, pero no elimina consecuencias pendientes.
+Actualiza solo los hechos que cambien. Para Eco, lleva una cuenta separada por persona. Si un dato no se conoce, escribe «desconocido»; no lo inventes. El registro más reciente reemplaza al anterior como estado actual, pero no elimina consecuencias pendientes. Importante: el bloque escrito en el chat no es un archivo persistente de la plataforma. Si el modelo ya no puede ver el registro, el texto de Personality no puede recuperarlo mágicamente. Para una partida larga, copia cada punto de guardado a un archivo propio. El reloj ficticio no avanza mientras no juegas, aunque pasen horas reales.
 
 ### Si el bot empieza a contradecirse
-1. Escribe /estado.
-2. Compara la respuesta con el registro más reciente.
-3. Si hay una contradicción, pega el último registro y añade: «OOC: usa este registro como canon actual; no inventes ni cambies datos que no aparecen aquí».
-4. Continúa desde ese estado. No le pidas que adivine mensajes que ya salieron de la ventana de contexto.
+1. Escribe /estado si el chat todavía conserva el contexto necesario.
+2. Si el resultado vuelve al Día 1 o inventa progreso, no sigas la nueva versión.
+3. Pega el último punto de guardado copiado y añade: «OOC: este registro es el estado actual de la partida. Continúa desde aquí; el Día 1 del saludo ya pasó. No inventes hechos desconocidos ni restaures recursos».
+4. Si el chat ya olvidó demasiadas escenas, usa el punto de guardado para iniciar una conversación nueva o clona la conversación desde un punto anterior que funcione.
 
-En el plan Free, Memory Manager no está incluido. En ese caso, el registro visible y su reutilización son el método práctico de respaldo. Si tienes Memory Manager, fija pocas memorias de reglas permanentes y mantén actualizada una memoria con el estado actual. No fijes muchos detalles secundarios.
+El Memory Manager está disponible en los planes compatibles y permite fijar algunos recuerdos; Semantic Memory 2.0 está disponible en niveles superiores compatibles. No reemplazan una copia externa del estado exacto. En el plan gratuito, copia el registro a un archivo de texto cada vez que guardes.
 
 ## 8. Prueba de aceptación
 
@@ -211,4 +213,16 @@ Haz esta prueba privada antes de desarrollar más contenido:
 
 ## 9. Qué puede y qué no puede garantizar este arreglo
 
-Esta configuración reduce la carga inicial, muestra el reloj narrativo, fija una columna vertebral para los primeros 30 días y añade un método para rechazar giros sin causa, además de recuperar dinero, inventario, ubicación, relaciones, habilidades y acontecimientos. No convierte el contexto en infinito ni garantiza obediencia perfecta. La prueba decisiva es jugar varios turnos y comprobar si el bot mantiene el registro. Si falla, corrige el campo o entrada relacionada en lugar de añadir la biblia completa al prompt.
+Esta configuración reduce la carga inicial, muestra un reloj dinámico, fija una columna vertebral para los primeros 30 días y añade un método para rechazar giros sin causa. No convierte el contexto en infinito ni crea una base de datos independiente por usuario. El modelo solo puede utilizar el historial y las memorias que SpicyChat le entregue en cada respuesta. Una Lorebook conserva hechos del mundo, no el inventario individual de cada partida. La protección fiable para el progreso exacto es un punto de guardado visible y copiado fuera del chat.
+
+## 10. Para qué sirve SpicyChat y cómo adaptar una aventura larga
+
+SpicyChat genera respuestas de rol a partir de la definición del personaje, la conversación reciente y las memorias disponibles. Es adecuado para roleplay abierto y puede sostener aventuras largas, pero no equivale a un motor de RPG con base de datos de partida persistente. Cuando el contexto se llena, los mensajes antiguos pueden dejar de estar disponibles.
+
+Por eso, estructura Isekai en cuatro capas: (1) Personality breve con reglas permanentes; (2) Scenario y Greeting con premisa y comienzo, sin repetir el Día 1 como instrucción; (3) Lorebook con hechos estables del mundo activados por palabras clave; (4) punto de guardado de la partida actual con reloj, inventario, dinero, relaciones, tareas y hechos ocurridos. Guarda este cuarto elemento como copia externa. No introduzcas miles de caracteres de reglas en Personality para compensar la falta de memoria: consume contexto y puede empeorar el problema.
+
+Fuentes oficiales de referencia:
+- Contexto y olvido: https://support.spicychat.ai/support/solutions/articles/153000260636-why-characters-forget-things-tokens-and-context-
+- Cómo se genera cada respuesta: https://support.spicychat.ai/support/solutions/articles/153000260635-how-spicychat-generates-messages
+- Lorebooks y activadores: https://support.spicychat.ai/support/solutions/articles/153000260673-lorebooks
+- Retomar una historia mediante un resumen: https://support.spicychat.ai/support/solutions/articles/153000260648-starting-a-fresh-chat-but-keeping-the-story
