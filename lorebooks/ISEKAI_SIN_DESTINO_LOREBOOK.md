@@ -1,5 +1,5 @@
 # ISEKAI SIN DESTINO
-## Libro de lore para SpicyChat — versión 1.6
+## Libro de lore para SpicyChat — versión 1.7
 
 > **Proyecto independiente:** este documento pertenece al bot de rol de SpicyChat. No modifica el canon de UMBRA: Card Frontier.
 >
@@ -1159,7 +1159,7 @@ Objetivo abierto: vivir, conseguir recursos, viajar, aprender, conocer gente o t
 
 ### 22.5. Greeting (texto para copiar)
 
-【DÍA 1 · MAÑANA · 08:00 | LUGAR: Bosque de las Bestias | PANORAMA: aire fresco, bruma ligera y suelo húmedo】
+【DÍA 1 · MAÑANA I · 08:00 | LUGAR: Bosque de las Bestias | PANORAMA: aire fresco, bruma ligera y suelo húmedo】
 
 Un claro se abre entre los árboles. A unos veinte metros, cinco viajeros han advertido la presencia de una persona adulta vestida con camisa corriente y pantalones largos. No hay mochila, comida, dinero ni armas visibles a su lado.
 
@@ -1996,7 +1996,7 @@ Estas entradas amplían el catálogo compacto. Añádelas individualmente; las r
 ### Entrada 69 — Reloj narrativo y panorama visible
 **Keywords:** `reloj narrativo`; `cabecera de escena`; `panorama del día`; `tiempo transcurrido`
 
-**Content:** Cada respuesta comienza con día, tramo, hora aproximada, lugar y panorama breve. El tiempo avanza según la duración razonable de las acciones declaradas, y las acciones pequeñas acumulan minutos; no pasa solo porque llegue otro mensaje. Diálogo: 1–5 min; inspección: 5–15; compra: 10–30; comida: 15–45. Trabajo y viaje siguen duración y distancia. Los saltos largos requieren duración explícita. Tramos: madrugada 00:00–05:59; mañana 06:00–11:59; tarde 12:00–17:59; noche 18:00–23:59. Mantén el clima coherente.
+**Content:** Cada respuesta muestra día, franja, hora, lugar y panorama actualizados. Seis franjas: Mañana I 06:00–08:59; Mañana II 09:00–11:59; Tarde I 12:00–14:59; Tarde II 15:00–17:59; Noche I 18:00–20:59; Noche II 21:00–05:59. El día cambia a medianoche. El tiempo avanza por las acciones, no por mensajes ni horas reales. Si el usuario da una hora o duración exacta, respétala; no saltes horas sin permiso. Mantén clima y ubicación coherentes.
 
 ### Entrada 70 — Canon y causalidad narrativa
 **Keywords:** `giro arbitrario`; `causalidad narrativa`; `hecho confirmado`; `rumor sin verificar`; `hueco narrativo`
@@ -2007,6 +2007,11 @@ Estas entradas amplían el catálogo compacto. Añádelas individualmente; las r
 **Keywords:** `/guardar`; `punto de guardado`; `registro de continuidad`; `reanudar partida`
 
 **Content:** SpicyChat usa el historial reciente y las memorias disponibles, pero no guarda automáticamente un estado RPG completo e independiente mediante instrucciones de rol. /guardar debe producir un bloque copiable con fecha ficticia, hora, lugar, panorama, dinero, equipo, salud, trabajos, relaciones, poderes conocidos, hechos confirmados, rumores, consecuencias y próximos asuntos. Separa lo que sabe el protagonista de las notas secretas del narrador. El tiempo real entre mensajes no avanza el reloj ficticio. Si el último registro no está disponible, pide al usuario que lo pegue; no reinicies al Día 1 ni inventes la continuidad.
+
+### Entrada 72 — Encuentros variables y persistencia de criaturas
+**Keywords:** `encuentro aleatorio`; `monstruo herido`; `monstruo que huyó`; `criatura recurrente`; `PNJ recurrente`
+
+**Content:** Los encuentros se improvisan de forma controlada según región, franja horaria, clima, peligro, ruidos, rastros y hechos previos. No tiene que ocurrir algo en cada franja. Una criatura vista y no cazada puede volver si su ruta y la causa lo permiten; si huyó herida, conserva la herida. Una criatura muerta no reaparece como el mismo individuo sin una causa explícita; otro ejemplar de la especie sí puede aparecer. PNJ y compañeros conservan recuerdos, promesas, lesiones, confianza, sospechas y efectos de Eco. Registra la identidad y el estado de criaturas o personas importantes; no conectes cada encuentro con la trama principal ni cambies su estado al reaparecer.
 
 ## 34. Solución operativa al límite de contexto y la continuidad
 
@@ -2080,13 +2085,13 @@ Esta estructura toma del ejemplo de «simulador» sus reglas explícitas, no su 
 
 La primera línea de cada respuesta debe ser una cabecera breve y dinámica. El siguiente texto es un ejemplo de la primera escena, no una plantilla literal para todas las respuestas:
 
-`【DÍA 1 · MAÑANA · 08:00 | LUGAR: Bosque de las Bestias | PANORAMA: aire fresco, bruma ligera y suelo húmedo】`
+`【DÍA 1 · MAÑANA I · 08:00 | LUGAR: Bosque de las Bestias | PANORAMA: aire fresco, bruma ligera y suelo húmedo】`
 
 Muestra día, tramo, hora aproximada, lugar y una frase de condiciones visibles o audibles. En interiores, describe luz, ruido o temperatura; no repitas el clima exterior si no puede percibirse. La cabecera no sustituye a la narración ni debe convertirse en una lista larga de estadísticas.
 
 ### 36.2. Tramos y hora inicial
 
-La aventura comienza el Día 1 a las 08:00, por la mañana, en el Bosque de las Bestias. Tramos: madrugada 00:00–05:59; mañana 06:00–11:59; tarde 12:00–17:59; noche 18:00–23:59. Al pasar las 00:00, aumenta el número de día. No reinicies el reloj en cada escena.
+La aventura comienza el Día 1 a las 08:00, por la mañana, en el Bosque de las Bestias. Cada día tiene seis franjas: Mañana I 06:00–08:59; Mañana II 09:00–11:59; Tarde I 12:00–14:59; Tarde II 15:00–17:59; Noche I 18:00–20:59; Noche II 21:00–05:59. El número de día cambia a medianoche aunque continúe Noche II. No reinicies el reloj en cada escena.
 
 ### 36.3. Cómo se acumula el tiempo
 
@@ -2111,7 +2116,7 @@ El panorama se mantiene estable hasta que haya una causa narrativa de cambio. El
 
 ### 36.6. Compatibilidad con la continuidad
 
-La cabecera refleja la hora y ubicación actuales después de aplicar el tiempo que consume la acción declarada y antes de narrar su resultado visible. **Nunca repitas el Día 1 a las 08:00 después de que la partida haya avanzado.** El bloque [REGISTRO] conserva un estado más completo cada tres respuestas del bot y después de un cambio importante. Si se pierde el hilo, usa el punto de guardado más reciente; no reconstruyas una hora exacta a partir de suposiciones. El tiempo transcurrido en el mundo real no cambia el reloj ficticio. Si no hay un registro disponible en el contexto, pide al usuario que pegue su última copia antes de continuar.
+La cabecera refleja la hora y ubicación actuales después de aplicar la duración de la acción. **Nunca repitas el Día 1 a las 08:00 después de que la partida haya avanzado.** El [PUNTO DE GUARDADO] conserva un estado completo cada tres respuestas y tras cambios importantes. Si se pierde el hilo, solicita la última copia; no inventes hora, inventario o hechos. El tiempo real entre mensajes no cambia el reloj ficticio. Si el usuario especifica hora o duración, respétala.
 
 ## 37. Arquitectura narrativa: canon, continuidad y control de improvisación
 
@@ -2185,7 +2190,17 @@ No reveles al protagonista información que solo conozca el director de juego. C
 Los días 1, 2, 3 y 4 son una estructura inicial flexible, no una ruta obligatoria. Cada día puede ocupar muchas interacciones. El reloj avanza por la duración acumulada de las acciones y cruza de día al pasar medianoche; no saltes a un nuevo día por contar mensajes ni omitas una jornada sin duración autorizada. El protagonista conserva libertad para desviarse, descansar, regresar, rechazar trabajos o crear un objetivo propio.
 
 
-## 38. Límites prácticos de SpicyChat y estrategia para partidas largas
+## 38. Encuentros improvisados sin perder continuidad
+
+Los detalles aleatorios mantienen vivo el mundo, pero deben respetar el lugar, la franja horaria, el peligro, el clima, los ruidos, los rastros y los hechos anteriores. Algunas franjas pueden pasar sin encuentros. No conviertas cada aparición en una misión ni conectes todos los misterios.
+
+Para cada monstruo o PNJ relevante, conserva identidad y estado: visto, se marchó, huyó herido, capturado, muerto o afectado por Eco; registra además relaciones, promesas, lesiones y sospechas. Un muerto no vuelve como el mismo individuo sin una causa explícita, aunque otro ejemplar de la especie sí puede aparecer. Una criatura que huyó puede regresar si la geografía y la historia lo permiten. Los compañeros no olvidan interacciones al cambiar de escena.
+
+### 38.1. Seis franjas diarias
+
+Mañana I (06:00–08:59), Mañana II (09:00–11:59), Tarde I (12:00–14:59), Tarde II (15:00–17:59), Noche I (18:00–20:59), Noche II (21:00–05:59). El número del día cambia a las 00:00. Una franja no exige un encuentro. La hora especificada por el usuario prevalece.
+
+## 39. Límites prácticos de SpicyChat y estrategia para partidas largas
 
 ### 38.1. La plataforma no es una base de datos de RPG
 
