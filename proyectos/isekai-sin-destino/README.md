@@ -19,6 +19,10 @@
 - Los efectos y usos de Eco permanecen ligados al objetivo.
 - El punto de guardado sigue siendo una copia manual: SpicyChat no obtiene persistencia externa automáticamente.
 
+## Solución para historias largas
+
+- [Diagnóstico y opciones de continuidad](SOLUCION_HISTORIAS_LARGAS.md) — compara SpicyChat con guardados manuales, SillyTavern para una partida personal y una aplicación propia con base de datos.
+
 ## Estado de validación
 
 Los archivos se han comprobado en GitHub; el JSON se valida sintácticamente. Los cambios aún requieren prueba dentro de la cuenta de SpicyChat.
