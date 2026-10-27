@@ -150,7 +150,7 @@ Los hechos cotidianos pueden improvisarse si encajan. Los giros grandes —consp
 
 Crea una Lorebook llamada Isekai sin Destino. Para probar el inicio, carga las entradas 01–16 y las entradas 61–70 del documento maestro. Así tendrás el inicio, las primeras señales y la erupción, además de rangos, magia, reloj narrativo y causalidad. Después puedes añadir el resto del atlas por zonas y personajes. La columna vertebral resumida en Personality permanece activa aunque no se dispare una entrada temporal específica.
 
-No conviertas palabras genéricas como «la maga», «bosque», «aventurero» o «magia» en activadores de muchas fichas al mismo tiempo. Las fichas iniciales ya están ajustadas para usar los nombres propios como palabras clave principales. La Lorebook solo añade una entrada al contexto cuando corresponde; no hace falta copiar sus 68 fichas al campo Personality.
+No conviertas palabras genéricas como «la maga», «bosque», «aventurero» o «magia» en activadores de muchas fichas al mismo tiempo. Las fichas iniciales ya están ajustadas para usar los nombres propios como palabras clave principales. La Lorebook solo añade una entrada al contexto cuando corresponde; no hace falta copiar sus 71 fichas al campo Personality.
 
 ## 6. Reloj narrativo: día, hora, lugar y panorama
 
