@@ -1485,6 +1485,29 @@
       "addMemo": false,
       "caseSensitive": false,
       "matchWholeWords": false
+    },
+    "70": {
+      "uid": 70,
+      "key": [
+        "/guardar",
+        "punto de guardado",
+        "registro de continuidad",
+        "reanudar partida"
+      ],
+      "keysecondary": [],
+      "comment": "Punto de guardado y reanudación",
+      "content": "SpicyChat usa el historial reciente y las memorias disponibles, pero no guarda automáticamente un estado RPG completo e independiente mediante instrucciones de rol. /guardar debe producir un bloque copiable con día y hora ficticios, lugar, panorama, dinero, equipo, salud, trabajos, relaciones, poderes conocidos, hechos confirmados, rumores, consecuencias y próximos asuntos. Separa lo que sabe el protagonista de las notas secretas del narrador. El tiempo real entre mensajes no avanza el reloj ficticio. Si el último registro no está disponible, pide al usuario que lo pegue; no reinicies al Día 1 ni inventes la continuidad.",
+      "constant": false,
+      "selective": false,
+      "order": 710,
+      "position": 0,
+      "disable": false,
+      "probability": 100,
+      "depth": 4,
+      "excludeRecursion": false,
+      "addMemo": false,
+      "caseSensitive": false,
+      "matchWholeWords": false
     }
   }
 }
