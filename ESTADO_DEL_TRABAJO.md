@@ -16,7 +16,8 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 - Lorebook: 72 entradas.
 - Cambios recientes: Personality resumida; reloj con seis franjas diarias; cabecera dinámica para que el saludo del Día 1 no se repita; encuentros aleatorios controlados; persistencia de estado de monstruos y PNJ; los compañeros conservan recuerdos; un monstruo muerto no reaparece como el mismo individuo sin causa; Eco mantiene usos y efectos por objetivo.
 - Persistencia práctica: el bot puede generar `/guardar`, pero SpicyChat no guarda por instrucciones un estado RPG externo. La partida necesita un punto de guardado copiado fuera del chat para recuperarla si el contexto se pierde.
-- Pendiente: probar realmente la versión v1.7 en SpicyChat; comprobar si las seis franjas y la regla de monstruos reaparecidos funcionan; corregir cualquier fallo observado sin volver a añadir texto excesivo a Personality.
+- Diagnóstico añadido: `proyectos/isekai-sin-destino/SOLUCION_HISTORIAS_LARGAS.md`. SpicyChat no garantiza el estado exacto de un RPG a partir de prompts; se comparan procedimiento de guardado manual, SillyTavern para uso personal y una aplicación con base de datos por usuario.
+- Pendiente: probar realmente la versión v1.7 en SpicyChat; comprobar si las seis franjas y la regla de monstruos reaparecidos funcionan; decidir si se seguirá en SpicyChat o se probará una interfaz con resúmenes y recuperación.
 
 ### 2. DanMachi
 - Carpeta: `proyectos/danmachi/`
