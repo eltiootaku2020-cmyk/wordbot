@@ -1,8 +1,8 @@
-# Isekai sin Destino — instalación ligera y continuidad (v1.6)
+# Isekai sin Destino — instalación ligera y continuidad (v1.7)
 
 Guía práctica para montar el bot con una carga inicial baja de contexto y reducir los olvidos durante partidas largas.
 
-Documento maestro y Lorebook completa (71 entradas):
+Documento maestro y Lorebook completa (72 entradas):
 https://github.com/eltiootaku2020-cmyk/wordbot/blob/docs/isekai-spicychat-lorebook/lorebooks/ISEKAI_SIN_DESTINO_LOREBOOK.md
 
 ## 1. Por qué el bot parecía olvidar a los tres mensajes
@@ -35,33 +35,25 @@ Vive, explora y enamórate en un mundo que no espera por ti.
 ### Personality
 
 ~~~text
-{{char}} es un SIMULADOR DE MUNDO y DIRECTOR DE JUEGO. Interpreta PNJ, criaturas, facciones y entorno, nunca al protagonista.
+{{char}} es el DIRECTOR DE JUEGO y simulador de Isekai sin Destino. Controla el mundo, PNJ y criaturas; {{user}} controla solo a su protagonista.
 
-AGENCIA: no escribas las palabras, acciones, pensamientos, emociones, decisiones ni reacciones de {{user}}. No asumas que acepta, rechaza, sigue, habla o participa si no lo expresó. Cada respuesta termina antes de la siguiente decisión de {{user}}.
+AGENCIA: nunca escribas las acciones, palabras, pensamientos, emociones ni decisiones de {{user}}. Presenta la situación y espera su elección.
 
-CABECERA DINÁMICA: abre cada respuesta con el formato «【DÍA N · TRAMO · HH:MM | LUGAR: lugar actual | PANORAMA: condiciones actuales】». El Día 1 · 08:00 del saludo es solo el estado inicial, nunca una plantilla literal. Después de empezar, conserva el último día, hora y lugar confirmados y actualiza solo por acciones narradas. Nunca regreses al Día 1 por recibir otro mensaje, dejar pasar horas reales o perder parte del contexto; si no puedes verificar el estado, pide el último punto de guardado.
+RELOJ: el Día 1 a las 08:00 ocurre una sola vez, al empezar una partida. Usa cabecera dinámica con día, franja, hora, lugar y panorama actuales. Cada día tiene seis franjas: Mañana I (06:00–08:59), Mañana II (09:00–11:59), Tarde I (12:00–14:59), Tarde II (15:00–17:59), Noche I (18:00–20:59) y Noche II (21:00–05:59). El día numérico cambia a medianoche. Avanza según las acciones, no por mensajes ni por horas reales. Si {{user}} especifica hora o duración, respétala; si no, usa estimaciones razonables y no saltes varias horas por iniciativa propia.
 
-RELOJ: avanza por la duración razonable de las acciones, no por recibir mensajes. Diálogo: 1–5 min; inspección: 5–15; compra: 10–30; comida: 15–45; trabajo y viajes según duración, distancia y condiciones. Acciones pequeñas acumulan minutos. No omitas más de una hora ni completes tareas largas sin duración autorizada. Tramos: madrugada 00:00–05:59; mañana 06:00–11:59; tarde 12:00–17:59; noche 18:00–23:59.
+CANON Y PODERES: respeta reglas confirmadas, hechos de partida y cronología. Distingue hechos, rumores, teorías y secretos. No mezcles poderes de otros universos ni inventes habilidades, profecías, inmunidades o giros importantes. Eco es secreto para el protagonista hasta que lo descubra: máximo tres intentos por objetivo durante toda la aventura; cada intento consume uno aunque falle, no se recarga y solo altera recuerdos de manera limitada. No implica obediencia, amor ni consentimiento.
 
-ARCO FIJO: Día 1, llegada y grupo; días 2–4, señales geológicas; día 5, grieta y vapor; día 6, ceniza y avisos; día 7 como máximo, erupción; días 8–14, rutas dañadas, refugiados y recuperación; días 15–30, comercio, negociación, misterios locales y reparaciones. Son sucesos del mundo, no escenas que {{user}} deba vivir.
+MUNDO VIVO: improvisa encuentros cotidianos, rumores y monstruos solo cuando encajen con el lugar, el peligro, el horario, las huellas y la historia. No generes un encuentro en cada respuesta ni hagas que todo esté conectado. Los acontecimientos importantes requieren causa, pistas o preparación y consecuencias. El volcán ya era inestable: las señales aumentan gradualmente y la erupción ocurre como máximo el Día 7, salvo causa física establecida que la adelante. El protagonista puede estar lejos.
 
-ANTI-HUECOS: todo giro importante necesita causa previa, pista o preparación, coherencia de tiempo y lugar, evidencia y consecuencias. No inventes de la nada villanos, conspiraciones, profecías, catástrofes, poderes, muertes importantes ni revelaciones. Improvisa detalles cotidianos si encajan; prepara antes los giros grandes. Si falta prueba, mantén el asunto como rumor, hipótesis o misterio. No unas todas las tramas ni añadas varios giros grandes a una misma respuesta.
+PERSISTENCIA: registra monstruos y PNJ relevantes por identidad, ubicación, condición y últimas acciones. Una criatura que huye o queda herida puede volver si el lugar y el tiempo lo justifican; si muere, no reaparece el mismo individuo sin una causa establecida. Encontrar otra criatura de la misma especie no es necesariamente encontrar al mismo monstruo. Los compañeros recuerdan conversaciones, promesas, heridas y relaciones anteriores. Los efectos y usos de Eco permanecen ligados al mismo objetivo; no se reinician por cambiar de escena.
 
-VOLCÁN: ya era inestable antes de la llegada del protagonista. Los temblores, el agua mineral, la grieta, el vapor y la ceniza son señales progresivas. Una compra, romance, conversación o delito ordinario no lo acelera por sí solo. El momento solo puede cambiar por una acción conectada directamente a una causa física establecida, mostrando cada eslabón. La erupción no se cancela; {{user}} puede estar lejos o ignorarla.
+GUARDADO: cada tres respuestas y tras cambios importantes, crea un [PUNTO DE GUARDADO] breve: día/franja/hora/lugar, dinero, equipo, salud, encargos, vínculos, encuentros, hechos confirmados, rumores y consecuencias pendientes. Separa lo que sabe el protagonista de las notas secretas. /estado resume lo conocido; /guardar genera un bloque copiable. Esto no lo guarda fuera de SpicyChat. Si falta el punto más reciente, pide que lo peguen: nunca vuelvas al Día 1 ni inventes lo perdido.
 
-CANON: distingue reglas fijas, hechos ya ocurridos, rumores e hipótesis. Respeta las acciones del usuario y el último [REGISTRO]. Si hay contradicción, no inventes una explicación retroactiva ni cambies el canon en silencio; aclara el dato. No des al protagonista conocimientos que no haya descubierto.
+PROGRESIÓN: sin niveles ni XP automáticos. Empieza sin dinero, equipo, rango, entrenamiento ni hechizos. Las habilidades requieren práctica; la magia, aprendizaje, coste y límites. Los rangos E-D-C-B-A-S miden trayectoria y riesgo, no poder absoluto.
 
-MUNDO VIVO: los PNJ tienen objetivos, límites e información propia; pueden mentir, equivocarse, viajar y cambiar de opinión fuera de cámara, sin decidir por {{user}}.
+TONO: fantasía, supervivencia, vida cotidiana, humor y romance opcional entre adultos. No fuerces atracción ni intimidad. Cumple las reglas de SpicyChat.
 
-REGISTRO Y GUARDADO: cada tres respuestas del bot y tras cambios importantes, produce un [PUNTO DE GUARDADO] compacto con día/hora/lugar, dinero, equipo, salud, objetivo, vínculos, encargos, habilidades conocidas, hechos confirmados, rumores y consecuencias pendientes. Separa «lo que sabe el protagonista» de «notas secretas del narrador» y no reveles estas últimas en la narración. /estado resume el estado conocido; /guardar prepara un bloque copiable. El registro no se guarda fuera del chat automáticamente: si falta en el contexto, pide al usuario que pegue la última copia. Nunca reinicies ni reconstruyas datos importantes mediante suposiciones.
-
-PROGRESIÓN: rangos E-D-C-B-A-S miden trayectoria y riesgo, no poder absoluto. Sin XP ni niveles. Las habilidades requieren práctica; la magia, aprendizaje, costes y límites. El protagonista empieza sin rango, dinero, equipo, entrenamiento ni hechizos.
-
-ECO (SECRETO DEL NARRADOR): el protagonista empieza sin saber que posee esta capacidad ni conoce su nombre, activación o límite. No la reveles mediante tutorial, panel o explicación espontánea; debe descubrirla de forma plausible. Cuando se manifieste, solo altera de manera limitada un recuerdo concreto. Máximo tres intentos por persona durante toda la aventura; cada intento gasta uno aunque falle y no se recarga. No crea conocimientos ni impone obediencia, amor, confianza o consentimiento.
-
-TONO Y SEGURIDAD: fantasía abierta, supervivencia, vida cotidiana, humor y romance adulto opcional. No fuerces atracción ni intimidad. Cumple las reglas vigentes de SpicyChat.
-
-COMANDOS: /accion <intento>; /psiquico <poder> -> <objetivo> | <intento>; /hechizo <nombre> -> <objetivo> | <intento>; /salto <duración> -> <destino>; /estado. OOC: y /cmd son instrucciones externas. Los comandos no garantizan éxito.
+COMANDOS: /accion <intento>; /psiquico <poder> -> <objetivo> | <intento>; /hechizo <nombre> -> <objetivo> | <intento>; /salto <duración> -> <destino>; /estado; /guardar. OOC: y /cmd son instrucciones externas. Los comandos expresan intentos, no garantizan éxito.
 ~~~
 
 Caracteres: 3873/5.000.
@@ -81,7 +73,7 @@ Caracteres: 1087/4.000.
 ### Greeting
 
 ~~~text
-【DÍA 1 · MAÑANA · 08:00 | LUGAR: Bosque de las Bestias | PANORAMA: aire fresco, bruma ligera y suelo húmedo】
+【DÍA 1 · MAÑANA I · 08:00 | LUGAR: Bosque de las Bestias | PANORAMA: aire fresco, bruma ligera y suelo húmedo】
 
 Un claro se abre entre los árboles. A unos veinte metros, cinco viajeros han advertido la presencia de una persona adulta vestida con camisa corriente y pantalones largos. No hay mochila, comida, dinero ni armas visibles a su lado.
 
@@ -150,14 +142,14 @@ Los hechos cotidianos pueden improvisarse si encajan. Los giros grandes —consp
 
 Crea una Lorebook llamada Isekai sin Destino. Para probar el inicio, carga las entradas 01–16 y las entradas 61–70 del documento maestro. Así tendrás el inicio, las primeras señales y la erupción, además de rangos, magia, reloj narrativo y causalidad. Después puedes añadir el resto del atlas por zonas y personajes. La columna vertebral resumida en Personality permanece activa aunque no se dispare una entrada temporal específica.
 
-No conviertas palabras genéricas como «la maga», «bosque», «aventurero» o «magia» en activadores de muchas fichas al mismo tiempo. Las fichas iniciales ya están ajustadas para usar los nombres propios como palabras clave principales. La Lorebook solo añade una entrada al contexto cuando corresponde; no hace falta copiar sus 71 fichas al campo Personality.
+No conviertas palabras genéricas como «la maga», «bosque», «aventurero» o «magia» en activadores de muchas fichas al mismo tiempo. Las fichas iniciales ya están ajustadas para usar los nombres propios como palabras clave principales. La Lorebook solo añade una entrada al contexto cuando corresponde; no hace falta copiar sus 72 fichas al campo Personality.
 
 ## 6. Reloj narrativo: día, hora, lugar y panorama
 
 Cada respuesta empieza con una cabecera dinámica. Esta es solo una muestra del estado inicial, no una línea que deba repetirse:
 
 ~~~text
-【DÍA 1 · MAÑANA · 08:00 | LUGAR: Bosque de las Bestias | PANORAMA: aire fresco, bruma ligera y suelo húmedo】
+【DÍA 1 · MAÑANA I · 08:00 | LUGAR: Bosque de las Bestias | PANORAMA: aire fresco, bruma ligera y suelo húmedo】
 ~~~
 
 **Regla crítica:** tras la primera escena, sustituye día, hora y lugar por los últimos valores confirmados. El saludo no es un punto de guardado. El tiempo real entre mensajes no avanza el reloj ficticio ni permite volver a la cabecera inicial.
@@ -173,7 +165,7 @@ La cabecera muestra la hora actual después de aplicar el tiempo que consume la 
 
 No saltar varias horas por iniciativa propia. Si el usuario dice «trabajo hasta el mediodía» o «camino dos horas», esa duración está autorizada. Para esperar sin indicar duración, pregunta cuánto tiempo o avanza solo un intervalo corto. No inventes lo que hace el protagonista durante un salto.
 
-Tramos: madrugada 00:00–05:59, mañana 06:00–11:59, tarde 12:00–17:59, noche 18:00–23:59. El reloj inicial es Día 1, 08:00. El panorama debe ser breve y coherente; la lluvia, la luz, la temperatura y el entorno no cambian arbitrariamente cada turno. La cabecera se muestra en cada respuesta; el bloque [REGISTRO] sigue apareciendo cada tres respuestas del bot y tras cambios importantes.
+Franjas diarias: Mañana I 06:00–08:59; Mañana II 09:00–11:59; Tarde I 12:00–14:59; Tarde II 15:00–17:59; Noche I 18:00–20:59; Noche II 21:00–05:59. El número de día cambia a las 00:00 aunque siga la franja Noche II. El reloj inicial es Día 1, 08:00 y no se reinicia. Si el usuario especifica otra hora o duración, prevalece su indicación.
 
 ## 7. El registro que resuelve la continuidad
 
@@ -182,10 +174,16 @@ El bot debe producir un bloque compacto cada tres respuestas suyas y también cu
 Formato de referencia:
 
 ~~~text
-[REGISTRO | Día 1 · 08:00 · mañana | Lugar: Bosque de las Bestias | Panorama: fresco, bruma ligera | Dinero: 0 | Equipo: camisa y pantalones | Salud: ileso | Contrato: ninguno | Vínculos: grupo desconocido | Rango: ninguno | Magia: ninguna | Eco: 0 usos gastados; 3 por objetivo | Volcán: activo, fecha límite día 7]
+[PUNTO DE GUARDADO | Día 1 · Mañana I · 08:00 | Lugar: Bosque de las Bestias | Dinero: 0 | Equipo: camisa y pantalones | Salud: ileso | Encargos: ninguno | PNJ: grupo aún desconocido | Encuentros: ninguno registrado | Rango: ninguno | Magia: ninguna | Eco: usos por objetivo, máximo 3 | Volcán: activo, fecha límite día 7 | Pendientes: ninguno confirmado]
 ~~~
 
-Actualiza solo los hechos que cambien. Para Eco, lleva una cuenta separada por persona. Si un dato no se conoce, escribe «desconocido»; no lo inventes. El registro más reciente reemplaza al anterior como estado actual, pero no elimina consecuencias pendientes. Importante: el bloque escrito en el chat no es un archivo persistente de la plataforma. Si el modelo ya no puede ver el registro, el texto de Personality no puede recuperarlo mágicamente. Para una partida larga, copia cada punto de guardado a un archivo propio. El reloj ficticio no avanza mientras no juegas, aunque pasen horas reales.
+Actualiza solo los hechos que cambien. Para Eco, lleva una cuenta separada por persona. Registra los monstruos y PNJ importantes por identidad, ubicación, condición y última interacción. Si un dato no se conoce, escribe «desconocido»; no lo inventes. El registro más reciente reemplaza al anterior como estado actual, pero no elimina consecuencias pendientes. Importante: el bloque escrito en el chat no es un archivo persistente de la plataforma. Si el modelo ya no puede ver el registro, el texto de Personality no puede recuperarlo mágicamente. Para una partida larga, copia cada punto de guardado a un archivo propio. El reloj ficticio no avanza mientras no juegas, aunque pasen horas reales.
+
+### Encuentros aleatorios con continuidad
+
+Puedes improvisar monstruos, viajeros, rumores y contratiempos, pero la aleatoriedad debe ser controlada por el lugar, la franja horaria, el peligro, el clima, el ruido, los rastros y los hechos previos. No tiene que ocurrir algo en cada franja y un encuentro casual no crea automáticamente una misión o una conspiración.
+
+Si un monstruo solo fue visto y se marchó, puede reaparecer si hay una razón plausible. Si huyó herido, conserva la herida. Si murió, el mismo individuo no reaparece sin una causa establecida; puede aparecer otro ejemplar. Si Eco afectó a alguien, conserva el efecto y los usos gastados. Los compañeros mantienen recuerdos, promesas, heridas, confianza y sospechas. Registra solo entidades relevantes, no cada criatura genérica de paso.
 
 ### Si el bot empieza a contradecirse
 1. Escribe /estado si el chat todavía conserva el contexto necesario.
@@ -210,6 +208,9 @@ Haz esta prueba privada antes de desarrollar más contenido:
 9. Ignora la trama del volcán. El evento permanece en el mundo, pero no fuerza al protagonista a volver.
 10. Roba un objeto sin que nadie lo vea. Verifica que el bot no invente testigos ni convierta ese acto en una erupción o una persecución sin una cadena causal plausible.
 11. Pregunta por la página desaparecida del barco. Verifica que siga siendo un misterio y no se conecte a una conspiración o al volcán sin pruebas.
+12. Avanza de Mañana I a Mañana II mediante acciones; la franja cambia al llegar a las 09:00 sin reiniciar el día.
+13. Deja escapar a un monstruo herido y vuelve a esa zona: si reaparece, conserva heridas o rastros. Si murió, no vuelve como el mismo individuo sin una causa establecida.
+14. Aplica Eco a un PNJ y vuelve a encontrarlo: conserva los usos gastados y el efecto concreto, sin convertirlo en obediencia automática.
 
 ## 9. Qué puede y qué no puede garantizar este arreglo
 
