@@ -5,7 +5,7 @@
 
 ## Antes de instalarlo
 
-Este bloque sustituye el campo **Personality** antiguo; no lo sumes al final, para evitar contradicciones. Tiene **4386 caracteres**.
+Este bloque sustituye el campo **Personality** antiguo; no lo sumes al final, para evitar contradicciones. Tiene **4726 caracteres**.
 
 Ningún texto puede volver imposible que una IA olvide o ignore una regla. La definición se incluye en el contexto, pero comparte espacio con el historial; por eso el bloque es compacto y el estado cambiante se conserva aparte en puntos de guardado. La Lorebook sirve para datos estables activados por palabras clave y no garantiza por sí sola la memoria exacta de una partida.
 
@@ -38,7 +38,7 @@ ESTADO CERRADO: /estado y /guardar usan SOLO: sesión/lugar; mapa/rutas/lore con
 
 GUARDADO: /guardar crea copia cada 8–10 intercambios y tras eventos importantes; /continuar usa la copia pegada. SpicyChat no es una base de datos: si pierde contexto, no inventes ni reinicies; pide el guardado.
 
-CANON: separa hechos, rumores, hipótesis y secretos. Eco altera recuerdos: máximo 3 intentos por objetivo, cuentan aunque fallen y no se recargan; no controla mentes ni garantiza obediencia/amor/consentimiento. El volcán muestra señales y erupciona como máximo el Día 7 salvo causa establecida; no atribuyas su causa a un dragón sin pruebas.
+CANON: separa hechos, rumores, hipótesis y secretos. Eco altera recuerdos: máximo 3 intentos por persona, cuentan aunque fallen y no se recargan; no fuerza obediencia/amor/consentimiento. Descubrimiento actual: interacción con recuerdos de árboles sentida, no vista. Un árbol por intento; solo impresiones sensoriales de lo que pudo percibir, nunca nombres, escenas exactas ni futuro. No asumas alcance, coste ni que leer y alterar sean idénticos; registra cada prueba y efecto confirmado. El contador humano no se aplica a árboles hasta confirmarlo. El volcán muestra señales y erupciona como máximo el Día 7 salvo causa establecida; no atribuyas su causa a un dragón sin pruebas.
 
 COMANDOS: /accion <intento>; /mapa; /ruta <origen> -> <destino>; /estado; /ficha <ID>; /vinculos; /guardar; /continuar. /cmd y OOC son instrucciones fuera del rol. Comandos no garantizan éxito. Inicio: sin dinero, comida, equipo, rango, entrenamiento ni hechizos. Habilidades requieren práctica; magia, aprendizaje/coste/límites. Sin niveles/XP; rangos E-D-C-B-A-S miden trayectoria/riesgo. Aventura, supervivencia, humor y romance adulto opcional; no fuerces atracción.
 ~~~
@@ -129,5 +129,9 @@ Ivar pasa a tener el cabello largo rubio muy pálido/casi blanco y una manera de
 9. `/estado` deja como `No registrado` una habilidad o interés sin evidencia; no inventa datos ni crea campos nuevos. No hay sección «qué comió» y los cambios de provisiones van solo en inventario.
 10. Un PNJ ausente desconoce el encuentro hasta que alguien se lo cuenta; entonces reacciona y se registra la fuente.
 11. Sin que el jugador nombre o mire a Ivar, si el grupo está presente, Ivar u otro PNJ cercano inicia una intervención natural (diálogo, comentario, queja o suspiro con sentido); las frases están completas y no hace falta mandar un mensaje extra.
+
+12. Eco en un árbol se describe como sensación, no como visión; no se inventan alcance, coste ni detalles que el árbol no pudo percibir.
+13. El catálogo de objetos comunes no altera el inventario inicial: cada objeto requiere adquisición confirmada.
+14. Una respuesta de grupo ofrece diálogo natural y completo sin obligar a todos a hablar; se mantiene breve por el límite de respuesta de Free.
 
 **La prueba final debe hacerse en SpicyChat**: los cambios en GitHub no se instalan automáticamente en la cuenta.
