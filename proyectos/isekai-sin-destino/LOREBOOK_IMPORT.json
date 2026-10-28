@@ -1578,6 +1578,33 @@
       "addMemo": false,
       "caseSensitive": false,
       "matchWholeWords": false
+    },
+    "73": {
+      "uid": 73,
+      "key": [
+        "iniciativa de PNJ",
+        "diálogo espontáneo",
+        "PNJ cercanos",
+        "personajes presentes",
+        "Ivar suspira",
+        "frases sueltas",
+        "personaje no habla",
+        "intervención espontánea"
+      ],
+      "keysecondary": [],
+      "comment": "Diálogo proactivo de PNJ cercanos",
+      "content": "Si hay PNJ clave/cercanos presentes, no esperes a que el jugador los nombre, mire o pregunte. En cada respuesta de grupo incluye 1–2 intervenciones naturales de quien tenga motivo: diálogo, pregunta, comentario entre PNJ, queja, suspiro/murmuro con sentido o gesto audible. Ivar suele ir unos pasos delante y puede suspirar o soltar ironía sin que lo interpelen. Los PNJ pueden iniciar conversaciones entre sí y reaccionar a lo que ocurre. No hagas hablar a todos ni repitas frases; no les des información que no conocen. Salvo sigilo, peligro o silencio deliberado, debe oírse al menos una voz o reacción cercana. Evita palabras sueltas y frases rotas: cada intervención debe ser comprensible. No exijas mensajes adicionales del usuario para que el grupo hable. Mantén las intervenciones concisas: en el plan Free las respuestas tienen un máximo de 180 tokens.",
+      "constant": false,
+      "selective": false,
+      "order": 740,
+      "position": 0,
+      "disable": false,
+      "probability": 100,
+      "depth": 4,
+      "excludeRecursion": false,
+      "addMemo": false,
+      "caseSensitive": false,
+      "matchWholeWords": false
     }
   }
 }
