@@ -28,7 +28,18 @@
 - Relaciones no solo románticas: confianza, sospecha, amistad, respeto, rivalidad, resentimiento, miedo, gratitud/deuda y cooperación.
 - El volcán es un punto culminante del primer arco; cualquier causa sobrenatural —incluido un dragón antiguo— permanece pendiente hasta confirmación del autor.
 
+## Coste de contexto y memoria
+- La documentación oficial indica 4.096 tokens de contexto y máximo de 180 tokens por respuesta en el plan Free. El contexto se comparte entre definición, historial reciente, instrucciones y Lorebook activada.
+- Las entradas de Lorebook se activan por palabras clave; no se carga toda la biblioteca en cada turno. En Free, la guía oficial estima alrededor de 740 tokens para Lorebook activa, así que conviene evitar que muchos registros se activen a la vez.
+- Los campos estáticos actuales: Personality 4662 caracteres; Scenario 684; Greeting 513; Example Dialogue 836. Son caracteres, no tokens; usar el contador visible de SpicyChat para obtener el coste exacto.
+- El estado dinámico no se vuelve una base de datos oculta: puede mantenerse mientras siga en contexto, pero para recuperarlo tras un olvido hay que conservar `/guardar` fuera del chat.
+
+Fuentes oficiales:
+- https://support.spicychat.ai/support/solutions/articles/153000260636-why-characters-forget-things-tokens-and-context-
+- https://support.spicychat.ai/support/solutions/articles/153000260673-lorebooks
+- https://support.spicychat.ai/support/solutions/articles/153000260533-plans-and-what-s-included
+
 ## Validación
-- JSON válido sintácticamente; 73 entradas. Las entradas de registro se han compactado para limitar el contexto activo.
+- JSON válido sintácticamente; 73 entradas. Las entradas de estado nuevo están compactadas.
 - Personality por debajo de 5.000 caracteres.
-- Pendiente: probar la importación y el comportamiento real dentro de SpicyChat. Los cambios en GitHub no se instalan automáticamente.
+- Pendiente: probar importación y comportamiento en SpicyChat. GitHub no instala los cambios automáticamente.
