@@ -1,36 +1,28 @@
 # Isekai sin Destino
 
-**Versión propuesta:** v1.8 (pendiente de prueba en SpicyChat)  
-**Rama organizada:** \`docs/historias-organizadas\`  
-**Carpeta:** \`proyectos/isekai-sin-destino/\`
+**Versión propuesta:** v1.9 (encuentros emergentes y registro completo de vínculos; pendiente de probar en SpicyChat)  
+**Rama organizada:** `docs/historias-organizadas`  
+**Carpeta:** `proyectos/isekai-sin-destino/`
 
 ## Archivos
-
 - [Configuración ligera para SpicyChat](CONFIG_LIGERA.md)
-- [Cuadro de reglas prioritarias v1.8: mapa, reloj, PNJ y registros](CUADRO_REGLAS_PRIORITARIAS.md)
+- [Cuadro de reglas prioritarias v1.9](CUADRO_REGLAS_PRIORITARIAS.md)
 - [Lorebook maestra, 72 entradas](LOREBOOK_MAESTRA.md)
 - [JSON de importación de Lorebook](LOREBOOK_IMPORT.json)
+- [Solución para historias largas](SOLUCION_HISTORIAS_LARGAS.md)
 
-## Cambios conservados de v1.7
+## Reglas principales
+- Reloj en seis bloques de cuatro horas; las charlas breves no hacen avanzar el horario.
+- Mini mapa progresivo con estados visitado, ruta conocida, rumor o bloqueado/peligroso. Los sitios desconocidos y Nhal-Seren permanecen ocultos.
+- Encuentros variables. No todo conduce a combate: un goblin puede gruñir, bromear, negociar o marcharse. El protagonista elige cómo responder y un encuentro puede ser solo una anécdota.
+- Los acompañantes solo reaccionan a encuentros que presenciaron o que alguien les contó. Si se enteran después, reaccionan entonces según su personalidad y creencias, nunca retroactivamente.
+- Vínculos no solo románticos: confianza, sospecha, amistad, respeto, rivalidad/hostilidad, resentimiento, miedo, gratitud/deudas, cooperación y atracción si surge. Se registran por pareja y dirección, con discusiones, posturas, disculpas, promesas, favores y conflictos.
+- Personalidades diferenciadas para Brina, Ivar, Maelis, Sera y Timo. Ivar es lancero de cabello largo rubio casi blanco, rudo e irónico; el objeto de su odio sigue pendiente.
+- Eco/hipnosis se registra por objetivo, con intento, resultado, efecto y usos restantes.
+- Comandos personalizados por instrucciones: `/mapa`, `/ruta`, `/estado`, `/vinculos`, `/guardar` y `/continuar`.
+- Guardado externo recomendado cada 8–10 intercambios y tras cambios importantes.
 
-## Propuesta v1.8
-
-- Bloque de Personality compacto con reloj por seis bloques de cuatro horas.
-- Mini mapa progresivo con estados de rutas; los lugares no visitados no se marcan como explorados y Nhal-Seren sigue oculta.
-- Seguimiento de promesas, encuentros por lugar/ruta, objetos y objetivos afectados por Eco/hipnosis.
-- Ivar con cabello largo rubio casi blanco, rudeza e ironía; el objetivo de su odio permanece pendiente.
-
-- Cabecera dinámica: el saludo del Día 1 a las 08:00 no debe repetirse como estado fijo.
-- Seis franjas por día: Mañana I, Mañana II, Tarde I, Tarde II, Noche I y Noche II.
-- Los encuentros se improvisan de forma controlada según lugar, horario, riesgo, ruidos y rastros.
-- Las criaturas y PNJ relevantes conservan identidad, estado y recuerdos; los muertos no reaparecen como el mismo individuo sin causa.
-- Los efectos y usos de Eco permanecen ligados al objetivo.
-- El punto de guardado sigue siendo una copia manual: SpicyChat no obtiene persistencia externa automáticamente.
-
-## Solución para historias largas
-
-- [Diagnóstico y opciones de continuidad](SOLUCION_HISTORIAS_LARGAS.md) — compara SpicyChat con guardados manuales, SillyTavern para una partida personal y una aplicación propia con base de datos.
-
-## Estado de validación
-
-Los archivos se han comprobado en GitHub; el JSON se valida sintácticamente. La propuesta v1.8 aún requiere prueba dentro de la cuenta de SpicyChat.
+## Validación
+- JSON de importación sintácticamente válido.
+- Personality debe quedar bajo 5.000 caracteres.
+- Los cambios de GitHub no se instalan automáticamente; falta probar configuración y Lorebook dentro de SpicyChat.
