@@ -1,32 +1,34 @@
 # Isekai sin Destino
 
-**Versión propuesta:** v1.10 (registro interno de esquema cerrado; pendiente de probar en SpicyChat)  
-**Rama organizada:** `docs/historias-organizadas`  
+**Versión propuesta:** v1.11 (registro interno con porcentajes, objetos, ubicaciones y órdenes; pendiente de probar en SpicyChat)  
+**Rama:** `docs/historias-organizadas`  
 **Carpeta:** `proyectos/isekai-sin-destino/`
 
 ## Archivos
-- [Configuración ligera para SpicyChat](CONFIG_LIGERA.md)
-- [Cuadro de reglas prioritarias v1.10](CUADRO_REGLAS_PRIORITARIAS.md)
-- [Registro interno y esquema cerrado](REGISTRO_INTERNO_ESQUEMA.md)
+- [Configuración ligera](CONFIG_LIGERA.md)
+- [Cuadro de reglas prioritarias v1.11](CUADRO_REGLAS_PRIORITARIAS.md)
+- [Registro interno y esquema cerrado v1.11](REGISTRO_INTERNO_ESQUEMA.md)
 - [Lorebook maestra, 73 entradas](LOREBOOK_MAESTRA.md)
 - [JSON de importación de Lorebook](LOREBOOK_IMPORT.json)
 - [Solución para historias largas](SOLUCION_HISTORIAS_LARGAS.md)
 
-## Registro interno v1.10
-- Campos fijos para estado de partida y fichas de personajes/criaturas relevantes.
-- Habilidades demostradas, intereses/objetivos declarados u observados, sospechas con evidencia, conocimiento con fuente y vínculos por pareja/dirección.
-- Datos ausentes = «No registrado». No inventar valores ni crear campos nuevos.
-- No existe campo «qué comió»; cambios de provisiones se reflejan solo en inventario.
-- El registro permanece discreto mientras el contexto lo permita; `/estado`, `/vinculos` y `/guardar` lo muestran cuando se solicita.
-- Un guardado copiable cada 8–10 intercambios y tras eventos importantes sigue siendo necesario: SpicyChat no ofrece una base de datos externa mediante instrucciones.
+## Registro v1.11
+- Porcentajes independientes 0–100 por eje: relaciones por pareja/dirección; habilidad solo tras demostración; interés tras declaración/patrón; sospecha con motivo y evidencia.
+- 50% neutral solo cuando exista base para medir. Sin evidencia = «No registrado». Un porcentaje de sospecha no prueba culpabilidad.
+- Ficha por PNJ/criatura relevante: identidad, estado, ubicación actual o última confirmada, habilidades, intereses, sospechas, conocimiento/fuente, vínculos, órdenes dadas y cumplimiento confirmado/desconocido.
+- Objetos: nombre, cantidad, condición, estado, portador/ubicación al obtener, dejar, guardar, entregar, usar, intercambiar o perder.
+- Lugares y Lorebook separan datos fijos, observación directa y rumor. No inventar accesos, rasgos o secretos no confirmados.
+- Historial de eventos reducido a 3–5 sucesos importantes; no transcribir cada mensaje ni registrar comidas. Si cambian las provisiones, actualizar el inventario.
+- Datos ausentes = «No registrado»; no crear campos nuevos. El registro interno solo es útil mientras el contexto lo conserve.
+- Guardado copiable cada 8–10 intercambios y tras cambios importantes. SpicyChat no crea una base de datos externa con instrucciones de texto.
 
-## Reglas de juego
-- Reloj en seis bloques de cuatro horas y mapa textual progresivo.
-- Encuentros abiertos: una criatura no conduce automáticamente a combate; los PNJ solo reaccionan a hechos presenciados o contados.
-- Relaciones no solo románticas: confianza, sospecha, amistad, respeto, rivalidad, resentimiento, miedo, gratitud/deudas y cooperación.
-- Los cambios de GitHub no se instalan automáticamente; falta probar la configuración y Lorebook en SpicyChat.
+## Reglas narrativas
+- Seis bloques horarios de cuatro horas; mini mapa progresivo.
+- Encuentros abiertos: no todo conduce a combate; los compañeros solo reaccionan a hechos presenciados o contados.
+- Relaciones no solo románticas: confianza, sospecha, amistad, respeto, rivalidad, resentimiento, miedo, gratitud/deuda y cooperación.
+- El volcán es un punto culminante del primer arco; cualquier causa sobrenatural —incluido un dragón antiguo— permanece pendiente hasta confirmación del autor.
 
 ## Validación
-- JSON de importación sintácticamente válido.
-- Personality bajo 5.000 caracteres.
-- Prueba real pendiente en SpicyChat.
+- JSON válido sintácticamente; 73 entradas. Las entradas de registro se han compactado para limitar el contexto activo.
+- Personality por debajo de 5.000 caracteres.
+- Pendiente: probar la importación y el comportamiento real dentro de SpicyChat. Los cambios en GitHub no se instalan automáticamente.
