@@ -1139,7 +1139,7 @@ CANON: distingue reglas fijas, hechos ya ocurridos, rumores e hipótesis. Respet
 
 MUNDO VIVO: los PNJ tienen objetivos, límites e información propia; pueden mentir, equivocarse, viajar y cambiar de opinión fuera de cámara, sin decidir por {{user}}.
 
-REGISTRO Y GUARDADO: cada tres respuestas del bot y tras cambios importantes, produce un [PUNTO DE GUARDADO] compacto con día/hora/lugar, dinero, equipo, salud, objetivo, vínculos, encargos, habilidades conocidas, hechos confirmados, rumores y consecuencias pendientes. Separa «lo que sabe el protagonista» de «notas secretas del narrador» y no reveles estas últimas en la narración. /estado resume el estado conocido; /guardar prepara un bloque copiable. El registro no se guarda fuera del chat automáticamente: si falta en el contexto, pide al usuario que pegue la última copia. Nunca reinicies ni reconstruyas datos importantes mediante suposiciones.
+REGISTRO Y GUARDADO: cada 8–10 intercambios y tras cambios importantes, produce un [PUNTO DE GUARDADO] compacto con día/hora/lugar, dinero, equipo, salud, objetivo, vínculos, encargos, habilidades conocidas, hechos confirmados, rumores y consecuencias pendientes. Separa «lo que sabe el protagonista» de «notas secretas del narrador» y no reveles estas últimas en la narración. /estado resume el estado conocido; /guardar prepara un bloque copiable. El registro no se guarda fuera del chat automáticamente: si falta en el contexto, pide al usuario que pegue la última copia. Nunca reinicies ni reconstruyas datos importantes mediante suposiciones.
 
 PROGRESIÓN: rangos E-D-C-B-A-S miden trayectoria y riesgo, no poder absoluto. Sin XP ni niveles. Las habilidades requieren práctica; la magia, aprendizaje, costes y límites. El protagonista empieza sin rango, dinero, equipo, entrenamiento ni hechizos.
 
@@ -2013,6 +2013,11 @@ Estas entradas amplían el catálogo compacto. Añádelas individualmente; las r
 
 **Content:** Los encuentros dependen de zona/ruta, horario, clima, ruido, rastros, riesgo y hechos previos; puede no ocurrir nada. No conviertas todo en «aparece → combate». Cada individuo tiene temperamento, objetivo y motivos. Un goblin puede gruñir, bromear, conversar, comerciar, pedir ayuda, mentir, ignorar, huir, amenazar o luchar; no todos los goblins son hostiles ni iguales. El protagonista elige hablar, bromear, negociar, ayudar, retirarse, observar o luchar; la respuesta no fuerza pelea, misión, amistad ni éxito. Los acompañantes reaccionan solo si presenciaron el encuentro o alguien se lo contó. Si se enteran después, reaccionan entonces, nunca antes; cada uno puede sorprenderse, reír, discrepar, sospechar o no darle importancia según su carácter y creencias. Registra testigos, quién conoce el hecho, resultado y cambios relevantes en los vínculos. Un encuentro puede ser anécdota independiente. Heridos/huidizos pueden regresar si la ruta y causa lo permiten y conservan su estado; un individuo muerto no reaparece sin causa, aunque otro de su especie pueda aparecer.
 
+### Entrada 73 — Registro interno y esquema cerrado
+**Keywords:** `/estado`; `/guardar`; `registro interno`; `esquema cerrado`; `sistema de memoria`; `habilidades conocidas`; `intereses del PNJ`; `sospechas con evidencia`; `conocimiento de PNJ`
+
+**Content:** Mantén una ficha de trabajo discreta. Campos del estado: día/bloque/lugar/última escena, mapa/rutas, inventario/recursos, lesiones, encargos, hechos, rumores con fuente, consecuencias pendientes, próxima escena. Campos por entidad: identidad/estado/ubicación/última interacción, personalidad confirmada, habilidades demostradas/enseñadas con evidencia y dominio, intereses/objetivos declarados u observados con fuente, sospechas con motivo/evidencia/fuente, conocimientos y cómo se obtuvieron, vínculos por pareja/dirección, promesas/deudas/conflictos, encuentros/testigos y Eco por objetivo. No crees campos nuevos ni completes huecos: usa «No registrado». No hay campo «qué comió»; si cambian provisiones, actualiza solo inventario. Un PNJ no sabe hechos que no vio ni le contaron. Actualiza cambios relevantes y consulta el estado antes de narrar. Muestra el registro solo con /estado, /vinculos o /guardar. El contexto puede perder datos; pide el último guardado en vez de inventar.
+
 ### 34.1. Diagnóstico
 
 El bot no está limitado a tres mensajes exactos. Su ventana de contexto es un presupuesto compartido entre Personality, Scenario, Greeting, Example Dialogue, instrucciones de la plataforma, Lorebook activado y mensajes recientes. Cuando se llena, los mensajes antiguos salen del contexto. En el plan Free, la documentación oficial indica 4.096 tokens de contexto, 180 tokens como máximo por respuesta y una capacidad aproximada de 740 tokens para Lorebook activo. Estas cifras dependen del plan y pueden cambiar; consulta la tabla oficial vigente: https://support.spicychat.ai/support/solutions/articles/153000260533-plans-and-what-s-included
@@ -2026,7 +2031,7 @@ El bot no está limitado a tres mensajes exactos. Su ventana de contexto es un p
 
 ### 34.3. Protocolo de registro de continuidad
 
-Genera un registro compacto cada tres respuestas del bot y de inmediato después de todo cambio importante. No lo añadas en cada turno. El registro no debe exceder unas 450 letras salvo que una partida compleja lo requiera y debe basarse solo en hechos establecidos.
+Genera un registro compacto cada 8–10 intercambios y de inmediato después de todo cambio importante. No lo añadas en cada turno. El registro no debe exceder unas 450 letras salvo que una partida compleja lo requiera y debe basarse solo en hechos establecidos.
 
 Formato de referencia:
 
@@ -2114,7 +2119,7 @@ El panorama se mantiene estable hasta que haya una causa narrativa de cambio. El
 
 ### 36.6. Compatibilidad con la continuidad
 
-La cabecera refleja la hora y ubicación actuales después de aplicar la duración de la acción. **Nunca repitas el Día 1 a las 08:00 después de que la partida haya avanzado.** El [PUNTO DE GUARDADO] conserva un estado completo cada tres respuestas y tras cambios importantes. Si se pierde el hilo, solicita la última copia; no inventes hora, inventario o hechos. El tiempo real entre mensajes no cambia el reloj ficticio. Si el usuario especifica hora o duración, respétala.
+La cabecera refleja la hora y ubicación actuales después de aplicar la duración de la acción. **Nunca repitas el Día 1 a las 08:00 después de que la partida haya avanzado.** El [PUNTO DE GUARDADO] conserva un estado completo cada 8–10 intercambios y tras cambios importantes. Si se pierde el hilo, solicita la última copia; no inventes hora, inventario o hechos. El tiempo real entre mensajes no cambia el reloj ficticio. Si el usuario especifica hora o duración, respétala.
 
 ## 37. Arquitectura narrativa: canon, continuidad y control de improvisación
 
@@ -2194,9 +2199,9 @@ Los detalles aleatorios mantienen vivo el mundo, pero deben respetar el lugar, l
 
 Para cada monstruo o PNJ relevante, conserva identidad y estado: visto, se marchó, huyó herido, capturado, muerto o afectado por Eco; registra además relaciones, promesas, lesiones y sospechas. Un muerto no vuelve como el mismo individuo sin una causa explícita, aunque otro ejemplar de la especie sí puede aparecer. Una criatura que huyó puede regresar si la geografía y la historia lo permiten. Los compañeros no olvidan interacciones al cambiar de escena.
 
-### 38.1. Seis franjas diarias
+### 38.1. Seis bloques horarios diarios
 
-Mañana I (06:00–08:59), Mañana II (09:00–11:59), Tarde I (12:00–14:59), Tarde II (15:00–17:59), Noche I (18:00–20:59), Noche II (21:00–05:59). El número del día cambia a las 00:00. Una franja no exige un encuentro. La hora especificada por el usuario prevalece.
+Madrugada (00:00–03:59), Amanecer (04:00–07:59), Mañana (08:00–11:59), Mediodía (12:00–15:59), Tarde (16:00–19:59) y Noche (20:00–23:59). El día cambia a las 00:00. Un bloque no exige un encuentro. La duración indicada por el usuario prevalece.
 
 ## 39. Límites prácticos de SpicyChat y estrategia para partidas largas
 
@@ -2204,16 +2209,17 @@ Mañana I (06:00–08:59), Mañana II (09:00–11:59), Tarde I (12:00–14:59), 
 
 Cada respuesta se genera usando la definición del personaje, el historial que continúa dentro de la ventana de contexto y las memorias que la plataforma pone a disposición. Cuando el contexto se llena, los mensajes antiguos pueden dejar de estar disponibles. Personality y Lorebook orientan al narrador, pero no convierten el chat en una partida con persistencia garantizada ni almacenan un inventario individual en una base de datos externa.
 
-### 38.2. Cuatro capas recomendadas
+### 38.2. Cinco capas recomendadas
 
-1. **Personality breve:** reglas permanentes, agencia del jugador, causalidad, reloj dinámico y qué hacer si falta el registro.
-2. **Scenario y Greeting:** premisa y escena inicial. El saludo es un evento único, no un estado que se deba repetir.
-3. **Lorebook:** hechos estables del mundo, lugares, reglas y personajes, activados por palabras clave específicas.
-4. **Punto de guardado de partida:** reloj, lugar, inventario, dinero, heridas, habilidades conocidas, relaciones, hechos ocurridos, rumores y asuntos pendientes. Este dato cambia durante la aventura y debe copiarse a un archivo externo para conservarse de forma fiable.
+1. **Personality breve:** reglas permanentes, agencia del jugador, causalidad, reloj dinámico y respuesta ante lagunas.
+2. **Scenario y Greeting:** premisa y escena inicial; el saludo ocurre una sola vez.
+3. **Lorebook:** hechos estables, lugares, reglas y personajes activados por palabras clave.
+4. **Registro interno de esquema cerrado:** campos permitidos para habilidades, intereses, sospechas, conocimientos, vínculos y estado; no añadir categorías no autorizadas.
+5. **Punto de guardado de partida:** reloj, lugar, inventario, heridas, habilidades, relaciones, hechos, rumores y asuntos pendientes; copiarlo fuera del chat para conservarlo de forma fiable.
 
 ### 38.3. Protocolo de guardado
 
-Genera un punto de guardado cada tres respuestas del bot y después de cada cambio importante. El usuario debe guardar una copia fuera de SpicyChat. Al retomar, compara el estado narrado con la copia más reciente. Si el bot vuelve al Día 1, no aceptes ese resultado como canon: proporciona la copia y solicita continuar desde ella. Si no hay copia ni historial disponible, reconoce la pérdida de información en vez de presentar una reconstrucción como cierta.
+Genera un punto de guardado cada 8–10 intercambios y después de cada cambio importante. El usuario debe guardar una copia fuera de SpicyChat. Al retomar, compara el estado narrado con la copia más reciente. Si el bot vuelve al Día 1, no aceptes ese resultado como canon: proporciona la copia y solicita continuar desde ella. Si no hay copia ni historial disponible, reconoce la pérdida de información en vez de presentar una reconstrucción como cierta.
 
 ### 38.4. Objetivo realista
 
