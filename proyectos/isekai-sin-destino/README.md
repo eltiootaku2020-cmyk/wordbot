@@ -1,18 +1,19 @@
 # Isekai sin Destino
 
-**Versión propuesta:** v1.12 (registro interno con porcentajes, objetos, ubicaciones y órdenes; pendiente de probar en SpicyChat)  
+**Versión propuesta:** v1.13 (registro interno con porcentajes, objetos, ubicaciones y órdenes; pendiente de probar en SpicyChat)  
 **Rama:** `docs/historias-organizadas`  
 **Carpeta:** `proyectos/isekai-sin-destino/`
 
 ## Archivos
 - [Configuración ligera](CONFIG_LIGERA.md)
-- [Cuadro de reglas prioritarias v1.12](CUADRO_REGLAS_PRIORITARIAS.md)
-- [Registro interno y esquema cerrado v1.12](REGISTRO_INTERNO_ESQUEMA.md)
-- [Lorebook maestra, 74 entradas](LOREBOOK_MAESTRA.md)
+- [Cuadro de reglas prioritarias v1.13](CUADRO_REGLAS_PRIORITARIAS.md)
+- [Registro interno y esquema cerrado v1.13](REGISTRO_INTERNO_ESQUEMA.md)
+- [Lorebook maestra, 76 entradas](LOREBOOK_MAESTRA.md)
 - [JSON de importación de Lorebook](LOREBOOK_IMPORT.json)
 - [Solución para historias largas](SOLUCION_HISTORIAS_LARGAS.md)
+- [Investigación aplicada: diálogo, continuidad y Eco vegetal](INVESTIGACION_DIALOGO_MEMORIA_Y_ECO_VEGETAL.md)
 
-## Registro v1.12
+## Registro v1.13
 - Porcentajes independientes 0–100 por eje: relaciones por pareja/dirección; habilidad solo tras demostración; interés tras declaración/patrón; sospecha con motivo y evidencia.
 - Los porcentajes miden intensidad, no probabilidad; 50% no es neutral universal. Delta +/−=subida/bajada; 0=sin cambio. Sin evidencia = «No registrado». La sospecha no prueba culpabilidad.
 - Ficha por PNJ/criatura relevante: identidad, estado, ubicación actual o última confirmada, habilidades, intereses, sospechas, conocimiento/fuente, vínculos, órdenes dadas y cumplimiento confirmado/desconocido.
@@ -41,6 +42,13 @@ Fuentes oficiales:
 - https://support.spicychat.ai/support/solutions/articles/153000260533-plans-and-what-s-included
 
 ## Validación
-- JSON válido sintácticamente; 74 entradas. Las entradas de estado nuevo están compactadas.
+- JSON válido sintácticamente; 76 entradas. Las entradas de estado nuevo están compactadas.
 - Personality por debajo de 5.000 caracteres.
 - Pendiente: probar importación y comportamiento en SpicyChat. GitHub no instala los cambios automáticamente.
+
+
+## Eco vegetal y objetos comunes v1.13
+- El descubrimiento de recuerdos de árboles se registra como experiencia sensorial, no visual; sus parámetros siguen sin confirmar.
+- Se añaden límites provisionales de prueba y un catálogo de objetos cotidianos posibles, sin modificar el inventario inicial.
+- Se amplía la investigación con documentación oficial de SpicyChat y referencias de diseño de PNJ/diálogo.
+- JSON: 76 entradas; importación y comportamiento real siguen pendientes de probar en SpicyChat.
