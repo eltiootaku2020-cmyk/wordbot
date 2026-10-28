@@ -31,7 +31,7 @@
 ## Coste de contexto y memoria
 - La documentación oficial indica 4.096 tokens de contexto y máximo de 180 tokens por respuesta en el plan Free. El contexto se comparte entre definición, historial reciente, instrucciones y Lorebook activada.
 - Las entradas de Lorebook se activan por palabras clave; no se carga toda la biblioteca en cada turno. En Free, la guía oficial estima alrededor de 740 tokens para Lorebook activa, así que conviene evitar que muchos registros se activen a la vez.
-- Los campos estáticos actuales: Personality 4662 caracteres; Scenario 684; Greeting 513; Example Dialogue 836. Son caracteres, no tokens; juntos suman 5.981 caracteres y el contador visible de SpicyChat da el coste exacto.
+- Los campos estáticos actuales: Personality 4662 caracteres; Scenario 684; Greeting 513; Example Dialogue 836. Son caracteres, no tokens; juntos suman 5.617 caracteres y el contador visible de SpicyChat da el coste exacto.
 - El estado dinámico no se vuelve una base de datos oculta: puede mantenerse mientras siga en contexto, pero para recuperarlo tras un olvido hay que conservar `/guardar` fuera del chat.
 
 Fuentes oficiales:
