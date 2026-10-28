@@ -14,7 +14,7 @@
 
 ## Registro v1.11
 - Porcentajes independientes 0–100 por eje: relaciones por pareja/dirección; habilidad solo tras demostración; interés tras declaración/patrón; sospecha con motivo y evidencia.
-- 50% neutral solo cuando exista base para medir. Sin evidencia = «No registrado». Un porcentaje de sospecha no prueba culpabilidad.
+- Los porcentajes miden intensidad, no probabilidad; 50% no es neutral universal. Delta +/−=subida/bajada; 0=sin cambio. Sin evidencia = «No registrado». La sospecha no prueba culpabilidad.
 - Ficha por PNJ/criatura relevante: identidad, estado, ubicación actual o última confirmada, habilidades, intereses, sospechas, conocimiento/fuente, vínculos, órdenes dadas y cumplimiento confirmado/desconocido.
 - Objetos: nombre, cantidad, condición, estado, portador/ubicación al obtener, dejar, guardar, entregar, usar, intercambiar o perder.
 - Lugares y Lorebook separan datos fijos, observación directa y rumor. No inventar accesos, rasgos o secretos no confirmados.
