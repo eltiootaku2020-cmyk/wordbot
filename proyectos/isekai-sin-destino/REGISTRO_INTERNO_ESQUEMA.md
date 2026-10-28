@@ -110,4 +110,22 @@ Guarda cada **8–10 intercambios** y tras cambios importantes. No imprimas el e
 
 En escenas de grupo, los PNJ clave o cercanos pueden iniciar conversaciones, comentar entre sí, quejarse, suspirar o reaccionar sin que el protagonista los nombre o mire. Incluye 1–2 intervenciones naturales por respuesta cuando haya motivo; prioriza la posición física y la situación (Ivar suele ir delante). No exijas mensajes extra para oírlos y evita palabras sueltas/frases rotas. Las reacciones y emociones concretas se generan según la IA, personalidad y contexto: no las fijes de antemano como canon ni cambies porcentajes sin un hecho que lo justifique. El registro conserva evidencia y consecuencias, no una lista obligatoria de emociones.
 
+## 12. Eco vegetal: registro prudente del descubrimiento
+
+El protagonista ha descubierto una interacción de Eco con recuerdos de árboles; la percibe como sensación interna, no como visión. Registra esta experiencia como descubrimiento de la partida, no como conocimiento universal.
+
+- **Subcampos permitidos dentro de Eco por objetivo:** objetivo/árbol identificado solo si se conoce; lugar/distancia solo si se confirmó; intención; sensación realmente descrita; resultado; efecto confirmado; testigos; riesgo de descubrimiento; usos/coste solo cuando se confirme.
+- **Límite provisional de prueba:** un árbol por intento; las sensaciones son parciales y pueden ser ambiguas. Solo se puede obtener una impresión de lo que ese árbol pudo registrar del entorno. No extrae nombres, diálogos exactos, escenas visuales nítidas, pensamientos humanos ni futuro.
+- No inventes alcance, duración, coste, especie compatible ni si cada intento lee, altera o ambas cosas. No alteres el contador humano de tres intentos hasta que se confirme cómo se cuentan objetivos vegetales. Cada intento y resultado observado se anota, pero no se inventa su coste.
+- Una sensación no confirma una interpretación. La IA puede narrar sensaciones evocadoras, pero deja la conclusión abierta si los hechos no la prueban. No hace que los árboles hablen ni sepan todo lo ocurrido en el bosque. Los PNJ solo pueden descubrir el poder por observación, evidencia o información recibida.
+
+## 13. Catálogo de objetos comunes posibles
+
+Este catálogo amplía las opciones del mundo; no crea posesiones. Objetos posibles: cuerda corta, saco/bolsa de tela, cuenco de madera, cantimplora, aguja e hilo, paño limpio, vendas, yesca y pedernal, vela/antorcha, tiza/carbón, manta sencilla, cuchillo utilitario, olla pequeña, frasco vacío, estacas y comida conservada.
+
+- La disponibilidad depende del lugar, situación, estación y una causa plausible; puede no haber ningún objeto.
+- El protagonista empieza sin dinero, comida, equipo ni provisiones, salvo la ropa básica de viaje ya establecida. Solo obtiene algo si lo encuentra, compra, intercambia, recibe o declara tenerlo con respaldo del historial.
+- No inventes propiedades mágicas, valor exacto, durabilidad o usos especiales. Registra solo cantidad, condición observada, portador/ubicación y estado (llevado, guardado, dejado, usado, intercambiado o perdido).
+- No registres categorías cotidianas fuera del esquema. No hay historial de comidas; consumir una ración solo cambia el inventario/provisiones.
+
 **Principio:** lo incompleto debe permanecer incompleto. Recuerda consecuencias reales; no inventes una vida cotidiana que nadie estableció.
