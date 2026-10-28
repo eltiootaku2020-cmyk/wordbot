@@ -822,12 +822,19 @@
     "39": {
       "uid": 39,
       "key": [
+        "/vinculos",
+        "/relaciones",
         "relación actual",
-        "confianza del grupo"
+        "confianza del grupo",
+        "sospecha",
+        "discusión",
+        "amistad",
+        "rivalidad",
+        "deuda"
       ],
       "keysecondary": [],
       "comment": "Continuidad de relaciones",
-      "content": "Las relaciones evolucionan mediante acciones observables, tiempo compartido, promesas cumplidas, conflictos, disculpas y límites respetados. No aumentes confianza o atracción solo porque el protagonista lo declare, y no conviertas un desacuerdo en odio permanente sin causa. Cada personaje conserva una memoria breve de los hechos que le afectaron, pero puede ignorar sucesos de los que no fue testigo.",
+      "content": "Las relaciones son multidimensionales, no solo románticas. Registra por pareja y dirección (PNJ↔protagonista y entre PNJ relevantes): confianza, sospecha, amistad/cercanía, respeto, rivalidad/hostilidad, resentimiento, miedo, gratitud/deuda, cooperación y atracción solo si surge. Anota causas observables, última interacción, discusiones (tema y posturas), promesas, disculpas, favores, deudas y conflictos pendientes. Cada personaje solo sabe lo que vio o le contaron; si se entera tarde, reacciona entonces. No inventes sentimientos privados. Discutir no equivale a odiar; disculparse no garantiza perdón; amistad no implica romance; atracción no elimina desconfianza. Los vínculos cambian gradualmente y no se reinician al cambiar de escena, ruta o chat. /vinculos resume vínculos y conflictos sin inventar valores.",
       "constant": false,
       "selective": false,
       "order": 400,
@@ -1501,7 +1508,7 @@
       ],
       "keysecondary": [],
       "comment": "Punto de guardado y reanudación",
-      "content": "SpicyChat no guarda fuera del chat un estado RPG completo por instrucciones de rol. /guardar produce un bloque copiable con día, bloque horario de 4 horas, lugar, mapa/rutas, dinero, inventario, lesiones, encargos, PNJ y relaciones, promesas, encuentros y estado de cada criatura/PNJ, objetos vistos/recogidos/dejados/perdidos, objetivos afectados por Eco/hipnosis (incluidos animales si el canon permite el uso), intento 1–3, resultado, efecto y usos restantes, hechos, rumores y próxima escena. /estado revisa el estado; /mapa marca solo visitas, rutas conocidas y rumores; /ruta muestra el tramo confirmado y sus encuentros/promesas/usos de Eco asociados; /continuar reanuda desde el registro pegado. Separa hechos que conoce el protagonista de notas secretas del narrador. El tiempo real no avanza el reloj ficticio. Si falta el registro, pídele al usuario que lo pegue; no reinicies al Día 1 ni inventes lo perdido.",
+      "content": "SpicyChat no guarda fuera del chat un estado RPG completo por instrucciones de rol. /guardar produce un bloque copiable con día, bloque horario de 4 horas, lugar, mapa/rutas, dinero, inventario, lesiones, encargos, PNJ y vínculos multidimensionales en ambos sentidos, discusiones/conflictos abiertos, encuentros sociales inesperados, testigos y reacciones al enterarse, promesas, encuentros y estado de cada criatura/PNJ, objetos vistos/recogidos/dejados/perdidos, objetivos afectados por Eco/hipnosis (incluidos animales si el canon permite el uso), intento 1–3, resultado, efecto y usos restantes, hechos, rumores y próxima escena. /estado revisa el estado; /vinculos muestra relaciones y conflictos; /mapa marca solo visitas, rutas conocidas y rumores; /ruta muestra el tramo confirmado y sus encuentros/promesas/usos de Eco asociados; /continuar reanuda desde el registro pegado. Separa hechos que conoce el protagonista de notas secretas del narrador. El tiempo real no avanza el reloj ficticio. Si falta el registro, pídele al usuario que lo pegue; no reinicies al Día 1 ni inventes lo perdido.",
       "constant": false,
       "selective": false,
       "order": 710,
@@ -1517,15 +1524,20 @@
     "71": {
       "uid": 71,
       "key": [
-        "encuentro aleatorio",
+        "encuentro inesperado",
+        "encuentro social",
+        "criatura neutral",
+        "goblin gruñón",
+        "hablar con un goblin",
+        "reacción de los acompañantes",
+        "PNJ recurrente",
         "monstruo herido",
         "monstruo que huyó",
-        "criatura recurrente",
-        "PNJ recurrente"
+        "criatura recurrente"
       ],
       "keysecondary": [],
-      "comment": "Encuentros variables y persistencia de criaturas",
-      "content": "Los encuentros se improvisan de forma controlada según región, franja horaria, clima, peligro, ruidos, rastros y hechos previos. No tiene que ocurrir algo en cada franja. Una criatura vista y no cazada puede volver si su ruta y la causa lo permiten; si huyó herida, conserva la herida. Una criatura muerta no reaparece como el mismo individuo sin una causa explícita; otro ejemplar de la especie sí puede aparecer. PNJ y compañeros conservan recuerdos, promesas, lesiones, confianza, sospechas y efectos de Eco. Registra la identidad y el estado de criaturas o personas importantes; no conectes cada encuentro con la trama principal ni cambies su estado al reaparecer.",
+      "comment": "Encuentros emergentes sociales y persistencia de criaturas",
+      "content": "Los encuentros dependen de zona/ruta, horario, clima, ruido, rastros, riesgo y hechos previos; puede no ocurrir nada. No conviertas todo en «aparece → combate». Cada individuo tiene temperamento, objetivo y motivos. Un goblin puede gruñir, bromear, conversar, comerciar, pedir ayuda, mentir, ignorar, huir, amenazar o luchar; no todos los goblins son hostiles ni iguales. El protagonista elige hablar, bromear, negociar, ayudar, retirarse, observar o luchar; la respuesta no fuerza pelea, misión, amistad ni éxito. Los acompañantes reaccionan solo si presenciaron el encuentro o alguien se lo contó. Si se enteran después, reaccionan entonces, nunca antes; cada uno puede sorprenderse, reír, discrepar, sospechar o no darle importancia según su carácter y creencias. Registra testigos, quién conoce el hecho, resultado y cambios relevantes en los vínculos. Un encuentro puede ser anécdota independiente. Heridos/huidizos pueden regresar si la ruta y causa lo permiten y conservan su estado; un individuo muerto no reaparece sin causa, aunque otro de su especie pueda aparecer.",
       "constant": false,
       "selective": false,
       "order": 720,
