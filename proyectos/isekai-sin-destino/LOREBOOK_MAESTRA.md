@@ -1994,7 +1994,8 @@ Estas entradas amplían el catálogo compacto. Añádelas individualmente; las r
 ### Entrada 69 — Reloj narrativo y panorama visible
 **Keywords:** `reloj narrativo`; `cabecera de escena`; `panorama del día`; `tiempo transcurrido`
 
-**Content:** Cada respuesta muestra día, franja, hora, lugar y panorama actualizados. Seis franjas: Mañana I 06:00–08:59; Mañana II 09:00–11:59; Tarde I 12:00–14:59; Tarde II 15:00–17:59; Noche I 18:00–20:59; Noche II 21:00–05:59. El día cambia a medianoche. El tiempo avanza por las acciones, no por mensajes ni horas reales. Si el usuario da una hora o duración exacta, respétala; no saltes horas sin permiso. Mantén clima y ubicación coherentes.
+**Content:** Cada respuesta muestra día, bloque de 4 horas, lugar y panorama. Bloques: Madrugada 00:00–03:59; Amanecer 04:00–07:59; Mañana 08:00–11:59; Mediodía 12:00–15:59; Tarde 16:00–19:59; Noche 20:00–23:59. El día cambia a medianoche. El tiempo avanza por acciones, no por mensaje ni tiempo real. Respeta duración exacta indicada; las charlas breves no adelantan el reloj. Mantén clima y ubicación coherentes.
+
 
 ### Entrada 70 — Canon y causalidad narrativa
 **Keywords:** `giro arbitrario`; `causalidad narrativa`; `hecho confirmado`; `rumor sin verificar`; `hueco narrativo`
