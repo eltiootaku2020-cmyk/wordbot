@@ -177,14 +177,15 @@ Día 1 a las 08:00 ocurre una sola vez al iniciar una partida. El día cambia a 
 
 No cuentes minutos ni avances una franja por cada mensaje. La conversación breve y las acciones pequeñas se quedan en el bloque actual. Un viaje, una búsqueda extensa, trabajo, entrenamiento o descanso hacen avanzar el reloj solo cuando el tiempo acumulado cruza al siguiente bloque; respeta la duración explícita de `/salto` o del usuario. Si no se sabe cuánto duraría una acción importante, pregunta en vez de inventar un salto largo. No narrar acciones del protagonista durante un intervalo que no haya elegido. El tiempo real entre sesiones no mueve el reloj ficticio.
 
-## 7. Registro que mantiene la continuidad
+## 7. Registro interno, esquema cerrado y guardado copiable
+
+El esquema completo y su ciclo de actualización están en [REGISTRO_INTERNO_ESQUEMA.md](REGISTRO_INTERNO_ESQUEMA.md). La ficha queda discreta mientras el contexto conserve los datos; /guardar sigue siendo necesario para crear una copia transportable.
 
 Usa `/estado` para revisar el estado actual y `/guardar` para crear un bloque copiable. Guarda cada **8–10 intercambios** (un mensaje del jugador + una respuesta), antes si las respuestas son largas, y siempre después de un cambio importante: promesa, herida, objeto adquirido/perdido, nueva ruta, cambio de relación, encuentro relevante o uso de Eco/hipnosis. Haz un guardado antes de dejar la sesión. No imprimas el registro entero en cada respuesta: actualizar y revisar el estado en momentos adecuados evita saturar el contexto.
 
 Formato de referencia:
 
 ~~~text
-[PARTIDA ACTUAL]
 [ESTADO DE PARTIDA]
 Tiempo: día y bloque de 4 h:
 Lugar y última escena:
@@ -211,7 +212,7 @@ Eco por objetivo (intento, resultado, efecto, usos restantes):
 Usa “No registrado” si falta información. No crees otros campos:
 ~~~
 
-Actualiza solo lo que cambie. Registra criaturas y PNJ por identidad, lugar, condición y última interacción; una criatura muerta no vuelve como el mismo individuo sin causa. Un mismo tipo de criatura puede aparecer en otro encuentro. Las promesas, efectos de Eco y usos por objetivo no se reinician al cambiar de lugar, ruta o chat. Si un campo no se conoce, escribe «desconocido»; no lo inventes.
+Actualiza solo lo que cambie. Registra criaturas y PNJ por identidad, lugar, condición y última interacción; una criatura muerta no vuelve como el mismo individuo sin causa. Un mismo tipo de criatura puede aparecer en otro encuentro. Las promesas, efectos de Eco y usos por objetivo no se reinician al cambiar de lugar, ruta o chat. Si un campo no se conoce, escribe «No registrado»; no lo inventes.
 
 El bloque del chat **no se guarda en un archivo externo**. Copia cada guardado a `PARTIDA_ACTUAL.txt` u otro archivo fuera de SpicyChat.
 
@@ -225,7 +226,7 @@ Los encuentros pueden incluir personas, objetos, animales, rastros, recursos, pe
 
 1. Escribe `/estado` mientras el chat conserve el contexto.
 2. Si vuelve al Día 1 o inventa progreso, no sigas esa versión como si fuera canon.
-3. Pega el último guardado externo y añade: «OOC: este registro es el estado actual. Continúa desde aquí; el Día 1 ya pasó. No inventes los datos desconocidos ni restaures recursos».
+3. Pega el último guardado externo y añade: «OOC: este registro es el estado actual. Continúa desde aquí; el Día 1 ya pasó. Marca lo ausente como «No registrado»; no inventes datos ni restaures recursos».
 4. Si el chat olvidó demasiadas escenas, abre una conversación nueva con el mismo personaje y pega el último guardado como primer mensaje. Conserva el chat anterior hasta verificar que la nueva escena es correcta.
 
 ## 9. Prueba de aceptación
