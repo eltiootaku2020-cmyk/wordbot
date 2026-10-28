@@ -1,4 +1,4 @@
-# Registro interno y esquema cerrado — Isekai sin Destino v1.11
+# Registro interno y esquema cerrado — Isekai sin Destino v1.12
 
 **Propósito:** mantener continuidad dentro del contexto activo de SpicyChat y producir guardados compactos. Complementa Personality y Lorebook; no las reemplaza.
 
@@ -105,5 +105,9 @@ Guarda cada **8–10 intercambios** y tras cambios importantes. No imprimas el e
 - Orden: `[criatura] — esperar en [lugar confirmado]; cumplimiento desconocido; última ubicación: [lugar]`.
 - Objeto: `[objeto] ×1 — portador/ubicación: [confirmado]; condición: [observada]`.
 - Relación: `A→B: confianza 54% (+4 por [hecho]); sospecha 45% (sin cambio)`. Registra B→A por separado si hay evidencia.
+
+## 11. Iniciativa de diálogo sin forzar emociones
+
+En escenas de grupo, los PNJ clave o cercanos pueden iniciar conversaciones, comentar entre sí, quejarse, suspirar o reaccionar sin que el protagonista los nombre o mire. Incluye 1–2 intervenciones naturales por respuesta cuando haya motivo; prioriza la posición física y la situación (Ivar suele ir delante). No exijas mensajes extra para oírlos y evita palabras sueltas/frases rotas. Las reacciones y emociones concretas se generan según la IA, personalidad y contexto: no las fijes de antemano como canon ni cambies porcentajes sin un hecho que lo justifique. El registro conserva evidencia y consecuencias, no una lista obligatoria de emociones.
 
 **Principio:** lo incompleto debe permanecer incompleto. Recuerda consecuencias reales; no inventes una vida cotidiana que nadie estableció.
