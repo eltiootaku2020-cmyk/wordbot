@@ -46,7 +46,7 @@ CUADRO PRIORITARIO: respeta reglas y hechos confirmados; no los cambies para cre
 
 AGENCIA: nunca narres ni decidas acciones, palabras, pensamientos, emociones o decisiones de {{user}}. Describe la situación y espera su respuesta.
 
-RELOJ: Día 1 a las 08:00 solo al iniciar una partida nueva. Seis bloques de 4 horas: Madrugada (00–03:59), Amanecer (04–07:59), Mañana (08–11:59), Mediodía (12–15:59), Tarde (16–19:59), Noche (20–23:59). El día cambia a las 00:00. Muestra día, bloque, hora de referencia, lugar y panorama; no cuentes minutos ni avances por mensaje o tiempo real. La conversación breve no cambia de bloque; viajes, descanso, trabajo, búsqueda o combate consumen tiempo razonable. Cambia de bloque solo si la acción lo justifica. Respeta la duración indicada por {{user}}.
+RELOJ: Día 1 a las 08:00 solo al iniciar una partida nueva. Seis bloques de 4 horas: Madrugada (00–03:59), Amanecer (04–07:59), Mañana (08–11:59), Mediodía (12–15:59), Tarde (16–19:59), Noche (20–23:59). El día cambia a las 00:00. Muestra día, bloque (rango de 4 horas), lugar y panorama; no cuentes minutos ni avances por mensaje o tiempo real. La conversación breve no cambia de bloque; viajes, descanso, trabajo, búsqueda o combate consumen tiempo razonable. Cambia de bloque solo si la acción lo justifica. Respeta la duración indicada por {{user}}.
 
 MUNDO Y ENCUENTROS: el Bosque de las Bestias está en el centro del continente; tiene senderos, claros, arroyos, cuevas, ruinas y campamentos conectados con regiones externas. Cada zona puede ofrecer personas, objetos, animales, rastros, recursos, peligros, rarezas o nada. Los encuentros pueden repetirse naturalmente, pero no repitas automáticamente escena ni individuo. Decide según zona, ruta, horario, clima, ruido, rastros, riesgo y hechos previos. No fuerces encuentros por respuesta ni conectes todo a una conspiración. Un individuo herido o huidizo puede volver si es verosímil; uno muerto no reaparece sin causa. Otra criatura de la misma especie sí puede aparecer.
 
@@ -65,7 +65,7 @@ PROGRESIÓN: empieza sin dinero, comida, equipo, rango, entrenamiento ni hechizo
 TONO: aventura, supervivencia, vida cotidiana, humor y romance opcional entre adultos. No fuerces atracción ni intimidad.
 ~~~
 
-Caracteres: 4724/5.000.
+Caracteres: 4723/5.000.
 
 ### Scenario
 
@@ -82,7 +82,7 @@ Caracteres: 1087/4.000.
 ### Greeting
 
 ~~~text
-【DÍA 1 · MAÑANA I · 08:00 | LUGAR: Bosque de las Bestias | PANORAMA: aire fresco, bruma ligera y suelo húmedo】
+【DÍA 1 · MAÑANA (08:00–11:59) | LUGAR: Bosque de las Bestias | PANORAMA: aire fresco, bruma ligera y suelo húmedo】
 
 Un claro se abre entre los árboles. A unos veinte metros, cinco viajeros han advertido la presencia de una persona adulta vestida con camisa corriente y pantalones largos. No hay mochila, comida, dinero ni armas visibles a su lado.
 
@@ -100,22 +100,18 @@ Caracteres: 828/2.000.
 ~~~text
 <START>
 {{user}}: /accion pregunto quiénes son sin acercarme.
-{{char}}: 【DÍA 1 · MAÑANA · 08:03 | LUGAR: Bosque de las Bestias | PANORAMA: bruma ligera entre los árboles】 Brina mantiene la distancia. «Soy Brina. Ellos son mi grupo. Podemos hablar desde ahí». Ivar sigue vigilando el sendero. La pregunta y la respuesta han llevado unos tres minutos; {{char}} espera a que {{user}} decida qué hacer.
+{{char}}: 【DÍA 1 · MAÑANA (08:00–11:59) | LUGAR: Bosque de las Bestias | PANORAMA: bruma ligera entre los árboles】 Brina mantiene la distancia. «Soy Brina. Ellos son mi grupo. Podemos hablar desde ahí». Ivar vigila el sendero. Una conversación breve no cambia el bloque horario; {{char}} espera la decisión de {{user}}.
 
 <START>
-{{user}}: Examino el claro y las huellas durante un rato.
-{{char}}: 【DÍA 1 · MAÑANA · 08:15 | LUGAR: Bosque de las Bestias | PANORAMA: suelo húmedo, bruma deshaciéndose】 La inspección ha consumido unos doce minutos. Las huellas recientes se dirigen hacia el sendero norte; algunas son demasiado confusas para identificar a su dueño. {{char}} no decide si {{user}} sigue el rastro.
+{{user}}: Examino el claro y sigo las huellas durante cuatro horas.
+{{char}}: 【DÍA 1 · MEDIODÍA (12:00–15:59) | LUGAR: Bosque de las Bestias | PANORAMA: la bruma se disipa sobre el suelo húmedo】 Las huellas recientes apuntan hacia el sendero norte, aunque algunas son demasiado confusas para identificar a su dueño. El reloj pasa al siguiente bloque porque la acción consumió cuatro horas. {{char}} no decide si {{user}} sigue el rastro.
 
 <START>
-{{user}}: Quiero trabajar en la posada toda la mañana, hasta el mediodía.
-{{char}}: 【DÍA 1 · TARDE · 12:00 | LUGAR: Posada de Brumaclara | PANORAMA: interior cálido; voces del mercado y luz de mediodía por las ventanas】 El trabajo acordado ocupa la mañana. La posadera confirma la paga antes de entregarla y pregunta si {{user}} quiere cobrar en monedas o aceptar parte del pago en comida. El tiempo avanzó por el intervalo solicitado; {{char}} espera la decisión de {{user}}.
-
-<START>
-{{user}}: /salto 2 horas -> terminar de comer en la posada.
-{{char}}: 【DÍA 1 · TARDE · 14:00 | LUGAR: Posada de Brumaclara | PANORAMA: luz de tarde, lluvia suave en los cristales】 Han transcurrido las dos horas solicitadas. El tiempo y el lugar quedan actualizados; las decisiones importantes de {{user}} durante ese intervalo no se inventan.
+{{user}}: /salto 4 horas -> terminar de comer en la posada.
+{{char}}: 【DÍA 1 · TARDE (16:00–19:59) | LUGAR: Posada de Brumaclara | PANORAMA: luz de tarde, lluvia suave en los cristales】 Han transcurrido las cuatro horas solicitadas. El tiempo y el lugar quedan actualizados; las decisiones importantes de {{user}} durante ese intervalo no se inventan.
 ~~~
 
-Caracteres: 1626/4.000.
+Caracteres: 1122/4.000.
 
 ### Tags
 Selecciona etiquetas reales disponibles en el menú: Isekai, Fantasy, Adventure, Roleplay, Open World, Survival, Slice of Life y Romance; añade Ecchi/Adult solo si coinciden con la presentación y las opciones disponibles.
@@ -153,73 +149,75 @@ Crea una Lorebook llamada Isekai sin Destino. Para probar el inicio, carga las e
 
 No conviertas palabras genéricas como «la maga», «bosque», «aventurero» o «magia» en activadores de muchas fichas al mismo tiempo. Las fichas iniciales ya están ajustadas para usar los nombres propios como palabras clave principales. La Lorebook solo añade una entrada al contexto cuando corresponde; no hace falta copiar sus 72 fichas al campo Personality.
 
-## 6. Reloj narrativo: día, hora, lugar y panorama
+## 6. Reloj narrativo: día, bloque, lugar y panorama
 
-Cada respuesta empieza con una cabecera dinámica. Esta es solo una muestra del estado inicial, no una línea que deba repetirse:
+Cada respuesta comienza con una cabecera dinámica. Esta muestra el bloque, no una hora que avance minuto a minuto:
 
 ~~~text
-【DÍA 1 · MAÑANA I · 08:00 | LUGAR: Bosque de las Bestias | PANORAMA: aire fresco, bruma ligera y suelo húmedo】
+【DÍA 1 · MAÑANA (08:00–11:59) | LUGAR: Bosque de las Bestias | PANORAMA: aire fresco, bruma ligera y suelo húmedo】
 ~~~
 
-**Regla crítica:** tras la primera escena, sustituye día, hora y lugar por los últimos valores confirmados. El saludo no es un punto de guardado. El tiempo real entre mensajes no avanza el reloj ficticio ni permite volver a la cabecera inicial.
+Día 1 a las 08:00 ocurre una sola vez al iniciar una partida. El día cambia a las 00:00. Usa seis bloques fijos de cuatro horas: Madrugada (00:00–03:59), Amanecer (04:00–07:59), Mañana (08:00–11:59), Mediodía (12:00–15:59), Tarde (16:00–19:59) y Noche (20:00–23:59).
 
-La cabecera muestra la hora actual después de aplicar el tiempo que consume la acción declarada. La hora avanza por las acciones, no porque el chat reciba otro mensaje. Las acciones pequeñas acumulan tiempo:
+No cuentes minutos ni avances una franja por cada mensaje. La conversación breve y las acciones pequeñas se quedan en el bloque actual. Un viaje, una búsqueda extensa, trabajo, entrenamiento o descanso hacen avanzar el reloj solo cuando el tiempo acumulado cruza al siguiente bloque; respeta la duración explícita de `/salto` o del usuario. Si no se sabe cuánto duraría una acción importante, pregunta en vez de inventar un salto largo. No narrar acciones del protagonista durante un intervalo que no haya elegido. El tiempo real entre sesiones no mueve el reloj ficticio.
 
-- Diálogo breve: 1–5 minutos.
-- Examinar un objeto o una zona: 5–15 minutos.
-- Comprar o regatear: 10–30 minutos.
-- Comer, lavarse o cambiarse: 15–45 minutos.
-- Trabajo y entrenamiento: duración acordada.
-- Viaje: según distancia, terreno, clima y transporte.
+## 7. Registro que mantiene la continuidad
 
-No saltar varias horas por iniciativa propia. Si el usuario dice «trabajo hasta el mediodía» o «camino dos horas», esa duración está autorizada. Para esperar sin indicar duración, pregunta cuánto tiempo o avanza solo un intervalo corto. No inventes lo que hace el protagonista durante un salto.
-
-Franjas diarias: Mañana I 06:00–08:59; Mañana II 09:00–11:59; Tarde I 12:00–14:59; Tarde II 15:00–17:59; Noche I 18:00–20:59; Noche II 21:00–05:59. El número de día cambia a las 00:00 aunque siga la franja Noche II. El reloj inicial es Día 1, 08:00 y no se reinicia. Si el usuario especifica otra hora o duración, prevalece su indicación.
-
-## 7. El registro que resuelve la continuidad
-
-El bot debe producir un bloque compacto cada tres respuestas suyas y también cuando cambie un hecho importante (viaje, gasto, objeto, herida, contrato, relación, rango, hechizo o Eco). No debe repetirlo en cada turno.
+Usa `/estado` para revisar el estado actual y `/guardar` para crear un bloque copiable. Guarda cada **8–10 intercambios** (un mensaje del jugador + una respuesta), antes si las respuestas son largas, y siempre después de un cambio importante: promesa, herida, objeto adquirido/perdido, nueva ruta, cambio de relación, encuentro relevante o uso de Eco/hipnosis. Haz un guardado antes de dejar la sesión. No imprimas el registro entero en cada respuesta: actualizar y revisar el estado en momentos adecuados evita saturar el contexto.
 
 Formato de referencia:
 
 ~~~text
-[PUNTO DE GUARDADO | Día 1 · Mañana I · 08:00 | Lugar: Bosque de las Bestias | Dinero: 0 | Equipo: camisa y pantalones | Salud: ileso | Encargos: ninguno | PNJ: grupo aún desconocido | Encuentros: ninguno registrado | Rango: ninguno | Magia: ninguna | Eco: usos por objetivo, máximo 3 | Volcán: activo, fecha límite día 7 | Pendientes: ninguno confirmado]
+[PARTIDA ACTUAL]
+Día y bloque de 4 horas:
+Lugar actual:
+Mapa / rutas: visitadas, conocidas sin recorrer y rumores:
+Dinero, inventario y recursos:
+Heridas, cansancio y condiciones:
+PNJ: identidad, lugar, última acción y relación respaldada por hechos:
+Promesas: quién prometió qué, a quién, condición/plazo y resultado:
+Encuentros: persona/grupo/criatura, lugar/ruta, estado y última acción:
+Objetos: vistos, recogidos, dejados, gastados o perdidos:
+Eco/hipnosis por objetivo: identidad, especie si aplica, lugar/ruta, intentos 1–3, resultado, efecto y usos restantes:
+Encargos, pistas y consecuencias pendientes:
+Hechos confirmados:
+Rumores y teorías no confirmados:
+Última escena exacta y la decisión que espera del jugador:
 ~~~
 
-Actualiza solo los hechos que cambien. Para Eco, lleva una cuenta separada por persona. Registra los monstruos y PNJ importantes por identidad, ubicación, condición y última interacción. Si un dato no se conoce, escribe «desconocido»; no lo inventes. El registro más reciente reemplaza al anterior como estado actual, pero no elimina consecuencias pendientes. Importante: el bloque escrito en el chat no es un archivo persistente de la plataforma. Si el modelo ya no puede ver el registro, el texto de Personality no puede recuperarlo mágicamente. Para una partida larga, copia cada punto de guardado a un archivo propio. El reloj ficticio no avanza mientras no juegas, aunque pasen horas reales.
+Actualiza solo lo que cambie. Registra criaturas y PNJ por identidad, lugar, condición y última interacción; una criatura muerta no vuelve como el mismo individuo sin causa. Un mismo tipo de criatura puede aparecer en otro encuentro. Las promesas, efectos de Eco y usos por objetivo no se reinician al cambiar de lugar, ruta o chat. Si un campo no se conoce, escribe «desconocido»; no lo inventes.
 
-### Encuentros aleatorios con continuidad
+El bloque del chat **no se guarda en un archivo externo**. Copia cada guardado a `PARTIDA_ACTUAL.txt` u otro archivo fuera de SpicyChat.
 
-Puedes improvisar monstruos, viajeros, rumores y contratiempos, pero la aleatoriedad debe ser controlada por el lugar, la franja horaria, el peligro, el clima, el ruido, los rastros y los hechos previos. No tiene que ocurrir algo en cada franja y un encuentro casual no crea automáticamente una misión o una conspiración.
+### Encuentros variables y mapa progresivo
 
-Si un monstruo solo fue visto y se marchó, puede reaparecer si hay una razón plausible. Si huyó herido, conserva la herida. Si murió, el mismo individuo no reaparece sin una causa establecida; puede aparecer otro ejemplar. Si Eco afectó a alguien, conserva el efecto y los usos gastados. Los compañeros mantienen recuerdos, promesas, heridas, confianza y sospechas. Registra solo entidades relevantes, no cada criatura genérica de paso.
+Los encuentros pueden incluir personas, objetos, animales, rastros, recursos, peligros, rarezas o ninguno. Se ponderan por zona, ruta, bloque horario, clima, ruido, rastros, riesgo y hechos previos; el bosque permite que los tipos de encuentros se repitan. No repitas automáticamente la misma escena ni el mismo individuo.
+
+`/mapa` muestra un mapa textual pequeño. Marca [V] visitado, [R] ruta conocida pero no recorrida, [?] rumor y [!] bloqueado/peligroso. Añade lugares interiores del bosque conforme se descubran. No crees conexiones de caminos por intuición. Nhal-Seren sigue oculta hasta descubrirse. El mapa regional orienta por puntos cardinales, pero no significa que exista un camino directo entre todos los lugares.
 
 ### Si el bot empieza a contradecirse
-1. Escribe /estado si el chat todavía conserva el contexto necesario.
-2. Si el resultado vuelve al Día 1 o inventa progreso, no sigas la nueva versión.
-3. Pega el último punto de guardado copiado y añade: «OOC: este registro es el estado actual de la partida. Continúa desde aquí; el Día 1 del saludo ya pasó. No inventes hechos desconocidos ni restaures recursos».
-4. Si el chat ya olvidó demasiadas escenas, usa el punto de guardado para iniciar una conversación nueva o clona la conversación desde un punto anterior que funcione.
 
-El Memory Manager está disponible en los planes compatibles y permite fijar algunos recuerdos; Semantic Memory 2.0 está disponible en niveles superiores compatibles. No reemplazan una copia externa del estado exacto. En el plan gratuito, copia el registro a un archivo de texto cada vez que guardes.
+1. Escribe `/estado` mientras el chat conserve el contexto.
+2. Si vuelve al Día 1 o inventa progreso, no sigas esa versión como si fuera canon.
+3. Pega el último guardado externo y añade: «OOC: este registro es el estado actual. Continúa desde aquí; el Día 1 ya pasó. No inventes los datos desconocidos ni restaures recursos».
+4. Si el chat olvidó demasiadas escenas, abre una conversación nueva con el mismo personaje y pega el último guardado como primer mensaje. Conserva el chat anterior hasta verificar que la nueva escena es correcta.
 
 ## 8. Prueba de aceptación
 
-Haz esta prueba privada antes de desarrollar más contenido:
+Haz esta prueba en una partida privada antes de seguir ampliando contenido:
 
-1. El saludo debe mostrar «DÍA 1 · MAÑANA · 08:00» y el bosque. /estado debe informar 0 dinero, sin equipo adicional, sin rango y sin hechizos propios.
-2. Pregunta por el camino y examina huellas. La hora debe avanzar unos minutos acumulados, no saltar automáticamente a la tarde.
-3. Compra comida. Comprueba que la cabecera avance aproximadamente 10–30 minutos y que solo se reste dinero al pagar.
-4. Trabaja hasta el mediodía tras indicarlo expresamente. La cabecera debe cambiar a tarde y mantener el lugar correcto.
-5. Viaja a otra ubicación. La hora debe corresponder a la distancia y al ritmo establecidos; una travesía extensa no se completa sin permiso.
-6. Usa Eco sobre una persona. Debe gastar un uso para ese objetivo aunque falle; la hora solo cambia por el tiempo consumido.
-7. Continúa hasta el tercer mensaje del bot. Debe producir un registro compacto con la hora correcta.
-8. Pega el registro si el reloj se contradice. El bot debe corregirlo y retomar el estado sin inventar datos.
-9. Ignora la trama del volcán. El evento permanece en el mundo, pero no fuerza al protagonista a volver.
-10. Roba un objeto sin que nadie lo vea. Verifica que el bot no invente testigos ni convierta ese acto en una erupción o una persecución sin una cadena causal plausible.
-11. Pregunta por la página desaparecida del barco. Verifica que siga siendo un misterio y no se conecte a una conspiración o al volcán sin pruebas.
-12. Avanza de Mañana I a Mañana II mediante acciones; la franja cambia al llegar a las 09:00 sin reiniciar el día.
-13. Deja escapar a un monstruo herido y vuelve a esa zona: si reaparece, conserva heridas o rastros. Si murió, no vuelve como el mismo individuo sin una causa establecida.
-14. Aplica Eco a un PNJ y vuelve a encontrarlo: conserva los usos gastados y el efecto concreto, sin convertirlo en obediencia automática.
+1. El saludo muestra «DÍA 1 · MAÑANA (08:00–11:59)» y el Bosque de las Bestias. /estado indica 0 dinero, sin equipo adicional, sin rango y sin hechizos propios.
+2. Una conversación breve no avanza automáticamente el bloque horario.
+3. Una acción declarada de cuatro horas cambia de bloque; no aparecen marcas de minutos en cada respuesta.
+4. `/mapa` distingue lugares visitados, rutas conocidas pero no recorridas y rumores. Nhal-Seren no aparece como lugar conocido antes de descubrirse.
+5. Los encuentros pueden repetirse por tratarse de un bosque, pero un individuo muerto no reaparece sin causa.
+6. Haz una promesa, recoge un objeto y registra una criatura vista. `/guardar` refleja quién prometió qué, el estado del objeto y la ubicación/condición de la criatura.
+7. Usa Eco/hipnosis sobre un objetivo permitido; el guardado lleva la cuenta de intento, resultado, efecto y usos restantes para ese mismo objetivo. Si se afecta un animal, lo registra sin reiniciar el contador al cambiar de ruta.
+8. Guarda tras 8–10 intercambios y al terminar la sesión. Confirma que el bloque copiable contiene la última escena exacta y las pendientes.
+9. Pega el guardado en un chat nuevo. La primera respuesta continúa desde el lugar y bloque guardados, sin repetir el comienzo.
+10. Ignora la trama del volcán. El acontecimiento sigue avanzando en el mundo, pero no obliga al protagonista a visitarlo.
+11. Deja escapar a un monstruo herido y vuelve a la zona: si reaparece, conserva su herida o pistas. Si murió, no vuelve como el mismo individuo sin una causa establecida.
+12. Pregunta por la página desaparecida del barco. Sigue siendo un misterio independiente hasta que existan pruebas que la conecten a otra trama.
 
 ## 9. Qué puede y qué no puede garantizar este arreglo
 
