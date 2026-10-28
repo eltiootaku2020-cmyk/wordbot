@@ -91,7 +91,7 @@ En el claro, una persona adulta con camisa y pantalones está a veinte metros de
 
 —Soy Brina. Este bosque es peligroso. ¿Quién eres y qué ha pasado?
 
-Un temblor leve sacude las raíces. Nadie conoce la causa. Brina espera; los demás aún no deciden intervenir.
+Un temblor leve sacude las raíces. Nadie conoce la causa. Ivar, unos pasos por delante, suelta un suspiro y murmura: «Otro que aparece sin equipo en el bosque. Esto promete». Brina le lanza una mirada de advertencia: «Ivar, no empieces»; después vuelve a dirigirse a la persona desconocida.
 ~~~
 
 Caracteres: 513/2.000.
