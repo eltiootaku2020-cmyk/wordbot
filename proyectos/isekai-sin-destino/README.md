@@ -1,18 +1,18 @@
 # Isekai sin Destino
 
-**Versión propuesta:** v1.11 (registro interno con porcentajes, objetos, ubicaciones y órdenes; pendiente de probar en SpicyChat)  
+**Versión propuesta:** v1.12 (registro interno con porcentajes, objetos, ubicaciones y órdenes; pendiente de probar en SpicyChat)  
 **Rama:** `docs/historias-organizadas`  
 **Carpeta:** `proyectos/isekai-sin-destino/`
 
 ## Archivos
 - [Configuración ligera](CONFIG_LIGERA.md)
-- [Cuadro de reglas prioritarias v1.11](CUADRO_REGLAS_PRIORITARIAS.md)
-- [Registro interno y esquema cerrado v1.11](REGISTRO_INTERNO_ESQUEMA.md)
-- [Lorebook maestra, 73 entradas](LOREBOOK_MAESTRA.md)
+- [Cuadro de reglas prioritarias v1.12](CUADRO_REGLAS_PRIORITARIAS.md)
+- [Registro interno y esquema cerrado v1.12](REGISTRO_INTERNO_ESQUEMA.md)
+- [Lorebook maestra, 74 entradas](LOREBOOK_MAESTRA.md)
 - [JSON de importación de Lorebook](LOREBOOK_IMPORT.json)
 - [Solución para historias largas](SOLUCION_HISTORIAS_LARGAS.md)
 
-## Registro v1.11
+## Registro v1.12
 - Porcentajes independientes 0–100 por eje: relaciones por pareja/dirección; habilidad solo tras demostración; interés tras declaración/patrón; sospecha con motivo y evidencia.
 - Los porcentajes miden intensidad, no probabilidad; 50% no es neutral universal. Delta +/−=subida/bajada; 0=sin cambio. Sin evidencia = «No registrado». La sospecha no prueba culpabilidad.
 - Ficha por PNJ/criatura relevante: identidad, estado, ubicación actual o última confirmada, habilidades, intereses, sospechas, conocimiento/fuente, vínculos, órdenes dadas y cumplimiento confirmado/desconocido.
@@ -26,12 +26,13 @@
 - Seis bloques horarios de cuatro horas; mini mapa progresivo.
 - Encuentros abiertos: no todo conduce a combate; los compañeros solo reaccionan a hechos presenciados o contados.
 - Relaciones no solo románticas: confianza, sospecha, amistad, respeto, rivalidad, resentimiento, miedo, gratitud/deuda y cooperación.
+- Iniciativa de PNJ: en escenas de grupo, personajes cercanos hablan o reaccionan espontáneamente sin que el jugador los nombre o mire; Ivar puede suspirar o comentar desde la primera línea. Se evitan frases sueltas y respuestas vacías.
 - El volcán es un punto culminante del primer arco; cualquier causa sobrenatural —incluido un dragón antiguo— permanece pendiente hasta confirmación del autor.
 
 ## Coste de contexto y memoria
 - La documentación oficial indica 4.096 tokens de contexto y máximo de 180 tokens por respuesta en el plan Free. El contexto se comparte entre definición, historial reciente, instrucciones y Lorebook activada.
 - Las entradas de Lorebook se activan por palabras clave; no se carga toda la biblioteca en cada turno. En Free, la guía oficial estima alrededor de 740 tokens para Lorebook activa, así que conviene evitar que muchos registros se activen a la vez.
-- Los campos estáticos actuales: Personality 3632 caracteres; Scenario 684; Greeting 513; Example Dialogue 836. Son caracteres, no tokens; juntos suman 5.665 caracteres y el contador visible de SpicyChat da el coste exacto.
+- Los campos estáticos actuales: Personality 4386 caracteres; Scenario 684; Greeting 513; Example Dialogue 1277. Son caracteres, no tokens; juntos suman 6.860 caracteres y el contador visible de SpicyChat da el coste exacto.
 - El estado dinámico no se vuelve una base de datos oculta: puede mantenerse mientras siga en contexto, pero para recuperarlo tras un olvido hay que conservar `/guardar` fuera del chat.
 
 Fuentes oficiales:
@@ -40,6 +41,6 @@ Fuentes oficiales:
 - https://support.spicychat.ai/support/solutions/articles/153000260533-plans-and-what-s-included
 
 ## Validación
-- JSON válido sintácticamente; 73 entradas. Las entradas de estado nuevo están compactadas.
+- JSON válido sintácticamente; 74 entradas. Las entradas de estado nuevo están compactadas.
 - Personality por debajo de 5.000 caracteres.
 - Pendiente: probar importación y comportamiento en SpicyChat. GitHub no instala los cambios automáticamente.
