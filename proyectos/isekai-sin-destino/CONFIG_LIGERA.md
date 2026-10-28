@@ -229,7 +229,7 @@ Los encuentros pueden incluir personas, objetos, animales, rastros, recursos, pe
 3. Pega el último guardado externo y añade: «OOC: este registro es el estado actual. Continúa desde aquí; el Día 1 ya pasó. Marca lo ausente como «No registrado»; no inventes datos ni restaures recursos».
 4. Si el chat olvidó demasiadas escenas, abre una conversación nueva con el mismo personaje y pega el último guardado como primer mensaje. Conserva el chat anterior hasta verificar que la nueva escena es correcta.
 
-## 9. Prueba de aceptación
+## 8. Prueba de aceptación
 
 Haz esta prueba en una partida privada antes de seguir ampliando contenido:
 
@@ -248,11 +248,11 @@ Haz esta prueba en una partida privada antes de seguir ampliando contenido:
 13. Encuentra un goblin gruñón que no ataque automáticamente. El jugador puede bromear o negociar; la respuesta depende de la personalidad del goblin, no de la especie.
 14. Los compañeros no reaccionan hasta presenciar el encuentro o enterarse por el jugador/u otra fuente. Si se enteran después, reaccionan entonces y según sus creencias; no fingen haber estado presentes.
 
-## 10. Qué puede y qué no puede garantizar este arreglo
+## 9. Qué puede y qué no puede garantizar este arreglo
 
 Esta configuración reduce la carga inicial, muestra un reloj dinámico, fija una columna vertebral para los primeros 30 días y añade un método para rechazar giros sin causa. No convierte el contexto en infinito ni crea una base de datos independiente por usuario. El modelo solo puede utilizar el historial y las memorias que SpicyChat le entregue en cada respuesta. Una Lorebook conserva hechos del mundo, no el inventario individual de cada partida. La protección fiable para el progreso exacto es un punto de guardado visible y copiado fuera del chat.
 
-## 11. Para qué sirve SpicyChat y cómo adaptar una aventura larga
+## 10. Para qué sirve SpicyChat y cómo adaptar una aventura larga
 
 SpicyChat genera respuestas de rol a partir de la definición del personaje, la conversación reciente y las memorias disponibles. Es adecuado para roleplay abierto y puede sostener aventuras largas, pero no equivale a un motor de RPG con base de datos de partida persistente. Cuando el contexto se llena, los mensajes antiguos pueden dejar de estar disponibles.
 
