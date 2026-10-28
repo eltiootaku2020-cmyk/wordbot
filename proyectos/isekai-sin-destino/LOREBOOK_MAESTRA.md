@@ -1247,7 +1247,7 @@ No uses todas las palabras clave en una sola entrada. Evita palabras genéricas 
 ### Entrada 05 — Ivar Dalen
 **Keywords:** `Ivar Dalen`
 
-**Content:** Ivar, 27 años, es un lancero atento, desconfiado y directo. Usa la lanza para controlar distancia y vigila los flancos; maniobra peor en espacios estrechos y no puede detener por sí solo proyectiles mágicos. Prefiere prevenir emboscadas y calcula costes. Escucha pruebas convincentes, pero su lealtad crece con el tiempo.
+**Content:** Ivar, 27 años, tiene el cabello largo rubio muy pálido, casi blanco. Es un lancero rudo, antipático, sarcástico, burlón y desconfiado; suele usar la ironía para expresar desconfianza. Usa la lanza para controlar distancia y vigila los flancos; maniobra peor en espacios estrechos y no puede detener por sí solo proyectiles mágicos. Prefiere prevenir emboscadas y calcula costes. Escucha pruebas convincentes, pero su lealtad crece con el tiempo. A quién o qué odia aún no está definido; no fijar ese objetivo hasta confirmación del autor.
 
 ### Entrada 06 — Maelis Orven
 **Keywords:** `Maelis Orven`
@@ -1756,9 +1756,9 @@ No revelar todos esos datos al primer encuentro. Muestra uno o dos mediante acci
 Añade estas entradas a la misma Lorebook **Isekai sin Destino**, una por una. Cada Content está pensado para quedar por debajo de 2.000 caracteres y centrado en un tema. Las claves específicas aumentan la precisión; solo se activan si aparecen en los mensajes recientes. No hace falta cargar todo el atlas durante cada respuesta.
 
 ### Entrada 42 — Mapa de las cuatro ciudades
-**Keywords:** `cuatro ciudades`; `mapa del continente`
+**Keywords:** `/mapa`; `minimapa`; `cuatro ciudades`; `mapa del continente`
 
-**Content:** Hay cuatro ciudades principales: Valdoria, capital de Liria al este; Puerto Nácar, puerto del Mar de las Agujas al norte; Suralba, capital multi-especie de Tazhar al sur; y Nhal-Seren, ciudad élfica oculta dentro del borde septentrional del Bosque de las Bestias. El bosque ocupa el centro y su corazón sigue inexplorado. Al oeste están las Montañas del Fin. Brumaclara es una aldea, no una ciudad principal.
+**Content:** Marco geográfico: el bosque está en el centro; al este está Valdoria, capital de Liria; al norte, el Mar de las Agujas y Puerto Nácar; al sur, Tazhar y Suralba; al oeste, las Montañas del Fin. Brumaclara es una aldea, no una ciudad principal. Este marco no confirma caminos transitables. /mapa debe mostrar solo lugares y rutas visitados o conocidos por una fuente, con etiquetas [V] visitado, [R] ruta conocida no recorrida, [?] rumor y [!] bloqueado/peligroso. Añade nodos interiores a medida que se descubren. Nhal-Seren es una ciudad élfica oculta y no debe figurar como lugar conocido antes de que la descubran.
 
 ### Entrada 43 — Bosque de las Bestias
 **Keywords:** `Bosque de las Bestias`; `corazón inexplorado`
@@ -2004,9 +2004,9 @@ Estas entradas amplían el catálogo compacto. Añádelas individualmente; las r
 **Content:** No introduzcas un acontecimiento importante sin causa previa, preparación o pista, coherencia de lugar y tiempo, evidencia y consecuencia trazable. Distingue canon, hechos de la partida, rumores e improvisación local. Una idea opcional no es un evento obligatorio. El volcán ya estaba inestable antes de que llegara el protagonista; acciones cotidianas no lo aceleran por sí solas. La erupción lleva a rutas dañadas, desplazamientos, contratos y recuperación desigual. El barco de día 17 y las huellas de día 25 son hilos independientes hasta que haya pruebas de conexión. No inventes un villano que conecte todos los misterios. Si una causa no se conoce, conserva el misterio o la hipótesis.
 
 ### Entrada 71 — Punto de guardado y reanudación
-**Keywords:** `/guardar`; `punto de guardado`; `registro de continuidad`; `reanudar partida`
+**Keywords:** `/guardar`; `/estado`; `/continuar`; `/ruta`; `punto de guardado`; `registro de continuidad`; `reanudar partida`
 
-**Content:** SpicyChat usa el historial reciente y las memorias disponibles, pero no guarda automáticamente un estado RPG completo e independiente mediante instrucciones de rol. /guardar debe producir un bloque copiable con fecha ficticia, hora, lugar, panorama, dinero, equipo, salud, trabajos, relaciones, poderes conocidos, hechos confirmados, rumores, consecuencias y próximos asuntos. Separa lo que sabe el protagonista de las notas secretas del narrador. El tiempo real entre mensajes no avanza el reloj ficticio. Si el último registro no está disponible, pide al usuario que lo pegue; no reinicies al Día 1 ni inventes la continuidad.
+**Content:** SpicyChat no guarda fuera del chat un estado RPG completo por instrucciones de rol. /guardar produce un bloque copiable con día, bloque horario de 4 horas, lugar, mapa/rutas, dinero, inventario, lesiones, encargos, PNJ y relaciones, promesas, encuentros y estado de cada criatura/PNJ, objetos vistos/recogidos/dejados/perdidos, objetivos afectados por Eco/hipnosis (incluidos animales si el canon permite el uso), intento 1–3, resultado, efecto y usos restantes, hechos, rumores y próxima escena. /estado revisa el estado; /mapa marca solo visitas, rutas conocidas y rumores; /continuar reanuda desde el registro pegado. Separa hechos que conoce el protagonista de notas secretas del narrador. El tiempo real no avanza el reloj ficticio. Si falta el registro, pídele al usuario que lo pegue; no reinicies al Día 1 ni inventes lo perdido.
 
 ### Entrada 72 — Encuentros variables y persistencia de criaturas
 **Keywords:** `encuentro aleatorio`; `monstruo herido`; `monstruo que huyó`; `criatura recurrente`; `PNJ recurrente`
