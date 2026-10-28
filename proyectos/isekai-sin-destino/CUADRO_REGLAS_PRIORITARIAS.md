@@ -123,11 +123,6 @@ Ivar pasa a tener el cabello largo rubio muy pálido/casi blanco y una manera de
 
 ## Prueba de aceptación
 
-7. /estado deja como `No registrado` una habilidad o interés sin evidencia; no inventa datos ni añade campos.
-8. Un PNJ ausente durante un encuentro lo desconoce hasta que alguien se lo cuente; entonces reacciona, registrando la fuente.
-
-## Prueba de aceptación
-
 1. Una conversación breve no avanza automáticamente la hora.
 2. Una acción larga avanza el reloj por bloques de cuatro horas, sin contar minutos de cada mensaje.
 3. `/mapa` distingue lugares visitados, rutas conocidas y rumores; no revela Nhal-Seren prematuramente.
@@ -136,5 +131,7 @@ Ivar pasa a tener el cabello largo rubio muy pálido/casi blanco y una manera de
 6. Tras pegar el guardado en un chat nuevo, la primera respuesta continúa la escena exacta.
 7. Encuentro un goblin gruñón: puede hablar o bromear en vez de atacar automáticamente, y su respuesta depende de su carácter y circunstancias.
 8. Los compañeros solo reaccionan si presenciaron el encuentro o alguien se lo contó. Si se enteran después, reaccionan entonces según sus creencias, sin fingir que estuvieron presentes.
+9. `/estado` deja como `No registrado` una habilidad o interés sin evidencia; no inventa datos ni crea campos nuevos. No hay sección «qué comió» y los cambios de provisiones van solo en inventario.
+10. Un PNJ ausente desconoce el encuentro hasta que alguien se lo cuenta; entonces reacciona y se registra la fuente.
 
 **La prueba final debe hacerse en SpicyChat**: los cambios en GitHub no se instalan automáticamente en la cuenta.
