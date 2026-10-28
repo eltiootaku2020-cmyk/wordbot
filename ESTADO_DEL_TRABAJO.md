@@ -11,9 +11,9 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 
 ### 1. Isekai sin Destino
 - Carpeta: `proyectos/isekai-sin-destino/`
-- Versión de configuración: v1.12 propuesta (pendiente de prueba); Lorebook ampliada con encuentros emergentes, porcentajes independientes, objetos/ubicación y órdenes de entidades.
+- Versión de configuración: v1.13 propuesta (pendiente de prueba); Lorebook ampliada con encuentros emergentes, porcentajes independientes, objetos/ubicación y órdenes de entidades.
 - Archivos: `CONFIG_LIGERA.md`, `CUADRO_REGLAS_PRIORITARIAS.md`, `REGISTRO_INTERNO_ESQUEMA.md`, `LOREBOOK_MAESTRA.md`, `LOREBOOK_IMPORT.json`, `README.md`.
-- Lorebook: 74 entradas.
+- Lorebook: 76 entradas.
 - Cambios recientes: cuadro prioritario v1.11; registro interno cerrado y porcentual; reloj por seis bloques de cuatro horas; mini mapa progresivo que solo revela lo conocido por el protagonista; reloj con cabecera dinámica para que el saludo del Día 1 no se repita; encuentros aleatorios controlados; persistencia de estado de monstruos y PNJ; los compañeros conservan recuerdos; un monstruo muerto no reaparece como el mismo individuo sin causa; Eco mantiene usos y efectos por objetivo; se registran promesas, objetos y animales afectados por Eco/hipnosis; los vínculos incluyen sospechas, discusiones, amistad, respeto, deudas y conflictos, no solo romance; los compañeros solo reaccionan a hechos que presenciaron o les contaron, incluso si se enteran después; los PNJ cercanos pueden iniciar diálogo espontáneamente sin que el usuario los nombre o mire, con 1–2 intervenciones naturales por respuesta de grupo y sin frases sueltas.
 - Registro interno: incluye habilidades demostradas, intereses/objetivos con fuente, sospechas con evidencia y conocimientos por PNJ; datos ausentes quedan como «No registrado», sin campos nuevos.
 - Persistencia práctica: el bot puede generar `/guardar`, pero SpicyChat no guarda por instrucciones un estado RPG externo. La partida necesita un punto de guardado copiado fuera del chat para recuperarla si el contexto se pierde.
@@ -32,6 +32,13 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 - Rama organizada: `docs/historias-organizadas` — contiene los dos proyectos en carpetas separadas y debe usarse para nuevos cambios.
 - Rama previa de Isekai: `docs/isekai-spicychat-lorebook` — respaldo de la línea de trabajo anterior, sin borrar.
 - Rama previa de DanMachi: `docs/danmachi-spicychat` — respaldo de la línea de trabajo anterior, sin borrar.
+
+### Actualización Isekai v1.13
+- Añadido el descubrimiento de Eco en árboles como sensación interna, no visual, con límites de prueba y parámetros desconocidos explícitos.
+- Añadido catálogo de objetos comunes posibles; no regala objetos ni modifica el inicio sin equipo.
+- Añadidas pautas para diálogo espontáneo completo de PNJ cercanos y metodología de identidad/estado/conocimiento/objetivos.
+- Añadido documento de investigación con fuentes de SpicyChat, SillyTavern y diseño de PNJ.
+- Pendiente de importar y probar en SpicyChat; no se declara validado.
 
 ## Próximo paso recomendado
 
