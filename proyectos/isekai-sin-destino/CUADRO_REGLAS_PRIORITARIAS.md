@@ -105,7 +105,7 @@ Registra por pareja y dirección confianza, sospecha, amistad, respeto, rivalida
 
 ## Sistema de porcentajes 0–100
 
-Los porcentajes son indicadores de seguimiento, no probabilidades objetivas. Cada eje es independiente. 50% es neutral solo al iniciar un eje con evidencia; sin evidencia, `No registrado`. Habilidades se puntúan tras demostración, intereses por declaración/patrón observable, sospechas con motivo/evidencia/fuente. Cambios: 0 sin cambio; ±1–3 leve; ±4–8 relevante; ±9–15 fuerte; ±16 o más excepcional. Anota el motivo y limita de 0 a 100. Sospecha alta no demuestra culpabilidad. Órdenes a criaturas/PNJ quedan como cumplimiento desconocido hasta confirmación; objetos guardan cantidad, estado, portador/ubicación.
+Los porcentajes miden intensidad, no probabilidad objetiva ni puntuación total. Cada eje es independiente y va de 0 a 100; 50% no es neutral universal. Sin evidencia = `No registrado`, nunca un valor inventado. Delta + sube, − baja y 0 significa sin cambio. Habilidades requieren demostración; intereses, declaración o patrón observable; sospechas, motivo/evidencia/fuente. Registra la causa del cambio y limita el valor a 0–100. Una sospecha alta no prueba culpabilidad. Órdenes a criaturas/PNJ quedan como cumplimiento desconocido hasta confirmación; objetos guardan cantidad, estado y ubicación.
 
 ## Regla de esquema cerrado
 
