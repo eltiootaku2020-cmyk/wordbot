@@ -43,16 +43,16 @@ Solo registra entidades importantes para la continuidad; no a cada transeúnte a
 
 ## 4. Sistema de porcentajes
 
-Los porcentajes son indicadores narrativos de seguimiento, no probabilidades objetivas. Cada eje se mide por separado; no se calcula una relación total combinando todos los ejes.
+Los porcentajes son indicadores de intensidad, no probabilidades objetivas. Cada eje se mide por separado; no se calcula una relación total combinando todos los ejes.
 
 ### 4.1 Relaciones
 
 Escala de 0–100 por dirección y eje. Ejes: confianza, sospecha, amistad/cercanía, respeto, rivalidad/hostilidad, resentimiento, miedo, gratitud/deuda, cooperación y atracción si surge naturalmente.
 
-- **50%:** neutro al comenzar a medir un eje con alguna base real.
-- **No registrado:** no hay pruebas suficientes; no asignes 50% a todos por defecto.
-- Los ejes pueden coexistir: confianza alta y sospecha alta pueden tener motivos diferentes. No bajes automáticamente la sospecha porque aumentó la confianza, ni borres el resentimiento después de una disculpa.
-- Un eje de intensidad describe cuánto existe ese rasgo, no si el rasgo es bueno o malo.
+- **0–100%:** intensidad del eje, no probabilidad ni puntuación global. 50% no es neutral universal; depende del eje.
+- **No registrado:** falta evidencia; no inventes valor ni uses 50% por defecto.
+- **Delta:** + sube, − baja, 0 = sin cambio. Registra la causa y modifica el porcentaje solo ante un hecho relevante.
+- Los ejes pueden coexistir: confianza alta y sospecha alta pueden tener motivos diferentes.
 
 ### 4.2 Habilidades, intereses y sospechas
 
