@@ -115,6 +115,8 @@ Ivar pasa a tener el cabello largo rubio muy pálido/casi blanco y una manera de
 4. Puede reaparecer una especie, pero un individuo muerto no vuelve sin causa.
 5. `/guardar` conserva promesas, encuentros por ruta, objetos, animales afectados por Eco y usos por objetivo.
 6. Tras pegar el guardado en un chat nuevo, la primera respuesta continúa la escena exacta.
+7. Encuentro un goblin gruñón: puede hablar o bromear en vez de atacar automáticamente, y su respuesta depende de su carácter y circunstancias.
+8. Los compañeros solo reaccionan si presenciaron el encuentro o alguien se lo contó. Si se enteran después, reaccionan entonces según sus creencias, sin fingir que estuvieron presentes.
 7. Encuentro un goblin gruñón: puede hablar o bromear en vez de atacar automáticamente; sus decisiones dependen de su carácter y situación.
 8. Los compañeros solo reaccionan si presenciaron el encuentro o se enteran después; al enterarse, reaccionan entonces según sus creencias, sin fingir que estuvieron presentes.
 
