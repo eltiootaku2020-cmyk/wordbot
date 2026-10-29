@@ -1,4 +1,4 @@
-# Investigación aplicada — SpicyChat, personalidad de PNJ, cronología y estado (v1.13)
+# Investigación aplicada — SpicyChat, personalidad de PNJ, cronología y estado (v1.14)
 
 ## Objetivo
 Mejorar Isekai sin Destino sin convertir Personality en una enciclopedia ni gastar contexto registrando cada detalle. Se combinan límites reales de SpicyChat con patrones documentados de diseño de personajes y estado en juegos narrativos.
@@ -64,3 +64,34 @@ Catálogo de cosas plausibles: cuerda, saco de tela, cuenco, cantimplora, aguja/
 - StoryEngine, [Actor facts, memories and goals](https://storyengine.gg/docs/Concepts/Actor.html)
 - Epic Games, [Designing a Conversation](https://dev.epicgames.com/documentation/fortnite/designing-a-conversation-in-unreal-editor-for-fortnite?lang=en-US)
 - Microsoft, [NPC Dialogue](https://learn.microsoft.com/minecraft/creator/documents/NPCDialogue)
+
+
+## Actualización investigada v1.14: datos verificables, no guion fijo
+
+### Límites de SpicyChat comprobados
+La ayuda oficial consultada el 29 de octubre de 2026 indica que Free tiene **4.096 tokens de contexto compartido** y máximo de **180 tokens por respuesta**. El contexto incluye definición, instrucciones y mensajes recientes; al llenarse, salen mensajes antiguos. SpicyChat recomienda una definición compacta de aproximadamente 800–1.100 tokens. La Lorebook se activa por palabras clave y solo inserta entradas pertinentes. Las páginas oficiales difieren en cómo expresan algunos topes; usa el contador del editor y la tabla de planes como referencia práctica.
+
+Fuentes oficiales:
+- https://support.spicychat.ai/support/solutions/articles/153000260636-why-characters-forget-things-tokens-and-context-
+- https://support.spicychat.ai/support/solutions/articles/153000260533-plans-and-what-s-included
+- https://support.spicychat.ai/support/solutions/articles/153000260673-lorebooks
+- https://support.spicychat.ai/support/solutions/articles/153000260635-how-spicychat-generates-messages
+
+### Patrones de diseño de NPC/dialogue
+Las investigaciones consultadas separan estado del mundo, conocimiento individual y diálogo generado:
+- **Personalized Quest and Dialogue Generation in Role-Playing Games** (CHI 2023) combina un modelo de lenguaje con un grafo de conocimiento de ubicaciones, entidades, objetos y relaciones: https://doi.org/10.1145/3544548.3581441
+- **Personalized Non-Player Characters: A Framework for Character-Consistent Dialogue Generation** (2025) estudia memoria de trabajo, memoria semántica y relaciones entre entidades: https://www.mdpi.com/2673-2688/6/5/93
+- **Designing Open Dialogue Systems for LLM-Based NPCs** (DiGRA 2026) examina diálogo libre condicionado por personalidad y estado: https://dl.digra.org/index.php/dl/article/view/2837
+- El diseño contextual de diálogo de GDC/Naughty Dog separa conocimiento individual, conocimiento compartido, estado global y entorno inmediato: https://www.gdcvault.com/play/1020386/A-Context-Aware-Character-Dialog
+
+**Aplicación:** identidad estable (personalidad, habilidades demostradas) en Lorebook; datos dinámicos (ubicación, orden, inventario, sospechas, vínculos, quién sabe qué) en registro compacto. La IA genera reacciones/emociones; el registro fija hechos y consecuencias, no diálogos ni emociones obligatorias.
+
+### Porcentajes, objetos y estado dinámico
+- Porcentajes = intensidad estimada por eje, no probabilidad matemática. Cambian con hechos/evidencia; sin prueba queda «No registrado».
+- Un objeto tiene cantidad/condición/portador/ubicación/estado. Una criatura tiene identidad/última ubicación/orden/conocimiento/vínculos. Si un goblin recibe la orden de esperar en un claro, se registra la orden, pero el cumplimiento queda desconocido hasta comprobarlo.
+- Inventario inicial: pañuelo gastado, bolsita de tela vacía y cordel de cáñamo (~1,5 m), además de ropa básica. Sin dinero, comida, agua, armas, mochila ni equipo de aventura. Otros objetos son posibilidades, no regalos automáticos.
+- No registrar detalles sin consecuencia (por ejemplo, qué comió). Consumir una ración solo cambia el inventario.
+- El estado puede mantenerse mientras siga en contexto, pero no es una base de datos invisible permanente. Para recuperar tras perder contexto, conserva /guardar fuera de SpicyChat.
+
+### Cronología de anime/juegos como método, no destino
+Usa: (1) anclas con condiciones/señales, (2) sucesos secundarios causados por decisiones, (3) qué sabe cada personaje y cuándo, y (4) consecuencias pendientes. Así se conserva coherencia sin convertir la aventura en escenas preescritas. El volcán es un ancla temporal; encuentros con goblins, viajeros o animales pueden ser independientes. Una fecha no obliga a insertar una escena si faltan condiciones/causas.
