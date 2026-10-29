@@ -1,69 +1,62 @@
-# DanMachi — registro de decisiones y continuidad del proyecto
+# DanMachi — decisiones y continuidad del proyecto
 
-## Identidad del proyecto
-
-- Proyecto: DanMachi — bot de SpicyChat.
+## Identidad
+- Proyecto: DanMachi — Orario en la Edad Oscura.
 - Repositorio: https://github.com/eltiootaku2020-cmyk/wordbot
-- Rama exclusiva: `docs/historias-organizadas`
-- Proyecto separado de Isekai sin Destino, cuya rama sigue siendo `docs/isekai-spicychat-lorebook`.
-- Versión actual: v0.1 — base de configuración.
-- Estado: guardado en GitHub bajo `proyectos/danmachi/` en la rama `docs/historias-organizadas`; aún no probado en SpicyChat.
+- Rama: `docs/historias-organizadas`.
+- Versión propuesta: v0.2.
+- Separado de Isekai sin Destino.
 
-## Decisiones ya fijadas
+## Decisiones de diseño
+1. El usuario interpreta un protagonista original en el universo de DanMachi.
+2. Mundo abierto, reactivo, canon coherente y personajes con objetivos propios.
+3. No inventar poderes ni mezclar sistemas de otros animes.
+4. El bot no controla diálogos, acciones, pensamientos ni decisiones del protagonista.
+5. Los PNJ solo saben lo visto, oído o contado.
+6. Estado compacto y cerrado con guardados copiables; no inventar datos para llenar huecos.
+7. El proyecto permanece en su carpeta independiente.
 
-1. El usuario quiere participar como protagonista original dentro del universo de DanMachi.
-2. La historia debe tener un mundo vivo, personajes canónicos coherentes y decisiones del jugador con consecuencias.
-3. No se deben inventar poderes ni mezclar sistemas de otras obras.
-4. El bot no debe controlar los diálogos, acciones, pensamientos ni decisiones del protagonista.
-5. Debe existir una Lorebook organizada por entradas; SpicyChat permite adjuntar una Lorebook por bot según su documentación actual.
-6. Hay que conservar la continuidad y evitar que la partida vuelva al inicio al retomar el mismo chat.
-7. La configuración y el registro de las decisiones se mantienen en esta rama para no mezclar proyectos.
+## Punto temporal provisional de v0.2
+- **Base elegida:** últimos años de la Edad Oscura, antes del Gran Conflicto de los Siete Días.
+- Intervalo exacto anterior a la guerra: pendiente; no se afirma una fecha canónica nueva.
+- Astraea Familia, Alise Lovell, Ryuu Lion, Gojouno Kaguya, Lyra y las facciones de Evilus pueden intervenir cuando la escena y la cronología lo justifiquen.
+- La implicación de Erebus, Alfia y Zald en los planes secretos no es conocimiento público automático.
+- El incidente del piso 27/Juggernaut es posterior y no es amenaza presente al inicio.
+- Las decisiones del protagonista pueden crear una línea temporal alternativa con causa y consecuencias.
 
-## Valores provisionales usados para poder preparar una configuración jugable
-
-- Protagonista: aventurero original adulto que acaba de llegar a Orario.
+## Protagonista — base provisional
+- Adulto recién llegado a Orario.
 - Familia: ninguna al comienzo.
 - Falna: ninguna al comienzo.
-- Poder original: ninguno confirmado.
-- Cronología: cerca del comienzo de la historia principal, sin forzar encuentros canónicos ni revelar spoilers posteriores.
-- Primer lugar: avenida cercana al Gremio de Orario.
-- Visibilidad recomendada en SpicyChat: privado durante pruebas.
+- Poder original: no confirmado.
+- Nombre, aspecto, género, origen, destino y Familia futura: pendientes.
+- No está obligado a unirse a Astraea, Loki, Freya ni otra Familia.
 
-Estos valores son una base conservadora, no decisiones permanentes del usuario. Cambiarlos requiere actualizar la configuración y las entradas relacionadas.
+## Canon vs. interpretación
+- Fuentes y cronología están en `INVESTIGACION_EDAD_OSCURA.md`.
+- Una ficha en la Lorebook no hace que todos los PNJ conozcan sus secretos.
+- Si la personalidad de un personaje no está documentada, marcar interpretación provisional o dejar sin registrar.
+- Personajes cuya edad en esta época sea menor o incierta permanecen en interacción no romántica; no alterar edades canónicas sin autorización.
 
-## Decisiones pendientes — NO convertir en canon sin autorización
+## Pendiente de confirmación
+- Nombre, apariencia, género y procedencia del protagonista.
+- Si empieza sin Falna o ya con Familia.
+- Si el inicio va antes o durante los Siete Días.
+- Si se permite línea temporal alternativa desde el principio.
+- Familia elegida, nueva Familia o elección abierta.
+- Si desea un poder original y sus límites.
+- Qué personajes canónicos quiere priorizar.
+- Bot privado o público.
 
-- ¿El protagonista llega desde nuestro mundo, reencarna en DanMachi o simplemente es un aventurero nuevo que viaja a Orario?
-- ¿Comienza sin poderes especiales o se quiere una habilidad original?
-- Si hay un poder original: nombre, activación, efectos, alcance, coste, límites, riesgos y progresión.
-- ¿En qué momento exacto del anime/manga comienza la aventura?
-- ¿El canon se respeta estrictamente o se crea una línea temporal alternativa desde el inicio?
-- ¿El protagonista quiere unirse a una Familia existente, crear una nueva o dejar la elección abierta?
-- Nombre, aspecto, género y trasfondo del protagonista.
-- Tono preferido: aventura, acción, romance, comedia, drama u otra combinación.
-- Qué personajes canónicos quiere conocer y qué personajes o spoilers desea evitar.
-- Si la versión final será pública o privada.
-
-## Estado de los archivos
-
-- `DANMACHI_SPICYCHAT_CONFIG.md`: completo como base v0.1, con decisiones provisionales marcadas.
-- `DANMACHI_LOREBOOK_ENTRIES.md`: 26 entradas compactas preparadas para carga manual.
-- `PRUEBAS_DE_COHERENCIA.md`: lista de validación preparada.
-- JSON de importación: **no creado**. No se debe adivinar el esquema del exportador de SpicyChat; primero debe conseguirse una exportación JSON real y válida como plantilla.
-
-## Protocolo de trabajo futuro
-
-Cuando el usuario responda una decisión pendiente:
-1. Añadirla aquí como decisión confirmada.
-2. Actualizar Personality, Scenario, Greeting, Example Dialogue y Lorebook donde corresponda.
-3. Mantener la coherencia con el punto temporal del canon.
-4. Registrar versión y cambios.
-5. No afirmar que se probó en SpicyChat hasta realizar una prueba real.
+## Archivos y validación
+- Configuración v0.2 redactada.
+- Lorebook: 40 entradas; cada Content bajo 1.000 caracteres.
+- Esquema de estado/guardado y documento de investigación añadidos.
+- Pruebas preparadas, aún no ejecutadas en SpicyChat.
+- JSON de importación no creado: se requiere una exportación real como plantilla antes de afirmar compatibilidad.
 
 ## Historial
-
 ### v0.1
-- Se creó una configuración inicial para DanMachi.
-- Se prepararon instrucciones de canon, agencia, continuidad y control de poderes.
-- Se añadieron 26 entradas compactas de Lorebook en formato Markdown.
-- Se dejaron origen del protagonista, poder original y punto temporal exacto como decisiones pendientes.
+Base general de Orario, Falna, Gremio y personajes; cronología exacta pendiente.
+### v0.2
+Adaptación a la Edad Oscura, elenco Astraea/Evilus, cronología previa al Gran Conflicto, encuentros emergentes y esquema de continuidad cerrado.
