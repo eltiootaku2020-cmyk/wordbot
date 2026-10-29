@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .db import Database
-from .models import ApprovalRequest, EntityCreate, NarratorResponse, SessionCreate, TurnRequest, WorldCreate, WorldStartCreate
+from .models import ApprovalRequest, ContextPreviewRequest, EntityCreate, NarratorResponse, SessionCreate, TurnRequest, WorldCreate, WorldStartCreate
 from .providers import ProviderError, make_provider
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -42,6 +42,23 @@ RELATION_AXES = {
     "resentment", "fear", "gratitude_debt", "cooperation", "attraction"
 }
 MAX_AUTO_RELATION_DELTA = 3
+MAX_LORE_ENTRIES = 8
+MAX_LORE_CHARS = 4500
+MAX_CANON_CORE_CHARS = 3000
+MAX_RECENT_MESSAGES = 6
+MAX_RECENT_MESSAGE_CHARS = 1000
+MAX_RECENT_EVENTS = 6
+MAX_EVENT_DESCRIPTION_CHARS = 450
+MAX_CONTEXT_INVENTORY_ITEMS = 40
+
+
+def keyword_matches(text: str, keyword: str) -> bool:
+    """Match a full word/phrase, not an accidental substring in a longer word."""
+    normalized_text = " ".join((text or "").casefold().split())
+    normalized_keyword = " ".join((keyword or "").casefold().split())
+    if not normalized_keyword:
+        return False
+    return re.search(rf"(?<!\\w){re.escape(normalized_keyword)}(?!\\w)", normalized_text) is not None
 
 
 def new_id() -> str:
@@ -102,6 +119,7 @@ def build_context(
     current_turn_id: str,
     visibility: str = "scene",
     audience_ids: list[str] | None = None,
+    include_diagnostics: bool = False,
 ) -> dict[str, Any]:
     participant_rows = conn.execute(
         "SELECT e.id,e.name,e.kind,e.profile,p.location,"
@@ -112,6 +130,18 @@ def build_context(
     ).fetchall()
     scene_participants = [dict(row) for row in participant_rows]
     scene_ids = {item["id"] for item in scene_participants}
+    # The protagonist is always the active actor at the session's current location,
+    # even if an older record has not yet synchronized its presence row.
+    if session["protagonist_entity_id"] not in scene_ids:
+        protagonist_row = conn.execute(
+            "SELECT id,name,kind,profile FROM entities WHERE id=? AND world_id=?",
+            (session["protagonist_entity_id"], session["world_id"])
+        ).fetchone()
+        if protagonist_row:
+            protagonist = dict(protagonist_row)
+            protagonist.update({"location": session["current_location"], "presence_status": "present"})
+            scene_participants.append(protagonist)
+            scene_ids.add(protagonist["id"])
     allowed_audience = set(audience_ids or scene_ids)
 
     participants = scene_participants
@@ -140,11 +170,25 @@ def build_context(
             (session["id"], session["protagonist_entity_id"], recipient_id)
         ).fetchall()]
 
-    inventory = [dict(row) for row in conn.execute(
-        "SELECT item_key,display_name,quantity,condition,carrier_entity_id,location "
-        "FROM inventory_items WHERE session_id=? AND quantity>0",
-        (session["id"],)
-    ).fetchall()]
+    include_global_inventory = bool(re.search(r"/estado|/guardar|\\binventario\\b", user_text, re.IGNORECASE))
+    carrier_ids = sorted(participant_ids | {session["protagonist_entity_id"]})
+    placeholders = ",".join("?" for _ in carrier_ids) or "?"
+    if include_global_inventory:
+        inventory_rows = conn.execute(
+            "SELECT item_key,display_name,quantity,condition,carrier_entity_id,location "
+            "FROM inventory_items WHERE session_id=? AND quantity>0 ORDER BY display_name LIMIT ?",
+            (session["id"], MAX_CONTEXT_INVENTORY_ITEMS)
+        ).fetchall()
+    else:
+        inventory_rows = conn.execute(
+            "SELECT item_key,display_name,quantity,condition,carrier_entity_id,location "
+            f"FROM inventory_items WHERE session_id=? AND quantity>0 AND "
+            f"(carrier_entity_id IN ({placeholders}) OR (carrier_entity_id='' AND LOWER(location)=LOWER(?))) "
+            "ORDER BY display_name LIMIT ?",
+            (session["id"], *carrier_ids, session["current_location"], MAX_CONTEXT_INVENTORY_ITEMS)
+        ).fetchall()
+    inventory = [dict(row) for row in inventory_rows]
+
 
     # Retrieve a larger candidate set, then keep the ten most recent messages
     # that this character could actually have seen or been told.
@@ -179,35 +223,89 @@ def build_context(
             if not recipient_id or row["recipient_entity_id"] != recipient_id:
                 continue
 
+        message_content = row["content"] or ""
         recent.append({
             "role": row["role"],
             "recipient_entity_id": row["recipient_entity_id"],
-            "content": row["content"],
+            "content": message_content[:MAX_RECENT_MESSAGE_CHARS],
+            "content_truncated": len(message_content) > MAX_RECENT_MESSAGE_CHARS,
             "visibility": message_visibility or "legacy"
         })
-        if len(recent) >= 10:
+        if len(recent) >= MAX_RECENT_MESSAGES:
             break
     recent.reverse()
 
-    trigger_text = (
-        user_text + " " + (recipient["name"] if recipient else "") + " " +
-        session["current_location"] + " " + " ".join(item["name"] for item in participants)
-    ).casefold()
-    lore = []
-    rows = conn.execute(
+    trigger_sources = []
+    if user_text.strip():
+        trigger_sources.append({"source": "mensaje actual", "text": user_text, "score": 5})
+    if recipient and recipient.get("name"):
+        trigger_sources.append({"source": "destinatario", "text": recipient["name"], "score": 4})
+    if session["current_location"]:
+        trigger_sources.append({"source": "ubicación actual", "text": session["current_location"], "score": 4})
+    for participant in participants:
+        if participant.get("name"):
+            trigger_sources.append({
+                "source": "personaje presente", "text": participant["name"], "score": 3
+            })
+
+    lore_rows = conn.execute(
         "SELECT title,keywords_json,content,priority,canon_status FROM lore_entries "
         "WHERE world_id=? ORDER BY priority ASC, title ASC",
         (session["world_id"],)
     ).fetchall()
-    for row in rows:
+    lore_candidates = []
+    no_trigger_count = 0
+    for row in lore_rows:
         keywords = json.loads(row["keywords_json"])
-        if any(str(key).strip() and str(key).casefold() in trigger_text for key in keywords):
-            lore.append({
+        hits = []
+        score = 0
+        for source in trigger_sources:
+            for keyword in keywords:
+                key = str(keyword).strip()
+                if key and keyword_matches(source["text"], key):
+                    hits.append({"source": source["source"], "keyword": key})
+                    score = max(score, source["score"])
+        if hits:
+            # De-duplicate the explanation while preserving its order.
+            unique_hits = []
+            seen_hits = set()
+            for hit in hits:
+                pair = (hit["source"], hit["keyword"])
+                if pair not in seen_hits:
+                    seen_hits.add(pair)
+                    unique_hits.append(hit)
+            lore_candidates.append({
                 "title": row["title"], "content": row["content"],
-                "priority": row["priority"], "canon_status": row["canon_status"]
+                "priority": int(row["priority"]), "canon_status": row["canon_status"],
+                "score": score, "hits": unique_hits,
+                "chars": len(row["title"]) + len(row["content"])
             })
-        if len(lore) >= 12:
-            break
+        else:
+            no_trigger_count += 1
+
+    lore_candidates.sort(key=lambda item: (-item["score"], item["priority"], item["title"].casefold()))
+    lore = []
+    selected_lore_debug = []
+    omitted_lore_debug = []
+    lore_chars_used = 0
+    for item in lore_candidates:
+        if len(lore) >= MAX_LORE_ENTRIES:
+            omitted_lore_debug.append({"title": item["title"], "reason": "límite de entradas"})
+            continue
+        item_chars = item["chars"]
+        if lore_chars_used + item_chars > MAX_LORE_CHARS:
+            omitted_lore_debug.append({"title": item["title"], "reason": "presupuesto de caracteres"})
+            continue
+        lore_chars_used += item_chars
+        lore.append({
+            "title": item["title"], "content": item["content"],
+            "priority": item["priority"], "canon_status": item["canon_status"]
+        })
+        selected_lore_debug.append({
+            "title": item["title"], "priority": item["priority"],
+            "characters": item_chars, "triggered_by": item["hits"]
+        })
+
 
     # Events are available only if the acting NPC witnessed them or the source
     # conversation was visible to them. Pending/rejected proposals are not facts.
@@ -247,12 +345,14 @@ def build_context(
             if not recipient_id and not (witnesses & scene_ids):
                 continue
 
+        event_description = row["description"] or ""
         recent_events.append({
             "kind": row["kind"], "entity_id": row["entity_id"],
-            "description": row["description"], "status": row["status"],
-            "witness_ids": sorted(witnesses)
+            "description": event_description[:MAX_EVENT_DESCRIPTION_CHARS],
+            "description_truncated": len(event_description) > MAX_EVENT_DESCRIPTION_CHARS,
+            "status": row["status"], "witness_ids": sorted(witnesses)
         })
-        if len(recent_events) >= 10:
+        if len(recent_events) >= MAX_RECENT_EVENTS:
             break
     recent_events.reverse()
 
@@ -263,12 +363,13 @@ def build_context(
     ).fetchall()]
 
     day, minute = int(session["day"]), int(session["minute_of_day"])
-    return {
+    canon_text = (session["canon_text"] or "").strip()
+    context = {
         "world": {
             "name": session["world_name"],
-            "canon_core": ((session["canon_text"] or "").strip()[:6000] +
-                           ("\\n[Canon largo recortado; recuperar fichas específicas desde Lorebook.]"
-                            if len((session["canon_text"] or "").strip()) > 6000 else ""))
+            "canon_core": canon_text[:MAX_CANON_CORE_CHARS] +
+                          ("\\n[Canon largo recortado; recuperar fichas específicas desde Lorebook.]"
+                           if len(canon_text) > MAX_CANON_CORE_CHARS else "")
         },
         "state": {
             "day": day, "minute_of_day": minute, "time_label": time_label(day, minute),
@@ -285,6 +386,30 @@ def build_context(
         "recent_events": recent_events,
         "relevant_lore": lore
     }
+    context_chars = len(json.dumps(context, ensure_ascii=False))
+    diagnostics = {
+        "selected_lore": selected_lore_debug,
+        "omitted_lore_by_limit": omitted_lore_debug,
+        "lore_without_trigger_count": no_trigger_count,
+        "lore_chars_used": lore_chars_used,
+        "lore_chars_budget": MAX_LORE_CHARS,
+        "lore_entries_selected": len(lore),
+        "lore_entries_max": MAX_LORE_ENTRIES,
+        "recent_messages_selected": len(recent),
+        "recent_events_selected": len(recent_events),
+        "inventory_items_selected": len(inventory),
+        "context_characters": context_chars,
+        "limits": {
+            "canon_core_chars": MAX_CANON_CORE_CHARS,
+            "message_chars_each": MAX_RECENT_MESSAGE_CHARS,
+            "messages_max": MAX_RECENT_MESSAGES,
+            "event_chars_each": MAX_EVENT_DESCRIPTION_CHARS,
+            "events_max": MAX_RECENT_EVENTS
+        }
+    }
+    if include_diagnostics:
+        context["_diagnostics"] = diagnostics
+    return context
 
 
 def write_event(
@@ -1190,6 +1315,47 @@ def get_messages(session_id: str):
             "SELECT id,turn_id,turn_index,role,recipient_entity_id,content,provider,generation_status,metadata_json,created_at "
             "FROM messages WHERE session_id=? ORDER BY turn_index ASC, CASE role WHEN 'user' THEN 0 ELSE 1 END ASC, created_at ASC", (session_id,)
         ).fetchall()]
+
+
+@app.post("/api/sessions/{session_id}/context-preview")
+def preview_context(session_id: str, payload: ContextPreviewRequest):
+    """Return the exact compact context builder output plus local selection diagnostics; no AI call."""
+    with database.connection() as conn:
+        session = session_row(conn, session_id)
+        if session is None:
+            raise HTTPException(status_code=404, detail="Partida no encontrada.")
+        if payload.visibility == "private" and not payload.recipient_id:
+            raise HTTPException(status_code=422, detail="Un contexto privado requiere destinatario.")
+        if payload.recipient_id:
+            target = conn.execute(
+                "SELECT 1 FROM entities WHERE id=? AND world_id=?",
+                (payload.recipient_id, session["world_id"])
+            ).fetchone()
+            if target is None:
+                raise HTTPException(status_code=422, detail="El destinatario no pertenece a este mundo.")
+            present_here = conn.execute(
+                "SELECT 1 FROM session_presence WHERE session_id=? AND entity_id=? AND LOWER(location)=LOWER(?)",
+                (session_id, payload.recipient_id, session["current_location"])
+            ).fetchone()
+            if present_here is None:
+                raise HTTPException(status_code=422, detail="El destinatario no está en la ubicación actual.")
+        audience_ids = (
+            sorted({session["protagonist_entity_id"], payload.recipient_id})
+            if payload.visibility == "private"
+            else [
+                row["entity_id"] for row in conn.execute(
+                    "SELECT entity_id FROM session_presence WHERE session_id=? AND LOWER(location)=LOWER(?)",
+                    (session_id, session["current_location"])
+                ).fetchall()
+            ]
+        )
+        context = build_context(
+            conn, session, payload.text, payload.recipient_id, new_id(),
+            visibility=payload.visibility, audience_ids=audience_ids,
+            include_diagnostics=True
+        )
+    diagnostics = context.pop("_diagnostics", {})
+    return {"context": context, "diagnostics": diagnostics}
 
 
 @app.post("/api/sessions/{session_id}/turns")
