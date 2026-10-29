@@ -9,7 +9,8 @@ os.environ["APP_DB_PATH"] = str(Path(tempfile.mkdtemp(prefix="canon-test-")) / "
 
 from fastapi.testclient import TestClient
 
-from canon_manager.main import app, database, build_context, session_row
+from canon_manager.main import app, database, build_context, session_row, apply_narrator_result
+from canon_manager.models import NarratorResponse, EventProposal, InventoryOperation, MovementProposal
 
 
 def test_seeded_chat_turn_is_saved_and_changes_are_validated():
@@ -285,3 +286,233 @@ def test_private_turn_requires_recipient():
             }
         )
         assert response.status_code == 422
+
+
+def _create_state_ops_world(client):
+    started = client.post(
+        "/api/worlds/start",
+        json={
+            "name": "Prueba operaciones " + uuid.uuid4().hex,
+            "canon_text": "Los cambios locales solo se aplican si tienen evento fuente válido.",
+            "protagonist_name": "Protagonista",
+            "session_name": "Prueba de operaciones",
+            "location": "Claro del bosque",
+            "cast": [
+                {"name": "Maelis Orven", "kind": "character", "profile": "Maga curiosa."},
+                {"name": "Ivar Dalen", "kind": "character", "profile": "Lancero sarcástico."},
+                {"name": "Brina Solcor", "kind": "character", "profile": "Guerrera prudente."}
+            ],
+            "initial_inventory": [
+                {"name": "Manzana", "quantity": 2, "condition": "normal"}
+            ]
+        }
+    )
+    assert started.status_code == 200, started.text
+    data = started.json()
+    entities = client.get(f"/api/worlds/{data['world_id']}/entities").json()
+    return data, {entity["name"]: entity for entity in entities}
+
+
+def _apply_synthetic_result(session_id, user_text, result):
+    turn_id = uuid.uuid4().hex
+    with database.transaction() as conn:
+        session = session_row(conn, session_id)
+        audience_ids = [
+            row["entity_id"] for row in conn.execute(
+                "SELECT entity_id FROM session_presence WHERE session_id=? AND presence_status='present'",
+                (session_id,)
+            ).fetchall()
+        ]
+        applied, pending = apply_narrator_result(
+            conn, session, turn_id, "test-source-message", user_text, result, None,
+            visibility="scene", audience_ids=audience_ids
+        )
+    return turn_id, applied, pending
+
+
+def test_low_risk_inventory_consumption_is_applied_automatically():
+    with TestClient(app) as client:
+        started, entities = _create_state_ops_world(client)
+        protagonist_id = entities["Protagonista"]["id"]
+        witnesses = list(entities[name]["id"] for name in ("Protagonista", "Maelis Orven", "Ivar Dalen", "Brina Solcor"))
+        result = NarratorResponse(
+            narration="El protagonista come una manzana de sus provisiones.",
+            events=[
+                EventProposal(
+                    ref="event-consume-apple",
+                    kind="object",
+                    entity_id=protagonist_id,
+                    description="El protagonista consume una manzana de sus provisiones.",
+                    witness_ids=witnesses
+                )
+            ],
+            inventory_ops=[
+                InventoryOperation(
+                    operation="consume",
+                    item_name="Manzana",
+                    quantity=1,
+                    carrier_entity_id=protagonist_id,
+                    location="Claro del bosque",
+                    reason="La manzana se consume en la escena.",
+                    event_ref="event-consume-apple"
+                )
+            ]
+        )
+        turn_id, applied, pending = _apply_synthetic_result(started["session_id"], "Como una manzana", result)
+        with database.connection() as conn:
+            item = conn.execute(
+                "SELECT quantity FROM inventory_items WHERE session_id=? AND item_key='manzana'",
+                (started["session_id"],)
+            ).fetchone()
+            change = conn.execute(
+                "SELECT status,old_value_json,accepted_value_json FROM state_changes WHERE session_id=? AND turn_id=? AND field='inventory'",
+                (started["session_id"], turn_id)
+            ).fetchone()
+        assert item["quantity"] == 1
+        assert change["status"] == "accepted"
+        assert json.loads(change["accepted_value_json"])["quantity_after"] == 1
+        assert any("Consumido: Manzana" in note for note in applied)
+        assert not any("Inventario:" in note for note in pending)
+
+
+def test_free_found_object_is_added_but_paid_purchase_stays_pending():
+    with TestClient(app) as client:
+        started, entities = _create_state_ops_world(client)
+        protagonist_id = entities["Protagonista"]["id"]
+        witnesses = list(entities[name]["id"] for name in ("Protagonista", "Maelis Orven", "Ivar Dalen", "Brina Solcor"))
+
+        free_result = NarratorResponse(
+            narration="Encuentras una manzana caída junto al sendero y la recoges.",
+            events=[
+                EventProposal(
+                    ref="event-find-apple",
+                    kind="object",
+                    entity_id=protagonist_id,
+                    description="El protagonista encuentra una manzana caída y la recoge del suelo.",
+                    witness_ids=witnesses
+                )
+            ],
+            inventory_ops=[
+                InventoryOperation(
+                    operation="acquire",
+                    item_name="Manzana",
+                    quantity=1,
+                    carrier_entity_id=protagonist_id,
+                    location="Claro del bosque",
+                    reason="Hallazgo gratuito confirmado.",
+                    event_ref="event-find-apple"
+                )
+            ]
+        )
+        free_turn, applied, pending = _apply_synthetic_result(
+            started["session_id"], "Recojo la manzana que encontré", free_result
+        )
+        with database.connection() as conn:
+            item = conn.execute(
+                "SELECT quantity FROM inventory_items WHERE session_id=? AND item_key='manzana'",
+                (started["session_id"],)
+            ).fetchone()
+        assert item["quantity"] == 3
+        assert any("Hallazgo/regalo confirmado" in note for note in applied)
+        assert not any("Inventario:" in note for note in pending)
+
+        paid_result = NarratorResponse(
+            narration="Pagas dos monedas y recibes otra manzana.",
+            events=[
+                EventProposal(
+                    ref="event-buy-apple",
+                    kind="object",
+                    entity_id=protagonist_id,
+                    description="El comerciante entrega una manzana tras el pago de dos monedas.",
+                    witness_ids=witnesses
+                )
+            ],
+            inventory_ops=[
+                InventoryOperation(
+                    operation="acquire",
+                    item_name="Manzana",
+                    quantity=1,
+                    carrier_entity_id=protagonist_id,
+                    location="Claro del bosque",
+                    reason="Compra en el mercado.",
+                    event_ref="event-buy-apple"
+                )
+            ]
+        )
+        paid_turn, paid_applied, paid_pending = _apply_synthetic_result(
+            started["session_id"], "Compro una manzana por dos monedas", paid_result
+        )
+        with database.connection() as conn:
+            item = conn.execute(
+                "SELECT quantity FROM inventory_items WHERE session_id=? AND item_key='manzana'",
+                (started["session_id"],)
+            ).fetchone()
+            change = conn.execute(
+                "SELECT status,reason FROM state_changes WHERE session_id=? AND turn_id=? AND field='inventory'",
+                (started["session_id"], paid_turn)
+            ).fetchone()
+        assert item["quantity"] == 3
+        assert change["status"] == "pending"
+        assert "contabilidad de moneda" in change["reason"]
+        assert any("Inventario:" in note for note in paid_pending)
+
+
+def test_valid_npc_movement_is_applied_but_protagonist_movement_is_pending():
+    with TestClient(app) as client:
+        started, entities = _create_state_ops_world(client)
+        protagonist_id = entities["Protagonista"]["id"]
+        ivar_id = entities["Ivar Dalen"]["id"]
+        witnesses = [protagonist_id, ivar_id]
+        result = NarratorResponse(
+            narration="Ivar deja el claro y se marcha hacia Brumaclara.",
+            events=[
+                EventProposal(
+                    ref="event-ivar-leaves",
+                    kind="location",
+                    entity_id=ivar_id,
+                    description="Ivar deja el claro y se marcha hacia Brumaclara.",
+                    witness_ids=witnesses
+                ),
+                EventProposal(
+                    ref="event-protagonist-move",
+                    kind="location",
+                    entity_id=protagonist_id,
+                    description="El protagonista aparece en Valdoria sin una acción que lo justifique.",
+                    witness_ids=witnesses
+                )
+            ],
+            movements=[
+                MovementProposal(
+                    entity_id=ivar_id,
+                    destination="Brumaclara",
+                    reason="Ivar decide regresar a la aldea por el sendero.",
+                    event_ref="event-ivar-leaves"
+                ),
+                MovementProposal(
+                    entity_id=protagonist_id,
+                    destination="Valdoria",
+                    reason="Movimiento propuesto sin orden del usuario.",
+                    event_ref="event-protagonist-move"
+                )
+            ]
+        )
+        turn_id, applied, pending = _apply_synthetic_result(
+            started["session_id"], "Pregunto a Ivar qué hará", result
+        )
+        with database.connection() as conn:
+            ivar_presence = conn.execute(
+                "SELECT location,presence_status FROM session_presence WHERE session_id=? AND entity_id=?",
+                (started["session_id"], ivar_id)
+            ).fetchone()
+            session = session_row(conn, started["session_id"])
+            protagonist_change = conn.execute(
+                "SELECT status,reason FROM state_changes WHERE session_id=? AND turn_id=? AND entity_id=? AND field='movement'",
+                (started["session_id"], turn_id, protagonist_id)
+            ).fetchone()
+        assert ivar_presence["location"] == "Brumaclara"
+        assert ivar_presence["presence_status"] == "away"
+        assert session["current_location"] == "Claro del bosque"
+        assert protagonist_change["status"] == "pending"
+        assert "nunca mueve al protagonista" in protagonist_change["reason"]
+        assert any("Movimiento de PNJ guardado" in note for note in applied)
+        assert any("Movimiento de" in note for note in pending)
