@@ -1485,6 +1485,7 @@ def test_manual_prompt_contains_game_context_and_json_contract():
         assert "Maelis Orven" in data["prompt"]
         assert '"narration"' in data["prompt"]
         assert "OPENAI_API_KEY" not in data["prompt"]
+        assert len(data["context_hash"]) == 64
 
 
 def test_manual_web_turn_accepts_pasted_json_without_api_call():
@@ -1494,6 +1495,17 @@ def test_manual_web_turn_accepts_pasted_json_without_api_call():
         session_id = seed["session_id"]
         entities = client.get(f"/api/worlds/{world_id}/entities").json()
         maelis = next(entity for entity in entities if entity["name"] == "Maelis Orven")
+        prepared = client.post(
+            f"/api/sessions/{session_id}/manual-prompt",
+            json={
+                "text": "Le pregunto por la senda.",
+                "recipient_id": maelis["id"],
+                "provider": "chatgpt_web",
+                "visibility": "private"
+            }
+        )
+        assert prepared.status_code == 200, prepared.text
+        context_hash = prepared.json()["context_hash"]
         pasted = json.dumps({
             "narration": "Maelis observa la senda y responde que no está segura.",
             "events": [],
@@ -1514,7 +1526,8 @@ def test_manual_web_turn_accepts_pasted_json_without_api_call():
                 "recipient_id": maelis["id"],
                 "provider": "chatgpt_web",
                 "visibility": "private",
-                "external_response": pasted
+                "external_response": pasted,
+                "manual_context_hash": context_hash
             }
         )
         assert response.status_code == 200, response.text
@@ -1530,13 +1543,23 @@ def test_manual_web_turn_rejects_non_json_response():
     with TestClient(app) as client:
         seed = client.post("/api/demo/seed", json={}).json()
         session_id = seed["session_id"]
+        prepared = client.post(
+            f"/api/sessions/{session_id}/manual-prompt",
+            json={
+                "text": "Observo alrededor.",
+                "provider": "gemini_web",
+                "visibility": "scene"
+            }
+        )
+        assert prepared.status_code == 200, prepared.text
         response = client.post(
             f"/api/sessions/{session_id}/turns",
             json={
                 "request_id": "manual-web-invalid-0001",
                 "text": "Observo alrededor.",
                 "provider": "gemini_web",
-                "external_response": "La respuesta es que ves una torre."
+                "external_response": "La respuesta es que ves una torre.",
+                "manual_context_hash": prepared.json()["context_hash"]
             }
         )
         assert response.status_code == 502
@@ -1545,3 +1568,57 @@ def test_manual_web_turn_rejects_non_json_response():
         failed_user = next(message for message in messages if message["role"] == "user" and message["content"] == "Observo alrededor.")
         assert failed_user["generation_status"] == "failed"
         assert not any(message["role"] == "assistant" and message["turn_id"] == failed_user["turn_id"] for message in messages)
+
+
+
+def test_manual_web_turn_rejects_stale_prepared_context():
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+        session_id = seed["session_id"]
+        prepared = client.post(
+            f"/api/sessions/{session_id}/manual-prompt",
+            json={
+                "text": "Observo alrededor con atención.",
+                "provider": "chatgpt_web",
+                "visibility": "scene"
+            }
+        )
+        assert prepared.status_code == 200, prepared.text
+        old_hash = prepared.json()["context_hash"]
+
+        changed = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json={
+                "request_id": "change-state-before-manual-001",
+                "text": "Observo la torre y describo su color.",
+                "provider": "mock",
+                "visibility": "scene"
+            }
+        )
+        assert changed.status_code == 200, changed.text
+
+        response = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json={
+                "request_id": "manual-stale-context-0001",
+                "text": "Observo alrededor con atención.",
+                "provider": "chatgpt_web",
+                "visibility": "scene",
+                "external_response": json.dumps({
+                    "narration": "La torre parece cercana.",
+                    "events": [],
+                    "state_changes": [],
+                    "elapsed_minutes": 1,
+                    "movements": [],
+                    "inventory_ops": [],
+                    "resource_ops": [],
+                    "power_uses": [],
+                    "pending": []
+                }),
+                "manual_context_hash": old_hash
+            }
+        )
+        assert response.status_code == 409
+        assert "La partida cambió" in response.json()["detail"]
+        messages = client.get(f"/api/sessions/{session_id}/messages").json()
+        assert not any(m["role"] == "user" and m["content"] == "Observo alrededor con atención." for m in messages)
