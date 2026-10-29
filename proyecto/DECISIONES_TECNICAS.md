@@ -169,3 +169,18 @@ Implementación inicial en la rama organizada y prueba aislada en commit `456ac5
 **Validación:** la API rechaza valores fuera de rango; la preferencia se conserva en SQLite. CI: 32 pruebas Python más sintaxis JavaScript, https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40877808136.
 
 **Pendiente:** medir tokens reales por proveedor y probar la interfaz manualmente en Windows.
+
+
+## ADR-018 — Chat web normal mediante puente manual
+
+**Necesidad corregida:** «usar ChatGPT o Gemini» puede significar el chat web de una cuenta normal y no una API de desarrollador. Las dos modalidades deben mostrarse con nombres claros y no confundirse en la interfaz.
+
+**Decisión:** mantener la API oficial como opción avanzada, pero incorporar «ChatGPT web (mi cuenta, manual)» y «Gemini web (mi cuenta, manual)» como alternativas sin clave API. El flujo prepara un prompt local con el contexto seleccionado y contrato JSON; la persona lo pega en la web del proveedor y pega la respuesta completa de vuelta. El servidor local valida el JSON, después ejecuta las mismas validaciones de entidades, eventos, alcance, inventario y recursos, y solo entonces guarda el estado.
+
+**Por qué no se automatiza la pestaña web:** hay repositorios comunitarios que lo hacen con Playwright/CDP, pero dependen de selectores/interfaz cambiantes. Además, las condiciones de OpenAI prohíben extraer respuestas automáticamente o de forma programática desde sus servicios de consumo. Google también limita el acceso automatizado que infrinja sus instrucciones legibles por máquina. No se dependerá de esos puentes experimentales para la entrega inicial.
+
+**Privacidad y límites:** el prompt puede contener fichas y mensajes de la partida; la interfaz advierte al usuario que lo revise antes de copiarlo. El programa no lee la sesión web, no solicita credenciales y no realiza llamadas de red a ChatGPT/Gemini en este modo. La respuesta se vuelve a validar localmente. No se obtiene telemetría exacta del uso/cupo web, por lo que no se promete un contador de tokens o coste.
+
+**Estado de implementación:** selector, endpoint `/api/sessions/{session_id}/manual-prompt`, generación del prompt con esquema, parseo de la respuesta pegada y panel de copiar/pegar están implementados. CI en https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40880074124: 35 pruebas y sintaxis JS aprobadas.
+
+**Pendiente:** uso manual real en Windows con ambos sitios; verificar que el proveedor web devuelva el objeto JSON completo; prueba de 50–100 turnos con reinicio/restauración. No automatizar el scraping del chat de consumo como atajo.
