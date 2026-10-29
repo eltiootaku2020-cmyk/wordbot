@@ -8,7 +8,7 @@ Mejorar continuidad y recuperación del gestor local sin convertir ChatGPT/Gemin
 
 - Rama organizada de desarrollo: `docs/historias-organizadas`.
 - La rama `main` conserva únicamente `.gitignore`; el prototipo y la documentación están en `docs/historias-organizadas`.
-- Historial de CI: recuperación de turnos, 71 pruebas; destinos contradictorios, 72; movimientos de PNJ fuera de escena, 73; evidencia afirmativa, 75; continuidad extendida, 79. La CI posterior al PR #6 aprobó 81 pruebas Python y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40935903505. Esto no sustituye la validación manual en Windows.
+- Historial de CI: recuperación de turnos, 71 pruebas; destinos contradictorios, 72; movimientos de PNJ fuera de escena, 73; evidencia afirmativa, 75; continuidad extendida, 79; presencia/backup histórico, 81. La CI posterior al PR #7 aprobó 82 pruebas Python y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40937190743. Esto no sustituye la validación manual en Windows.
 - La suite existente incluye un escenario automatizado de 100 turnos breves con reinicialización de la base y copia/restauración; eso es una prueba de regresión local, no una simulación de todos los errores de una historia real.
 - El modo ChatGPT/Gemini web es manual: preparar prompt, abrir el sitio, copiar y pegar una respuesta JSON. No automatiza el navegador, no lee la cuenta y no requiere clave API.
 
@@ -55,18 +55,18 @@ No se realizaron llamadas reales a APIs ni pruebas manuales de las páginas de C
 
 ## Validación
 
-Las correcciones integradas incluyen recuperación tras reinicio, respaldo aislado por sesión, destinos contradictorios, movimientos fuera de escena, evidencia afirmativa, restauración con rollback y compatibilidad de presencia histórica. La CI posterior al PR #6 aprobó 81 pruebas Python y sintaxis JavaScript correctamente (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40935903505). No se hicieron llamadas reales a cuentas ChatGPT/Gemini ni a APIs.
+Las correcciones integradas incluyen recuperación tras reinicio, respaldo aislado por sesión, destinos contradictorios, movimientos fuera de escena, evidencia afirmativa, restauración con rollback, compatibilidad de presencia/backup histórico y protección de audiencia para datos heredados. La CI posterior al PR #7 aprobó 82 pruebas Python y sintaxis JavaScript correctamente (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40937190743). No se hicieron llamadas reales a cuentas ChatGPT/Gemini ni a APIs.
 
 ## Trabajo restante para una primera versión fiable
 
-1. [x] CI: 81 pruebas Python y sintaxis JavaScript aprobadas (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40935903505).
+1. [x] CI: 82 pruebas Python y sintaxis JavaScript aprobadas (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40937190743).
 2. [x] Regresión de JSON truncado: el estado del juego no cambia; la respuesta corregida reutiliza el mismo turno.
 3. [x] Regresión de acciones hipotéticas/preguntas, cambios narrativos contradictorios y propuestas sin evidencia afirmativa.
 4. [x] Restauración exacta tras 100 turnos breves simulados: reinicializar SQLite, guardar copia, aplicar una mutación posterior, restaurar y comparar el estado, los mensajes y todas las tablas restaurables.
 5. [x] Fallo de integridad durante restauración: la transacción se revierte; la API devuelve un 422 controlado y el estado activo permanece idéntico.
 6. [ ] Validar manualmente la interfaz y el intercambio copiar/pegar en Windows/Chromium con ChatGPT web y Gemini web.
 7. [ ] Ejecutar una campaña narrativa real de 50–100 intercambios con escenas privadas/grupales, decisiones, recursos y reinicio/restauración. La prueba de 100 turnos existente utiliza el proveedor simulado y no reemplaza este ensayo.
-8. [x] Compatibilidad histórica de `session_presence` y restauración de backups sin `presence_status` (PR #6). [ ] Revisar mensajes/eventos históricos sin metadatos de audiencia.
+8. [x] Compatibilidad probada de presencia/backup y audiencia histórica: mensajes dirigidos limitados al destinatario conservado; eventos sin fuente ni testigos excluidos del contexto (PR #6/#7). [ ] Revisar variantes históricas adicionales.
 
 No se considera terminado un hito por existir un archivo o una ficha: los criterios deben estar ligados a comportamiento verificable y a una prueba reproducible.
 
@@ -86,3 +86,12 @@ PR #6 quedó integrado en `docs/historias-organizadas` con commit `8a08870b7e3cb
 La inicialización migra la tabla `session_presence` si una base antigua carece de `presence_status` o `updated_at`. Las filas y ubicaciones se conservan y el estado de presencia se normaliza respecto de `sessions.current_location`. La restauración también acepta backups cuya tabla de presencia no contiene `presence_status` y reconstruye el campo desde la ubicación guardada.
 
 La cobertura está centrada en estos formatos históricos y no garantiza compatibilidad con todas las variantes posibles. Siguen pendientes la prueba manual del puente web en Windows/Chromium, mensajes/eventos antiguos sin metadatos de audiencia, restauración visual con vista previa y una campaña narrativa de 50–100 turnos con un chat externo real. La rama `main` no se modificó.
+
+
+## Última actualización — PR #7: alcance conservador de eventos históricos
+
+PR #7 quedó integrado en `docs/historias-organizadas` con commit `63710dd57577481c49a0bbb3bbeb8d232ad42375`: https://github.com/eltiootaku2020-cmyk/wordbot/pull/7. La CI posterior a la integración aprobó **82 pruebas Python** y sintaxis JavaScript (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40937190743).
+
+Cuando un mensaje anterior al sistema de audiencias conserva `recipient_entity_id`, el contexto mantiene ese límite y no se lo entrega a otro personaje. Para eventos, un vínculo a un mensaje fuente o testigos identificables permite aplicar las reglas existentes; si faltan ambos, el evento se excluye del contexto del modelo y el diagnóstico explica por qué. Los eventos no se borran y siguen disponibles para auditoría.
+
+Esto complementa la migración de presencia y la restauración de backups antiguos del PR #6. No reemplaza la inspección manual de otras variantes de datos históricos ni las pruebas de Windows/Chromium y la campaña real de 50–100 turnos.
