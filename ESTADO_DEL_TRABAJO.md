@@ -82,7 +82,7 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 
 ## Próximo paso recomendado
 
-Continuar el gestor local en este orden: (1) probar manualmente la interfaz y undo en Windows; (2) probar una llamada real de bajo riesgo a OpenAI y Gemini; (3) medir tokens/coste y probar registros históricos/cambios de presencia; (4) realizar una campaña de 50–100 turnos y reiniciar/restaurar la base para comprobar continuidad. Mantener en paralelo las pruebas de SpicyChat documentadas en la carpeta de Isekai. No declarar «Done» un hito que solo tenga documentación o una prueba simulada.
+Continuar el gestor local en este orden: (1) probar manualmente en Windows el puente de copiar/pegar con el chat web normal de ChatGPT y Gemini; (2) comprobar la protección contra contexto desactualizado, las conversaciones privadas y el undo; (3) revisar compatibilidad de datos históricos, exportación/restauración y cambios de presencia; (4) realizar una campaña de 50–100 turnos con reinicio y restauración. Las llamadas reales y medición de tokens/coste de las APIs son opcionales, separadas de las cuentas de chat web. Mantener en paralelo las pruebas de SpicyChat documentadas en la carpeta de Isekai. No declarar «Done» un hito que solo tenga documentación o una prueba simulada.
 
 
 ## Corrección importante: ChatGPT/Gemini web, no necesariamente API
@@ -99,3 +99,8 @@ El usuario aclaró que al decir IA se refiere al chat normal de ChatGPT o Gemini
 **Verificación actual:** CI en https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40880074124 — 35 pruebas Python y comprobación de sintaxis de JavaScript aprobadas. No es todavía una prueba real del navegador.
 
 **Pendiente:** prueba manual en Windows con ChatGPT web y Gemini web; comprobar el intercambio JSON en ambos; probar 50–100 turnos, reinicio y restauración. El chat web manual no tiene medida automática de tokens/coste. No revertir este enfoque a automatización del navegador sin nueva investigación y evaluación de políticas.
+
+
+### Protección adicional del puente manual
+
+Cada prompt preparado devuelve una huella SHA-256 del contexto exacto. Al pegar la respuesta, el servidor reconstruye el contexto actual y lo compara antes de aceptar el turno; si la partida cambió entre ambas acciones, rechaza la respuesta y pide volver a preparar el prompt. Esta comprobación evita aplicar una escena basada en un estado antiguo. Está cubierta por una prueba de CI.
