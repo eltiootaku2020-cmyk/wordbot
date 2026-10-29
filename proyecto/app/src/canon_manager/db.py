@@ -83,7 +83,6 @@ CREATE TABLE IF NOT EXISTS snapshots (
   event_sequence INTEGER NOT NULL, state_json TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_messages_session_turn ON messages(session_id, turn_index);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_client_request ON messages(session_id, client_request_id, role) WHERE client_request_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_events_session ON events(session_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_changes_pending ON state_changes(session_id, status);
 CREATE INDEX IF NOT EXISTS idx_lore_world_priority ON lore_entries(world_id, priority);
