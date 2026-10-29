@@ -88,7 +88,15 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}label{font-size:13px;
       <textarea id="messageInput" required maxlength="8000" placeholder="Escribe tu acción o diálogo… (por ejemplo: Hola, linda)"></textarea>
       <button id="sendButton" class="primary" type="submit">Enviar</button>
     </form>
-    <div class="toolbar"><button id="retryButton" hidden>Reintentar último envío</button></div>
+    <div class="toolbar">
+      <button id="retryButton" hidden>Reintentar último envío</button>
+      <button id="previewContextButton" type="button">Previsualizar contexto IA</button>
+    </div>
+    <details id="contextInspector" class="setup">
+      <summary>Inspeccionar el contexto que recibirá la IA</summary>
+      <p class="muted">Vista local de diagnóstico. No llama al modelo ni cambia la partida; muestra las fichas, mensajes y eventos seleccionados con el alcance actual.</p>
+      <pre id="contextPreview" style="white-space:pre-wrap;overflow-wrap:anywhere;max-height:50vh;overflow:auto;font-size:0.8rem">Aún no se ha generado una vista previa.</pre>
+    </details>
     <p class="muted">La conversación, el canon importado y el estado se guardan en SQLite en este PC. Las propuestas dudosas no se aplican sin revisión.</p>
   </section>
   <aside class="panel">
@@ -431,6 +439,35 @@ el("sendForm").onsubmit = async event => {
 };
 el("retryButton").onclick = async () => {
   if (failedRequest) await sendTurn(failedRequest);
+};
+el("previewContextButton").onclick = async () => {
+  try {
+    if (!currentSession) throw new Error("Selecciona una partida.");
+    const visibility = el("visibilitySelect").value;
+    const recipient = el("recipientSelect").value;
+    if (visibility === "private" && !recipient) {
+      throw new Error("Para inspeccionar una escena privada, selecciona un destinatario presente.");
+    }
+    setStatus("Preparando una vista del contexto local…", false);
+    const result = await api("/api/sessions/" + currentSession + "/context-preview", {
+      method:"POST",
+      body:JSON.stringify({
+        text:el("messageInput").value.trim(),
+        recipient_id:recipient,
+        visibility
+      })
+    });
+    el("contextPreview").textContent = JSON.stringify({
+      diagnostics:result.diagnostics,
+      context:result.context
+    }, null, 2);
+    el("contextInspector").open = true;
+    setStatus(
+      "Vista previa lista · " + result.diagnostics.context_characters +
+      " caracteres · " + result.diagnostics.lore_entries_selected + " fichas Lorebook seleccionadas. No se llamó a la IA.",
+      true
+    );
+  } catch (err) { setStatus(err.message, false); }
 };
 el("backup").onclick = async () => {
   try {
