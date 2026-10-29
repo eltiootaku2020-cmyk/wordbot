@@ -2,13 +2,13 @@
 
 Guía práctica para montar el bot con una carga inicial baja de contexto y reducir los olvidos durante partidas largas.
 
-Documento maestro y Lorebook completa (77 entradas, revisión v1.18):
+Documento maestro y Lorebook completa (77 entradas, revisión v1.19):
 https://github.com/eltiootaku2020-cmyk/wordbot/blob/docs/historias-organizadas/proyectos/isekai-sin-destino/LOREBOOK_MAESTRA.md
 
 Registro interno v1.19: esquema cerrado, porcentajes, objetos y órdenes:
 https://github.com/eltiootaku2020-cmyk/wordbot/blob/docs/historias-organizadas/proyectos/isekai-sin-destino/REGISTRO_INTERNO_ESQUEMA.md
 
-Cuadro prioritario v1.18 (reglas, mapa, reloj y registros):
+Cuadro prioritario v1.19 (reglas, mapa, reloj y registros):
 https://github.com/eltiootaku2020-cmyk/wordbot/blob/docs/historias-organizadas/proyectos/isekai-sin-destino/CUADRO_REGLAS_PRIORITARIAS.md
 
 ## 1. Por qué puede perder continuidad pronto
@@ -31,7 +31,7 @@ Fuentes oficiales:
 
 ## 2. Campos listos para copiar
 
-La versión de Personality v1.18 y sus instrucciones de mapa/guardado están en [CUADRO_REGLAS_PRIORITARIAS.md](CUADRO_REGLAS_PRIORITARIAS.md); el bloque de abajo ya está sincronizado con esa versión.
+La versión de Personality v1.19 y sus instrucciones de mapa/guardado están en [CUADRO_REGLAS_PRIORITARIAS.md](CUADRO_REGLAS_PRIORITARIAS.md); el bloque de abajo ya está sincronizado con esa versión.
 
 Usa estos textos en los campos equivalentes al crear el personaje. No pegues la biblia completa en Personality ni en Scenario.
 
