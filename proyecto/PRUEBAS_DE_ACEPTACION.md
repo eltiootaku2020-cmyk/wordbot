@@ -93,3 +93,51 @@ La aplicación no se considerará fiable por una demostración breve. Las prueba
 ## Definición de «listo para usar»
 
 Se considera apto para una primera partida cuando A, C, D, E, F, G, H e I pasan sin pérdida de datos; B demuestra que el contexto es selectivo; existe copia de seguridad/restauración; y los cambios pendientes se pueden revisar sin alterar el estado oficial.
+
+
+## J. Salida estructurada y adaptadores de proveedor
+
+1. Recibir JSON válido conforme al contrato y comprobar que se puede validar.
+2. Recibir JSON sintácticamente correcto pero con un ID de entidad inexistente.
+3. Proponer una clave no admitida o un campo desconocido.
+4. Proponer confianza −1 sin evento de fuente.
+5. Proponer un uso de Eco cuando el contador local ya se agotó.
+6. Simular una respuesta que no cumple el esquema y un timeout del proveedor.
+
+**Criterio:** los errores estructurales o semánticos no modifican el estado; se registra la respuesta para diagnóstico y se mantiene visible el error.
+
+## K. Idempotencia
+
+1. Procesar un turno que baja un valor de relación en 1 y consume un recurso.
+2. Simular un timeout de respuesta de la aplicación y reintentar el mismo turno.
+3. Comprobar la clave de idempotencia y el historial de operaciones.
+
+**Criterio:** ningún cambio ni coste se aplica dos veces por el mismo turno.
+
+## L. Copia y restauración SQLite
+
+1. Crear varios mensajes y cambios de estado con la base en uso.
+2. Crear una copia con el mecanismo de backup admitido.
+3. Abrir la copia en una base temporal y comprobar integridad, secuencia de eventos y relaciones entre filas.
+4. Restaurar en una partida de prueba.
+
+**Criterio:** la copia es consistente, no pierde cambios confirmados y no mezcla datos de mundos.
+
+## M. Seguridad y proveedor
+
+1. Iniciar la aplicación y comprobar que el servidor solo escucha en loopback por defecto.
+2. Verificar que no hay claves en el repositorio, logs, prompts ni exportaciones.
+3. Desactivar conexión al proveedor y comprobar que la base local sigue siendo legible.
+4. Cambiar proveedor sin cambiar el modelo canónico de datos.
+5. Registrar el uso devuelto por el proveedor cuando esté disponible.
+
+**Criterio:** la base permanece local, los secretos no se publican y una caída del proveedor no altera una partida guardada.
+
+## N. Presupuesto de contexto
+
+1. Hablar con Maelis, luego consultar el precio de un objeto y después usar Eco.
+2. Comprobar que cada turno recupera fichas distintas según el contexto.
+3. Superar el presupuesto de contexto configurado con una gran Lorebook.
+4. Verificar la prioridad: canon/estado/fichas presentes antes que lore secundaria.
+
+**Criterio:** no se envía toda la biblioteca por defecto y el sistema registra qué fichas se incluyeron en cada solicitud.
