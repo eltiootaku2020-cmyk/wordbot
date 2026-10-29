@@ -25,14 +25,14 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 - Carpeta: `proyectos/isekai-sin-destino/`
 - Versión de configuración: Personality y esquema de continuidad v1.15; Lorebook revisada v1.16 (76 entradas, activadores depurados y contenido contaminado corregido). Importación y comportamiento real siguen pendientes de probar.
 - Archivos: `CONFIG_LIGERA.md`, `CUADRO_REGLAS_PRIORITARIAS.md`, `REGISTRO_INTERNO_ESQUEMA.md`, `LOREBOOK_MAESTRA.md`, `LOREBOOK_IMPORT.json`, `README.md`.
-- Lorebook: 76 entradas.
+- Lorebook: 77 entradas.
 - Cambios recientes: cuadro prioritario v1.15; registro interno cerrado y porcentual con delta 0=sin cambio; reloj por seis bloques de cuatro horas; mini mapa progresivo que solo revela lo conocido por el protagonista; reloj con cabecera dinámica para que el saludo del Día 1 no se repita; encuentros aleatorios controlados; persistencia de estado de monstruos y PNJ; los compañeros conservan recuerdos; un monstruo muerto no reaparece como el mismo individuo sin causa; Eco mantiene usos y efectos por objetivo; se registran promesas, objetos y animales afectados por Eco/hipnosis; los vínculos incluyen sospechas, discusiones, amistad, respeto, deudas y conflictos, no solo romance; los compañeros solo reaccionan a hechos que presenciaron o les contaron, incluso si se enteran después; los PNJ cercanos pueden iniciar diálogo espontáneamente sin que el usuario los nombre o mire, con 1–2 intervenciones naturales por respuesta de grupo y sin frases sueltas.
 - Registro interno: incluye habilidades demostradas, intereses/objetivos con fuente, sospechas con evidencia y conocimientos por PNJ; datos ausentes quedan como «No registrado», sin campos nuevos.
 - Coste en caracteres v1.15: Personality 4468; Scenario 795; Greeting 687; Example Dialogue 1044 (verificar tokens con el contador del editor).
 - Persistencia práctica: el bot puede generar `/guardar`, pero SpicyChat no guarda por instrucciones un estado RPG externo. La partida necesita un punto de guardado copiado fuera del chat para recuperarla si el contexto se pierde.
 - El plan Free tiene 4.096 tokens de contexto compartidos y aproximadamente 740 tokens disponibles para Lorebook activada (según documentación oficial, cifras sujetas a cambios); revisar el contador del editor. Las entradas nuevas permanecen compactas y activadas por palabras clave.
 - Diagnóstico añadido: `proyectos/isekai-sin-destino/SOLUCION_HISTORIAS_LARGAS.md`. SpicyChat no garantiza el estado exacto de un RPG a partir de prompts; se comparan procedimiento de guardado manual, SillyTavern para uso personal y una aplicación con base de datos por usuario.
-- Pendiente: probar la Lorebook v1.16 en SpicyChat; comprobar los bloques de cuatro horas, el mini mapa, la regla de monstruos reaparecidos y el registro de promesas/Eco; decidir si se seguirá en SpicyChat o se probará una interfaz con resúmenes y recuperación.
+- Pendiente: probar la Lorebook v1.17 en SpicyChat; comprobar los bloques de cuatro horas, el mini mapa, la regla de monstruos reaparecidos y el registro de promesas/Eco; decidir si se seguirá en SpicyChat o se probará una interfaz con resúmenes y recuperación.
 
 ### 2. DanMachi
 - Carpeta: `proyectos/danmachi/`
@@ -104,3 +104,11 @@ El usuario aclaró que al decir IA se refiere al chat normal de ChatGPT o Gemini
 ### Protección adicional del puente manual
 
 Cada prompt preparado devuelve una huella SHA-256 del contexto exacto. Al pegar la respuesta, el servidor reconstruye el contexto actual y lo compara antes de aceptar el turno; si la partida cambió entre ambas acciones, rechaza la respuesta y pide volver a preparar el prompt. Esta comprobación evita aplicar una escena basada en un estado antiguo. Está cubierta por una prueba de CI.
+
+
+## Actualización Isekai v1.16 / Lorebook v1.17
+- Personality incorpora foco narrativo y movimiento/acción de PNJ o entorno cada 1–2 respuestas, sin controlar al protagonista.
+- Guardado completo en varias partes para respetar el límite de 180 tokens por respuesta en Free. Mantiene cronología causal de hitos aún relevantes y los 3–5 sucesos recientes por separado.
+- Nuevo segmento de registro de Eco por uso: intención/objetivo/reacción/resultado/efectos por eje/Δ en puntos/testigos/coste y duración si se conocen.
+- El efecto deseado no se asume como resultado; miedo y obediencia son ejes separados; capacidades de Eco vegetal/animal continúan abiertas hasta confirmarse.
+- Validación pendiente dentro de SpicyChat; GitHub no instala automáticamente las modificaciones.
