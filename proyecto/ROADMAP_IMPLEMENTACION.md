@@ -1,6 +1,6 @@
 # Roadmap de implementación — gestor local v0.1
 
-El prototipo v0.1 ya existe. Las casillas marcan código presente, no necesariamente validación manual completa. La última CI aprobó 32 pruebas automáticas en Linux/Python 3.12 y comprobó sintaxis JavaScript; proveedores reales y la instalación en Windows aún deben probarse.
+El prototipo v0.1 ya existe. Las casillas marcan código presente, no necesariamente validación manual completa. La CI del 29-10-2026 aprobó 35 pruebas automáticas en Linux/Python 3.12 y comprobó sintaxis JavaScript. Ya existe un puente manual para el chat web normal de ChatGPT/Gemini; la interfaz e intercambio real deben probarse en Windows. Las APIs son opcionales.
 
 ## Fase 0 — Investigación y arquitectura
 - [x] Revisar clientes de roleplay (SillyTavern, RisuAI, Agnai).
@@ -24,7 +24,8 @@ El prototipo v0.1 ya existe. Las casillas marcan código presente, no necesariam
 Criterio de salida: se puede crear/seleccionar un mundo, enviar un mensaje simulado, guardar texto y reiniciar sin perderlo; aún no requiere un proveedor real.
 
 ## Fase 2 — Un turno completo con salida estructurada
-- [x] Implementar narrador simulado y adaptadores iniciales OpenAI/Gemini; llamadas reales aún no validadas.
+- [x] Implementar narrador simulado y adaptadores API iniciales OpenAI/Gemini; llamadas reales aún no validadas.
+- [x] Añadir modo manual para el chat web normal de ChatGPT/Gemini: preparar prompt local, copiar al sitio oficial, pegar la respuesta y validar JSON sin API key.
 - [x] Enviar contexto reducido con estado, participantes, historial reciente y Lorebook relevante (máximo 8 entradas y presupuesto fijo de 4.500 caracteres de Lorebook).
 - [x] Recibir narración, eventos y cambios propuestos en un contrato Pydantic/JSON.
 - [x] Validar estructura, entidades y evento fuente; la validación semántica completa sigue pendiente.
@@ -139,12 +140,13 @@ Esta sección distingue implementado de pendiente. No marcar como terminado nada
 **Criterio parcial alcanzado:** restauración de inventario, recursos y reloj, auditoría y orden de undo cubiertos por CI. Quedan escenarios de campaña larga y prueba manual de la interfaz.
 
 ### Prioridad P4 — Pruebas de integración reales y de larga duración
-- [x] CI Linux: 32 pruebas Python y comprobación sintáctica de JavaScript aprobadas el 29-10-2026 (no sustituye las pruebas manuales de Windows).
+- [x] CI Linux: 35 pruebas Python y comprobación sintáctica de JavaScript aprobadas el 29-10-2026 (no sustituye las pruebas manuales de Windows).
 - [ ] Ejecutar la instalación desde cero en Windows/Chromium.
-- [ ] Probar una llamada controlada a OpenAI y otra a Gemini con claves del usuario en su PC; no almacenar claves en Git.
+- [ ] Probar manualmente en Windows el flujo completo con el chat web normal de ChatGPT y con Gemini.
+- [ ] (Opcional para la modalidad API) Probar una llamada controlada a OpenAI API y otra a Gemini API; no almacenar claves en Git.
 - [ ] Ejecutar 50–100 turnos con escenas grupales/privadas, compras/consumos, viajes y Eco.
 - [ ] Reiniciar la aplicación, restaurar backup y verificar que el estado sea idéntico.
-- [ ] Medir uso del contexto y coste por turno en cada proveedor cuando los datos estén disponibles.
+- [ ] Medir uso del contexto y coste por turno para las APIs cuando el proveedor informe esos datos. En el chat web manual no se promete lectura automática de tokens/coste.
 
 **Criterio de salida:** la partida sobrevive a reinicios y no hay fugas de conocimiento ni efectos duplicados en el conjunto de pruebas.
 
@@ -159,3 +161,16 @@ Esta sección distingue implementado de pendiente. No marcar como terminado nada
 - Structured Outputs de OpenAI: https://developers.openai.com/api/docs/guides/structured-outputs
 - Structured Output de Gemini: https://ai.google.dev/gemini-api/docs/structured-output
 - Transacciones SQLite: https://www.sqlite.org/transactional.html
+
+
+## chat web normal (puente manual)
+
+- [x] Diferenciar explícitamente la suscripción/web chat de las APIs en el selector.
+- [x] Preparar desde el estado local un prompt con contexto compacto y contrato JSON.
+- [x] Admitir la respuesta pegada de ChatGPT/Gemini y validarla con Pydantic antes de usar el estado propuesto.
+- [x] Rechazar respuestas sin JSON válido, sin mutar la partida.
+- [x] Mantener el adaptador API separado y opcional.
+- [ ] Hacer la prueba manual en Windows con un chat real de ChatGPT y otro de Gemini.
+- [ ] Completar la campaña de 50–100 turnos y comprobar cierre, reinicio y restauración.
+
+**Criterio para la primera entrega sin API:** el usuario puede usar su cuenta normal en el sitio web mediante copiar/pegar; el programa conserva y valida el estado localmente. No se requiere que las APIs estén configuradas ni se automatiza la lectura del chat web. CI de este modo aprobada: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40880074124.
