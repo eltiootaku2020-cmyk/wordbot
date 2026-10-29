@@ -1,4 +1,4 @@
-# Registro interno y esquema cerrado — Isekai sin Destino v1.12
+# Registro interno y esquema cerrado — Isekai sin Destino v1.14
 
 **Propósito:** mantener continuidad dentro del contexto activo de SpicyChat y producir guardados compactos. Complementa Personality y Lorebook; no las reemplaza.
 
@@ -30,7 +30,7 @@ Solo registra entidades importantes para la continuidad; no a cada transeúnte a
 
 - **Identidad/estado:** nombre conocido o ID interno de control (p. ej. ENT-01 para distinguir registros, no como nombre de personaje), especie/rol conocido, estado y última interacción.
 - **Ubicación:** lugar actual solo si está confirmado; si no, última ubicación confirmada y ruta/zona.
-- **Órdenes y seguimiento:** orden recibida del protagonista (esperar, seguir, volver al bosque, llevar objeto, etc.), destino solo si fue especificado, objetivo/condición y cumplimiento (pendiente, confirmado, incumplido o desconocido). Una orden de esperar o volver al bosque no demuestra obediencia. Si la entidad desaparece de la vista, conserva el último lugar confirmado y marca lo posterior como desconocido hasta comprobarlo.
+- **Órdenes y seguimiento:** orden recibida del protagonista (esperar, seguir, volver al bosque, llevar objeto, etc.), destino solo si fue especificado, objetivo/condición y cumplimiento (pendiente, confirmado, incumplido o desconocido). Una orden de esperar o volver al bosque no demuestra obediencia. Ejemplo: «goblin gruñón: última ubicación confirmada, claro del arroyo; orden: esperar allí; cumplimiento: desconocido; entidad independiente, no objeto del inventario». Si desaparece, conserva la última ubicación y marca lo posterior desconocido hasta comprobarlo.
 - **Personalidad:** rasgos fijados por Lorebook o respaldados por conductas repetidas; no inferir una personalidad entera de una frase.
 - **Habilidades:** destreza, evidencia de uso/enseñanza y porcentaje de dominio solo si fue evaluada. No atribuyas habilidades por especie, oficio o conveniencia narrativa.
 - **Intereses/objetivos:** tema/objetivo, intensidad porcentual si hay evidencia y fuente (declaración o patrón observado).
@@ -121,11 +121,21 @@ El protagonista ha descubierto una interacción de Eco con recuerdos de árboles
 
 ## 13. Catálogo de objetos comunes posibles
 
-Este catálogo amplía las opciones del mundo; no crea posesiones. Objetos posibles: cuerda corta, saco/bolsa de tela, cuenco de madera, cantimplora, aguja e hilo, paño limpio, vendas, yesca y pedernal, vela/antorcha, tiza/carbón, manta sencilla, cuchillo utilitario, olla pequeña, frasco vacío, estacas y comida conservada.
+Inventario inicial confirmado: ropa básica de viaje, pañuelo gastado, bolsita de tela vacía y cordel de cáñamo corto (~1,5 m). Sin dinero, comida, agua, armas, mochila ni equipo de aventura. El siguiente catálogo son posibilidades futuras, no posesiones automáticas. Objetos posibles: cuerda corta, saco/bolsa de tela, cuenco de madera, cantimplora, aguja e hilo, paño limpio, vendas, yesca y pedernal, vela/antorcha, tiza/carbón, manta sencilla, cuchillo utilitario, olla pequeña, frasco vacío, estacas y comida conservada.
 
 - La disponibilidad depende del lugar, situación, estación y una causa plausible; puede no haber ningún objeto.
-- El protagonista empieza sin dinero, comida, equipo ni provisiones, salvo la ropa básica de viaje ya establecida. Solo obtiene algo si lo encuentra, compra, intercambia, recibe o declara tenerlo con respaldo del historial.
+- Inventario inicial confirmado: ropa básica de viaje, pañuelo gastado, bolsita de tela vacía y cordel de cáñamo corto (~1,5 m). Sin dinero, comida, agua, armas, mochila ni equipo de aventura. Otros objetos se obtienen solo por hallazgo, compra, intercambio o regalo confirmado.
 - No inventes propiedades mágicas, valor exacto, durabilidad o usos especiales. Registra solo cantidad, condición observada, portador/ubicación y estado (llevado, guardado, dejado, usado, intercambiado o perdido).
 - No registres categorías cotidianas fuera del esquema. No hay historial de comidas; consumir una ración solo cambia el inventario/provisiones.
 
 **Principio:** lo incompleto debe permanecer incompleto. Recuerda consecuencias reales; no inventes una vida cotidiana que nadie estableció.
+
+
+## 14. Ejemplos compactos (ilustrativos, no canon)
+
+- **Objeto dejado:** `CORD-01 — cordel ×1; estado: dejado; última ubicación: claro del arroyo; portador: ninguno; condición: intacto`.
+- **Criatura con orden:** `goblin gruñón — última ubicación confirmada: claro del arroyo; orden: esperar allí; cumplimiento: desconocido; no está en inventario`.
+- **Habilidad:** `rastreo 32% — evidencia: siguió huellas bajo lluvia; variación +2 por práctica`.
+- **Eco vegetal:** `árbol/ID si conocido; lugar; intención; sensación descrita; resultado; testigos; efecto confirmado; coste/alcance: No registrado`.
+
+Son ejemplos de formato, no eventos de la partida. Los porcentajes describen intensidad estimada, no probabilidad matemática.
