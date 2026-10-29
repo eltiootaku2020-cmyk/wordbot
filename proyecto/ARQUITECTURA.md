@@ -184,4 +184,4 @@ El código actual incluye:
 - Tabla `resources` por partida y adquisición de objeto con coste: saldo y artículo se actualizan en la transacción del turno.
 - En el preset Isekai, monedas iniciales = 0.
 
-CI aprobada: 24 pruebas Python y sintaxis JavaScript, https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40870848920. La prueba usa el narrador simulado. No debe confundirse con una validación manual del navegador, APIs reales, campaña prolongada o rollback al editar/regenerar.
+CI aprobada: 26 pruebas Python y sintaxis JavaScript, https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40873010055. La prueba usa el narrador simulado. No debe confundirse con una validación manual del navegador, APIs reales, campaña prolongada o rollback al editar/regenerar.
