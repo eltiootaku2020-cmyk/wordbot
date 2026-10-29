@@ -3442,7 +3442,8 @@ def test_undo_and_regenerate_private_turn_never_leaks_to_scene_bystanders(monkey
         entities = client.get(f"/api/worlds/{world_id}/entities").json()
         maelis = next(entity for entity in entities if entity["name"] == "Maelis Orven")
         ivar = next(entity for entity in entities if entity["name"] == "Ivar Dalen")
-        protagonist_id = seed["protagonist_entity_id"]
+        with database.connection() as conn:
+            protagonist_id = session_row(conn, session_id)["protagonist_entity_id"]
         private_code = "ORQUIDEA-314"
 
         class PrivateProvider:
