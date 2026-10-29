@@ -1,6 +1,6 @@
 # Roadmap de implementación — gestor local v0.1
 
-La CI más reciente aprobó 87 pruebas Python en Linux/Python 3.12 y comprobó sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40943636768.
+La CI posterior al merge de PR #14 aprobó 89 pruebas Python en Linux/Python 3.12 y comprobó sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40947007582.
 
 ## Fase 0 — Investigación y arquitectura
 - [x] Revisar clientes de roleplay (SillyTavern, RisuAI, Agnai).
@@ -250,3 +250,12 @@ CI aprobada con 83 pruebas Python y sintaxis JavaScript: https://github.com/elti
 - [x] Mantener compatibilidad con undo/regeneración inmediata y actualizar la huella después de regenerar.
 - [x] CI PR #12: 87 pruebas Python y sintaxis JavaScript aprobadas: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40943636768.
 - [ ] Validar manualmente UI Windows/Chromium y campaña real de 50–100 turnos con reinicio/backup/restore.
+
+
+## Actualización — 29-10-2026, cancelación de generación (PR #14)
+
+- [x] Capturar `asyncio.CancelledError` en la espera del proveedor, marcar la solicitud como `failed` sin perder el texto original y propagar la cancelación después de la limpieza.
+- [x] Verificar con una regresión que el estado permanece igual y un reintento con el mismo `request_id` produce una sola respuesta.
+- [x] Bloquear las revisiones de cambios/eventos mientras hay una generación activa (PR #13).
+- [x] CI posterior al merge: 89 pruebas Python y sintaxis JavaScript aprobadas, con una advertencia no bloqueante de Starlette/httpx: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40947007582.
+- [ ] Prueba manual Windows/Chromium con ChatGPT/Gemini web y campaña real de 50–100 turnos con reinicio/copia/restauración.
