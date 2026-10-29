@@ -119,7 +119,7 @@ Cada prompt preparado devuelve una huella SHA-256 del contexto exacto. Al pegar 
 - Las propuestas sin evidencia suficiente quedan pendientes de revisión; los cambios de relación asociados a un poder no confirmado tampoco se aplican.
 - CI verificada: 75 pruebas Python aprobadas y comprobación de sintaxis JavaScript correcta: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40928659012. Hubo una advertencia no bloqueante de compatibilidad httpx/Starlette y otra por la retirada de Node.js 20 en acciones de CI.
 - Alcance no validado: aún faltan pruebas manuales en Windows con ChatGPT/Gemini web y la campaña de 50–100 turnos con reinicio y restauración. No se hicieron llamadas reales a cuentas web ni a APIs.
-- Siguiente prioridad: ampliar pruebas de respuestas truncadas, instrucciones ambiguas, contradicciones del narrador y restauración; comparar el estado exacto antes y después de una secuencia larga.
+- Siguiente prioridad identificada entonces (completada en parte por PR #5): pruebas de respuestas truncadas, instrucciones ambiguas, contradicciones del narrador y comparación exacta de estado después de una secuencia larga. La siguiente actualización registra esos resultados.
 
 ## Actualización de fiabilidad — 29-10-2026: regresiones de continuidad extendida
 
