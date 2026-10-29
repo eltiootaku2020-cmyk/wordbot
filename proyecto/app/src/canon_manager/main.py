@@ -3035,9 +3035,9 @@ def _read_session_backup(backup_path: Path, session_id: str):
             if table == "session_presence":
                 # Location relative to the restored session is authoritative,
                 # even when an older row has a missing or stale status column.
-                current_location = str(source_session_row["current_location"] or "").strip()
+                current_location = str(source_session_row["current_location"] or "")
                 for presence in rows:
-                    location = str(presence.get("location") or "").strip()
+                    location = str(presence.get("location") or "")
                     presence["presence_status"] = (
                         "present" if location.casefold() == current_location.casefold() else "away"
                     )
