@@ -1,6 +1,6 @@
 # Proyecto: gestor local de canon, Lorebooks y continuidad
 
-**Estado:** prototipo local v0.1. CI aprobó 32 pruebas Python y sintaxis JavaScript el 29-10-2026. Incluye alcance de conversación grupo/privado, filtro de conocimiento, inspector Lorebook, operaciones de inventario de bajo riesgo y libro de recursos con compras validadas. Faltan prueba manual en Windows, APIs reales y campaña larga.  
+**Estado:** prototipo local v0.1. CI aprobó 32 pruebas Python y sintaxis JavaScript el 29-10-2026. Incluye privacidad por audiencia, inspector de mensajes/eventos, presupuesto Lorebook editable y persistente, inventario/recursos/compras validados y undo del último turno con snapshot. Faltan prueba manual en Windows, APIs reales y campaña larga.  
 **Ubicación de trabajo:** rama `docs/historias-organizadas`, carpeta `proyecto/`.
 
 ## Objetivo
@@ -102,6 +102,6 @@ La decisión se basa en la investigación enlazada y puede revisarse después de
 
 ## Estado y siguientes pasos
 
-**Estado actual:** el código incluye interfaz en Chromium, SQLite, narrador simulado, adaptadores iniciales OpenAI/Gemini, preset real de Isekai (76 entradas), privacidad por audiencia, inspector de contexto, inventario validado y libro de recursos. CI aprueba 32 pruebas Python y la sintaxis JavaScript. Esto no demuestra que las llamadas reales o la interfaz en Windows funcionen.
+**Estado actual:** el código incluye interfaz Chromium, SQLite, narrador simulado, adaptadores iniciales OpenAI/Gemini, preset real de Isekai (76 entradas), privacidad por audiencia, inspector que explica inclusión/exclusión de mensajes/eventos, presupuesto Lorebook configurable (500–12.000 caracteres), inventario/recursos/compras validados y undo seguro del último turno. CI aprueba 32 pruebas Python y sintaxis JavaScript. No valida llamadas reales ni uso manual en Windows.
 
 **Prioridades actuales:** contar tokens reales por proveedor; probar la interfaz y undo manualmente en Windows; probar llamadas API reales; verificar datos históricos/cambios de presencia; realizar campaña de 50–100 turnos con reinicio/restauración.
