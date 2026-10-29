@@ -179,9 +179,10 @@ No se debe automatizar la extracción de respuestas desde el DOM de la página d
 El código actual incluye:
 - Turnos con alcance `scene/private` y audiencia almacenada en metadatos.
 - Contexto limitado por destinatario, ubicación, audiencia y testigos; la privacidad se aplica en recuperación, no solo por prompt.
-- Inspector de contexto que presenta fichas Lorebook, activadores, límites y uso aproximado en caracteres sin llamar al modelo.
+- Inspector de contexto que presenta fichas Lorebook, activadores, límites y uso aproximado en caracteres sin llamar al modelo; explica motivos de inclusión/exclusión para mensajes y eventos.
+- Presupuesto Lorebook editable (500–12.000 caracteres) en la interfaz y persistido en SQLite; se aplica al turno y la previsualización.
 - Reglas automáticas para operaciones ordinarias de inventario y movimientos no protagonizados con evento fuente validado.
 - Tabla `resources` por partida y adquisición de objeto con coste: saldo y artículo se actualizan en la transacción del turno.
 - En el preset Isekai, monedas iniciales = 0.
 
-CI aprobada: 28 pruebas Python y sintaxis JavaScript, https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40873768030. La prueba usa el narrador simulado. El undo del último turno restaura estado y deja auditoría; falta ampliar pruebas de rollback para relaciones/poderes, verificar el navegador en Windows, probar APIs reales y realizar campaña larga.
+CI aprobada: 32 pruebas Python y sintaxis JavaScript, https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40877808136. La prueba usa el narrador simulado. El undo del último turno restaura estado y deja auditoría; falta ampliar pruebas de rollback para relaciones/poderes, verificar el navegador en Windows, probar APIs reales y realizar campaña larga.
