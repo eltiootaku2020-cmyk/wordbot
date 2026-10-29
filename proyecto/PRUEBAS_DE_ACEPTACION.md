@@ -1,6 +1,6 @@
 # Pruebas de aceptación del gestor local
 
-La CI más reciente validó **86 pruebas Python** y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40940906581.
+La CI más reciente validó **86 pruebas Python** y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40941934304.
 
 ## A. Persistencia y recuperación
 
@@ -287,3 +287,12 @@ Se considera apto para una primera partida cuando A, C, D, E, F, G, H e I pasan 
 **Criterio:** el reintento solo se acepta cuando no hay turnos posteriores y el estado mutable actual coincide con el snapshot previo. No debe ejecutarse el proveedor ni mutarse el estado en casos rechazados.
 
 **Cobertura automatizada:** PR #10 ejecutó 86 pruebas Python y sintaxis JavaScript en CI: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40940906581. La ejecución usa proveedor simulado; campaña manual real sigue pendiente.
+
+
+## AD. Coherencia de versión del preset
+
+1. Leer la versión `vX.Y` declarada en la descripción de `proyectos/isekai-sin-destino/LOREBOOK_IMPORT.json`.
+2. Leer la versión mostrada por el botón `isekaiPreset` en `proyecto/app/src/canon_manager/static/index.html`.
+3. Comprobar que ambas coinciden. Si el JSON sube de versión y la interfaz no se actualiza, la suite debe fallar.
+
+**Cobertura automatizada:** CI PR #11 aprobó 86 pruebas Python y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40941934304. La auditoría separada del Lorebook v1.19 aprobó 659 comprobaciones: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40941934333.
