@@ -1,6 +1,6 @@
 # Roadmap de implementación — gestor local v0.1
 
-El prototipo v0.1 ya existe. Las casillas marcan código presente, no necesariamente validación manual completa. La CI más reciente aprobó 73 pruebas Python en Linux/Python 3.12 y comprobó sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40908949397. Ya existe un puente manual para el chat web normal de ChatGPT/Gemini; la interfaz e intercambio real deben probarse en Windows. Las APIs son opcionales.
+El prototipo v0.1 ya existe. Las casillas marcan código presente, no necesariamente validación manual completa. La CI más reciente aprobó 79 pruebas Python en Linux/Python 3.12 y comprobó sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40932636884. Ya existe un puente manual para el chat web normal de ChatGPT/Gemini; la interfaz e intercambio real deben probarse en Windows. Las APIs son opcionales.
 
 ## Fase 0 — Investigación y arquitectura
 - [x] Revisar clientes de roleplay (SillyTavern, RisuAI, Agnai).
@@ -10,7 +10,7 @@ El prototipo v0.1 ya existe. Las casillas marcan código presente, no necesariam
 - [x] Documentar restricciones de la página de consumo y facturación API.
 - [x] Preparar las decisiones técnicas provisionales.
 - [x] Crear y probar un flujo pequeño con proveedor simulado.
-- [x] Cargar preset de Isekai sin Destino y validar las 76 entradas, reparto, inventario inicial y nueva sesión.
+- [x] Cargar preset de Isekai sin Destino y validar las 77 entradas, reparto, inventario inicial y nueva sesión.
 - [ ] Probar manualmente la instalación en Windows y revisar la interfaz en Chromium.
 
 ## Fase 1 — Esqueleto ejecutable
@@ -60,9 +60,10 @@ Criterio de salida: el programa envía solo el lore necesario y no convierte un 
 - [ ] Restauración visual de una copia SQLite completa.
 - [ ] Restauración con vista previa.
 - [x] Registrar cambios aceptados, pendientes y rechazados.
-- [ ] Reintento controlado para JSON inválido o timeout.
-- [x] CI: 73 pruebas Python y sintaxis JavaScript aprobadas en modo simulado/manual-input, sin llamadas API pagas: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40908949397.
-- [ ] Prueba de 50–100 intercambios y reinicio completo.
+- [x] Reintento controlado para JSON inválido/truncado; la respuesta corregida reutiliza el mismo request_id sin duplicar el turno.
+- [x] CI: 79 pruebas Python y sintaxis JavaScript aprobadas en modo simulado/manual-input, sin llamadas API pagas: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40932636884.
+- [x] Continuidad automatizada: 100 turnos breves simulados, reinicialización SQLite, copia, mutación posterior, restauración y comparación exacta del estado/tablas.
+- [ ] Campaña narrativa real de 50–100 intercambios con ChatGPT/Gemini web y decisiones variadas.
 
 Criterio de salida: el estado, mensajes y recursos sobreviven al cierre; se pueden detectar y corregir errores de la IA.
 
@@ -77,7 +78,7 @@ Criterio de salida: el estado, mensajes y recursos sobreviven al cierre; se pued
 ## Estado de los hitos
 
 - **Comprobado por CI:** SQLite, backup, validación Pydantic, normalización del esquema, narrador simulado, turno API de extremo a extremo, reintentos idempotentes, aprobación/rechazo de eventos y creación atómica de mundos con reparto e inventario inicial.
-- **No comprobado todavía:** ejecución manual en Windows con chats web reales, compatibilidad de cambios de presencia/datos históricos, campaña de 50–100 turnos y restauración visual del backup. Las llamadas reales API y sus tokens/costes son una validación opcional distinta.
+- **No comprobado todavía:** ejecución manual en Windows con chats web reales, compatibilidad de cambios de presencia/datos históricos, restauración visual con vista previa y campaña narrativa de 50–100 turnos con un chat externo. La CI sí comprueba 100 turnos breves simulados y restauración exacta de la base. Las llamadas reales API y sus tokens/costes son una validación opcional distinta.
 
 ## Prioridad práctica
 
@@ -90,7 +91,7 @@ La interfaz ya permite crear un mundo y su primera sesión, con protagonista, ca
 
 - [x] Validar sintaxis del JavaScript de la interfaz en CI.
 
-Última CI aprobada (73 pruebas Python + JavaScript): https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40908949397
+Última CI aprobada (79 pruebas Python + JavaScript): https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40932636884
 
 
 ---
@@ -116,7 +117,7 @@ Esta sección distingue implementado de pendiente. No marcar como terminado nada
 - [x] Pago e ingreso/objeto se registran en SQLite con valores anterior/propuesto/aceptado y fuente; saldo insuficiente deja inventario y dinero intactos.
 - [x] Mantener objetos de alto impacto, operaciones ambiguas y datos contradictorios pendientes.
 
-**Verificación:** 73 pruebas Python aprobadas en CI, incluidos puente manual, contexto desactualizado, destinos contradictorios y movimientos fuera de escena: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40908949397. La idempotencia de compra está probada con proveedor simulado; falta validación visual manual en Windows.
+**Verificación:** 79 pruebas Python aprobadas en CI, incluidos puente manual, contexto desactualizado, destinos contradictorios y movimientos fuera de escena: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40932636884. La idempotencia de compra está probada con proveedor simulado; falta validación visual manual en Windows.
 
 ### Prioridad P2 — Inspector de contexto y activación de Lorebook
 - [x] Mostrar fichas Lorebook seleccionadas y los disparadores concretos.
@@ -140,12 +141,12 @@ Esta sección distingue implementado de pendiente. No marcar como terminado nada
 **Criterio parcial alcanzado:** restauración de inventario, recursos y reloj, auditoría y orden de undo cubiertos por CI. Quedan escenarios de campaña larga y prueba manual de la interfaz.
 
 ### Prioridad P4 — Pruebas de integración reales y de larga duración
-- [x] CI Linux: 73 pruebas Python y comprobación sintáctica de JavaScript aprobadas el 29-10-2026 (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40908949397; no sustituye las pruebas manuales de Windows).
+- [x] CI Linux: 79 pruebas Python y comprobación sintáctica de JavaScript aprobadas el 29-10-2026 (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40932636884; no sustituye las pruebas manuales de Windows).
 - [ ] Ejecutar la instalación desde cero en Windows/Chromium.
 - [ ] Probar manualmente en Windows el flujo completo con el chat web normal de ChatGPT y con Gemini.
 - [ ] (Opcional para la modalidad API) Probar una llamada controlada a OpenAI API y otra a Gemini API; no almacenar claves en Git.
-- [ ] Ejecutar 50–100 turnos con escenas grupales/privadas, compras/consumos, viajes y Eco.
-- [ ] Reiniciar la aplicación, restaurar backup y verificar que el estado sea idéntico.
+- [ ] Ejecutar una campaña narrativa de 50–100 turnos con escenas grupales/privadas, compras/consumos, viajes y Eco mediante el flujo real de chat web.
+- [x] Comprobación automatizada: reinicializar SQLite tras 100 turnos breves, restaurar la copia tras una mutación y comparar exactamente estado, mensajes y tablas de sesión restaurables.
 - [ ] Medir uso del contexto y coste por turno para las APIs cuando el proveedor informe esos datos. En el chat web manual no se promete lectura automática de tokens/coste.
 
 **Criterio de salida:** la partida sobrevive a reinicios y no hay fugas de conocimiento ni efectos duplicados en el conjunto de pruebas.
@@ -172,6 +173,16 @@ Esta sección distingue implementado de pendiente. No marcar como terminado nada
 - [x] Rechazar una respuesta pegada si cambió el contexto desde que se preparó el prompt (huella SHA-256).
 - [x] Mantener el adaptador API separado y opcional.
 - [ ] Hacer la prueba manual en Windows con un chat real de ChatGPT y otro de Gemini.
-- [ ] Completar la campaña de 50–100 turnos y comprobar cierre, reinicio y restauración.
+- [x] Prueba de continuidad sintética de 100 turnos, reinicio, backup, mutación y restauración exacta.
+- [ ] Completar una campaña narrativa real de 50–100 turnos y comprobar cierre, reinicio y restauración.
 
-**Criterio para la primera entrega sin API:** el usuario puede usar su cuenta normal en el sitio web mediante copiar/pegar; el programa conserva y valida el estado localmente. No se requiere que las APIs estén configuradas ni se automatiza la lectura del chat web. CI de este modo aprobada (73 pruebas, incluida huella de contexto): https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40908949397.
+**Criterio para la primera entrega sin API:** el usuario puede usar su cuenta normal en el sitio web mediante copiar/pegar; el programa conserva y valida el estado localmente. No se requiere que las APIs estén configuradas ni se automatiza la lectura del chat web. CI aprobada con 79 pruebas Python y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40932636884. La prueba sintética de 100 turnos no sustituye la campaña narrativa real ni el ensayo manual en Windows.
+
+## Actualización — 29-10-2026, continuidad y restauración
+
+- PR #5 integrado en `docs/historias-organizadas`: https://github.com/eltiootaku2020-cmyk/wordbot/pull/5. Commit de integración: `90e8196331406f999ec42f1a4e5b2eb8f4282937`.
+- CI: 79 pruebas Python aprobadas y sintaxis JavaScript correcta: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40932636884.
+- Añadidos controles de JSON truncado/reintento, compra hipotética, cambios de relación contradictorios y restauración que falla por una restricción de datos. En el fallo de restauración, SQLite revierte la transacción y la API devuelve 422 sin alterar la partida.
+- La campaña automatizada de 100 turnos breves ahora compara estado, mensajes y todas las tablas de sesión restaurables antes y después de restaurar una copia tras una mutación posterior.
+- Sigue pendiente la prueba manual en Windows y la campaña narrativa de 50–100 turnos con ChatGPT/Gemini web real; la CI usa un proveedor simulado.
+
