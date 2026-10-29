@@ -1013,3 +1013,96 @@ def test_explicit_resource_expense_applies_only_when_balance_is_sufficient():
         assert "Saldo insuficiente" in change_b["reason"]
         assert any("Recurso:" in note for note in pending_b)
         assert not any("Recurso gastado:" in note for note in applied_b)
+
+
+
+def test_undo_latest_turn_restores_state_and_allows_safe_regeneration(monkeypatch):
+    with TestClient(app) as client:
+        started, entities = _create_state_ops_world(client)
+        session_id = started["session_id"]
+        protagonist_id = entities["Protagonista"]["id"]
+        provider_state = {"calls": 0}
+
+        class PurchaseProvider:
+            name = "mock"
+
+            async def generate(self, payload):
+                provider_state["calls"] += 1
+                return NarratorResponse(
+                    narration="Pagas dos monedas y recibes una manzana. Transcurren unos minutos.",
+                    elapsed_minutes=7,
+                    events=[
+                        EventProposal(
+                            ref="undo-purchase-apple",
+                            kind="object",
+                            entity_id=protagonist_id,
+                            description="El protagonista compra una manzana por dos monedas y la recibe.",
+                            witness_ids=list(payload["context"]["audience_ids"])
+                        )
+                    ],
+                    inventory_ops=[
+                        InventoryOperation(
+                            operation="acquire",
+                            item_name="Manzana",
+                            quantity=1,
+                            carrier_entity_id=protagonist_id,
+                            location="Claro del bosque",
+                            reason="Compra explícita por dos monedas.",
+                            event_ref="undo-purchase-apple",
+                            cost=2,
+                            currency_key="monedas"
+                        )
+                    ]
+                )
+
+        monkeypatch.setattr(main_module, "make_provider", lambda provider_name, settings: PurchaseProvider())
+        payload = {
+            "request_id": "undo-purchase-flow-001",
+            "text": "Compro una manzana por dos monedas",
+            "provider": "mock",
+            "visibility": "scene"
+        }
+        played = client.post(f"/api/sessions/{session_id}/turns", json=payload)
+        assert played.status_code == 200, played.text
+        turn_id = played.json()["turn_id"]
+        assert played.json()["state"]["state"]["time_label"].endswith("08:07")
+        assert provider_state["calls"] == 1
+
+        undone = client.post(f"/api/sessions/{session_id}/turns/{turn_id}/undo", json={})
+        assert undone.status_code == 200, undone.text
+        undo_data = undone.json()
+        assert undo_data["undone"] is True
+        assert undo_data["user_text"] == payload["text"]
+        assert undo_data["state"]["state"]["time_label"].endswith("08:00")
+        assert next(row for row in undo_data["state"]["resources"] if row["resource_key"] == "monedas")["quantity"] == 5
+        assert next(row for row in undo_data["state"]["inventory"] if row["display_name"] == "Manzana")["quantity"] == 2
+
+        with database.connection() as conn:
+            audit_events = conn.execute(
+                "SELECT status,description FROM events WHERE session_id=? AND turn_id=?",
+                (session_id, undo_data["audit_turn_id"])
+            ).fetchall()
+            audit_changes = conn.execute(
+                "SELECT status,reason FROM state_changes WHERE session_id=? AND turn_id=?",
+                (session_id, undo_data["audit_turn_id"])
+            ).fetchall()
+            messages = conn.execute(
+                "SELECT role,generation_status FROM messages WHERE session_id=? AND turn_id=?",
+                (session_id, turn_id)
+            ).fetchall()
+        assert audit_events and all(row["status"] == "rejected" for row in audit_events)
+        assert all("Turno anulado" in row["description"] for row in audit_events)
+        assert len(audit_changes) == 2 and all(row["status"] == "rejected" for row in audit_changes)
+        assert all(row["generation_status"] == "undone" for row in messages)
+        assert provider_state["calls"] == 1
+
+        # Reusing the same request id is safe because the previous effects/events
+        # were detached into an audit id and the pre-turn snapshot is still available.
+        regenerated = client.post(f"/api/sessions/{session_id}/turns", json=payload)
+        assert regenerated.status_code == 200, regenerated.text
+        assert regenerated.json()["replayed"] is False
+        assert regenerated.json()["turn_id"] == turn_id
+        assert provider_state["calls"] == 2
+        assert regenerated.json()["state"]["state"]["time_label"].endswith("08:07")
+        assert next(row for row in regenerated.json()["state"]["resources"] if row["resource_key"] == "monedas")["quantity"] == 3
+        assert next(row for row in regenerated.json()["state"]["inventory"] if row["display_name"] == "Manzana")["quantity"] == 3
