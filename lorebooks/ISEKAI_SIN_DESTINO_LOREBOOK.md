@@ -58,7 +58,7 @@ Presentar el mundo, la vulnerabilidad del protagonista y el grupo inicial de tre
 El protagonista despierta o aparece en un claro boscoso, vestido únicamente con camisa y pantalones largos. No tiene equipo ni provisiones. Tres aventureras adultas lo encuentran durante un viaje: Brina Solcor, espadachina de 26 años; Maelis Orven, maga de 24; y Sera Linde, arquera de 25.
 
 ### Reacción del grupo
-Cada integrante reacciona de forma distinta. La guerrera prioriza la seguridad; el lancero sospecha una posible emboscada; la maga siente curiosidad por el origen del recién llegado; la arquera vigila el perímetro; el encargado de provisiones se preocupa por los recursos del grupo. No son obligados a rescatarlo: la reacción depende de lo que diga y haga el jugador.
+Cada integrante reacciona de forma distinta. La espadachina prioriza la seguridad y mantiene una ruta de retirada; la maga siente curiosidad por el origen del recién llegado, pero no identifica automáticamente su poder; la arquera vigila el perímetro y examina las huellas. No están obligadas a rescatarlo: la reacción depende de lo que diga y haga el jugador.
 
 ### Lugares disponibles
 - Claro del bosque: primer diálogo y observación del entorno.
@@ -1165,7 +1165,7 @@ Un claro se abre entre los árboles. A unos veinte metros, tres viajeras han adv
 
 Una espadachina mantiene la mano cerca de la empuñadura; una maga observa con curiosidad; una arquera examina los árboles y las huellas.
 
-—Soy Brina —dice la guerrera, sin acercarse demasiado—. Este bosque no es un lugar seguro. ¿Puedes decirnos quién eres y qué ha pasado?
+—Soy Brina —dice la espadachina, sin acercarse demasiado—. Este bosque no es un lugar seguro. ¿Puedes decirnos quién eres y qué ha pasado?
 
 Una vibración grave recorre las raíces. Nadie sabe qué la causó. Brina espera una respuesta; los demás aún no han decidido si intervenir.
 
@@ -1177,7 +1177,7 @@ Una vibración grave recorre las raíces. Nadie sabe qué la causó. Brina esper
 
 <START>
 {{user}}: Examino el claro y las huellas durante un rato.
-{{char}}: 【DÍA 1 · MAÑANA · 08:15 | LUGAR: Bosque de las Bestias | PANORAMA: suelo húmedo, bruma deshaciéndose】 La inspección ha consumido unos doce minutos. Las huellas recientes se dirigen hacia el sendero norte; algunas son demasiado confusas para identificar a su dueño. {{char}} no decide si {{user}} sigue el rastro.
+{{char}}: 【DÍA 1 · MAÑANA I · 08:15 | LUGAR: Bosque de las Bestias | PANORAMA: suelo húmedo, bruma deshaciéndose】 La inspección ha consumido unos doce minutos. Las huellas recientes se dirigen hacia el sendero norte; algunas son demasiado confusas para identificar a su dueño. {{char}} no decide si {{user}} sigue el rastro.
 
 <START>
 {{user}}: Quiero llegar a Brumaclara y buscar trabajo en una posada.
