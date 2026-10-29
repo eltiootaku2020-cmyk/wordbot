@@ -3507,7 +3507,7 @@ def test_mixed_50_turn_continuity_campaign_with_retries_privacy_and_restore(monk
             async def generate(self, payload):
                 text = payload["user_message"]
                 audience = list(payload["context"]["audience_ids"])
-                match = re.search(r"CAMPAIGN (\\d+)", text)
+                match = re.search(r"CAMPAIGN (\d+)", text)
                 index = int(match.group(1)) if match else 0
                 if "Compro una manzana" in text:
                     ref = f"campaign-purchase-{index}"
