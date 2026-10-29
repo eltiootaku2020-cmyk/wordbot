@@ -685,6 +685,16 @@ def build_context(
             "SELECT axis,value,reason FROM relationships WHERE session_id=? AND from_entity_id=? AND to_entity_id=?",
             (session["id"], session["protagonist_entity_id"], recipient_id)
         ).fetchall()]
+    scene_relationships = []
+    if participant_ids:
+        participant_placeholders = ",".join("?" for _ in participant_ids)
+        scene_relationships = [dict(row) for row in conn.execute(
+            "SELECT from_entity_id,to_entity_id,axis,value,reason FROM relationships "
+            f"WHERE session_id=? AND from_entity_id IN ({participant_placeholders}) "
+            f"AND to_entity_id IN ({participant_placeholders}) "
+            "ORDER BY from_entity_id,to_entity_id,axis",
+            (session["id"], *sorted(participant_ids), *sorted(participant_ids))
+        ).fetchall()]
 
     include_global_inventory = bool(re.search(r"/estado|/guardar|\binventario\b", user_text, re.IGNORECASE))
     carrier_ids = sorted(participant_ids | {session["protagonist_entity_id"]})
@@ -1069,6 +1079,7 @@ def build_context(
         "participants": participants,
         "recipient": recipient or {},
         "relationship_to_recipient": relationship,
+        "relationships_in_scene": scene_relationships,
         "inventory": inventory,
         "resources": resource_balances,
         "human_eco_attempts_by_target": eco_uses,
@@ -2026,6 +2037,14 @@ def load_state(conn, session_id: str) -> dict[str, Any]:
         "WHERE session_id=? AND ability_key IN ('eco','eco_humano','hipnosis') GROUP BY target_entity_id",
         (session_id,)
     ).fetchall()]
+    continuity_records = [dict(row) for row in conn.execute(
+        "SELECT id,kind,entity_id,description,importance,witnesses_json,created_at "
+        "FROM events WHERE session_id=? AND status='recorded' AND continuity=1 "
+        "ORDER BY importance DESC,created_at DESC LIMIT 50",
+        (session_id,)
+    ).fetchall()]
+    for item in continuity_records:
+        item["witness_ids"] = json.loads(item.pop("witnesses_json") or "[]")
     return {
         "session": {"id": session["id"], "name": session["name"], "world_id": session["world_id"], "protagonist_entity_id": session["protagonist_entity_id"]},
         "state": {
@@ -2034,7 +2053,8 @@ def load_state(conn, session_id: str) -> dict[str, Any]:
             "location": session["current_location"]
         },
         "participants": participants, "inventory": inventory, "resources": resources,
-        "relationships": relationships, "eco_uses": eco, "pending_changes": pending,
+        "relationships": relationships, "relationships_in_scene": relationships,
+        "continuity_records": continuity_records, "eco_uses": eco, "pending_changes": pending,
         "pending_events": pending_events
     }
 
