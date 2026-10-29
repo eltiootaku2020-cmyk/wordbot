@@ -368,7 +368,7 @@ def apply_narrator_result(
             )
         event_map[ref] = {
             "id": event_id, "status": status, "kind": event.kind,
-            "entity_id": event.entity_id
+            "entity_id": event.entity_id, "description": event.description
         }
 
     applied = []
@@ -424,18 +424,17 @@ def apply_narrator_result(
     # Routine inventory changes can be applied only when backed by a recorded
     # object event. Paid acquisitions remain pending until currency is modeled.
     high_impact_item = re.compile(
-        r"\b(m[aá]gic[oa]|legendari[oa]|artefact[oa]|reliquia|maldit[oa]|"
-        r"[uú]nic[oa]|ancestral|relic|unique|cursed|legendary)\b",
+        r"\b(m[aá]gic\w*|legendari\w*|artefact\w*|reliqui\w*|maldit\w*|"
+        r"[uú]nic\w*|ancestral\w*|relic|unique|cursed|legendary)\b",
         re.IGNORECASE
     )
     free_acquisition = re.compile(
-        r"\b(encontr[oó]|hall[oó]|recogi[oó]|recoge|recoger|levant[oó]|"
-        r"regal[oó]|regalo|gratis|te entreg[oó]|te dio|te da|recib[ií] gratis)\b",
+        r"\b(encontr\w*|hall\w*|recog\w*|levant\w*|regal\w*|gratis|"
+        r"te entreg\w*|te dio|te da|recib\w* gratis)\b",
         re.IGNORECASE
     )
     paid_acquisition = re.compile(
-        r"\b(compr[oó]|comprar|compra|pag[oó]|pagar|precio|cost[oó]|"
-        r"monedas? por|oro por|vende por)\b",
+        r"\b(compr\w*|pag\w*|precio|cost\w*|monedas? por|oro por|vende por)\b",
         re.IGNORECASE
     )
 
