@@ -194,7 +194,7 @@ def write_event(conn, session_id: str, turn_id: str, source_message_id: str,
         status = "pending"
     if any(witness and witness not in valid_ids for witness in event.witness_ids):
         status = "pending"
-    witnesses = [w for w in event.witness_ids if w in valid_ids]
+    witnesses = [w for w in event.witness_ids if w]
     conn.execute(
         "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,witnesses_json,status,source_message_id) "
         "VALUES(?,?,?,?,?,?,?,?,?,?)",
