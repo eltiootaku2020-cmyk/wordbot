@@ -94,14 +94,30 @@ def world_entity_ids(conn, world_id: str) -> set[str]:
     }
 
 
-def build_context(conn, session, user_text: str, recipient_id: str, current_turn_id: str) -> dict[str, Any]:
+def build_context(
+    conn,
+    session,
+    user_text: str,
+    recipient_id: str,
+    current_turn_id: str,
+    visibility: str = "scene",
+    audience_ids: list[str] | None = None,
+) -> dict[str, Any]:
     participant_rows = conn.execute(
         "SELECT e.id,e.name,e.kind,e.profile,p.location,p.presence_status "
         "FROM session_presence p JOIN entities e ON e.id=p.entity_id "
         "WHERE p.session_id=? AND p.presence_status='present' ORDER BY e.name",
         (session["id"],)
     ).fetchall()
-    participants = [dict(row) for row in participant_rows]
+    scene_participants = [dict(row) for row in participant_rows]
+    scene_ids = {item["id"] for item in scene_participants}
+    allowed_audience = set(audience_ids or scene_ids)
+
+    participants = scene_participants
+    if visibility == "private":
+        private_ids = {session["protagonist_entity_id"], recipient_id}
+        participants = [item for item in scene_participants if item["id"] in private_ids]
+
     participant_ids = {item["id"] for item in participants}
     recipient = None
     if recipient_id:
@@ -114,6 +130,7 @@ def build_context(conn, session, user_text: str, recipient_id: str, current_turn
         recipient = dict(row)
         if recipient_id not in participant_ids:
             participants.append(recipient)
+            participant_ids.add(recipient_id)
 
     relationship = []
     if recipient_id:
@@ -127,12 +144,48 @@ def build_context(conn, session, user_text: str, recipient_id: str, current_turn
         "FROM inventory_items WHERE session_id=? AND quantity>0",
         (session["id"],)
     ).fetchall()]
-    recent = [dict(row) for row in conn.execute(
-        "SELECT role,recipient_entity_id,content FROM messages "
-        "WHERE session_id=? AND turn_id<>? AND generation_status='complete' "
-        "ORDER BY turn_index DESC, created_at DESC LIMIT 10",
+
+    # Retrieve a larger candidate set, then keep the ten most recent messages
+    # that this character could actually have seen or been told.
+    message_rows = conn.execute(
+        "SELECT role,recipient_entity_id,content,metadata_json,turn_id,turn_index "
+        "FROM messages WHERE session_id=? AND turn_id<>? AND generation_status='complete' "
+        "ORDER BY turn_index DESC, created_at DESC LIMIT 100",
         (session["id"], current_turn_id)
-    ).fetchall()]
+    ).fetchall()
+    recent = []
+    for row in message_rows:
+        metadata = json.loads(row["metadata_json"] or "{}")
+        message_visibility = metadata.get("visibility")
+        message_audience = set(metadata.get("audience_ids") or [])
+
+        if message_visibility == "private":
+            # Older private messages without audience_ids are visible only to
+            # their explicitly selected recipient.
+            if not message_audience and row["recipient_entity_id"]:
+                message_audience = {row["recipient_entity_id"]}
+            if not recipient_id or recipient_id not in message_audience:
+                continue
+        elif message_audience:
+            if recipient_id:
+                if recipient_id not in message_audience:
+                    continue
+            elif not (message_audience & scene_ids):
+                continue
+        elif not message_visibility and row["recipient_entity_id"]:
+            # Backward compatibility: legacy targeted turns had no audience
+            # metadata, so do not expose them to a different NPC.
+            if not recipient_id or row["recipient_entity_id"] != recipient_id:
+                continue
+
+        recent.append({
+            "role": row["role"],
+            "recipient_entity_id": row["recipient_entity_id"],
+            "content": row["content"],
+            "visibility": message_visibility or "legacy"
+        })
+        if len(recent) >= 10:
+            break
     recent.reverse()
 
     trigger_text = (
@@ -155,11 +208,53 @@ def build_context(conn, session, user_text: str, recipient_id: str, current_turn
         if len(lore) >= 12:
             break
 
-    recent_events = [dict(row) for row in conn.execute(
-        "SELECT kind,entity_id,description,status FROM events WHERE session_id=? "
-        "ORDER BY created_at DESC LIMIT 10", (session["id"],)
-    ).fetchall()]
+    # Events are available only if the acting NPC witnessed them or the source
+    # conversation was visible to them. Pending/rejected proposals are not facts.
+    event_rows = conn.execute(
+        "SELECT e.kind,e.entity_id,e.description,e.status,e.witnesses_json,"
+        "m.recipient_entity_id AS source_recipient_id,m.metadata_json AS source_metadata_json "
+        "FROM events e LEFT JOIN messages m ON m.id=e.source_message_id "
+        "WHERE e.session_id=? AND e.status='recorded' "
+        "ORDER BY e.created_at DESC LIMIT 100",
+        (session["id"],)
+    ).fetchall()
+    recent_events = []
+    for row in event_rows:
+        witnesses = set(json.loads(row["witnesses_json"] or "[]"))
+        source_metadata = json.loads(row["source_metadata_json"] or "{}")
+        source_visibility = source_metadata.get("visibility")
+        source_audience = set(source_metadata.get("audience_ids") or [])
+
+        if source_visibility == "private":
+            if not source_audience and row["source_recipient_id"]:
+                source_audience = {row["source_recipient_id"]}
+            if not recipient_id or recipient_id not in source_audience:
+                continue
+        elif source_audience:
+            if recipient_id:
+                if recipient_id not in source_audience:
+                    continue
+            elif not (source_audience & scene_ids):
+                continue
+        elif not source_visibility and row["source_recipient_id"]:
+            if not recipient_id or row["source_recipient_id"] != recipient_id:
+                continue
+
+        if witnesses:
+            if recipient_id and recipient_id not in witnesses:
+                continue
+            if not recipient_id and not (witnesses & scene_ids):
+                continue
+
+        recent_events.append({
+            "kind": row["kind"], "entity_id": row["entity_id"],
+            "description": row["description"], "status": row["status"],
+            "witness_ids": sorted(witnesses)
+        })
+        if len(recent_events) >= 10:
+            break
     recent_events.reverse()
+
     eco_uses = [dict(row) for row in conn.execute(
         "SELECT target_entity_id,COUNT(*) AS attempts FROM ability_uses "
         "WHERE session_id=? AND ability_key IN ('eco','eco_humano','hipnosis') "
@@ -168,11 +263,18 @@ def build_context(conn, session, user_text: str, recipient_id: str, current_turn
 
     day, minute = int(session["day"]), int(session["minute_of_day"])
     return {
-        "world": {"name": session["world_name"], "canon_core": ((session["canon_text"] or "").strip()[:6000] + ("\n[Canon largo recortado; recuperar fichas específicas desde Lorebook.]" if len((session["canon_text"] or "").strip()) > 6000 else ""))},
+        "world": {
+            "name": session["world_name"],
+            "canon_core": ((session["canon_text"] or "").strip()[:6000] +
+                           ("\\n[Canon largo recortado; recuperar fichas específicas desde Lorebook.]"
+                            if len((session["canon_text"] or "").strip()) > 6000 else ""))
+        },
         "state": {
             "day": day, "minute_of_day": minute, "time_label": time_label(day, minute),
             "location": session["current_location"]
         },
+        "visibility": visibility,
+        "audience_ids": sorted(allowed_audience),
         "participants": participants,
         "recipient": recipient or {},
         "relationship_to_recipient": relationship,
@@ -184,17 +286,36 @@ def build_context(conn, session, user_text: str, recipient_id: str, current_turn
     }
 
 
-def write_event(conn, session_id: str, turn_id: str, source_message_id: str,
-                event, valid_ids: set[str]) -> tuple[str, str, str]:
+def write_event(
+    conn,
+    session_id: str,
+    turn_id: str,
+    source_message_id: str,
+    event,
+    valid_ids: set[str],
+    allowed_witnesses: set[str] | None = None,
+    private_subject_ids: set[str] | None = None,
+) -> tuple[str, str, str]:
     event_id = new_id()
     status = "recorded"
+    proposed_witnesses = [w for w in event.witness_ids if w]
     if event.kind == "major_change":
         status = "pending"
     if event.entity_id and event.entity_id not in valid_ids:
         status = "pending"
-    if any(witness and witness not in valid_ids for witness in event.witness_ids):
+    if any(witness not in valid_ids for witness in proposed_witnesses):
         status = "pending"
-    witnesses = [w for w in event.witness_ids if w]
+    if allowed_witnesses is not None and any(witness not in allowed_witnesses for witness in proposed_witnesses):
+        status = "pending"
+    if private_subject_ids is not None and event.entity_id and event.entity_id not in private_subject_ids:
+        status = "pending"
+
+    # Never store out-of-scope characters as witnesses, even if the model
+    # accidentally proposes them in a private turn.
+    witnesses = [
+        witness for witness in proposed_witnesses
+        if witness in valid_ids and (allowed_witnesses is None or witness in allowed_witnesses)
+    ]
     conn.execute(
         "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,witnesses_json,status,source_message_id) "
         "VALUES(?,?,?,?,?,?,?,?,?,?)",
@@ -219,9 +340,16 @@ def save_change(conn, session_id, turn_id, ref, entity_id, field, operation,
     )
 
 
-def apply_narrator_result(conn, session, turn_id: str, source_message_id: str,
-                          user_text: str, result: NarratorResponse, authorized_skip):
+def apply_narrator_result(
+    conn, session, turn_id: str, source_message_id: str, user_text: str,
+    result: NarratorResponse, authorized_skip, visibility: str = "scene",
+    audience_ids: list[str] | None = None, recipient_id: str = "",
+):
     valid_ids = world_entity_ids(conn, session["world_id"])
+    allowed_witnesses = set(audience_ids or [])
+    private_subject_ids = (
+        {session["protagonist_entity_id"], recipient_id} if visibility == "private" else None
+    )
     event_map: dict[str, dict[str, Any]] = {}
     pending_notes = list(result.pending)
     seen_refs: set[str] = set()
@@ -231,8 +359,13 @@ def apply_narrator_result(conn, session, turn_id: str, source_message_id: str,
             continue
         seen_refs.add(event.ref)
         ref, event_id, status = write_event(
-            conn, session["id"], turn_id, source_message_id, event, valid_ids
+            conn, session["id"], turn_id, source_message_id, event, valid_ids,
+            allowed_witnesses=allowed_witnesses, private_subject_ids=private_subject_ids
         )
+        if status == "pending":
+            pending_notes.append(
+                f"Evento {event.ref} requiere revisión: entidad o testigo fuera del alcance autorizado."
+            )
         event_map[ref] = {"id": event_id, "status": status, "kind": event.kind}
 
     applied = []
@@ -832,7 +965,7 @@ def get_messages(session_id: str):
         if conn.execute("SELECT 1 FROM sessions WHERE id=?", (session_id,)).fetchone() is None:
             raise HTTPException(status_code=404, detail="Partida no encontrada.")
         return [dict(row) for row in conn.execute(
-            "SELECT id,turn_id,turn_index,role,recipient_entity_id,content,provider,generation_status,created_at "
+            "SELECT id,turn_id,turn_index,role,recipient_entity_id,content,provider,generation_status,metadata_json,created_at "
             "FROM messages WHERE session_id=? ORDER BY turn_index ASC, CASE role WHEN 'user' THEN 0 ELSE 1 END ASC, created_at ASC", (session_id,)
         ).fetchall()]
 
@@ -843,6 +976,8 @@ async def submit_turn(session_id: str, payload: TurnRequest):
     client_request_id = payload.request_id.strip()
     if len(client_request_id) < 8:
         raise HTTPException(status_code=422, detail="request_id debe tener al menos 8 caracteres y mantenerse igual al reintentar.")
+    if payload.visibility == "private" and not payload.recipient_id:
+        raise HTTPException(status_code=422, detail="Un turno privado requiere seleccionar un destinatario.")
     turn_id = new_id()
     user_message_id = new_id()
     with database.transaction() as conn:
@@ -855,15 +990,32 @@ async def submit_turn(session_id: str, payload: TurnRequest):
         ).fetchone() is None:
             raise HTTPException(status_code=422, detail="El destinatario no pertenece a este mundo.")
 
+        current_scene_ids = {
+            row["entity_id"] for row in conn.execute(
+                "SELECT entity_id FROM session_presence WHERE session_id=? AND presence_status='present'",
+                (session_id,)
+            ).fetchall()
+        }
+        if payload.visibility == "private":
+            audience_ids = sorted({session["protagonist_entity_id"], payload.recipient_id})
+        else:
+            audience_ids = sorted(current_scene_ids)
+
         existing_user = conn.execute(
             "SELECT * FROM messages WHERE session_id=? AND client_request_id=? AND role='user'",
             (session_id, client_request_id)
         ).fetchone()
         if existing_user:
+            old_metadata = json.loads(existing_user["metadata_json"] or "{}")
+            old_visibility = old_metadata.get("visibility", "scene")
             if (existing_user["content"] != payload.text
                     or existing_user["recipient_entity_id"] != payload.recipient_id
-                    or existing_user["provider"] != payload.provider):
-                raise HTTPException(status_code=409, detail="request_id ya usado con otro contenido, destinatario o proveedor.")
+                    or existing_user["provider"] != payload.provider
+                    or old_visibility != payload.visibility):
+                raise HTTPException(status_code=409, detail="request_id ya usado con otro contenido, destinatario, proveedor o alcance.")
+            saved_audience = old_metadata.get("audience_ids")
+            if isinstance(saved_audience, list) and saved_audience:
+                audience_ids = [str(item) for item in saved_audience]
             existing_assistant = conn.execute(
                 "SELECT content,generation_status FROM messages WHERE session_id=? AND turn_id=? AND role='assistant'",
                 (session_id, existing_user["turn_id"])
@@ -898,13 +1050,17 @@ async def submit_turn(session_id: str, payload: TurnRequest):
                 (session_id,)
             ).fetchone()["n"])
             conn.execute(
-                "INSERT INTO messages(id,session_id,turn_id,client_request_id,turn_index,role,recipient_entity_id,content,provider,generation_status) "
-                "VALUES(?,?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO messages(id,session_id,turn_id,client_request_id,turn_index,role,recipient_entity_id,content,provider,generation_status,metadata_json) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                 (user_message_id, session_id, turn_id, client_request_id, turn_index, "user",
-                 payload.recipient_id, payload.text, payload.provider, "processing")
+                 payload.recipient_id, payload.text, payload.provider, "processing",
+                 json.dumps({"visibility": payload.visibility, "audience_ids": audience_ids}, ensure_ascii=False))
             )
         session = session_row(conn, session_id)
-        context = build_context(conn, session, payload.text, payload.recipient_id, turn_id)
+        context = build_context(
+            conn, session, payload.text, payload.recipient_id, turn_id,
+            visibility=payload.visibility, audience_ids=audience_ids
+        )
 
     provider_name = payload.provider or settings.default_provider
     try:
@@ -938,14 +1094,19 @@ async def submit_turn(session_id: str, payload: TurnRequest):
             "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
             (assistant_message_id, session_id, turn_id, client_request_id, turn_index, "assistant",
              payload.recipient_id, result.narration, provider_name, "complete",
-             json.dumps({"pending": result.pending}, ensure_ascii=False))
+             json.dumps({
+                 "pending": result.pending,
+                 "visibility": payload.visibility,
+                 "audience_ids": audience_ids
+             }, ensure_ascii=False))
         )
         conn.execute(
             "UPDATE messages SET generation_status='complete' WHERE id=?",
             (user_message_id,)
         )
         applied, pending = apply_narrator_result(
-            conn, session, turn_id, user_message_id, payload.text, result, authorized_skip
+            conn, session, turn_id, user_message_id, payload.text, result, authorized_skip,
+            visibility=payload.visibility, audience_ids=audience_ids, recipient_id=payload.recipient_id
         )
     with database.connection() as conn:
         state = load_state(conn, session_id)
