@@ -1,6 +1,6 @@
 # Gestor local de canon — prototipo v0.1
 
-**Estado de validación:** CI aprobó 28 pruebas Python y comprobación sintáctica JavaScript el 29-10-2026: [ver resultados](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40873768030). Sigue pendiente probar manualmente Windows y realizar llamadas reales a los proveedores.
+**Estado de validación:** CI aprobó 32 pruebas Python y comprobación sintáctica JavaScript el 29-10-2026: [ver resultados](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40877808136). Sigue pendiente probar manualmente Windows y realizar llamadas reales a los proveedores.
 
 Esta carpeta contiene un primer prototipo ejecutable del flujo local: interfaz de chat en Chromium, base SQLite y narrador simulado por defecto. El proveedor simulado permite probar la persistencia sin clave ni coste. OpenAI y Gemini son opciones externas configurables.
 
@@ -63,10 +63,10 @@ No expongas el servidor a Internet: el prototipo está pensado para ejecutarse s
 
 ## Qué valida la CI actual
 
-La ejecución con 28 pruebas cubre el preset real, privacidad del contexto por destinatario, inspector Lorebook y presupuesto de caracteres, consumo y estado de objetos, movimientos de PNJ, compra con saldo suficiente, rechazo de compra por saldo insuficiente e ingreso de recompensa. La CI usa el proveedor simulado; no mide coste real ni valida API/Windows.
+La ejecución con 32 pruebas cubre el preset real, privacidad del contexto por destinatario, inspector Lorebook y presupuesto de caracteres, consumo y estado de objetos, movimientos de PNJ, compra con saldo suficiente, rechazo de compra por saldo insuficiente e ingreso de recompensa. La CI usa el proveedor simulado; no mide coste real ni valida API/Windows.
 
 Limitaciones conocidas:
 - Las compras se cobran dentro de `InventoryOperation acquire`; no debe emitirse además un `ResourceOperation spend` duplicado para ese evento.
 - La idempotencia de compra tiene prueba API: un reintento del mismo request_id no vuelve a invocar al proveedor simulado ni duplica la compra. Falta ensayar la pérdida de respuesta a nivel de red y proveedores reales.
-- El inspector muestra los disparadores de Lorebook; falta explicar la inclusión/exclusión de cada mensaje/evento y ofrecer presupuesto configurable/tokens reales.
-- El botón «Deshacer último turno» restaura reloj, ubicación, presencia, inventario, recursos, relaciones y usos de poderes desde el snapshot preturno; marca las versiones anuladas para auditoría. La CI comprueba compra/monedas/reloj, regeneración y rechazo de undo fuera de orden. Faltan pruebas más amplias de relaciones/poderes y ensayo manual de Windows.
+- El inspector explica disparadores Lorebook y motivos de inclusión/exclusión de mensajes/eventos. El presupuesto es configurable desde la UI y queda guardado en SQLite; falta conteo exacto de tokens por proveedor.
+- El botón «Deshacer último turno» restaura reloj, ubicación, presencia, inventario, recursos, relaciones y usos de poderes desde el snapshot preturno; marca las versiones anuladas para auditoría. CI comprueba compra/monedas/reloj, una relación, un uso de Eco, regeneración y rechazo de undo fuera de orden. Falta ensayo manual de Windows y campaña larga.
