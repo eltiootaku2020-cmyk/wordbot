@@ -366,7 +366,10 @@ def apply_narrator_result(
             pending_notes.append(
                 f"Evento {event.ref} requiere revisión: entidad o testigo fuera del alcance autorizado."
             )
-        event_map[ref] = {"id": event_id, "status": status, "kind": event.kind}
+        event_map[ref] = {
+            "id": event_id, "status": status, "kind": event.kind,
+            "entity_id": event.entity_id
+        }
 
     applied = []
     for change in result.state_changes:
@@ -418,29 +421,210 @@ def apply_narrator_result(
             source["id"] if source else None
         )
 
+    # Routine inventory changes can be applied only when backed by a recorded
+    # object event. Paid acquisitions remain pending until currency is modeled.
+    high_impact_item = re.compile(
+        r"\b(m[aá]gic[oa]|legendari[oa]|artefact[oa]|reliquia|maldit[oa]|"
+        r"[uú]nic[oa]|ancestral|relic|unique|cursed|legendary)\b",
+        re.IGNORECASE
+    )
+    free_acquisition = re.compile(
+        r"\b(encontr[oó]|hall[oó]|recogi[oó]|recoge|recoger|levant[oó]|"
+        r"regal[oó]|regalo|gratis|te entreg[oó]|te dio|te da|recib[ií] gratis)\b",
+        re.IGNORECASE
+    )
+    paid_acquisition = re.compile(
+        r"\b(compr[oó]|comprar|compra|pag[oó]|pagar|precio|cost[oó]|"
+        r"monedas? por|oro por|vende por)\b",
+        re.IGNORECASE
+    )
+
     for op_index, operation in enumerate(result.inventory_ops):
         source = event_map.get(operation.event_ref)
-        reason = "La operación de inventario requiere aprobación en esta versión."
+        status = "pending"
+        old_value = None
+        accepted_value = None
+        reason = "La operación de inventario no superó la validación de bajo riesgo."
+        item_name = operation.item_name.strip()
+        item_key = item_name.casefold()
+        item = None
+
         if not source:
             reason = "No existe el evento que justifica la operación."
         elif source["status"] != "recorded":
             reason = "El evento de origen está pendiente."
+        elif source["kind"] != "object":
+            reason = "La operación requiere un evento fuente de tipo object."
+        elif not item_name:
+            reason = "Falta el nombre del objeto."
+        elif operation.carrier_entity_id and operation.carrier_entity_id not in valid_ids:
+            reason = "El portador propuesto no pertenece a este mundo."
+        elif high_impact_item.search(item_name):
+            reason = "El objeto parece único, mágico o de alto impacto; requiere aprobación."
+        else:
+            item = conn.execute(
+                "SELECT * FROM inventory_items WHERE session_id=? AND item_key=?",
+                (session["id"], item_key)
+            ).fetchone()
+
+            if operation.operation == "acquire":
+                source_text = f"{user_text} {source.get('description', '')} {operation.reason}"
+                if paid_acquisition.search(source_text):
+                    reason = "La adquisición parece tener un coste, pero esta versión aún no tiene contabilidad de moneda; queda pendiente."
+                elif not free_acquisition.search(source_text):
+                    reason = "No se confirmó que el objeto fuera un hallazgo o regalo gratuito; queda pendiente."
+                else:
+                    carrier = operation.carrier_entity_id or session["protagonist_entity_id"]
+                    location = operation.location.strip() or session["current_location"]
+                    old_value = (
+                        {"quantity": int(item["quantity"]), "condition": item["condition"],
+                         "carrier_entity_id": item["carrier_entity_id"], "location": item["location"]}
+                        if item else None
+                    )
+                    if item:
+                        conn.execute(
+                            "UPDATE inventory_items SET quantity=quantity+?,condition=?,carrier_entity_id=?,"
+                            "location=?,last_event_id=? WHERE id=?",
+                            (operation.quantity, operation.condition or item["condition"], carrier,
+                             location, source["id"], item["id"])
+                        )
+                    else:
+                        conn.execute(
+                            "INSERT INTO inventory_items(id,session_id,item_key,display_name,quantity,condition,"
+                            "carrier_entity_id,location,last_event_id) VALUES(?,?,?,?,?,?,?,?,?)",
+                            (new_id(), session["id"], item_key, item_name, operation.quantity,
+                             operation.condition or "normal", carrier, location, source["id"])
+                        )
+                    status = "accepted"
+                    accepted_value = {
+                        "operation": operation.operation, "item_name": item_name,
+                        "quantity": operation.quantity, "carrier_entity_id": carrier, "location": location
+                    }
+                    applied.append(f"Hallazgo/regalo confirmado: {item_name} ×{operation.quantity} añadido al estado.")
+            elif operation.operation == "consume":
+                if not item or int(item["quantity"]) < operation.quantity:
+                    reason = "No existe cantidad suficiente del objeto en el inventario."
+                else:
+                    old_value = {
+                        "quantity": int(item["quantity"]), "condition": item["condition"],
+                        "carrier_entity_id": item["carrier_entity_id"], "location": item["location"]
+                    }
+                    new_quantity = int(item["quantity"]) - operation.quantity
+                    conn.execute(
+                        "UPDATE inventory_items SET quantity=?,last_event_id=? WHERE id=?",
+                        (new_quantity, source["id"], item["id"])
+                    )
+                    status = "accepted"
+                    accepted_value = {"operation": "consume", "item_name": item_name,
+                                      "quantity": operation.quantity, "quantity_after": new_quantity}
+                    applied.append(f"Consumido: {item_name} ×{operation.quantity}; quedan {new_quantity}.")
+            elif operation.operation == "condition":
+                if not item:
+                    reason = "El objeto no existe en el inventario."
+                elif not operation.condition.strip():
+                    reason = "Falta el estado final del objeto."
+                else:
+                    old_value = {
+                        "quantity": int(item["quantity"]), "condition": item["condition"],
+                        "carrier_entity_id": item["carrier_entity_id"], "location": item["location"]
+                    }
+                    conn.execute(
+                        "UPDATE inventory_items SET condition=?,last_event_id=? WHERE id=?",
+                        (operation.condition.strip(), source["id"], item["id"])
+                    )
+                    status = "accepted"
+                    accepted_value = {"operation": "condition", "item_name": item_name,
+                                      "condition": operation.condition.strip()}
+                    applied.append(f"Estado del objeto actualizado: {item_name} → {operation.condition.strip()}.")
+            elif operation.operation in {"drop", "transfer"}:
+                if not item:
+                    reason = "El objeto no existe en el inventario."
+                elif int(item["quantity"]) != operation.quantity:
+                    reason = "Esta versión solo automatiza soltar/transferir una pila completa; dividir pilas queda pendiente."
+                elif operation.operation == "transfer" and not operation.carrier_entity_id:
+                    reason = "La transferencia requiere un portador destinatario."
+                else:
+                    carrier = "" if operation.operation == "drop" else operation.carrier_entity_id
+                    location = operation.location.strip() or session["current_location"]
+                    old_value = {
+                        "quantity": int(item["quantity"]), "condition": item["condition"],
+                        "carrier_entity_id": item["carrier_entity_id"], "location": item["location"]
+                    }
+                    conn.execute(
+                        "UPDATE inventory_items SET carrier_entity_id=?,location=?,last_event_id=? WHERE id=?",
+                        (carrier, location, source["id"], item["id"])
+                    )
+                    status = "accepted"
+                    accepted_value = {
+                        "operation": operation.operation, "item_name": item_name,
+                        "quantity": operation.quantity, "carrier_entity_id": carrier, "location": location
+                    }
+                    if operation.operation == "drop":
+                        applied.append(f"Objeto actualizado: {item_name} dejado en {location}.")
+                    else:
+                        applied.append(f"Objeto actualizado: {item_name} transferido a {carrier}.")
+            else:
+                reason = "Operación de inventario desconocida."
+
+        if status == "pending":
+            pending_notes.append(f"Inventario: {operation.operation} {item_name} — {reason}")
         save_change(
             conn, session["id"], turn_id, f"inventory-{op_index}-{new_id()[:8]}",
-            operation.carrier_entity_id, "inventory", operation.operation, None,
-            operation.model_dump(), None, "pending", reason, source["id"] if source else None
+            operation.carrier_entity_id, "inventory", operation.operation, old_value,
+            operation.model_dump(), accepted_value, status, reason,
+            source["id"] if source else None
         )
-        pending_notes.append(f"Inventario: {operation.operation} {operation.item_name} — {reason}")
 
     for move_index, movement in enumerate(result.movements):
         source = event_map.get(movement.event_ref)
-        reason = "El movimiento requiere revisión en esta versión."
+        status = "pending"
+        old_value = None
+        accepted_value = None
+        reason = "El movimiento requiere revisión."
+        destination = movement.destination.strip()
+        if not source:
+            reason = "No existe el evento que justifica el movimiento."
+        elif source["status"] != "recorded":
+            reason = "El evento de origen está pendiente."
+        elif source["kind"] != "location":
+            reason = "El movimiento requiere un evento fuente de tipo location."
+        elif source.get("entity_id") != movement.entity_id:
+            reason = "La entidad del evento fuente no coincide con la entidad que se mueve."
+        elif movement.entity_id not in valid_ids:
+            reason = "La entidad que se mueve no existe en este mundo."
+        elif movement.entity_id == session["protagonist_entity_id"]:
+            reason = "El programa nunca mueve al protagonista sin una acción explícita del usuario."
+        elif not destination or len(destination) > 200:
+            reason = "El destino está vacío o es demasiado largo."
+        elif not movement.reason.strip():
+            reason = "Falta la causa narrativa del movimiento."
+        else:
+            presence = conn.execute(
+                "SELECT location,presence_status FROM session_presence WHERE session_id=? AND entity_id=?",
+                (session["id"], movement.entity_id)
+            ).fetchone()
+            if not presence:
+                reason = "La entidad no tiene estado de presencia en esta partida."
+            else:
+                old_value = {"location": presence["location"], "presence_status": presence["presence_status"]}
+                presence_status = "present" if destination.casefold() == session["current_location"].casefold() else "away"
+                conn.execute(
+                    "UPDATE session_presence SET location=?,presence_status=?,updated_at=CURRENT_TIMESTAMP "
+                    "WHERE session_id=? AND entity_id=?",
+                    (destination, presence_status, session["id"], movement.entity_id)
+                )
+                status = "accepted"
+                accepted_value = {"destination": destination, "presence_status": presence_status}
+                applied.append(
+                    f"Movimiento de PNJ guardado: {movement.entity_id} → {destination} ({presence_status})."
+                )
+        if status == "pending":
+            pending_notes.append(f"Movimiento de {movement.entity_id}: {reason}")
         save_change(
             conn, session["id"], turn_id, f"movement-{move_index}-{new_id()[:8]}",
-            movement.entity_id, "movement", "move", None, movement.model_dump(), None,
-            "pending", reason, source["id"] if source else None
+            movement.entity_id, "movement", "move", old_value, movement.model_dump(),
+            accepted_value, status, reason, source["id"] if source else None
         )
-        pending_notes.append(f"Movimiento hacia {movement.destination}: pendiente de aprobación.")
 
     explicit_power = bool(re.search(r"/psiquico|/hechizo|uso\s+eco|usar\s+eco|intento\s+usar\s+eco", user_text, re.IGNORECASE))
     for use_index, power in enumerate(result.power_uses):
