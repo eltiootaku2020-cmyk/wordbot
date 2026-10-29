@@ -67,6 +67,9 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}label{font-size:13px;
         <label class="wide">Inventario inicial, uno por línea
           <textarea id="newWorldItems" rows="3" placeholder="Pañuelo gastado | 1 | gastado&#10;Cordel de cáñamo | 1 | usado"></textarea>
         </label>
+        <label class="wide">Recursos iniciales, uno por línea
+          <textarea id="newWorldResources" rows="2" placeholder="Monedas | 0 | monedas&#10;Ánima | 10 | unidades"></textarea>
+        </label>
         <div class="wide"><button type="submit" class="primary">Crear mundo y partida</button></div>
       </form>
       <p class="muted">Personajes: Nombre | character/npc/creature | descripción. Objetos: Nombre | cantidad | condición. El protagonista y el reparto se crean en una sola operación; si falla, no se crea un mundo a medias.</p>
@@ -210,6 +213,10 @@ function renderState(payload) {
     return item.display_name + " ×" + item.quantity + " (" + item.condition + "; " + holder + ")";
   }).join(", ") : "ninguno registrado";
   el("state").appendChild(makeCard("Objetos rastreados: " + trackedObjects));
+  const trackedResources = (payload.resources || []).map(resource =>
+    resource.display_name + ": " + resource.quantity + (resource.unit ? " " + resource.unit : "")
+  ).join("; ");
+  el("state").appendChild(makeCard("Recursos: " + (trackedResources || "ninguno registrado")));
   const rels = payload.relationships.filter(r => r.value !== null);
   el("state").appendChild(makeCard("Relaciones registradas: " + (rels.length ? rels.map(r => (entityNames[r.to_entity_id] || r.to_entity_id) + " · " + r.axis + " " + r.value).join("; ") : "sin puntuaciones iniciales")));
   const eco = payload.eco_uses || [];
@@ -322,6 +329,13 @@ el("createWorldForm").onsubmit = async event => {
       if (!name || !Number.isInteger(quantity) || quantity < 1) throw new Error("Cada objeto necesita un nombre y una cantidad entera positiva.");
       return {name:name, quantity:quantity, condition:parts.slice(2).join(" | ") || "normal"};
     });
+    const initial_resources = el("newWorldResources").value.split(/\r?\n/).map(line => line.trim()).filter(Boolean).map(line => {
+      const parts = line.split("|").map(part => part.trim());
+      const name = parts[0] || "";
+      const quantity = parts[1] === undefined || parts[1] === "" ? 0 : Number(parts[1]);
+      if (!name || !Number.isInteger(quantity) || quantity < 0) throw new Error("Cada recurso necesita nombre y cantidad entera no negativa.");
+      return {name:name, key:name.toLowerCase(), quantity:quantity, unit:parts.slice(2).join(" | ")};
+    });
     setStatus("Creando mundo y partida…", false);
     const result = await api("/api/worlds/start", {
       method:"POST",
@@ -334,7 +348,8 @@ el("createWorldForm").onsubmit = async event => {
         day:1,
         minute_of_day:480,
         cast:cast,
-        initial_inventory:initial_inventory
+        initial_inventory:initial_inventory,
+        initial_resources:initial_resources
       })
     });
     currentWorld = result.world_id;
