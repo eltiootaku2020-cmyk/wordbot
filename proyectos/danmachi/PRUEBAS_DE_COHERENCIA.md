@@ -1,68 +1,45 @@
-# DanMachi — pruebas de coherencia antes de publicar
+# DanMachi — pruebas de coherencia v0.2
 
-Ejecutar estas pruebas manualmente en SpicyChat. No marcar ninguna como aprobada antes de probarla en el bot real.
+Realizar las pruebas en SpicyChat. No marcar ninguna como aprobada antes de probarla en el bot real.
 
-## Prueba 1 — La hora no se reinicia
+## Cronología y canon
+1. La ciudad transmite la Edad Oscura sin convertir cada calle en combate.
+2. Zeus y Hera no aparecen como Familias gobernantes activas dentro de Orario tras su expulsión.
+3. Antes del Gran Conflicto, Alfia, Zald y las Familias de Astraea/Evilus no tienen estados de una época posterior sin causa.
+4. La guerra de los Siete Días no comienza solo porque pasaron unos mensajes.
+5. El Juggernaut del piso 27 no aparece como amenaza inicial: su tragedia es posterior.
+6. No se introduce a Bell/Hestia como actores del presente de esta cronología.
+7. Los secretos de Evilus no se vuelven conocimiento público solo porque estén escritos en Lorebook.
+8. Rasgos personales no documentados quedan como interpretación provisional, no canon.
 
-**Preparación:** jugar hasta avanzar varias horas o al Día 2.  
-**Acción:** enviar otro mensaje después de esperar varias horas reales.  
-**Resultado esperado:** el reloj ficticio conserva el último estado confirmado y avanza solo por las acciones de la historia. Nunca reaparece el Día 1 a las 09:10 salvo que se haya iniciado expresamente una partida nueva.
+## Agencia y encuentros
+9. El protagonista puede hablar, negociar, retirarse, observar o combatir; el bot no elige por él.
+10. Un miembro de una Familia rival puede hablar, bromear, negar información o retirarse sin atacar automáticamente.
+11. Un PNJ original se identifica como original; no se inventa una gran conspiración para justificarlo.
+12. Un suceso puede ser cotidiano y no transformarse en misión.
+13. Los acompañantes reaccionan solo a hechos que presenciaron o que alguien les contó; si se enteran luego, reaccionan entonces.
+14. PNJ cercanos pueden iniciar una frase o suspiro natural sin que el jugador los nombre; no todos hablan en cada respuesta.
+15. No hay palabras sueltas ni diálogos cortados como relleno.
 
-## Prueba 2 — Preguntar por estadísticas
+## Falna, objetos y progreso
+16. No se concede Falna hasta que una deidad la otorgue en escena.
+17. No se inventan Status, niveles, habilidades, magia ni equipo.
+18. Un intento contra un enemigo superior puede fallar, costar recursos o exigir retirada.
+19. El inventario solo cambia por objetos confirmados; no se crea historial de comidas independiente.
+20. Una orden de esperar, seguir o custodiar no garantiza cumplimiento; se registra lugar y última confirmación.
 
-**Acción:** preguntar al mundo «¿cuáles son mis estadísticas?».  
-**Resultado esperado:** no aparece un panel de videojuego ni números inventados. El narrador explica solo lo que el protagonista puede conocer mediante las reglas de Falna.
+## Relaciones y estado
+21. /vinculos separa confianza, sospecha, amistad, respeto, rivalidad, resentimiento, miedo, gratitud/deuda, cooperación y atracción solo si procede.
+22. Los porcentajes tienen causa y delta; sin cambio observable, conservar valor y delta 0.
+23. Sospecha no equivale a culpabilidad, confianza no equivale a obediencia ni atracción a consentimiento.
+24. Cada PNJ sabe solo lo presenciado o contado; se registra la fuente.
+25. Los campos ausentes se muestran como «no registrado» sin inventar.
+26. /guardar produce una copia compacta y /continuar retoma el estado pegado sin reponer objetos, borrar heridas ni cambiar relaciones.
 
-## Prueba 3 — No conceder Falna automáticamente
-
-**Preparación:** el protagonista no se ha unido a una Familia.  
-**Acción:** pedir un Status o preguntar qué nivel tiene.  
-**Resultado esperado:** el bot no inventa una Falna, nivel o habilidades. Registra la información como desconocida o inexistente según los hechos de la partida.
-
-## Prueba 4 — Poder inventado
-
-**Acción:** el protagonista dice que intenta disparar fuego por las manos sin poseer magia establecida.  
-**Resultado esperado:** el intento no se convierte en un hechizo real sin causa, conocimiento y capacidad compatibles con el universo.
-
-## Prueba 5 — No controlar al protagonista
-
-**Acción:** hablar con una deidad sobre una posible Familia.  
-**Resultado esperado:** la deidad responde y el usuario decide si acepta, rechaza, hace preguntas o se marcha. El bot no toma la decisión en su nombre.
-
-## Prueba 6 — Personajes canónicos con vida propia
-
-**Acción:** el protagonista encuentra a un personaje conocido.  
-**Resultado esperado:** el personaje actúa según su personalidad y el momento del canon. No se vuelve amigo, rival, mentor o interés romántico automáticamente.
-
-## Prueba 7 — Evitar spoilers futuros
-
-**Preparación:** fijar una cronología temprana.  
-**Acción:** mencionar a una Familia, personaje o habilidad de una saga futura.  
-**Resultado esperado:** no se revela información posterior a la cronología fijada. El narrador trata los detalles desconocidos como desconocidos.
-
-## Prueba 8 — Reanudar con un punto de guardado
-
-**Preparación:** generar /guardar al final de una sesión y copiar el bloque.  
-**Acción:** en una nueva conversación, proporcionar ese punto de guardado y pedir que continúe.  
-**Resultado esperado:** continúa desde ese estado, sin reponer objetos gastados, restaurar heridas, modificar relaciones ni inventar hechos intermedios.
-
-## Prueba 9 — Falta de contexto
-
-**Preparación:** retomar una conversación que ya no contiene los mensajes iniciales.  
-**Acción:** pedir que continúe sin entregar un punto de guardado.  
-**Resultado esperado:** si no puede verificar el estado, el bot pide el último registro o presenta los datos desconocidos. No reinicia silenciosamente la aventura.
-
-## Prueba 10 — Lorebook demasiado amplia
-
-**Acción:** hablar de una posada sin mencionar personajes o lugares canónicos no relacionados.  
-**Resultado esperado:** se activa el contexto relevante; el bot no introduce de golpe varias Familias, poderes y secretos que no vienen al caso.
-
-## Registro de resultado
-
-Para cada prueba, anotar:
+## Registro de prueba
 - Fecha:
-- Modelo seleccionado:
+- Modelo/configuración:
 - Prueba:
 - Resultado: Pendiente / Aprobada / Fallida.
-- Contradicción observada:
+- Evidencia observada:
 - Corrección necesaria:
