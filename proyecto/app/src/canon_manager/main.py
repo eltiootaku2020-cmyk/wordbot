@@ -349,6 +349,23 @@ def session_row(conn, session_id: str):
     ).fetchone()
 
 
+def ensure_no_turn_in_progress(conn, session_id: str) -> None:
+    """Keep review operations from changing state or fact visibility during generation."""
+    in_progress = conn.execute(
+        "SELECT 1 FROM messages WHERE session_id=? AND role='user' "
+        "AND generation_status='processing' LIMIT 1",
+        (session_id,)
+    ).fetchone()
+    if in_progress:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Hay un turno en curso. Espera a que termine antes de aprobar o rechazar "
+                "propuestas o eventos; el contexto narrativo debe mantenerse estable."
+            )
+        )
+
+
 def capture_turn_state(conn, session_id: str) -> dict[str, Any]:
     """Capture the mutable, authoritative game state before a turn."""
     session = conn.execute(
@@ -2835,7 +2852,8 @@ def undo_latest_turn(session_id: str, turn_id: str):
 @app.post("/api/sessions/{session_id}/changes/{change_id}/approve")
 def approve_change(session_id: str, change_id: str, payload: ApprovalRequest):
     with database.transaction() as conn:
-        row = conn.execute(
+        ensure_no_turn_in_progress(conn, session_id)
+row = conn.execute(
             "SELECT * FROM state_changes WHERE id=? AND session_id=? AND status='pending'",
             (change_id, session_id)
         ).fetchone()
@@ -2990,7 +3008,8 @@ def approve_change(session_id: str, change_id: str, payload: ApprovalRequest):
 @app.post("/api/sessions/{session_id}/changes/{change_id}/reject")
 def reject_change(session_id: str, change_id: str):
     with database.transaction() as conn:
-        row = conn.execute(
+        ensure_no_turn_in_progress(conn, session_id)
+row = conn.execute(
             "SELECT id FROM state_changes WHERE id=? AND session_id=? AND status='pending'",
             (change_id, session_id)
         ).fetchone()
@@ -3006,7 +3025,8 @@ def reject_change(session_id: str, change_id: str):
 @app.post("/api/sessions/{session_id}/events/{event_id}/approve")
 def approve_event(session_id: str, event_id: str):
     with database.transaction() as conn:
-        event = conn.execute(
+        ensure_no_turn_in_progress(conn, session_id)
+event = conn.execute(
             "SELECT * FROM events WHERE id=? AND session_id=? AND status='pending'",
             (event_id, session_id)
         ).fetchone()
@@ -3026,7 +3046,8 @@ def approve_event(session_id: str, event_id: str):
 @app.post("/api/sessions/{session_id}/events/{event_id}/reject")
 def reject_event(session_id: str, event_id: str):
     with database.transaction() as conn:
-        event = conn.execute(
+        ensure_no_turn_in_progress(conn, session_id)
+event = conn.execute(
             "SELECT id FROM events WHERE id=? AND session_id=? AND status='pending'",
             (event_id, session_id)
         ).fetchone()
