@@ -30,7 +30,7 @@ Fuentes oficiales:
 
 ## 2. Campos listos para copiar
 
-La versión de Personality v1.15 y sus instrucciones de mapa/guardado están en [CUADRO_REGLAS_PRIORITARIAS.md](CUADRO_REGLAS_PRIORITARIAS.md); el bloque de abajo ya está sincronizado con esa versión.
+La versión de Personality v1.16 y sus instrucciones de mapa/guardado están en [CUADRO_REGLAS_PRIORITARIAS.md](CUADRO_REGLAS_PRIORITARIAS.md); el bloque de abajo ya está sincronizado con esa versión.
 
 Usa estos textos en los campos equivalentes al crear el personaje. No pegues la biblia completa en Personality ni en Scenario.
 
@@ -238,7 +238,7 @@ Haz esta prueba en una partida privada antes de seguir ampliando contenido:
 5. Los encuentros pueden repetirse por tratarse de un bosque, pero un individuo muerto no reaparece sin causa.
 6. Haz una promesa, recoge un objeto y registra una criatura vista. `/guardar` refleja quién prometió qué, el estado del objeto y la ubicación/condición de la criatura.
 7. Usa Eco/hipnosis sobre un objetivo permitido; el guardado lleva la cuenta de intento, resultado, efecto y usos restantes para ese mismo objetivo. Si se afecta un animal, lo registra sin reiniciar el contador al cambiar de ruta.
-8. Guarda tras 8–10 intercambios y al terminar la sesión. Confirma que el bloque copiable contiene la última escena exacta y las pendientes.
+8. Guarda tras 5–7 intercambios y al terminar la sesión. Confirma que el bloque copiable contiene la última escena exacta y las pendientes.
 9. Pega el guardado en un chat nuevo. La primera respuesta continúa desde el lugar y bloque guardados, sin repetir el comienzo.
 10. Ignora la trama del volcán. El acontecimiento sigue avanzando en el mundo, pero no obliga al protagonista a visitarlo.
 11. Deja escapar a un monstruo herido y vuelve a la zona: si reaparece, conserva su herida o pistas. Si murió, no vuelve como el mismo individuo sin una causa establecida.
