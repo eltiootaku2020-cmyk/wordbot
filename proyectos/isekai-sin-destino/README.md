@@ -41,7 +41,7 @@ Fuentes oficiales:
 - https://support.spicychat.ai/support/solutions/articles/153000260673-lorebooks
 - https://support.spicychat.ai/support/solutions/articles/153000260533-plans-and-what-s-included
 
-- Campos estáticos (caracteres): Personality 4435; Scenario 795; Greeting 687; Example Dialogue 1044. Caracteres no equivalen a tokens; verifica el coste real con el contador del editor SpicyChat.
+- Campos estáticos (caracteres): Personality 4468; Scenario 795; Greeting 687; Example Dialogue 1044. Caracteres no equivalen a tokens; verifica el coste real con el contador del editor SpicyChat.
 
 ## Validación
 - JSON válido sintácticamente; 76 entradas. Las entradas de estado nuevo están compactadas.
