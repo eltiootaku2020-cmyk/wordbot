@@ -609,6 +609,135 @@ def import_lorebook(world_id: str, payload: dict[str, Any]):
     return {"imported": count, "world_id": world_id}
 
 
+@app.post("/api/presets/isekai-sin-destino")
+def create_isekai_preset_session():
+    lore_path = Path(__file__).resolve().parents[4] / "proyectos" / "isekai-sin-destino" / "LOREBOOK_IMPORT.json"
+    if not lore_path.exists():
+        raise HTTPException(
+            status_code=503,
+            detail="No se encontró LOREBOOK_IMPORT.json en el repositorio. Abre el proyecto desde la carpeta organizada completa."
+        )
+    try:
+        lorebook = json.loads(lore_path.read_text(encoding="utf-8"))
+        lore_entries = lorebook.get("entries")
+        if not isinstance(lore_entries, dict) or not lore_entries:
+            raise ValueError("El JSON no contiene entradas válidas.")
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"No se pudo leer el Lorebook del proyecto: {exc}") from exc
+
+    world_name = "Isekai sin Destino"
+    location = "Claro del Bosque de las Bestias"
+    people = [
+        ("protagonista", "Protagonista", "protagonist",
+         "Persona adulta de 25 años o más; el usuario elige su género. El narrador nunca decide sus acciones, palabras, pensamientos ni emociones."),
+        ("brina-solcor", "Brina Solcor", "character",
+         "Guerrera humana de 26 años, prudente, disciplinada y protectora sin ser ingenua. Maneja espada, defensa de línea y retiradas. No tiene magia confirmada."),
+        ("ivar-dalen", "Ivar Dalen", "character",
+         "Lancero de 27 años, rudo, desconfiado, sarcástico e irónico; cabello largo rubio muy pálido, casi blanco. Su odio no tiene objetivo confirmado."),
+        ("maelis-orven", "Maelis Orven", "character",
+         "Maga humana de 24 años, curiosa y estudiosa. Conoce Luz tenue y Soplo; no conoce curación ni identifica automáticamente Eco."),
+        ("sera-linde", "Sera Linde", "character",
+         "Arquera humana de 25 años, independiente, observadora y de humor seco. Rastrea, pero la lluvia, el viento, las flechas limitadas y la cercanía reducen su ventaja."),
+        ("timo-venn", "Timo Venn", "character",
+         "Encargado de provisiones de 22 años, sociable y pragmático. Controla cuentas, inventario, comercio, nudos y campamento; no es un combatiente entrenado.")
+    ]
+    canon = (
+        "Fantasía medieval abierta. El Bosque de las Bestias ocupa el centro del continente; su corazón interior permanece inexplorado. "
+        "Al este están el Reino de Liria y Valdoria; al norte el Mar de las Agujas y Puerto Nácar; al sur Tazhar y Suralba; "
+        "al oeste las Montañas del Fin. Nhal-Seren está oculta en el borde septentrional del bosque. "
+        "No existe Rey Demonio obligatorio ni misión universal. La aventura empieza el Día 1 a las 08:00 en un claro, con bruma ligera y suelo húmedo. "
+        "El protagonista lleva ropa corriente, pañuelo gastado, bolsita de tela vacía y cordel de cáñamo corto; no tiene dinero, comida, agua, armas ni mochila. "
+        "Eco humano puede alterar recuerdos concretos con máximo de tres intentos por persona durante toda la aventura; cada intento cuenta y no se recarga. "
+        "El volcán está inestable y puede entrar en erupción como máximo el Día 7, salvo que una cadena causal verosímil la adelante. "
+        "Las decisiones del protagonista son exclusivamente del usuario. Las entradas específicas se conservan en el Lorebook."
+    )
+    item_seed = [
+        ("Camisa corriente", 1, "normal"),
+        ("Pantalones largos", 1, "normal"),
+        ("Pañuelo gastado", 1, "gastado"),
+        ("Bolsita de tela vacía", 1, "vacía"),
+        ("Cordel de cáñamo corto", 1, "usado")
+    ]
+    with database.transaction() as conn:
+        world = conn.execute("SELECT id FROM worlds WHERE name=?", (world_name,)).fetchone()
+        if world:
+            world_id = world["id"]
+        else:
+            world_id = new_id()
+            conn.execute(
+                "INSERT INTO worlds(id,name,canon_text) VALUES(?,?,?)",
+                (world_id, world_name, canon)
+            )
+
+        entity_ids = []
+        protagonist_id = ""
+        for suffix, name, kind, profile in people:
+            entity = conn.execute(
+                "SELECT id FROM entities WHERE world_id=? AND name=?",
+                (world_id, name)
+            ).fetchone()
+            if entity:
+                entity_id = entity["id"]
+            else:
+                entity_id = new_id()
+                conn.execute(
+                    "INSERT INTO entities(id,world_id,name,kind,profile) VALUES(?,?,?,?,?)",
+                    (entity_id, world_id, name, kind, profile)
+                )
+            entity_ids.append(entity_id)
+            if suffix == "protagonista":
+                protagonist_id = entity_id
+
+        count = int(conn.execute(
+            "SELECT COUNT(*) AS n FROM sessions WHERE world_id=?", (world_id,)
+        ).fetchone()["n"])
+        session_id = new_id()
+        session_name = f"Partida local {count + 1}"
+        conn.execute(
+            "INSERT INTO sessions(id,world_id,name,day,minute_of_day,current_location,protagonist_entity_id) "
+            "VALUES(?,?,?,1,480,?,?)",
+            (session_id, world_id, session_name, location, protagonist_id)
+        )
+        for entity_id in entity_ids:
+            conn.execute(
+                "INSERT INTO session_presence(session_id,entity_id,location,presence_status) "
+                "VALUES(?,?,?,'present')",
+                (session_id, entity_id, location)
+            )
+        for name, quantity, condition in item_seed:
+            key = name.casefold()
+            conn.execute(
+                "INSERT INTO inventory_items(id,session_id,item_key,display_name,quantity,condition,carrier_entity_id,location) "
+                "VALUES(?,?,?,?,?,?,?,?)",
+                (new_id(), session_id, key, name, quantity, condition, protagonist_id, location)
+            )
+        imported = 0
+        for key, entry in lore_entries.items():
+            if not isinstance(entry, dict):
+                continue
+            content = str(entry.get("content", "")).strip()
+            if not content:
+                continue
+            uid = str(entry.get("uid", key))
+            title = str(entry.get("comment", f"Entrada {uid}")).strip()
+            keywords = entry.get("key", [])
+            if not isinstance(keywords, list):
+                keywords = []
+            conn.execute(
+                "INSERT INTO lore_entries(id,world_id,external_uid,title,keywords_json,content,priority,canon_status) "
+                "VALUES(?,?,?,?,?,?,?,'confirmed') ON CONFLICT(world_id,external_uid) DO UPDATE SET "
+                "title=excluded.title,keywords_json=excluded.keywords_json,content=excluded.content,priority=excluded.priority",
+                (f"{world_id}:lore:{uid}", world_id, uid, title,
+                 json.dumps([str(k) for k in keywords], ensure_ascii=False), content, int(entry.get("order", 100)))
+            )
+            imported += 1
+    return {
+        "world_id": world_id, "session_id": session_id, "session_name": session_name,
+        "participants": len(entity_ids), "lore_entries": imported, "inventory_items": len(item_seed),
+        "provider": settings.default_provider
+    }
+
+
 @app.post("/api/demo/seed")
 def seed_demo():
     world_name = "Isekai sin Destino — laboratorio local"
