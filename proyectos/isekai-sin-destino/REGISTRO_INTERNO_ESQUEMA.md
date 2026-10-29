@@ -1,4 +1,4 @@
-# Registro interno y esquema cerrado — Isekai sin Destino v1.14
+# Registro interno y esquema cerrado — Isekai sin Destino v1.15
 
 **Propósito:** mantener continuidad dentro del contexto activo de SpicyChat y producir guardados compactos. Complementa Personality y Lorebook; no las reemplaza.
 
@@ -51,7 +51,7 @@ Escala de 0–100 por dirección y eje. Ejes: confianza, sospecha, amistad/cerca
 
 - **0–100%:** intensidad del eje, no probabilidad ni puntuación global. 50% no es neutral universal; depende del eje.
 - **No registrado:** falta evidencia; no inventes valor ni uses 50% por defecto.
-- **Delta:** + sube, − baja, 0 = sin cambio. Registra la causa y modifica el porcentaje solo ante un hecho relevante.
+- **Delta:** `+` sube, `−` baja, `0` significa neutral/sin cambio en ese hecho. Registra la causa; no ajustes por cada mensaje ni sin evidencia.
 - Los ejes pueden coexistir: confianza alta y sospecha alta pueden tener motivos diferentes.
 
 ### 4.2 Habilidades, intereses y sospechas
@@ -92,6 +92,22 @@ Después de cada respuesta, consulta el estado disponible, detecta cambios reale
 - `/guardar`: estado compacto y copiable según este esquema.
 - `/continuar`: el guardado pegado prevalece sobre una improvisación contradictoria, salvo corrección del usuario.
 - `/mapa` y `/ruta`: ubicaciones, rutas confirmadas y rumores etiquetados.
+
+### Texto operativo para los dos comandos principales
+
+Cuando Personality y Lorebook están instalados, los nombres breves bastan.
+
+**`/estado` — consultar sin modificar la partida**
+~~~text
+/estado
+Muestra el estado estructurado actual usando únicamente campos de este esquema. Incluye día/bloque/lugar/escena; mapa/rutas/lore conocido; inventario (objeto, cantidad, condición, estado, portador/ubicación); recursos/lesiones; fichas de PNJ/criaturas relevantes (habilidades, intereses, sospechas con evidencia/fuente y conocimiento individual); porcentajes y delta con causa; vínculos por pareja/dirección; órdenes y cumplimiento confirmado/desconocido; promesas/deudas/conflictos; encuentros/testigos; Eco por objetivo; hechos/rumores y 3–5 sucesos recientes. Dato ausente = No registrado. Δ0 significa sin cambio. No inventes datos ni campos, no registres comidas y no alteres la partida al consultar.
+~~~
+
+**`/guardar` — crear punto de continuación**
+~~~text
+/guardar
+Genera [PUNTO DE GUARDADO] compacto y copiable para continuar en este chat o uno nuevo. Usa solo el esquema cerrado. Conserva día/bloque/lugar/última escena; mapa/rutas y lore que el protagonista conoce; objetos con cantidad/condición/estado/portador/ubicación; recursos/lesiones; PNJ/criaturas/animales importantes con identidad, última ubicación confirmada, orden/destino y cumplimiento confirmado o desconocido; habilidades demostradas; intereses/objetivos con fuente; sospechas con motivo/evidencia/fuente; quién sabe cada hecho y cómo; vínculos por pareja/dirección con porcentajes y delta +/−/0 justificado; promesas/deudas/discusiones; encuentros/testigos; Eco humano y árbol por objetivo, incluyendo solo sensaciones/resultados percibidos y límites aún desconocidos; hechos/rumores; máximo 3–5 sucesos recientes; próxima escena exacta y pendientes. Dato ausente = No registrado. No inventes campos, no registres qué comió: si cambiaron provisiones, actualiza solo el inventario. No des por obedecida una orden sin confirmación ni reinicies al Día 1. SpicyChat no guarda el bloque fuera de la conversación: al terminar, indica que debe copiarse a un archivo externo.
+~~~
 
 ## 9. Frecuencia y límite
 
