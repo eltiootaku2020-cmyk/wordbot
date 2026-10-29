@@ -19,8 +19,9 @@ button{cursor:pointer}button:hover{border-color:var(--accent)}button.primary{bac
 form{display:flex;gap:8px;align-items:stretch}textarea{flex:1;resize:vertical;min-height:62px}
 .muted,.status{color:var(--muted);font-size:13px}.status{font-size:12px}#status{color:var(--good)}#state,#pending{display:flex;flex-direction:column;gap:8px}
 .card{border:1px solid var(--line);border-radius:9px;padding:9px;font-size:13px;overflow-wrap:anywhere}.card p{margin:4px 0}.actions{display:flex;gap:6px;margin-top:8px}.warn{color:var(--warn)}.good{color:var(--good)}
+details.setup{margin:8px 0 12px;border:1px solid var(--line);border-radius:9px;padding:10px;background:#191b22}details.setup summary{cursor:pointer;font-weight:600}.world-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:10px}.world-form label{display:flex;flex-direction:column;gap:4px}.world-form input,.world-form textarea{width:100%;min-width:0}.world-form textarea{min-height:68px}.world-form .wide{grid-column:1/-1}.world-form button{justify-self:start}
 hr{border:0;border-top:1px solid var(--line);margin:14px 0}label{font-size:13px;color:var(--muted)}
-@media(max-width:900px){main{grid-template-columns:1fr}#chat{max-height:none}}
+@media(max-width:900px){main{grid-template-columns:1fr}#chat{max-height:none}.world-form{grid-template-columns:1fr}.world-form .wide{grid-column:auto}}
 </style>
 </head>
 <body>
@@ -40,6 +41,35 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}label{font-size:13px;
         <option value="gemini">Gemini API</option>
       </select>
     </div>
+    <details class="setup">
+      <summary>Crear un mundo y su primera partida</summary>
+      <p class="muted">Se guarda todo en SQLite. Después podrás importar el Lorebook JSON y continuar creando escenas desde el chat.</p>
+      <form id="createWorldForm" class="world-form">
+        <label>Nombre del mundo
+          <input id="newWorldName" required maxlength="120" placeholder="Isekai sin Destino">
+        </label>
+        <label>Lugar inicial
+          <input id="newWorldLocation" required maxlength="200" value="Claro del bosque">
+        </label>
+        <label>Nombre del protagonista
+          <input id="newProtagonistName" required maxlength="120" value="Protagonista">
+        </label>
+        <label>Nombre de la partida
+          <input id="newSessionName" required maxlength="120" value="Partida 1">
+        </label>
+        <label class="wide">Canon principal breve
+          <textarea id="newWorldCanon" rows="3" placeholder="Reglas principales, premisa y estado inicial. No pegues todo el Lorebook aquí."></textarea>
+        </label>
+        <label class="wide">Personajes presentes, uno por línea
+          <textarea id="newWorldCast" rows="4" placeholder="Maelis Orven | character | Maga curiosa y estudiosa&#10;Brina Solcor | character | Guerrera prudente"></textarea>
+        </label>
+        <label class="wide">Inventario inicial, uno por línea
+          <textarea id="newWorldItems" rows="3" placeholder="Pañuelo gastado | 1 | gastado&#10;Cordel de cáñamo | 1 | usado"></textarea>
+        </label>
+        <div class="wide"><button type="submit" class="primary">Crear mundo y partida</button></div>
+      </form>
+      <p class="muted">Personajes: Nombre | character/npc/creature | descripción. Objetos: Nombre | cantidad | condición. El protagonista y el reparto se crean en una sola operación; si falla, no se crea un mundo a medias.</p>
+    </details>
     <div class="toolbar">
       <label for="recipientSelect">Hablar con</label>
       <select id="recipientSelect"><option value="">Escena / grupo</option></select>
@@ -241,6 +271,51 @@ async function loadSession(sessionId) {
 }
 el("worldSelect").onchange = async () => { currentSession = ""; await refreshSessions(); };
 el("sessionSelect").onchange = async () => { if (el("sessionSelect").value) await loadSession(el("sessionSelect").value); };
+el("createWorldForm").onsubmit = async event => {
+  event.preventDefault();
+  try {
+    const cast = el("newWorldCast").value.split(/\r?\n/).map(line => line.trim()).filter(Boolean).map(line => {
+      const parts = line.split("|").map(part => part.trim());
+      const name = parts[0] || "";
+      const candidate = (parts[1] || "character").toLowerCase();
+      const kind = ["character","npc","creature","other"].includes(candidate) ? candidate : "character";
+      const profile = (["character","npc","creature","other"].includes(candidate) ? parts.slice(2) : parts.slice(1)).join(" | ");
+      if (!name) throw new Error("Cada personaje debe tener un nombre.");
+      return {name:name, kind:kind, profile:profile};
+    });
+    const initial_inventory = el("newWorldItems").value.split(/\r?\n/).map(line => line.trim()).filter(Boolean).map(line => {
+      const parts = line.split("|").map(part => part.trim());
+      const name = parts[0] || "";
+      const quantity = parts[1] ? Number(parts[1]) : 1;
+      if (!name || !Number.isInteger(quantity) || quantity < 1) throw new Error("Cada objeto necesita un nombre y una cantidad entera positiva.");
+      return {name:name, quantity:quantity, condition:parts.slice(2).join(" | ") || "normal"};
+    });
+    setStatus("Creando mundo y partida…", false);
+    const result = await api("/api/worlds/start", {
+      method:"POST",
+      body:JSON.stringify({
+        name:el("newWorldName").value.trim(),
+        canon_text:el("newWorldCanon").value,
+        protagonist_name:el("newProtagonistName").value.trim(),
+        session_name:el("newSessionName").value.trim(),
+        location:el("newWorldLocation").value.trim(),
+        day:1,
+        minute_of_day:480,
+        cast:cast,
+        initial_inventory:initial_inventory
+      })
+    });
+    currentWorld = result.world_id;
+    currentSession = result.session_id;
+    await refreshWorlds();
+    el("worldSelect").value = currentWorld;
+    await refreshSessions();
+    el("sessionSelect").value = currentSession;
+    el("recipientSelect").value = "";
+    await loadSession(currentSession);
+    setStatus("Mundo y partida creados. Ya puedes importar el Lorebook JSON.", true);
+  } catch (err) { setStatus(err.message, false); }
+};
 el("demo").onclick = async () => {
   try {
     setStatus("Creando mundo de prueba…", false);
