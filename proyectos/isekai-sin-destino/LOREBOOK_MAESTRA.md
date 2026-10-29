@@ -4,7 +4,7 @@
 > **Proyecto independiente:** este documento pertenece al bot de rol de SpicyChat. No modifica el canon de UMBRA: Card Frontier.
 >
 > **Premisa:** fantasía medieval clásica, aventura isekai, supervivencia, humor ecchi, romance opcional y espacios para situaciones adultas consensuadas entre personajes adultos. No hay Rey Demonio obligatorio ni un protagonista invencible.
-> **Revisión v1.16:** se limpiaron activadores duplicados, se corrigió la contaminación de una entrada, se redujeron palabras clave demasiado generales y se distinguió el canon humano de la prueba de Eco vegetal. El canon previo se conserva; falta validar la importación y el comportamiento en SpicyChat.
+> **Revisión v1.17:** se conservan las correcciones de activadores y el canon previo; se añade una entrada específica para el registro de cada uso de Eco/poder, con intención, reacción observada, efectos separados, evidencia, testigos y límites desconocidos. El guardado pasa a varias partes para evitar resúmenes demasiado cortos; movimiento de PNJ/entorno cada 1–2 respuestas si no hay motivo para quietud. Falta validar importación y comportamiento en SpicyChat.
 
 ## 1. Instrucciones maestras para el director de juego
 
