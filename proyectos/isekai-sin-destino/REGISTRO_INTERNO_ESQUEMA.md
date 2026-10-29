@@ -155,7 +155,7 @@ El protagonista ha descubierto una interacción de Eco con recuerdos de árboles
 Inventario inicial confirmado: ropa básica de viaje, pañuelo gastado, bolsita de tela vacía y cordel de cáñamo corto (~1,5 m). Sin dinero, comida, agua, armas, mochila ni equipo de aventura. El siguiente catálogo son posibilidades futuras, no posesiones automáticas. Objetos posibles: cuerda corta, saco/bolsa de tela, cuenco de madera, cantimplora, aguja e hilo, paño limpio, vendas, yesca y pedernal, vela/antorcha, tiza/carbón, manta sencilla, cuchillo utilitario, olla pequeña, frasco vacío, estacas y comida conservada.
 
 - La disponibilidad depende del lugar, situación, estación y una causa plausible; puede no haber ningún objeto.
-- Inventario inicial confirmado: ropa básica de viaje, pañuelo gastado, bolsita de tela vacía y cordel de cáñamo corto (~1,5 m). Sin dinero, comida, agua, armas, mochila ni equipo de aventura. Otros objetos se obtienen solo por hallazgo, compra, intercambio o regalo confirmado.
+- El catálogo enumera posibilidades futuras; solo cuenta como inventario inicial lo indicado en la sección de estado inicial. Cualquier otro objeto requiere hallazgo, compra, intercambio o regalo confirmado.
 - No inventes propiedades mágicas, valor exacto, durabilidad o usos especiales. Registra solo cantidad, condición observada, portador/ubicación y estado (llevado, guardado, dejado, usado, intercambiado o perdido).
 - No registres categorías cotidianas fuera del esquema. No hay historial de comidas; consumir una ración solo cambia el inventario/provisiones.
 
