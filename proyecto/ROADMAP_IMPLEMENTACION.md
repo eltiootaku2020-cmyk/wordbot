@@ -1,6 +1,6 @@
 # Roadmap de implementación — gestor local v0.1
 
-El prototipo v0.1 ya existe. Las casillas marcan código presente, no necesariamente validación manual completa. La CI aprobó 8 pruebas automáticas en Linux/Python 3.12; proveedores reales y la instalación en Windows aún deben probarse.
+El prototipo v0.1 ya existe. Las casillas marcan código presente, no necesariamente validación manual completa. La CI aprobó 12 pruebas automáticas en Linux/Python 3.12; proveedores reales y la instalación en Windows aún deben probarse.
 
 ## Fase 0 — Investigación y arquitectura
 - [x] Revisar clientes de roleplay (SillyTavern, RisuAI, Agnai).
@@ -28,7 +28,7 @@ Criterio de salida: se puede crear/seleccionar un mundo, enviar un mensaje simul
 - [x] Recibir narración, eventos y cambios propuestos en un contrato Pydantic/JSON.
 - [x] Validar estructura, entidades y evento fuente; la validación semántica completa sigue pendiente.
 - [x] Guardar mensajes, eventos y cambios aceptados/pendientes/rechazados en SQLite.
-- [ ] Implementar clave de idempotencia a nivel de solicitud para reintentos del cliente.
+- [x] Implementar clave de idempotencia a nivel de solicitud y reutilizar la respuesta guardada en un reintento.
 
 Criterio de salida: el caso «Hola, linda» genera una escena y un registro del intercambio, sin requerir un bloque de guardado en el chat.
 
@@ -71,9 +71,14 @@ Criterio de salida: el estado, mensajes y recursos sobreviven al cierre; se pued
 
 ## Estado de los hitos
 
-- **Comprobado por CI:** SQLite, backup, validación Pydantic, normalización del esquema, narrador simulado y un turno de API de extremo a extremo con inventario inicial.
+- **Comprobado por CI:** SQLite, backup, validación Pydantic, normalización del esquema, narrador simulado, turno API de extremo a extremo, reintentos idempotentes, aprobación/rechazo de eventos y creación atómica de mundos con reparto e inventario inicial.
 - **No comprobado todavía:** ejecución en Windows, llamadas reales a OpenAI/Gemini, comportamiento prolongado, reintentos idempotentes y todos los cambios de inventario/movimiento.
 
 ## Prioridad práctica
 
 La primera entrega útil no necesita personajes animados, imágenes ni un motor 3D. Debe ser aburridamente fiable en los siguientes aspectos: **el texto queda guardado, el estado sobrevive al reinicio, una llamada duplicada no gasta recursos dos veces y una salida de IA no puede cambiar el canon por su cuenta.**
+
+
+## Creación de mundos
+
+La interfaz ya permite crear un mundo y su primera sesión, con protagonista, canon breve, personajes presentes e inventario inicial. Se crea todo dentro de una transacción; si el reparto tiene nombres duplicados, la operación se revierte. Está cubierto por pruebas automatizadas simuladas; la interfaz aún requiere prueba manual en Windows.
