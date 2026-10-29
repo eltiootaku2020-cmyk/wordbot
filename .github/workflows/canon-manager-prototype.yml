@@ -32,3 +32,19 @@ jobs:
         run: python -m pip install -r requirements-dev.txt
       - name: Run tests
         run: python -m pytest
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Check inline JavaScript syntax
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          html = Path("src/canon_manager/static/index.html").read_text(encoding="utf-8")
+          scripts = re.findall(r"<script>(.*?)</script>", html, flags=re.S | re.I)
+          if not scripts:
+              raise SystemExit("No se encontró un bloque JavaScript en la interfaz.")
+          Path("/tmp/canon-manager-ui.js").write_text("\n".join(scripts), encoding="utf-8")
+          PY
+          node --check /tmp/canon-manager-ui.js
