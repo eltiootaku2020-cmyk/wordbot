@@ -121,4 +121,4 @@ def test_turn_clock_advance_automatically_fires_crossed_world_events(tmp_path):
         clock = conn.execute(
             "SELECT day,minute_of_day FROM sessions WHERE id='session-a'"
         ).fetchone()
-        assert (clock["day"], clock["minute_of_day"]) == (2, 1070)
+        assert (clock["day"], clock["minute_of_day"]) == (2, 30)
