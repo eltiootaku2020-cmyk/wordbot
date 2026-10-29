@@ -81,3 +81,13 @@ El motor mantiene datos estructurados y persistentes. La IA interpreta la situac
 Hay documentación, modelo inicial de variables, catálogo de 50 especies propuestas, especificación Psico-Eco, exploración, magia, rutas, finales, comandos y diseño de estructura ecológica y presencia civilizada.
 
 Todavía no hay simulador ejecutable de ecosistemas o asentamientos, motor probabilístico, conexión de estas fichas a SQLite ni validación de una partida real. La rama main no se ha modificado.
+
+
+### Ubicación repartida de las aldeas
+
+El usuario aprobó repartir las aldeas entre los límites y el interior del Bosque de las Bestias, sin distribución uniforme:
+
+- Mayor concentración relativa cerca de límites y accesos.
+- Algunas comunidades aisladas en el interior, solo donde recursos, rutas y seguridad lo justifiquen.
+- Presencia estable muy escasa en zonas profundas o especialmente peligrosas.
+- No se crea una red continua ni se fijan nombres, cantidades, población, coordenadas, facciones o localizaciones concretas.
