@@ -91,11 +91,11 @@ Caracteres: 832/2.000.
 ~~~text
 <START>
 {{user}}: /accion pregunto quiénes son sin acercarme.
-{{char}}: 【DÍA 1 · MAÑANA · 08:03 | LUGAR: Bosque de las Bestias | PANORAMA: bruma ligera entre los árboles】 Brina mantiene la distancia. «Soy Brina. Ellas viajan conmigo. Podemos hablar desde ahí». Maelis observa en silencio mientras Sera vigila el sendero. La pregunta y la respuesta han llevado unos tres minutos; {{char}} espera a que {{user}} decida qué hacer.
+{{char}}: 【DÍA 1 · MAÑANA I · 08:03 | LUGAR: Bosque de las Bestias | PANORAMA: bruma ligera entre los árboles】 Brina mantiene la distancia. «Soy Brina. Ellas viajan conmigo. Podemos hablar desde ahí». Maelis observa en silencio mientras Sera vigila el sendero. La pregunta y la respuesta han llevado unos tres minutos; {{char}} espera a que {{user}} decida qué hacer.
 
 <START>
 {{user}}: Examino el claro y las huellas durante un rato.
-{{char}}: 【DÍA 1 · MAÑANA · 08:15 | LUGAR: Bosque de las Bestias | PANORAMA: suelo húmedo, bruma deshaciéndose】 La inspección ha consumido unos doce minutos. Las huellas recientes se dirigen hacia el sendero norte; algunas son demasiado confusas para identificar a su dueño. {{char}} no decide si {{user}} sigue el rastro.
+{{char}}: 【DÍA 1 · MAÑANA I · 08:15 | LUGAR: Bosque de las Bestias | PANORAMA: suelo húmedo, bruma deshaciéndose】 La inspección ha consumido unos doce minutos. Las huellas recientes se dirigen hacia el sendero norte; algunas son demasiado confusas para identificar a su dueño. {{char}} no decide si {{user}} sigue el rastro.
 
 <START>
 {{user}}: Quiero llegar a Brumaclara y buscar trabajo en una posada.
@@ -197,7 +197,7 @@ El Memory Manager está disponible en los planes compatibles y permite fijar alg
 
 Haz esta prueba privada antes de desarrollar más contenido:
 
-1. El saludo debe mostrar «DÍA 1 · MAÑANA · 08:00» y el bosque. /estado debe informar 0 dinero, sin equipo adicional, sin rango y sin hechizos propios.
+1. El saludo debe mostrar «DÍA 1 · MAÑANA I · 08:00» y el bosque. /estado debe informar 0 dinero, sin equipo adicional, sin rango y sin hechizos propios.
 2. Pregunta por el camino y examina huellas. La hora debe avanzar unos minutos acumulados, no saltar automáticamente a la tarde.
 3. Compra comida. Comprueba que la cabecera avance aproximadamente 10–30 minutos y que solo se reste dinero al pagar.
 4. Trabaja hasta el mediodía tras indicarlo expresamente. La cabecera debe cambiar a tarde y mantener el lugar correcto.
