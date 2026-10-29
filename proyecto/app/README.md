@@ -1,5 +1,7 @@
 # Gestor local de canon — prototipo v0.1
 
+**Estado de validación:** 8 pruebas automáticas aprobadas en CI; ver [resultados](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40861306798). La instalación manual en Windows y las llamadas reales a proveedores aún están pendientes.
+
 Esta carpeta contiene un primer prototipo ejecutable del flujo local: interfaz de chat en Chromium, base SQLite y narrador simulado por defecto. El proveedor simulado permite probar la persistencia sin clave ni coste. OpenAI y Gemini son opciones externas configurables.
 
 ## Requisitos
