@@ -1,6 +1,6 @@
 # Proyecto: gestor local de canon, Lorebooks y continuidad
 
-**Estado:** prototipo local v0.1. CI posterior al PR #6 aprobó 81 pruebas Python y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40935903505. Además de los controles de continuidad anteriores, cubre migración de tablas históricas de presencia y restauración de backups sin `presence_status`. Falta el ensayo manual en Windows y la campaña larga con un chat externo; las pruebas reales de API son opcionales.
+**Estado:** prototipo local v0.1. CI posterior al PR #7 aprobó 82 pruebas Python y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40937190743. Además de continuidad y migración de presencia/backup, cubre mensajes heredados limitados a su destinatario y eventos sin fuente/testigos excluidos del prompt. Falta ensayo manual en Windows, restauración visual y campaña narrativa larga con chat externo; las pruebas reales de API son opcionales.
 **Ubicación de trabajo:** rama `docs/historias-organizadas`, carpeta `proyecto/`.
 
 ## Objetivo
@@ -52,7 +52,7 @@ Para el uso previsto, la interfaz local en Chromium + FastAPI + SQLite incluye u
 - [Base de datos y esquema SQLite](app/src/canon_manager/db.py)
 - [Narrador simulado y adaptadores OpenAI/Gemini](app/src/canon_manager/providers.py)
 - [Pruebas automáticas](app/tests/)
-- [Ejecución CI más reciente: 81 pruebas aprobadas](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40935903505)
+- [Ejecución CI más reciente: 82 pruebas aprobadas](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40937190743)
 
 Las pruebas de integración cubren «Hola, linda» con Maelis, eventos y cambios pendientes, creación atómica de mundos, el preset de Isekai (77 entradas), privacidad por audiencia, presupuesto Lorebook, undo/recursos y el puente manual ChatGPT/Gemini. La CI valida el modo simulado, la preparación del prompt y el JSON pegado; no sustituye la prueba manual en Windows. Las llamadas API reales son opcionales.
 
@@ -102,13 +102,13 @@ La decisión se basa en la investigación enlazada y puede revisarse después de
 
 ## Estado y siguientes pasos
 
-**Estado actual:** el código incluye interfaz Chromium, SQLite, narrador simulado, adaptadores API opcionales y modo manual para chat web normal de ChatGPT/Gemini. La CI aprueba 81 pruebas Python y sintaxis JavaScript (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40935903505); también cubre la migración de esquemas históricos de presencia y restauración de backups sin el campo derivado. La suite incluye JSON truncado, compras hipotéticas, cambios narrativos contradictorios y restauración exacta tras 100 turnos breves simulados. Falta la validación visual manual en Windows y la campaña narrativa con un chat externo real.
+**Estado actual:** el código incluye interfaz Chromium, SQLite, narrador simulado, adaptadores API opcionales y modo manual para chat web normal de ChatGPT/Gemini. CI aprueba 82 pruebas Python y sintaxis JavaScript (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40937190743); cubre JSON truncado, acciones hipotéticas, propuestas contradictorias, restauración tras 100 turnos simulados, migración de presencia y reglas conservadoras de audiencia histórica. Los eventos sin fuente ni testigos se conservan para auditoría pero no se envían al modelo. Falta validación visual manual en Windows y campaña narrativa con chat externo real.
 
-**Prioridades actuales:** probar el puente manual con ChatGPT web y Gemini web en Windows; revisar mensajes/eventos históricos sin metadatos de audiencia; completar la restauración visual y realizar una campaña narrativa real de 50–100 turnos. La compatibilidad de la tabla de presencia y los backups antiguos ya está probada. Las llamadas y la medición de coste de las APIs quedan como validación opcional.
+**Prioridades actuales:** probar el puente manual con ChatGPT web y Gemini web en Windows; revisar variantes históricas aún no representadas por las pruebas; completar restauración visual con vista previa y realizar una campaña narrativa real de 50–100 turnos. La medición de coste de las APIs queda como validación opcional.
 
 
 ### Corrección del modo de IA: chat web normal
 
 El usuario puede elegir ahora **ChatGPT web** o **Gemini web** y continuar en el chat normal de su cuenta, sin clave API. La aplicación prepara el prompt con el estado local y el esquema JSON; el usuario copia el prompt al sitio oficial y después pega la respuesta para que el programa la valide y aplique sus reglas. No se automatiza ni se lee la sesión de navegador.
 
-Implementado en `docs/historias-organizadas`; CI actual de 81 pruebas Python y sintaxis JS: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40935903505. La huella SHA-256 impide aplicar una respuesta si el contexto cambió desde la preparación. Pendiente prueba manual real en Windows con ambos chats, restauración visual y una campaña narrativa de 50–100 turnos; el esquema histórico de presencia y los backups sin `presence_status` ya tienen cobertura automatizada.
+Implementado en `docs/historias-organizadas`; CI actual de 82 pruebas Python y sintaxis JS: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40937190743. La huella SHA-256 impide aplicar una respuesta si el contexto cambió desde la preparación. Pendiente prueba manual real en Windows con ambos chats, restauración visual y campaña narrativa de 50–100 turnos.
