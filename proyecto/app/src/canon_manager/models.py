@@ -85,7 +85,7 @@ class SessionCreate(StrictModel):
 
 
 class TurnRequest(StrictModel):
-    request_id: str = Field(default="", max_length=100)
+    request_id: str = Field(min_length=8, max_length=100)
     text: str = Field(min_length=1, max_length=8000)
     recipient_id: str = ""
     provider: Literal["mock", "openai", "gemini"] = "mock"
