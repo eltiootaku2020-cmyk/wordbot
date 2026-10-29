@@ -141,3 +141,31 @@ Un primer turno dejó pendiente una propuesta de amistad para Maelis. Después s
 - CI PR #12: **87 pruebas Python aprobadas**, una advertencia no bloqueante y sintaxis JavaScript correcta: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40943636768.
 
 Pendiente: validación de interfaz Windows/Chromium y campaña externa larga real; la CI usa proveedor simulado.
+
+
+## Actualización final de esta ronda — PR #13/#14 (29-10-2026)
+
+### Nuevo control de concurrencia (PR #13, integrado)
+
+Las operaciones de aprobar/rechazar propuestas de estado y eventos ahora se bloquean con HTTP 409 durante una generación activa en la misma sesión. Con esto se evita cambiar el estado confirmado o la visibilidad de hechos mientras el narrador usa un contexto obsoleto. CI post-merge: 88 pruebas Python y sintaxis JavaScript correctas (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40944609761).
+
+### Cancelación explícita durante espera del proveedor (PR #14, pendiente de integrar)
+
+Se detectó que `asyncio.CancelledError` puede escapar de los manejadores `except Exception`, dejando un turno persistido en `processing` si la tarea se cancela pero la aplicación continúa viva. El cambio captura esa cancelación alrededor de `provider.generate`, marca la solicitud como `failed` de forma transaccional, registra el incidente y vuelve a propagar la cancelación. La prueba conserva el texto original, verifica que el estado de juego no cambie y vuelve a intentar el mismo `request_id` una sola vez.
+
+- PR #14: https://github.com/eltiootaku2020-cmyk/wordbot/pull/14.
+- CI del HEAD de PR #14: **89 pruebas Python aprobadas** y sintaxis JavaScript correcta; queda una advertencia no bloqueante de Starlette/httpx: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40946590907.
+- Nota de alcance: CI usa proveedor simulado. No constituye validación de Windows, Chromium ni de la cuenta real ChatGPT/Gemini. La campaña real de 50–100 turnos aún no se ejecutó.
+
+### Comparación externa incorporada
+
+La revisión de [Chronicler](https://github.com/yantrikos/chronicler), [AI Adventure](https://github.com/CaoRuiming/ai-adventure), [SillyTavern World Info](https://docs.sillytavern.app/usage/core-concepts/worldinfo/) y [Open Dungeon](https://github.com/newideas99/open-dungeon) refuerza cuatro decisiones: ACL antes de recuperar memoria por relevancia, estado estructurado separado de la narración, Lorebook como contexto y no autoridad, y controles explícitos para reintentar/restaurar. Para copias consistentes se mantiene la [API de backup SQLite](https://www.sqlite.org/backup.html).
+
+### Pendientes de aceptación
+
+1. Ejecutar manualmente Windows/Chromium con ChatGPT web y Gemini web.
+2. Ejecutar la campaña de 50–100 turnos reales, con cierres/reinicios, copias/restauración y checkpoints comparables del estado.
+3. Probar escenarios de doble instancia y cancelaciones durante apagado total. Son riesgos candidatos para prueba; todavía no defectos confirmados.
+4. Completar restauración visual con vista previa y revisar variantes históricas adicionales.
+
+Word Bot no se declara terminado por el número de pruebas. El criterio de salida sigue siendo una campaña larga y recuperación real sin pérdida, duplicación ni canon inventado.
