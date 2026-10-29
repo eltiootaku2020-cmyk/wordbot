@@ -15,7 +15,7 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 - Stack: Python/FastAPI, HTML/CSS/JavaScript para Chromium, SQLite, narrador simulado y adaptadores iniciales OpenAI/Gemini.
 - Flujo de ejemplo: «Hola, linda» dirigido a Maelis produce narración + evento + propuesta de cambio; la confianza queda pendiente si no existe valor inicial confirmado.
 - Preset Isekai v1.19: botón dedicado carga las 77 entradas del JSON de Lorebook, el reparto inicial y cinco objetos, y abre una sesión independiente por partida.
-- CI más reciente de fiabilidad: **86 pruebas Python aprobadas** y sintaxis JavaScript correcta: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40940906581. PR #1–#10 están integrados en `docs/historias-organizadas`; PR #9 impide regenerar un turno anulado fuera de orden y PR #10 extiende la protección a turnos fallidos y snapshots obsoletos. `main` permanece intacta. Esto no valida Windows manual ni una campaña real con modelo externo.
+- CI más reciente de fiabilidad: **86 pruebas Python aprobadas** y sintaxis JavaScript correcta: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40941934304. La auditoría de Isekai v1.19 pasó 659 comprobaciones: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40941934333. PR #1–#11 están integrados en `docs/historias-organizadas`; PR #9/#10 protegen contra reintentos con snapshots obsoletos y PR #11 mantiene sincronizada la versión del botón de interfaz con el JSON. `main` permanece intacta. Esto no valida Windows manual ni una campaña real con modelo externo.
 - Pendiente: prueba manual en Windows con ChatGPT/Gemini web; exportación/restauración visual; campaña de 50–100 intercambios con chat externo; revisión de variantes históricas fuera de los casos ya cubiertos. Las llamadas API reales y la medición de coste son opcionales.
 - Documentos: `INVESTIGACION_REFERENCIAS.md`, `DECISIONES_TECNICAS.md`, `ROADMAP_IMPLEMENTACION.md`, `ARQUITECTURA.md`, `CONTRATO_RESPUESTA_IA.md`, `ESQUEMA_LOCAL.md`, `PRUEBAS_DE_ACEPTACION.md`.
 - Ubicación de trabajo: rama `docs/historias-organizadas`. La rama literal `main` aún no contiene las carpetas organizadas de mundos.
@@ -54,17 +54,17 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 
 ### 3. Gestor local de canon, Lorebooks y continuidad
 - Carpeta: `proyecto/`; aplicación prototipo: `proyecto/app/`.
-- Estado: v0.1 con código real en desarrollo; la CI más reciente aprobó 86 pruebas Python y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40940906581. Incluye migración de presencia histórica, controles conservadores de audiencia, privacidad al deshacer/regenerar y protección contra reintentos con snapshots obsoletos.
+- Estado: v0.1 con código real en desarrollo; la CI más reciente aprobó 86 pruebas Python y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40941934304. Incluye migración de presencia histórica, controles conservadores de audiencia, privacidad al deshacer/regenerar, protección contra reintentos con snapshots obsoletos y coherencia UI/JSON de la versión del preset.
 - Stack: Python + FastAPI, HTML/CSS/JavaScript ligero en Chromium, SQLite y proveedores simulados/OpenAI/Gemini.
 - Ya existe: base local, interfaz, importación del JSON real de Isekai v1.16 (77 entradas), creación de mundos/partidas, reparto/inventario, mensajes/eventos, audiencia scene/private, filtrado por destinatario/testigos, inspector de contexto Lorebook y libro de recursos con compras validadas.
 - Referencias: `INVESTIGACION_REFERENCIAS.md`; decisiones ADR-001 a ADR-014 en `DECISIONES_TECNICAS.md`; prioridades P0–P4 en `ROADMAP_IMPLEMENTACION.md`.
-- **Privacidad por audiencia implementada:** selector escena/grupo o privado, metadatos de audiencia y filtro de mensajes/eventos por destinatario/testigos; el inspector explica inclusiones y exclusiones. CI de fiabilidad actual: 86 pruebas y sintaxis JavaScript aprobadas (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40940906581). También se verifica que deshacer/regenerar un turno privado no expone mensajes/eventos a personajes ajenos y que los reintentos antiguos no restauran snapshots obsoletos.
+- **Privacidad por audiencia implementada:** selector escena/grupo o privado, metadatos de audiencia y filtro de mensajes/eventos por destinatario/testigos; el inspector explica inclusiones y exclusiones. CI de fiabilidad actual: 86 pruebas y sintaxis JavaScript aprobadas (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40941934304). También se verifica que deshacer/regenerar un turno privado no expone mensajes/eventos a personajes ajenos y que los reintentos antiguos no restauran snapshots obsoletos.
 - Otros pendientes prioritarios: prueba manual Windows del chat web; rollback al editar/regenerar más escenarios; exportación/restauración visual y campaña de 50–100 intercambios. La compatibilidad probada incluye esquemas antiguos de presencia, backups sin `presence_status`, mensajes dirigidos sin metadatos y exclusión de eventos sin fuente/testigos; otras variantes históricas aún requieren revisión.
 - No hay que enviar el Lorebook completo cada turno ni extraer respuestas automáticamente de la página web. En el modo manual previsto, el usuario copia un prompt compacto a ChatGPT/Gemini y pega la respuesta; el programa la valida y guarda solo los cambios aceptados. Las llamadas API son opcionales y están separadas del chat web.
 - Rama de trabajo: `docs/historias-organizadas`. La rama literal `main` de este repositorio sigue sin las carpetas organizadas de mundos/Lorebooks; no mezclar ni mover ramas sin una tarea explícita.
 
 ### Actualización del gestor local — 29-10-2026
-- Las referencias anteriores (32/38/71/75/79/81/82/83/84/85 pruebas) son históricas; la CI actual aprobó 86 pruebas Python y sintaxis JS (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40940906581).
+- Las referencias anteriores (32/38/71/75/79/81/82/83/84/85 pruebas) son históricas; la CI actual aprobó 86 pruebas Python y sintaxis JS (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40941934304).
 - Referencias web actuales: Chronicler (ACL de conocimiento por personaje + inspector), Open Dungeon (app local SQLite con edición/reintento), Gamentic (FastAPI/SQLite con herramientas validadas pero requisitos de hardware superiores), Openovel (narración separada del mantenimiento), AI Adventure (historial SQLite, validación de eventos, undo/ramas y checkpoints) y documentación World Info de SillyTavern.
 - Código: privacidad scene/private; Lorebook de ocho entradas máximo y presupuesto configurable de 500–12.000 caracteres (4.500 por defecto), ocho entradas máximas e inspector de disparadores/inclusión/exclusión; inventario y libro de recursos por partida; compras con saldo transaccional; snapshots preturno y undo del último turno completado con auditoría.
 - Monedas de Isekai empiezan en cero; compra con coste positivo y saldo suficiente descuenta dinero y añade objeto en la misma transacción; saldo insuficiente no cambia ninguno. Los cambios ambiguos siguen pendientes.
@@ -102,7 +102,7 @@ El usuario aclaró que al decir IA se refiere al chat normal de ChatGPT o Gemini
 - No se automatizan login, envío de mensajes, lectura del DOM ni extracción automática de respuestas. El usuario revisa qué datos del juego pega al proveedor.
 - Los adaptadores API siguen disponibles opcionalmente y no deben confundirse con la suscripción/cupo de chat web.
 
-**Verificación actual de continuidad, audiencia, undo y reintentos:** CI — 86 pruebas Python y comprobación de sintaxis JavaScript aprobadas (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40940906581). No es una prueba real del navegador ni de una cuenta ChatGPT/Gemini.
+**Verificación actual de continuidad, audiencia, undo, reintentos y coherencia de versión:** CI — 86 pruebas Python y comprobación de sintaxis JavaScript aprobadas (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40941934304). No es una prueba real del navegador ni de una cuenta ChatGPT/Gemini.
 
 **Pendiente:** prueba manual en Windows con ChatGPT web y Gemini web; ejecutar una campaña narrativa real de 50–100 turnos; completar restauración visual con vista previa y revisar otras variantes históricas. La nueva prueba automatizada cubre privacidad antes/después de undo y regeneración, pero no sustituye una campaña de navegador real.
 
@@ -178,3 +178,13 @@ Cada prompt preparado devuelve una huella SHA-256 del contexto exacto. Al pegar 
 - Corregido: un reintento de turno anulado/fallido se rechaza si existen turnos posteriores, si falta/no se puede leer el snapshot o si este no coincide exactamente con el estado actual. Se conserva el reintento si no cambió el estado y el snapshot sigue siendo válido.
 - Pendiente: prueba manual Windows/Chromium, puente web real de ChatGPT/Gemini, campaña narrativa de 50–100 intercambios y compatibilidad con otras variantes históricas no cubiertas. La CI no se debe presentar como prueba de navegador real.
 - Investigación comparativa y matriz de futuros errores fantasma: `proyecto/INVESTIGACION_PROGRAMAS_SIMILARES_Y_ERRORES_FANTASMA_2026-10-29.md`.
+
+
+## Actualización de fiabilidad — 29-10-2026: versión visible del preset desincronizada (PR #11)
+
+- PR #11 integrado: https://github.com/eltiootaku2020-cmyk/wordbot/pull/11.
+- El botón de la interfaz mostraba v1.16 y el README de la app v1.18; el endpoint importaba el JSON v1.19. Se actualizó la etiqueta a v1.19 y la documentación.
+- Se añadió una regresión que extrae la versión de la descripción del Lorebook JSON y compara el número con el del botón HTML, para que un cambio futuro de versión falle en CI si no se actualiza la interfaz.
+- CI de regresión: 86 pruebas Python aprobadas y sintaxis JavaScript correcta: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40941934304.
+- Auditoría de Lorebook v1.19: 659 comprobaciones aprobadas: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40941934333.
+- Pendiente: prueba manual en Windows/Chromium, chat web real y campaña de 50–100 turnos. La prueba de versión evita desincronización documental, pero no reemplaza una inspección visual.
