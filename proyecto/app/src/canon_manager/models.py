@@ -9,7 +9,7 @@ class StrictModel(BaseModel):
 
 class EventProposal(StrictModel):
     ref: str = Field(min_length=1, max_length=40)
-    kind: Literal["dialogue", "reaction", "observation", "rumor", "location", "object", "power", "major_change", "other"]
+    kind: Literal["dialogue", "reaction", "observation", "rumor", "location", "object", "resource", "power", "major_change", "other"]
     entity_id: str = ""
     description: str
     witness_ids: list[str] = Field(default_factory=list)
@@ -43,6 +43,25 @@ class InventoryOperation(StrictModel):
     location: str = ""
     reason: str
     event_ref: str
+    cost: int = Field(default=0, ge=0, le=1000000, description="Coste total de la adquisición; 0 para hallazgos/regalos gratuitos.")
+    currency_key: str = "monedas"
+
+
+class ResourceSeed(StrictModel):
+    key: str = Field(default="", max_length=80)
+    name: str = Field(min_length=1, max_length=100)
+    quantity: int = Field(default=0, ge=0, le=1000000000)
+    unit: str = ""
+
+
+class ResourceOperation(StrictModel):
+    operation: Literal["gain", "spend"]
+    resource_key: str = Field(min_length=1, max_length=80)
+    display_name: str = Field(min_length=1, max_length=100)
+    quantity: int = Field(ge=1, le=1000000000)
+    unit: str = ""
+    reason: str
+    event_ref: str
 
 
 class PowerUseProposal(StrictModel):
@@ -60,6 +79,7 @@ class NarratorResponse(StrictModel):
     elapsed_minutes: int = Field(default=1, ge=0, le=1440)
     movements: list[MovementProposal] = Field(default_factory=list)
     inventory_ops: list[InventoryOperation] = Field(default_factory=list)
+    resource_ops: list[ResourceOperation] = Field(default_factory=list)
     power_uses: list[PowerUseProposal] = Field(default_factory=list)
     pending: list[str] = Field(default_factory=list)
 
@@ -100,6 +120,7 @@ class WorldStartCreate(StrictModel):
     minute_of_day: int = Field(default=480, ge=0, le=1439)
     cast: list[InitialEntity] = Field(default_factory=list)
     initial_inventory: list[InventorySeed] = Field(default_factory=list)
+    initial_resources: list[ResourceSeed] = Field(default_factory=list)
 
 
 class SessionCreate(StrictModel):
@@ -110,6 +131,7 @@ class SessionCreate(StrictModel):
     protagonist_entity_id: str
     present_entity_ids: list[str] = Field(default_factory=list)
     initial_inventory: list[InventorySeed] = Field(default_factory=list)
+    initial_resources: list[ResourceSeed] = Field(default_factory=list)
 
 
 class TurnRequest(StrictModel):
