@@ -1784,6 +1784,75 @@ def test_undone_turn_cannot_be_regenerated_after_a_later_turn(monkeypatch):
         assert original_user["generation_status"] == "undone"
 
 
+def test_failed_turn_cannot_be_retried_after_a_later_turn(monkeypatch):
+    with TestClient(app) as client:
+        started, _entities = _create_state_ops_world(client)
+        session_id = started["session_id"]
+        provider_state = {"calls": 0, "failed_once": False}
+
+        class FlakyClockProvider:
+            name = "mock"
+
+            async def generate(self, payload):
+                provider_state["calls"] += 1
+                user_text = payload["user_message"].casefold()
+                if "primer turno fallido" in user_text and not provider_state["failed_once"]:
+                    provider_state["failed_once"] = True
+                    raise main_module.ProviderError("Fallo simulado del proveedor.")
+                elapsed = 5 if "primer turno fallido" in user_text else 7
+                return NarratorResponse(
+                    narration=f"El tiempo avanza {elapsed} minutos.",
+                    elapsed_minutes=elapsed
+                )
+
+        monkeypatch.setattr(
+            main_module, "make_provider",
+            lambda provider_name, settings: FlakyClockProvider()
+        )
+        first_payload = {
+            "request_id": "ghost-failed-retry-001",
+            "text": "Avanzo cinco minutos en el primer turno fallido",
+            "provider": "mock"
+        }
+        first = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json=first_payload
+        )
+        assert first.status_code == 502, first.text
+        assert provider_state["calls"] == 1
+        assert client.get(f"/api/sessions/{session_id}/state").json()["state"]["time_label"].endswith("08:00")
+
+        second = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json={
+                "request_id": "ghost-failed-retry-002",
+                "text": "Avanzo siete minutos en el segundo turno",
+                "provider": "mock"
+            }
+        )
+        assert second.status_code == 200, second.text
+        assert second.json()["state"]["state"]["time_label"].endswith("08:07")
+        assert provider_state["calls"] == 2
+
+        stale_retry = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json=first_payload
+        )
+        assert stale_retry.status_code == 409, stale_retry.text
+        assert "turno fallido o anulado" in stale_retry.json()["detail"]
+        assert provider_state["calls"] == 2
+
+        current = client.get(f"/api/sessions/{session_id}/state").json()
+        assert current["state"]["time_label"].endswith("08:07")
+        with database.connection() as conn:
+            failed_user = conn.execute(
+                "SELECT generation_status FROM messages "
+                "WHERE session_id=? AND client_request_id=? AND role='user'",
+                (session_id, first_payload["request_id"])
+            ).fetchone()
+        assert failed_user["generation_status"] == "failed"
+
+
 def test_undo_rejects_a_turn_that_is_not_the_latest_completed_turn(monkeypatch):
     with TestClient(app) as client:
         started, _entities = _create_state_ops_world(client)
