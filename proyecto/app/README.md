@@ -46,3 +46,8 @@ Implementado en esta primera versión: interfaz local, base SQLite, importación
 Todavía incompleto: validación exhaustiva de movimientos y acciones físicas, editor completo de mundos/entidades, restauración visual de copias, selección semántica avanzada, comprobación automática de todos los cambios de canon y prueba real con claves/modelos del usuario. Las propuestas de inventario y movimiento permanecen pendientes para revisión; no se aplican automáticamente.
 
 Este es un prototipo de desarrollo, no una aplicación final endurecida para producción. Ejecuta solo en tu propio PC y no expongas el servidor a Internet.
+
+
+## Validación automática
+
+La última ejecución de CI aprobó las 12 pruebas de Python y comprobó la sintaxis del JavaScript incrustado en la interfaz con `node --check`: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40863082953. Esto no es una prueba visual del navegador ni sustituye el ensayo manual en Windows.
