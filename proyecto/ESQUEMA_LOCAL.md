@@ -54,8 +54,10 @@ SQLite es la fuente de verdad local. El esquema se mantendrá normalizado lo suf
 - El programa valida los límites de usos por objetivo y evita duplicar un gasto al reintentar el mismo turno.
 
 ### `snapshots`
-- `id`, `session_id`, `event_sequence`, `state_json`, `created_at`, `label`.
-- Copia útil para restauración; no sustituye al registro de eventos.
+- `id`, `session_id`, `turn_id`, `event_sequence`, `state_json`, `created_at`.
+- Snapshot del estado mutable anterior a cada turno, asociado con `turn_id`, para revertir la última respuesta sin recalcular el historial.
+- Índice único por `session_id + turn_id` evita snapshots duplicados al reintentar un turno fallido.
+- Un snapshot no reemplaza el registro de eventos; la versión anulada se conserva como auditoría.
 
 ### `provider_settings`
 - `id`, `provider_key`, `model_key`, `endpoint_profile`, `settings_json`.
