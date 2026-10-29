@@ -1,4 +1,4 @@
-# Investigación aplicada — SpicyChat, personalidad de PNJ, cronología y estado (v1.18)
+# Investigación aplicada — SpicyChat, personalidad de PNJ, cronología y estado (v1.19)
 
 ## Objetivo
 Mejorar Isekai sin Destino sin convertir Personality en una enciclopedia ni gastar contexto registrando cada detalle. Se combinan límites reales de SpicyChat con patrones documentados de diseño de personajes y estado en juegos narrativos.
@@ -144,3 +144,39 @@ Fuentes: [planes y límites](https://support.spicychat.ai/support/solutions/arti
 7. PNJ ausentes reaccionan solo al presenciar o recibir el relato.
 8. Test local espera 77 y audita longitudes/keywords.
 9. Importación y roleplay real en SpicyChat siguen pendientes de prueba manual.
+
+ 
+## Revisión aplicada v1.19 (29-10-2026)
+
+### Fuentes vigentes de SpicyChat
+La documentación oficial indica que Free dispone de 4.096 tokens de contexto compartido por definición, instrucciones y mensajes; cuando el contexto se llena, los mensajes antiguos dejan de estar disponibles. La respuesta gratuita tiene un máximo de 180 tokens. Esto no puede resolverse mediante una frase de prompt: el registro interno solo funciona mientras sus datos sigan en el contexto activo y por eso la copia externa sigue siendo necesaria.
+
+Fuentes oficiales:
+- Contexto y memoria: https://support.spicychat.ai/support/solutions/articles/153000260636-why-characters-forget-things-tokens-and-context-
+- Lorebooks: https://support.spicychat.ai/support/solutions/articles/153000260673-lorebooks
+- Escenarios y ejemplos de diálogo: https://docs.spicychat.ai/product-guides/creating-chatbots/advanced-settings
+- Director Mode y compatibilidad variable según modelo: https://docs.spicychat.ai/product-guides/director-mode
+
+La página actual de Lorebooks publica capacidad de hasta 5.000 entradas y 2.000 caracteres por Content. El proyecto conserva menos de 1.000 caracteres por entrada como umbral interno conservador para reducir carga y el riesgo de incompatibilidad con documentación detallada anterior.
+
+### Patrones de diseño de NPC y memoria
+- StoryEngine separa el estado del mundo (actores, ubicaciones, objetos, hechos, recuerdos y objetivos) de la capa narrativa que expresa ese estado. Aplicación a Isekai: el registro fija hechos, propiedad, ubicación y conocimiento; la IA redacta diálogo y reacciones sin alterar el estado sin causa. Fuentes: https://storyengine.gg/docs/Overview.html y https://storyengine.gg/docs/Concepts/Actor.html
+- El trabajo de 2025 sobre NPC personalizados propone conocimiento estático más conocimiento dinámico y relaciones recuperables para sostener consistencia de personaje: https://www.mdpi.com/2673-2688/6/5/93
+- El artículo de DiGRA de 2026 estudia diálogo abierto generado por LLM con personalidad definida y actualización del estado durante la interacción: https://dl.digra.org/index.php/dl/article/view/2837
+- Estas publicaciones orientan el diseño; no garantizan que SpicyChat mantenga una base de datos ni que el modelo siga todas las reglas a la perfección.
+
+### Reglas consolidadas en v1.19
+1. **Porcentajes:** cada cambio persistente contiene valor previo, valor nuevo, delta en puntos porcentuales, tendencia SUBE/BAJA/SIN CAMBIO y causa. No registrado no equivale a cero, 50% o neutralidad. Las emociones del momento quedan al modelo; solo se guardan cambios duraderos con evidencia.
+2. **Iniciativa de diálogo:** en escenas de grupo, PNJ cercanos intervienen cada 1–2 respuestas si existe un motivo; alternan voces, no todos hablan siempre. Ivar puede suspirar o comentar el terreno por ir delante, pero cada intervención debe tener contexto y frases completas, no palabras sueltas.
+3. **Conocimiento individual:** un PNJ solo conoce lo que presenció, escuchó o le contaron. Si se entera después, reacciona entonces y según sus creencias previas, nunca como testigo retroactivo.
+4. **Objetos y criaturas:** los objetos tienen cantidad, condición, estado, portador y ubicación. Una criatura con una orden guarda identidad, última ubicación, destino/condición y cumplimiento pendiente/desconocido hasta confirmación; no se trata como objeto de inventario ni se presupone obediencia.
+5. **Eco vegetal:** se conserva como descubrimiento de la partida: una interacción con recuerdos de árboles percibida como sensación interna, no imágenes. La mecánica exacta, alcance, coste, duración y contador siguen sin confirmar.
+6. **Catálogo común:** ropa corriente, pañuelo gastado, bolsita vacía y cordel corto son el inventario inicial. Cuerda, cuenco, cantimplora, aguja/hilo, vendas, yesca/pedernal, manta, cuchillo utilitario y otros enseres son posibilidades, no regalos. No se registra historial de comidas: solo se actualizan provisiones si cambia su cantidad.
+7. **Uso de contexto:** los hechos estables viven en Lorebook con activadores; el estado cambiante se actualiza solo cuando un campo cambia. No volcar todo el registro cada turno. Guardar cada 5–7 intercambios y tras cambios importantes; dividir el punto de continuidad en partes si la respuesta no alcanza.
+
+### Comprobaciones agregadas
+- La Personality permanece bajo 5.000 caracteres.
+- Los bloques de Scenario, Greeting y Example Dialogue deben respetar sus límites y mostrar contadores correctos.
+- El JSON conserva 77 entradas, UID únicos, Content por debajo de 1.000 caracteres y keywords sin duplicados exactos.
+- No deben quedar ejemplos con horas por minuto (08:03, 08:15) ni el horario antiguo de franjas de tres horas.
+- Importación y roleplay real siguen pendientes de validación manual dentro de la cuenta de SpicyChat.
