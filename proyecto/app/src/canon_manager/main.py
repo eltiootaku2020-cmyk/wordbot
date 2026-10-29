@@ -19,8 +19,9 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .db import Database
-from .models import ApprovalRequest, ContextPreviewRequest, EntityCreate, LocalCommandRequest, LocalSettingsUpdate, ManualPromptRequest, NarratorResponse, SessionCreate, SessionRestoreRequest, TurnRequest, WorldCreate, WorldStartCreate
+from .models import ApprovalRequest, ContextPreviewRequest, EntityCreate, LocalCommandRequest, LocalSettingsUpdate, ManualPromptRequest, NarratorResponse, SessionCreate, SessionRestoreRequest, TurnRequest, WorldCreate, WorldStartCreate, WorldTimelineEventCreate
 from .providers import ProviderError, build_manual_prompt, make_provider
+from .timeline import fire_due_world_events
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 load_dotenv(BASE_DIR / ".env")
@@ -1063,6 +1064,21 @@ def build_context(
 
     day, minute = int(session["day"]), int(session["minute_of_day"])
     canon_text = (session["canon_text"] or "").strip()
+    absolute_minute = (day - 1) * 1440 + minute
+    world_timeline = [dict(row) for row in conn.execute(
+        "SELECT w.external_uid,w.title,w.description,w.location,w.scheduled_day,w.scheduled_minute,"
+        "f.fired_day,f.fired_minute FROM session_timeline_events f "
+        "JOIN world_timeline_events w ON w.id=f.world_event_id "
+        "WHERE f.session_id=? AND f.fired_total_minutes<=? "
+        "ORDER BY f.fired_total_minutes DESC LIMIT 20",
+        (session["id"], absolute_minute)
+    ).fetchall()]
+    for item in world_timeline:
+        item["knowledge_boundary"] = (
+            "Hecho confirmado del mundo; no implica que el protagonista ni los PNJ presentes lo conozcan. "
+            "No revelarlo sin una vía narrativa de información."
+        )
+
     context = {
         "world": {
             "name": session["world_name"],
@@ -1086,6 +1102,7 @@ def build_context(
         "recent_messages": recent,
         "recent_events": recent_events,
         "continuity_records": continuity_records,
+        "world_timeline": world_timeline,
         "narrative_variation": narrative_variation_hint(conn, session["id"], current_turn_id),
         "relevant_lore": lore
     }
@@ -1974,7 +1991,8 @@ def apply_narrator_result(
             f"El narrador propuso {result.elapsed_minutes} minutos; el reloj no avanzó sin autorización."
         )
     if elapsed:
-        total_minutes = (int(session["day"]) - 1) * 1440 + int(session["minute_of_day"]) + elapsed
+        previous_total_minutes = (int(session["day"]) - 1) * 1440 + int(session["minute_of_day"])
+        total_minutes = previous_total_minutes + elapsed
         new_day = total_minutes // 1440 + 1
         new_minute = total_minutes % 1440
         destination = (authorized_skip.get("destination") or "").strip() if authorized_skip else ""
@@ -1994,6 +2012,14 @@ def apply_narrator_result(
             conn.execute(
                 "UPDATE sessions SET day=?,minute_of_day=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
                 (new_day, new_minute, session["id"])
+            )
+        fired_events = fire_due_world_events(
+            conn, session["id"], previous_total_minutes, total_minutes
+        )
+        for fired in fired_events:
+            applied.append(
+                f"Suceso mundial activado: {fired['title']} "
+                f"(programado para el día {fired['scheduled_day']})."
             )
     return applied, pending_notes
 
@@ -2037,6 +2063,13 @@ def load_state(conn, session_id: str) -> dict[str, Any]:
         "WHERE session_id=? AND ability_key IN ('eco','eco_humano','hipnosis') GROUP BY target_entity_id",
         (session_id,)
     ).fetchall()]
+    world_timeline = [dict(row) for row in conn.execute(
+        "SELECT w.external_uid,w.title,w.description,w.location,w.scheduled_day,w.scheduled_minute,"
+        "f.fired_day,f.fired_minute FROM session_timeline_events f "
+        "JOIN world_timeline_events w ON w.id=f.world_event_id "
+        "WHERE f.session_id=? ORDER BY f.fired_total_minutes DESC LIMIT 100",
+        (session_id,)
+    ).fetchall()]
     continuity_records = [dict(row) for row in conn.execute(
         "SELECT id,kind,entity_id,description,importance,witnesses_json,created_at "
         "FROM events WHERE session_id=? AND status='recorded' AND continuity=1 "
@@ -2052,7 +2085,7 @@ def load_state(conn, session_id: str) -> dict[str, Any]:
             "time_label": time_label(session["day"], session["minute_of_day"]),
             "location": session["current_location"]
         },
-        "participants": participants, "inventory": inventory, "resources": resources,
+        "participants": participants, "inventory": inventory, "resources": resources, "world_timeline": world_timeline,
         "relationships": relationships, "continuity_records": continuity_records,
         "eco_uses": eco, "pending_changes": pending,
         "pending_events": pending_events
@@ -2188,6 +2221,38 @@ def create_world(payload: WorldCreate):
     except Exception as exc:
         raise HTTPException(status_code=409, detail=f"No se pudo crear el mundo: {exc}") from exc
     return {"id": world_id, "name": payload.name.strip()}
+
+
+@app.post("/api/worlds/{world_id}/timeline")
+def create_world_timeline_event(world_id: str, payload: WorldTimelineEventCreate):
+    event_id = new_id()
+    with database.transaction() as conn:
+        if conn.execute("SELECT 1 FROM worlds WHERE id=?", (world_id,)).fetchone() is None:
+            raise HTTPException(status_code=404, detail="Mundo no encontrado.")
+        try:
+            conn.execute(
+                "INSERT INTO world_timeline_events(id,world_id,external_uid,title,description,"
+                "scheduled_day,scheduled_minute,location,canon_status,enabled) "
+                "VALUES(?,?,?,?,?,?,?,?, 'confirmed',1)",
+                (event_id, world_id, payload.external_uid, payload.title, payload.description,
+                 payload.scheduled_day, payload.scheduled_minute, payload.location)
+            )
+        except sqlite3.IntegrityError as exc:
+            raise HTTPException(status_code=409, detail="Ya existe un acontecimiento con ese identificador en este mundo.") from exc
+    return {"id": event_id, "world_id": world_id, "external_uid": payload.external_uid,
+            "title": payload.title, "status": "confirmed"}
+
+
+@app.get("/api/worlds/{world_id}/timeline")
+def list_world_timeline_events(world_id: str):
+    with database.connection() as conn:
+        if conn.execute("SELECT 1 FROM worlds WHERE id=?", (world_id,)).fetchone() is None:
+            raise HTTPException(status_code=404, detail="Mundo no encontrado.")
+        return [dict(row) for row in conn.execute(
+            "SELECT id,external_uid,title,description,scheduled_day,scheduled_minute,location,"
+            "canon_status,enabled FROM world_timeline_events WHERE world_id=? "
+            "ORDER BY scheduled_day,scheduled_minute,title", (world_id,)
+        ).fetchall()]
 
 
 @app.get("/api/worlds/{world_id}/entities")
