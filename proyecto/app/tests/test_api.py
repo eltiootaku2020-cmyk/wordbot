@@ -1231,6 +1231,73 @@ def test_questions_and_denied_actions_cannot_change_economy_inventory_or_use_a_p
         assert len(pending) >= 5
 
 
+def test_payment_for_another_purpose_does_not_authorize_a_denied_purchase():
+    with TestClient(app) as client:
+        started, entities = _create_state_ops_world(client)
+        session_id = started["session_id"]
+        protagonist_id = entities["Protagonista"]["id"]
+        witnesses = [entities[name]["id"] for name in (
+            "Protagonista", "Maelis Orven", "Ivar Dalen", "Brina Solcor"
+        )]
+        result = NarratorResponse(
+            narration="El protagonista compra una manzana y paga la posada.",
+            events=[
+                EventProposal(
+                    ref="cross-item-denied-apple", kind="object", entity_id=protagonist_id,
+                    description="El protagonista compra una manzana por dos monedas.",
+                    witness_ids=witnesses
+                ),
+                EventProposal(
+                    ref="cross-item-inn-payment", kind="resource", entity_id=protagonist_id,
+                    description="El protagonista paga dos monedas por la posada.",
+                    witness_ids=witnesses
+                )
+            ],
+            inventory_ops=[
+                InventoryOperation(
+                    operation="acquire", item_name="Manzana", quantity=1,
+                    carrier_entity_id=protagonist_id, location="Claro del bosque",
+                    reason="El narrador afirma que hubo una compra.",
+                    event_ref="cross-item-denied-apple", cost=2, currency_key="monedas"
+                )
+            ],
+            resource_ops=[
+                ResourceOperation(
+                    operation="spend", resource_key="monedas", display_name="Monedas",
+                    quantity=2, unit="monedas", reason="Pago de alojamiento.",
+                    event_ref="cross-item-inn-payment"
+                )
+            ]
+        )
+        turn_id, applied, pending = _apply_synthetic_result(
+            session_id,
+            "No compro la manzana pero pago dos monedas por la posada.",
+            result
+        )
+        with database.connection() as conn:
+            apple = conn.execute(
+                "SELECT quantity FROM inventory_items WHERE session_id=? AND item_key='manzana'",
+                (session_id,)
+            ).fetchone()
+            coins = conn.execute(
+                "SELECT quantity FROM resources WHERE session_id=? AND resource_key='monedas'",
+                (session_id,)
+            ).fetchone()
+            events = {
+                row["external_ref"]: row["status"]
+                for row in conn.execute(
+                    "SELECT external_ref,status FROM events WHERE session_id=? AND turn_id=?",
+                    (session_id, turn_id)
+                ).fetchall()
+            }
+        assert apple["quantity"] == 2
+        assert coins["quantity"] == 3
+        assert events["cross-item-denied-apple"] == "pending"
+        assert events["cross-item-inn-payment"] == "recorded"
+        assert any("Recurso gastado: -2 Monedas" in note for note in applied)
+        assert any("Inventario:" in note for note in pending)
+
+
 def test_paid_purchase_api_retry_is_idempotent(monkeypatch):
     with TestClient(app) as client:
         started, entities = _create_state_ops_world(client)
