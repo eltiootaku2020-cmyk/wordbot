@@ -86,7 +86,9 @@ Conocimientos/fuente; vínculos % por pareja/dirección y causa:
 Promesas/deudas/conflictos:
 Encuentros/testigos/resultado:
 Eco por objetivo: intento/resultado/efecto/usos restantes:
-[EVENTOS RECIENTES] máx. 3–5 hechos; tiempo/lugar, resultado, testigos, quién se enteró y campos cambiados:
+[CRONOLOGÍA DE HITOS] conserva 8–15 sucesos importantes (o más si hace falta): tiempo/lugar, causa/acción, resultado, testigos/conocimiento y consecuencias activas.
+[EVENTOS RECIENTES] añade aparte los últimos 3–5 cambios; no sustituyen hitos antiguos que expliquen el estado actual.
+[REGISTRO DE PODERES/ECO] cada uso con ID, intención, objetivo/especie/lugar, reacción observable, resultado/evidencia, efectos separados, valores antes→después/Δ, testigos y coste/duración solo si se conocen.
 Dato ausente = «No registrado». No inventes campos ni cumplimiento de órdenes:~~~
 
 ## Movimiento y diálogo proactivo
@@ -111,6 +113,10 @@ Inventario inicial: ropa básica, pañuelo gastado, bolsita de tela vacía y cor
 
 Cada uso tiene ID y campos propios: día/bloque/lugar, poder/subtipo, objetivo/especie, intención, acción intentada, reacción observable, resultado confirmado con evidencia, efectos separados, porcentaje anterior→nuevo y Δ en puntos, coste/duración/usos solo si están confirmados, testigos/quién lo sabe y riesgo pendiente. No confundas miedo con obediencia ni recuerdo de amistad con amistad real. Miedo 20→30% (Δ +10 puntos) requiere valor previo y evidencia; si falta, No registrado. En humanos, cada intento cuenta aunque falle y el máximo es tres por objetivo. El alcance sobre árboles/animales, coste y contador no se infieren.
 
+## Ejemplo de registro de Eco (ilustrativo, no canon)
+
+PODER-ECO-01 | objetivo: lobo gris | lugar: Bosque Oscuro solo si está confirmado | intención: infundir miedo primordial | reacción: retrocede y gruñe | miedo: No registrado si no hay valor previo | obediencia: No registrado | coste/duración: No registrado. Intención no equivale a resultado. Si el miedo pasa de 20% a 30% con evidencia, anota Δ +10 puntos; no supongas obediencia ni control animal.
+
 ## Relaciones más allá del romance
 
 Registra por pareja y dirección confianza, sospecha, amistad, respeto, rivalidad/hostilidad, resentimiento, miedo, gratitud/deuda, cooperación y atracción si surge. Añade causas, discusiones y posturas de cada parte, disculpas, promesas, favores y conflictos sin resolver. Discutir no significa odio; disculparse no obliga a perdonar; amistad no significa romance. Los PNJ no conocen sucesos que no vieron ni les contaron.
@@ -122,6 +128,10 @@ Los porcentajes miden intensidad, no probabilidad objetiva ni puntuación total.
 ## Regla de esquema cerrado
 
 No agregues campos sin aprobación. Si falta información, usa `No registrado`. No crees un campo «qué comió»: si consumir alimentos cambia provisiones, actualiza solo inventario. Habilidades, intereses, sospechas y conocimientos requieren evidencia/fuente.
+
+## Guardado detallado en varias partes
+
+En SpicyChat Free, una respuesta tiene máximo 180 tokens. /guardar debe empezar con PARTE 1/N y producir una sección por respuesta, idealmente 120–150 tokens; el usuario escribe SIGUIENTE PARTE para recibir la siguiente, sin repetir contenido. Incluye estado y escena exacta, mapa/lore conocido, inventario/órdenes, fichas de PNJ (habilidades, intereses, sospechas, conocimiento y fuente), relaciones y conflictos, registro de cada poder, cronología causal de hitos que sigan teniendo consecuencias, sucesos recientes aparte y escena siguiente. Añade partes si hace falta; no comprimas toda la aventura en unas pocas líneas. Une las partes y cópialas fuera de SpicyChat. La plataforma no guarda el archivo externo automáticamente.
 
 ## Frecuencia sugerida
 
