@@ -28,6 +28,7 @@
 - El estado «interno» no es base de datos oculta; copia `/guardar` fuera del chat.
 
 ## Validación
-- JSON parseable; 77 entradas; todos los Content <1.000 caracteres; keywords únicas tras normalizar espacios y mayúsculas.
-- Personality: 4344; Scenario: 795; Greeting: 687; Example Dialogue: 1044 caracteres.
-- Test del preset local actualizado a 77 entradas, con comprobación de longitud/keywords.
+- JSON parseable: 77 entradas, UID únicos, cada Content <1.000 caracteres y keywords sin duplicados exactos.
+- Personality: 4.344 caracteres; Scenario: 795; Greeting: 687; Example Dialogue: 1.044 caracteres.
+- La CI aprobó el test del preset, el conteo de 77 entradas y las comprobaciones de longitud/keywords: [ver ejecución](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40930336007).
+- Pendiente: importar en la cuenta real de SpicyChat y comprobar la continuidad de una partida; GitHub no instala la configuración automáticamente.
