@@ -1521,7 +1521,7 @@ def test_manual_web_turn_accepts_pasted_json_without_api_call():
         data = response.json()
         assert data["narration"].startswith("Maelis observa la senda")
         messages = client.get(f"/api/sessions/{session_id}/messages").json()
-        assistant = next(message for message in messages if message["role"] == "assistant")
+        assistant = next(message for message in messages if message["role"] == "assistant" and message["content"] == "Maelis observa la senda y responde que no está segura.")
         assert assistant["provider"] == "chatgpt_web"
         assert assistant["generation_status"] == "complete"
 
@@ -1542,5 +1542,6 @@ def test_manual_web_turn_rejects_non_json_response():
         assert response.status_code == 502
         assert "JSON válido" in response.json()["detail"]
         messages = client.get(f"/api/sessions/{session_id}/messages").json()
-        assert len(messages) == 1
-        assert messages[0]["generation_status"] == "failed"
+        failed_user = next(message for message in messages if message["role"] == "user" and message["content"] == "Observo alrededor.")
+        assert failed_user["generation_status"] == "failed"
+        assert not any(message["role"] == "assistant" and message["turn_id"] == failed_user["turn_id"] for message in messages)
