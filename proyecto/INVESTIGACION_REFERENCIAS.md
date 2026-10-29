@@ -354,7 +354,7 @@ OpenAI documenta que Structured Outputs valida contra un subconjunto de JSON Sch
 
 ### Qué está implementado en el prototipo después de esta ronda
 
-CI de la rama organizada: **28 pruebas Python aprobadas**, más comprobación sintáctica del JavaScript, en https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40873768030
+CI de la rama organizada: **32 pruebas Python aprobadas**, más comprobación sintáctica del JavaScript, en https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40877808136
 
 - Visibilidad explícita `scene/private`, audiencia por mensaje y filtrado de contexto por destinatario/testigos.
 - Inspector de contexto que no llama al modelo y explica disparadores de las entradas Lorebook seleccionadas, límites y caracteres aproximados.
@@ -363,10 +363,28 @@ CI de la rama organizada: **28 pruebas Python aprobadas**, más comprobación si
 - Movimientos de PNJ con evento fuente válido; conversación directa con un personaje fuera de la ubicación actual se rechaza.
 - Libro de recursos por partida, saldo inicial de monedas en cero para Isekai, ingresos explícitos y compras con precio/currency_key. Saldo y objeto se actualizan dentro de la transacción; si no alcanza, ambos quedan sin modificar y la operación permanece pendiente.
 - Snapshot preturno y control UI/API para deshacer el último turno completado. Restaura hora, ubicación, presencia, inventario, recursos, relaciones y usos de poderes; la versión anulada queda en el historial de auditoría y fuera del contexto activo.
-- Pruebas de rollback: compra + avance de reloj → undo restaura dinero/objeto/hora; reintento regenera sin duplicar; deshacer turnos antiguos con turnos posteriores activos se rechaza.
+- Pruebas de rollback: compra + avance de reloj → undo restaura dinero/objeto/hora; reintento regenera sin duplicar; deshacer turnos antiguos con turnos posteriores activos se rechaza; también se comprueba rollback de una relación y un uso de Eco.
+- Inspector de contexto por mensaje/evento: detalla por qué se incluyó o excluyó por audiencia privada, destinatario, testigos, estado y límite de historial.
+- Presupuesto Lorebook editable en UI, guardado en SQLite y aplicado a contexto narrativo y previsualización; rango 500–12.000 caracteres, 4.500 por defecto, máximo ocho entradas.
 
-**Límites sin validar:** instalación/uso manual en Windows, llamadas reales a proveedores, campañas de 50–100 turnos y restauración visual de copias. El undo cubre estado mutable básico; falta ampliar la matriz de pruebas para relaciones/poderes complejos. El inspector aún no explica cada mensaje/evento excluido y el presupuesto de Lorebook sigue medido en caracteres fijos, no tokens exactos.
+**Límites sin validar:** instalación/uso manual en Windows, llamadas reales a proveedores, campañas de 50–100 turnos y restauración visual de copias. El undo cubre estado mutable básico; falta ampliar la matriz de pruebas para relaciones/poderes complejos. El inspector ya explica inclusión/exclusión de mensajes/eventos y el presupuesto es configurable desde la interfaz y persistido en SQLite. Sigue medido en caracteres, no tokens exactos.
 
 ### Decisión de reutilización
 
 Seguir con el motor ligero propio para el estado (FastAPI + SQLite) porque ya tiene el preset real de Isekai integrado, una fuente de verdad por partida y reglas explícitas sobre conocimiento, objetos, monedas y eventos. Usar Chronicler como referencia principal de privacidad/memoria, Open Dungeon para comparar controles de edición y calidad de vida, Openovel para separar turnos de mantenimiento y SillyTavern para comparar activación de Lorebook. No agregar un grafo vectorial ni agentes en segundo plano antes de que las pruebas largas demuestren una necesidad concreta.
+
+
+## Verificación de referencias y licencias — 29-10-2026
+
+Se verificaron también los repositorios públicos y sus archivos `LICENSE` mediante GitHub:
+
+| Proyecto | Licencia declarada | Aporte observado | Decisión |
+|---|---|---|---|
+| [Chronicler](https://github.com/yantrikos/chronicler) | MIT | Memoria canon/heurística/reflejo, ACL `visible_to` y un inspector de qué se envía al prompt y por qué. | Referencia principal para privacidad por personaje e inspección; no incorporar todo su motor ahora. |
+| [Open Dungeon](https://github.com/newideas99/open-dungeon) | MIT | Roleplay local, SQLite, editar/reintentar/borrar pasajes y resumen progresivo; generación de imágenes opcional. | Comparar usabilidad; no sustituir el modelo local de canon y recursos. |
+| [Gamentic](https://github.com/hec-ovi/gamentic) | MIT | FastAPI/SQLite, estado explícito, herramientas validadas y pruebas de integración. Incluye stack local de texto/imagen/voz orientado a hardware específico. | Referencia de estado y pruebas; su stack multimedia no encaja con el prototipo liviano actual. |
+| [Openovel](https://github.com/Feed-Scription/openovel) | Apache-2.0 | Bucle de narrador en primer plano y agentes de mantenimiento que actualizan archivos del mundo; README lo clasifica como beta/demo. | Separar narración y mantenimiento, pero no permitir que agentes secundarios reescriban canon sin validación. |
+| [RPG Tracker para SillyTavern](https://github.com/Soyo5800/rpg-tracker-for-sillytavern) | MIT | Snapshots, deltas y rollback para edición/regeneración; su README lo describe como experimental. | Adoptar el patrón de snapshots y auditoría, no copiar el código automáticamente. |
+| [SillyTavern World Info](https://docs.sillytavern.app/usage/core-concepts/worldinfo/) | Documentación del proyecto | Activación por claves, profundidad y presupuesto de tokens; el lore orienta al modelo, pero no garantiza que obedezca. | Activadores/inspector y presupuesto configurable ya existen; falta contar tokens reales por proveedor. |
+
+La licencia del repositorio no sustituye a revisar dependencias, atribuciones o licencias de modelos antes de reutilizar cualquier componente.
