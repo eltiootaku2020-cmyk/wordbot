@@ -1,6 +1,6 @@
 # Pruebas de aceptación del gestor local
 
-La aplicación no se considerará fiable por una demostración breve. La última CI pasa 24 pruebas automatizadas con datos simulados: persistencia/backups, esquema estricto, privacidad por audiencia, inspector Lorebook, turno de extremo a extremo, reintentos idempotentes, inventario, movimientos de PNJ, libro de recursos, compras y creación atómica de mundos. Eso no valida las llamadas reales a OpenAI/Gemini, el uso manual en Windows ni los casos de aceptación pendientes. Las pruebas de estado deben poder repetirse sin llamadas pagas.
+La aplicación no se considerará fiable por una demostración breve. La última CI pasa 26 pruebas automatizadas con datos simulados: persistencia/backups, esquema estricto, privacidad por audiencia, inspector Lorebook, turno de extremo a extremo, reintentos idempotentes, inventario, movimientos de PNJ, libro de recursos, compras y creación atómica de mundos. Eso no valida las llamadas reales a OpenAI/Gemini, el uso manual en Windows ni los casos de aceptación pendientes. Las pruebas de estado deben poder repetirse sin llamadas pagas.
 
 ## A. Persistencia y recuperación
 
@@ -170,4 +170,4 @@ Se considera apto para una primera partida cuando A, C, D, E, F, G, H e I pasan 
 5. Cobrar una recompensa explícita con evento fuente de tipo `resource` y comprobar que el saldo aumenta exactamente una vez.
 6. Proponer además un segundo gasto de recurso asociado al mismo evento de compra y verificar que no duplique el cargo.
 
-**Cobertura actual:** CI valida los casos de compra suficiente, insuficiente y recompensa explícita con narrador simulado. Pendiente prueba de idempotencia al reintentar el mismo turno por API y pruebas con proveedor real.
+**Cobertura actual:** CI valida los casos de compra suficiente, insuficiente y recompensa explícita con narrador simulado. La idempotencia se verifica al repetir el mismo request_id en la API usando proveedor simulado. Pendiente simular pérdida real de respuesta y probar proveedor remoto.
