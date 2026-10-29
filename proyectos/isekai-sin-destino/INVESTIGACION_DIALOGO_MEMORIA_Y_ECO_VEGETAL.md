@@ -1,4 +1,4 @@
-# Investigación aplicada — SpicyChat, personalidad de PNJ, cronología y estado (v1.15)
+# Investigación aplicada — SpicyChat, personalidad de PNJ, cronología y estado (v1.16)
 
 ## Objetivo
 Mejorar Isekai sin Destino sin convertir Personality en una enciclopedia ni gastar contexto registrando cada detalle. Se combinan límites reales de SpicyChat con patrones documentados de diseño de personajes y estado en juegos narrativos.
@@ -95,3 +95,25 @@ Las investigaciones consultadas separan estado del mundo, conocimiento individua
 
 ### Cronología de anime/juegos como método, no destino
 Usa: (1) anclas con condiciones/señales, (2) sucesos secundarios causados por decisiones, (3) qué sabe cada personaje y cuándo, y (4) consecuencias pendientes. Así se conserva coherencia sin convertir la aventura en escenas preescritas. El volcán es un ancla temporal; encuentros con goblins, viajeros o animales pueden ser independientes. Una fecha no obliga a insertar una escena si faltan condiciones/causas.
+
+
+## Revisión v1.16: guardado útil, Eco trazable y escenas con movimiento
+
+### Lo que exige el límite de Free
+La ayuda oficial de SpicyChat publica para Free 4.096 tokens de contexto y 180 tokens como máximo por respuesta. La definición, instrucciones, Lorebook activada e historial comparten el contexto. La Lorebook es una biblioteca por palabras clave, no un estado dinámico actualizado automáticamente. Fuentes:
+- https://support.spicychat.ai/support/solutions/articles/153000260636-why-characters-forget-things-tokens-and-context-
+- https://support.spicychat.ai/support/solutions/articles/153000260533-plans-and-what-s-included
+- https://support.spicychat.ai/support/solutions/articles/153000260673-lorebooks
+
+Por tanto, una memoria de campaña de cientos de palabras no puede salir en una respuesta Free. La solución propuesta es un guardado multiparte: cada respuesta contiene una sección numerada y el jugador une las partes en un archivo externo. Esto no amplía el contexto ni recupera información que ya se perdió; hay que guardar antes de llenarlo.
+
+### Memoria de sucesos, no solo un mini resumen
+El estado actual no explica por sí solo por qué un personaje sospecha, qué sabe, por qué una criatura espera en un lugar o qué recuerdo fue alterado. El guardado conserva estado vigente, fichas por entidad, relaciones por pareja/dirección, libro de poderes por uso, cronología causal de hitos que siguen importando, últimos sucesos por separado y escena exacta. Los últimos 3–5 sucesos no reemplazan toda la cronología.
+
+### Eco: separar objetivo, resultado y efecto
+Cada intento tiene ficha propia. La intención del jugador no demuestra que el objetivo haya sido afectado; registra reacción observable y efecto confirmado. Miedo, confianza, obediencia, familiaridad/memoria y cooperación son ejes distintos. «Miedo 20→30% (Δ +10 puntos)» solo se escribe con un valor anterior y evidencia; sin ellos se usa No registrado. En humanos se conserva el límite de tres intentos por objetivo. En árboles/animales, alcance, coste, duración y contador no heredan automáticamente las reglas humanas.
+
+Ejemplo hipotético, no canon: «Intención: infundir miedo en un lobo gris; lugar: Bosque Oscuro si está confirmado; reacción: retrocede y gruñe; miedo/obediencia/coste/duración: No registrado sin evidencia». No dar por hecho que miedo equivale a control.
+
+### Movimiento físico y voz proactiva
+Cada 1–2 respuestas del bot, uno o más PNJ cercanos o elementos del entorno se mueven o realizan una acción concreta, salvo que la escena justifique quietud. Eso no autoriza a mover al protagonista ni a saltar de lugar. PNJ cercanos pueden hablar con frases completas sin ser nombrados, según posición, personalidad, conocimiento y objetivo inmediato.
