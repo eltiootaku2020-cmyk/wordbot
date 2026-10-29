@@ -181,6 +181,6 @@ Implementación inicial en la rama organizada y prueba aislada en commit `456ac5
 
 **Privacidad y límites:** el prompt puede contener fichas y mensajes de la partida; la interfaz advierte al usuario que lo revise antes de copiarlo. El programa no lee la sesión web, no solicita credenciales y no realiza llamadas de red a ChatGPT/Gemini en este modo. La respuesta se vuelve a validar localmente. No se obtiene telemetría exacta del uso/cupo web, por lo que no se promete un contador de tokens o coste.
 
-**Estado de implementación:** selector, endpoint `/api/sessions/{session_id}/manual-prompt`, generación del prompt con esquema, parseo de la respuesta pegada y panel de copiar/pegar están implementados. CI en https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40880074124: 35 pruebas y sintaxis JS aprobadas.
+**Estado de implementación:** selector, endpoint `/api/sessions/{session_id}/manual-prompt`, generación del prompt con esquema, parseo de la respuesta pegada y panel de copiar/pegar están implementados. Cada prompt devuelve una huella SHA-256; la respuesta se rechaza si el contexto del mundo cambió mientras el usuario conversaba en la web. CI en https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40881062754: 36 pruebas y sintaxis JS aprobadas.
 
 **Pendiente:** uso manual real en Windows con ambos sitios; verificar que el proveedor web devuelva el objeto JSON completo; prueba de 50–100 turnos con reinicio/restauración. No automatizar el scraping del chat de consumo como atajo.
