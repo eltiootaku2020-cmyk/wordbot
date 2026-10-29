@@ -1080,6 +1080,157 @@ def test_explicit_work_reward_increases_local_currency_balance():
 
 
 
+
+
+def test_questions_and_denied_actions_cannot_change_economy_inventory_or_use_a_power():
+    with TestClient(app) as client:
+        started, entities = _create_state_ops_world(client)
+        session_id = started["session_id"]
+        protagonist_id = entities["Protagonista"]["id"]
+        maelis_id = entities["Maelis Orven"]["id"]
+        witnesses = [entities[name]["id"] for name in (
+            "Protagonista", "Maelis Orven", "Ivar Dalen", "Brina Solcor"
+        )]
+        with database.transaction() as conn:
+            conn.execute(
+                "INSERT INTO relationships(id,session_id,from_entity_id,to_entity_id,axis,value,reason) "
+                "VALUES(?,?,?,?,?,?,?)",
+                (
+                    uuid.uuid4().hex, session_id, protagonist_id, maelis_id,
+                    "friendship", 50, "Valor inicial confirmado para prueba de negación."
+                )
+            )
+
+        result = NarratorResponse(
+            narration=(
+                "El protagonista compra una manzana, recoge una pera, paga dos monedas, "
+                "cobra cinco monedas como recompensa y usa Eco contra Maelis."
+            ),
+            events=[
+                EventProposal(
+                    ref="denied-buy-apple", kind="object", entity_id=protagonist_id,
+                    description="El protagonista compra una manzana por dos monedas y la recibe.",
+                    witness_ids=witnesses
+                ),
+                EventProposal(
+                    ref="denied-pickup-pear", kind="object", entity_id=protagonist_id,
+                    description="El protagonista encuentra una pera y la recoge del suelo.",
+                    witness_ids=witnesses
+                ),
+                EventProposal(
+                    ref="denied-spend-coins", kind="resource", entity_id=protagonist_id,
+                    description="El protagonista paga dos monedas.",
+                    witness_ids=witnesses
+                ),
+                EventProposal(
+                    ref="denied-gain-coins", kind="resource", entity_id=protagonist_id,
+                    description="El protagonista recibe cinco monedas como recompensa.",
+                    witness_ids=witnesses
+                ),
+                EventProposal(
+                    ref="denied-use-eco", kind="power", entity_id=maelis_id,
+                    description="El protagonista usa Eco sobre Maelis.",
+                    witness_ids=witnesses
+                )
+            ],
+            state_changes=[
+                StateChangeProposal(
+                    ref="denied-eco-friendship", entity_id=maelis_id, field="friendship",
+                    operation="delta", numeric_value=-10, text_value="",
+                    reason="El narrador afirma que Eco afecta el vínculo.",
+                    event_ref="denied-use-eco", requires_approval=False
+                )
+            ],
+            inventory_ops=[
+                InventoryOperation(
+                    operation="acquire", item_name="Manzana", quantity=1,
+                    carrier_entity_id=protagonist_id, location="Claro del bosque",
+                    reason="Compra generada por el narrador.", event_ref="denied-buy-apple",
+                    cost=2, currency_key="monedas"
+                ),
+                InventoryOperation(
+                    operation="acquire", item_name="Pera", quantity=1,
+                    carrier_entity_id=protagonist_id, location="Claro del bosque",
+                    reason="Hallazgo generado por el narrador.", event_ref="denied-pickup-pear"
+                )
+            ],
+            resource_ops=[
+                ResourceOperation(
+                    operation="spend", resource_key="monedas", display_name="Monedas",
+                    quantity=2, unit="monedas", reason="El narrador afirma que pagó.",
+                    event_ref="denied-spend-coins"
+                ),
+                ResourceOperation(
+                    operation="gain", resource_key="monedas", display_name="Monedas",
+                    quantity=5, unit="monedas", reason="El narrador afirma que cobró.",
+                    event_ref="denied-gain-coins"
+                )
+            ],
+            power_uses=[
+                PowerUseProposal(
+                    ability_key="eco", target_entity_id=maelis_id, event_ref="denied-use-eco",
+                    result="El narrador afirma que Eco se usó.", cost=1
+                )
+            ]
+        )
+
+        user_text = (
+            "¿Puedo comprar una manzana, recoger una pera, pagar dos monedas, "
+            "cobrar cinco monedas y usar Eco contra Maelis? "
+            "No compro la manzana, no recojo la pera, no pago ni cobro monedas y no uso Eco contra Maelis."
+        )
+        turn_id, applied, pending = _apply_synthetic_result(session_id, user_text, result)
+
+        with database.connection() as conn:
+            apple = conn.execute(
+                "SELECT quantity FROM inventory_items WHERE session_id=? AND item_key='manzana'",
+                (session_id,)
+            ).fetchone()
+            pear = conn.execute(
+                "SELECT quantity FROM inventory_items WHERE session_id=? AND item_key='pera'",
+                (session_id,)
+            ).fetchone()
+            coins = conn.execute(
+                "SELECT quantity FROM resources WHERE session_id=? AND resource_key='monedas'",
+                (session_id,)
+            ).fetchone()
+            friendship = conn.execute(
+                "SELECT value FROM relationships WHERE session_id=? AND to_entity_id=? AND axis='friendship'",
+                (session_id, maelis_id)
+            ).fetchone()
+            power_count = conn.execute(
+                "SELECT COUNT(*) AS n FROM ability_uses WHERE session_id=? AND target_entity_id=?",
+                (session_id, maelis_id)
+            ).fetchone()["n"]
+            event_statuses = {
+                row["external_ref"]: row["status"]
+                for row in conn.execute(
+                    "SELECT external_ref,status FROM events WHERE session_id=? AND turn_id=?",
+                    (session_id, turn_id)
+                ).fetchall()
+            }
+            changes = conn.execute(
+                "SELECT status FROM state_changes WHERE session_id=? AND turn_id=?",
+                (session_id, turn_id)
+            ).fetchall()
+
+        assert apple["quantity"] == 2
+        assert pear is None
+        assert coins["quantity"] == 5
+        assert friendship["value"] == 50
+        assert power_count == 0
+        assert event_statuses == {
+            "denied-buy-apple": "pending",
+            "denied-pickup-pear": "pending",
+            "denied-spend-coins": "pending",
+            "denied-gain-coins": "pending",
+            "denied-use-eco": "pending"
+        }
+        assert all(change["status"] == "pending" for change in changes)
+        assert not any("Pagado:" in note or "Recurso gastado:" in note or "Recurso ganado:" in note for note in applied)
+        assert len(pending) >= 5
+
+
 def test_paid_purchase_api_retry_is_idempotent(monkeypatch):
     with TestClient(app) as client:
         started, entities = _create_state_ops_world(client)
