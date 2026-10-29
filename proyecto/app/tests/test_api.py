@@ -1738,6 +1738,152 @@ def test_undo_latest_turn_restores_state_and_allows_safe_regeneration(monkeypatc
 
 
 
+def test_proposal_and_event_reviews_are_blocked_while_turn_is_processing(monkeypatch):
+    with TestClient(app) as client:
+        started, entities = _create_state_ops_world(client)
+        session_id = started["session_id"]
+        maelis_id = entities["Maelis Orven"]["id"]
+
+        class ReviewProvider:
+            name = "mock"
+
+            async def generate(self, payload):
+                witnesses = list(payload["context"]["audience_ids"])
+                return NarratorResponse(
+                    narration="Maelis habla de sus recuerdos y el grupo escucha.",
+                    elapsed_minutes=3,
+                    events=[
+                        EventProposal(
+                            ref="review-source-dialogue",
+                            kind="dialogue",
+                            entity_id=maelis_id,
+                            description="Maelis conversa con el protagonista sobre el camino.",
+                            witness_ids=witnesses
+                        ),
+                        EventProposal(
+                            ref="review-pending-power",
+                            kind="power",
+                            entity_id=maelis_id,
+                            description="Se afirma sin autorización que se usó un poder sobre Maelis.",
+                            witness_ids=witnesses
+                        )
+                    ],
+                    state_changes=[
+                        StateChangeProposal(
+                            ref="review-pending-friendship",
+                            entity_id=maelis_id,
+                            field="friendship",
+                            operation="delta",
+                            numeric_value=5,
+                            text_value="",
+                            reason="El cambio de relación requiere confirmación manual.",
+                            event_ref="review-source-dialogue",
+                            requires_approval=True
+                        )
+                    ]
+                )
+
+        monkeypatch.setattr(
+            main_module, "make_provider",
+            lambda provider_name, settings: ReviewProvider()
+        )
+        first = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json={
+                "request_id": "review-race-seed-001",
+                "text": "Hablo con Maelis sobre el camino.",
+                "provider": "mock"
+            }
+        )
+        assert first.status_code == 200, first.text
+        turn_id = first.json()["turn_id"]
+
+        with database.transaction() as conn:
+            pending_change = conn.execute(
+                "SELECT id,status FROM state_changes WHERE session_id=? AND turn_id=? "
+                "AND external_ref='review-pending-friendship'",
+                (session_id, turn_id)
+            ).fetchone()
+            pending_event = conn.execute(
+                "SELECT id,status FROM events WHERE session_id=? AND turn_id=? "
+                "AND external_ref='review-pending-power'",
+                (session_id, turn_id)
+            ).fetchone()
+            source_event = conn.execute(
+                "SELECT status FROM events WHERE session_id=? AND turn_id=? "
+                "AND external_ref='review-source-dialogue'",
+                (session_id, turn_id)
+            ).fetchone()
+        assert pending_change is not None and pending_change["status"] == "pending"
+        assert pending_event is not None and pending_event["status"] == "pending"
+        assert source_event is not None and source_event["status"] == "recorded"
+
+        # A persisted processing marker is exactly what submit_turn leaves while
+        # the provider runs outside the SQLite write transaction.
+        processing_turn_id = "review-race-processing-" + uuid.uuid4().hex
+        with database.transaction() as conn:
+            next_index = conn.execute(
+                "SELECT COALESCE(MAX(turn_index),0)+1 AS n FROM messages WHERE session_id=?",
+                (session_id,)
+            ).fetchone()["n"]
+            conn.execute(
+                "INSERT INTO messages(id,session_id,turn_id,client_request_id,turn_index,role,"
+                "recipient_entity_id,content,provider,generation_status,metadata_json) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    uuid.uuid4().hex, session_id, processing_turn_id,
+                    "review-race-processing-" + uuid.uuid4().hex, next_index, "user", "",
+                    "Turno simulado en proceso", "mock", "processing",
+                    json.dumps({"visibility": "scene", "audience_ids": list(entities[name]["id"] for name in entities)})
+                )
+            )
+
+        actions = [
+            (f"/api/sessions/{session_id}/changes/{pending_change['id']}/approve", {"initial_value": 50}),
+            (f"/api/sessions/{session_id}/changes/{pending_change['id']}/reject", {}),
+            (f"/api/sessions/{session_id}/events/{pending_event['id']}/approve", {}),
+            (f"/api/sessions/{session_id}/events/{pending_event['id']}/reject", {})
+        ]
+        for url, body in actions:
+            response = client.post(url, json=body)
+            assert response.status_code == 409, (url, response.text)
+            assert "turno en curso" in response.json()["detail"].casefold()
+
+        with database.connection() as conn:
+            still_pending_change = conn.execute(
+                "SELECT status FROM state_changes WHERE id=?", (pending_change["id"],)
+            ).fetchone()
+            still_pending_event = conn.execute(
+                "SELECT status FROM events WHERE id=?", (pending_event["id"],)
+            ).fetchone()
+            relationship_during_turn = conn.execute(
+                "SELECT value FROM relationships WHERE session_id=? AND to_entity_id=? AND axis='friendship'",
+                (session_id, maelis_id)
+            ).fetchone()
+        assert still_pending_change["status"] == "pending"
+        assert still_pending_event["status"] == "pending"
+        assert relationship_during_turn is None
+
+        with database.transaction() as conn:
+            conn.execute(
+                "UPDATE messages SET generation_status='failed' "
+                "WHERE session_id=? AND turn_id=? AND role='user'",
+                (session_id, processing_turn_id)
+            )
+
+        approved_event = client.post(
+            f"/api/sessions/{session_id}/events/{pending_event['id']}/approve",
+            json={}
+        )
+        assert approved_event.status_code == 200, approved_event.text
+        approved_change = client.post(
+            f"/api/sessions/{session_id}/changes/{pending_change['id']}/approve",
+            json={"initial_value": 50}
+        )
+        assert approved_change.status_code == 200, approved_change.text
+        assert approved_change.json()["accepted_value"] == 55
+
+
 def test_undo_refuses_to_overwrite_a_later_approved_state_change(monkeypatch):
     with TestClient(app) as client:
         started, entities = _create_state_ops_world(client)
