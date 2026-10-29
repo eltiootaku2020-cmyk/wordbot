@@ -3267,7 +3267,7 @@ with TestClient(app) as child_client:
         child_env["APP_PROVIDER"] = "mock"
         child = subprocess.Popen(
             [sys.executable, "-c", child_script, session_id],
-            cwd=str(Path(__file__).resolve().parents[1]),
+            cwd=str(Path(__file__).resolve().parents[1] / "src"),
             env=child_env,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
