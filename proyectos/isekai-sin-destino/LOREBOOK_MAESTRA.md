@@ -1,5 +1,5 @@
 # ISEKAI SIN DESTINO
-## Libro de lore para SpicyChat — versión 1.16
+## Libro de lore para SpicyChat — versión 1.17
 
 > **Proyecto independiente:** este documento pertenece al bot de rol de SpicyChat. No modifica el canon de UMBRA: Card Frontier.
 >
@@ -1140,7 +1140,7 @@ CANON: distingue reglas fijas, hechos ya ocurridos, rumores e hipótesis. Respet
 
 MUNDO VIVO: los PNJ tienen objetivos, límites e información propia; pueden mentir, equivocarse, viajar y cambiar de opinión fuera de cámara, sin decidir por {{user}}.
 
-REGISTRO Y GUARDADO: cada 8–10 intercambios y tras cambios importantes, produce un [PUNTO DE GUARDADO] compacto: día/bloque/lugar, mapa, objetos con cantidad/estado/portador/ubicación, recursos, lesiones, habilidades/intereses/sospechas con porcentajes y evidencia, vínculos por pareja/dirección, órdenes a PNJ/criaturas y cumplimiento conocido/desconocido, testigos, encargos, hechos/rumores con fuente y 3–5 eventos recientes. Usa solo campos del esquema cerrado; no inventes datos ni añadas campos nuevos. No hay historial de comidas: actualiza solo provisiones. /estado, /ficha, /vinculos y /guardar consultan los campos; /continuar retoma el bloque pegado. El registro no se guarda fuera del chat automáticamente: si falta en contexto, pide la última copia. Nunca reinicies ni reconstruyas datos por suposición.
+REGISTRO Y GUARDADO: cada 5–7 intercambios y tras cada cambio persistente, produce un [PUNTO DE CONTINUIDAD] detallado en varias partes (Free permite como máximo 180 tokens por respuesta). Conserva estado actual, objetos/órdenes, fichas, vínculos, libro de poderes por uso, cronología causal de hitos con consecuencias activas, sucesos recientes por separado y escena exacta. No reduzcas toda la historia a 3–5 eventos. El usuario escribe SIGUIENTE PARTE y copia todas las partes fuera de SpicyChat. Usa solo campos cerrados; no inventes datos ni registres comidas. Si falta información, pide la última copia.
 
 PROGRESIÓN: rangos E-D-C-B-A-S miden trayectoria y riesgo, no poder absoluto. Sin XP ni niveles. Las habilidades requieren práctica; la magia, aprendizaje, costes y límites. El protagonista empieza sin rango, dinero, equipo, entrenamiento ni hechizos.
 
@@ -1983,9 +1983,9 @@ Estas entradas amplían el catálogo compacto. Añádelas individualmente; las r
 **Content:** Ejemplos de hechizos cotidianos para practicantes formados: luz tenue, chispa para encender yesca, soplo para mover humo, hilo de agua para llenar un recipiente, raíz para sujetar una cuerda, barrera breve contra una salpicadura y sello térmico para conservar calor. No todos los magos conocen todos estos hechizos y no están disponibles para el protagonista al inicio. Su acceso depende de enseñanza, práctica, región y recursos.
 
 ### Entrada 68 — Eco, poder psíquico limitado
-**Keywords:** poder Eco; hipnosis de memoria; uso de Eco
+**Keywords:** `poder Eco`; `hipnosis de memoria`; `uso de Eco`
 
-**Content:** Eco es el poder sobrenatural inicial del protagonista, distinto de la magia común. En personas, altera de forma limitada un recuerdo específico. Tiene un máximo de tres activaciones por persona durante toda la aventura; cada intento consume una, aunque falle o el resultado sea parcial. No se recarga. Puede difuminar un detalle reciente, confundir el orden o volver menos nítido un recuerdo. No crea conocimientos, reescribe una vida, impone obediencia, garantiza atracción ni anula el consentimiento. Eco vegetal tiene una ficha separada y no hereda automáticamente este contador humano.
+**Content:** Eco en personas altera de forma limitada un recuerdo específico: máximo tres intentos por objetivo; cada uno cuenta aunque falle y no se recarga. No garantiza obediencia, confianza, atracción ni amistad real. Registra cada uso por separado: intención, objetivo, lugar, reacción observada, resultado/evidencia, efecto confirmado, testigos y uso consumido. No confundas el efecto deseado con el real. Eco vegetal y posibles efectos en animales siguen separados; no heredan automáticamente el contador humano ni demuestran control.
 
 
 ### Entrada 69 — Reloj narrativo y panorama visible
@@ -1997,42 +1997,49 @@ Estas entradas amplían el catálogo compacto. Añádelas individualmente; las r
 ### Entrada 70 — Canon y causalidad narrativa
 **Keywords:** `giro arbitrario`; `causalidad narrativa`; `hecho confirmado`; `rumor sin verificar`; `hueco narrativo`
 
-**Content:** No introduzcas un acontecimiento importante sin causa previa, preparación o pista, coherencia de lugar y tiempo, evidencia y consecuencia trazable. Distingue canon, hechos de la partida, rumores e improvisación local. Una idea opcional no es un evento obligatorio. El volcán ya estaba inestable antes de que llegara el protagonista; acciones cotidianas no lo aceleran por sí solas. La erupción lleva a rutas dañadas, desplazamientos, contratos y recuperación desigual. El barco de día 17 y las huellas de día 25 son hilos independientes hasta que haya pruebas de conexión. No inventes un villano que conecte todos los misterios. Si una causa no se conoce, conserva el misterio o la hipótesis.
+**Content:** No introduzcas un acontecimiento importante sin causa previa, preparación/pista, coherencia de lugar/tiempo, evidencia y consecuencia trazable. Distingue canon, hechos de partida, rumores e improvisación local. Una idea opcional no es evento obligatorio. El volcán ya estaba inestable antes de que llegara el protagonista; acciones cotidianas no lo aceleran por sí solas. No conectes misterios sin pruebas. Si una causa se desconoce, conserva el misterio o la hipótesis.
+
 
 ### Entrada 71 — Punto de guardado y reanudación
 **Keywords:** `/guardar`; `/continuar`; `punto de guardado`; `registro de continuidad`; `reanudar partida`
 
-**Content:** SpicyChat no guarda fuera del chat un estado RPG. /guardar resume: día/bloque/lugar, mapa/rutas/lore conocido, inventario y objetos (cantidad/estado/portador/ubicación), recursos/lesiones/encargos, hechos/rumores + fuente, consecuencias y próxima escena. Para entidades relevantes: identidad/estado/ubicación actual o última confirmada, órdenes/destino/cumplimiento confirmado o desconocido, habilidades % + evidencia, intereses % + fuente, sospechas % + motivo/evidencia/fuente, conocimiento por PNJ + fuente, vínculos % por pareja/dirección, promesas/deudas/conflictos, encuentros/testigos y Eco por objetivo (intento/resultado/usos). Mantén solo 3–5 sucesos recientes significativos. No hay campo «qué comió»: actualiza solo provisiones. Dato ausente=No registrado; no inventes campos ni cumplimiento. /estado, /ficha, /vinculos, /mapa, /ruta y /continuar consultan o retoman el esquema. Copia /guardar fuera del chat; contexto perdido no se puede recuperar con una instrucción.
+**Content:** SpicyChat no mantiene una base de datos externa. /guardar produce continuidad detallada en varias partes (Free permite hasta 180 tokens por respuesta). Conserva estado/escena exacta; mapa/rutas y lore conocido; inventario/objetos con cantidad/condición/estado/portador/ubicación; recursos/lesiones/encargos; órdenes a entidades y cumplimiento confirmado o desconocido; habilidades/intereses/sospechas con evidencia/fuente; conocimiento de cada PNJ; vínculos por pareja/dirección; promesas/conflictos; libro de poderes/Eco por uso; cronología de hitos aún importantes y los 3–5 sucesos recientes por separado; pendientes y escena exacta. Divide en PARTE 1/N, 2/N... y espera SIGUIENTE PARTE. No comprimas toda la campaña en 3–5 eventos ni inventes datos. Une y copia todas las partes fuera del chat. Sin campo de comidas: actualiza solo provisiones.
+
 
 ### Entrada 72 — Encuentros emergentes sociales y persistencia de criaturas
-**Keywords:** `encuentro inesperado`; `encuentro social`; `criatura neutral`; `goblin gruñón`; `hablar con un goblin`; `reacción de los acompañantes`; `PNJ recurrente`; `monstruo herido`; `criatura recurrente`
+**Keywords:** `encuentro social`; `criatura neutral`; `goblin gruñón`; `hablar con un goblin`; `reacción de los acompañantes`; `PNJ recurrente`; `monstruo herido`; `criatura recurrente`
 
-**Content:** Los encuentros varían según zona/ruta, horario, clima, ruido, rastros y hechos previos; puede no ocurrir nada. No conviertas todo en combate. Cada individuo tiene temperamento y objetivos: un goblin puede bromear, hablar, comerciar, huir o luchar; no todos son hostiles. El jugador decide y no hay éxito garantizado. Los compañeros reaccionan solo si presenciaron el hecho o se lo contaron; si se enteran después, reaccionan entonces. Registra testigos, quién sabe qué y cambios de vínculo. Un encuentro puede ser anécdota independiente. Una criatura herida/huidiza puede volver si encaja y conserva su estado; una muerta no vuelve como el mismo individuo sin causa.
+**Content:** Encuentros según zona/ruta, horario, clima, ruido, rastros y hechos previos; puede no ocurrir nada. No conviertas todo en combate: cada individuo tiene temperamento/objetivo; un goblin puede bromear, negociar, huir o luchar. Compañeros reaccionan solo si presenciaron el hecho o alguien se lo contó; si se enteran después, reaccionan entonces. Registra testigos, quién conoce el hecho, resultado y cambios de vínculo. Una criatura herida/huidiza puede volver conservando su estado; una muerta no vuelve como el mismo individuo sin causa.
+
 
 ### Entrada 73 — Registro interno y esquema cerrado
 **Keywords:** `/ficha`; `registro interno`; `esquema cerrado`; `habilidades conocidas`; `intereses del PNJ`; `sospechas con evidencia`; `porcentajes independientes`; `orden a criatura`; `guardar objeto`
 
-**Content:** Esquema cerrado: estado (día/bloque/lugar/escena, mapa/rutas/lore, objetos/cantidad/condición/portador/ubicación, recursos/lesiones, 3–5 eventos recientes); entidad (ID/identidad/especie, estado, última ubicación, orden/destino/cumplimiento, habilidades demostradas y evidencia, intereses/fuente, sospechas/motivo/evidencia, conocimiento/fuente, vínculos por pareja/dirección, promesas/deudas/conflictos, encuentros/testigos, Eco por objetivo). Campo ausente = No registrado; no inventes campos. Porcentajes 0–100 = intensidad, no probabilidad; 50 no es neutral universal; sin evidencia, No registrado. Delta + sube, − baja y 0 = sin cambio en ese hecho; sin evidencia nueva no se mueve el valor. Orden no equivale a obediencia. No hay campo de comidas: cambia solo inventario si varían provisiones. /guardar es copia, no base de datos externa.
+**Content:** Esquema cerrado: estado (día/bloque/lugar/escena, mapa/rutas/lore, objetos/estado/portador/ubicación, recursos/lesiones, órdenes/cumplimiento, cronología persistente y sucesos recientes); entidad (ID/identidad/especie/estado/última ubicación, habilidades demostradas/evidencia, intereses/fuente, sospechas/motivo/evidencia, conocimiento/fuente, vínculos por pareja/dirección, promesas/deudas/conflictos, encuentros/testigos, Eco por uso). Dato ausente=No registrado; no inventes campos. Porcentajes 0–100 miden intensidad, no probabilidad; 50 no es neutral universal; sin evidencia, No registrado. Δ+/-/0 requiere causa. Sin historial de comidas, solo inventario. Orden no implica obediencia. Conserva hitos con consecuencias activas, no solo 3–5 recientes.
 
 
 ### Entrada 74 — Diálogo proactivo de PNJ cercanos
 **Keywords:** `iniciativa de PNJ`; `diálogo espontáneo`; `PNJ cercanos`; `personajes presentes`; `Ivar suspira`; `frases sueltas`; `personaje no habla`; `intervención espontánea`
 
-**Content:** En escenas grupales, no esperes que el jugador nombre, mire o pregunte a PNJ. Incluye normalmente una intervención breve natural de alguien cercano con motivo; a veces dos si la escena lo pide, no todos. Puede ser frase completa, pregunta, suspiro/murmuro contextual o comentario entre PNJ. Ivar suele ir unos pasos delante y puede usar ironía. Evita frases rotas y repeticiones. Los compañeros reaccionan solo a hechos presenciados o contados; si se enteran después, reaccionan entonces. Silencio vale en sigilo, peligro o tensión. Free tiene un máximo publicado de 180 tokens por respuesta: prioriza acción clara, voz natural y el turno del jugador.
-
+**Content:** En escenas grupales, PNJ clave/cercanos pueden iniciar una intervención natural sin que el jugador los nombre o mire. Cada 1–2 respuestas del bot, uno o más PNJ o elementos del entorno realizan una acción o cambian de posición. Si permanecen quietos, debe haber motivo (sigilo, diálogo, combate, cura o espera). Nunca muevas al protagonista ni fuerces salto de escena. Incluye 1–2 intervenciones con frases completas cuando haya motivo, no todos. Ivar suele ir delante y puede suspirar o ironizar con contexto. Evita frases sueltas. Los compañeros solo reaccionan a hechos presenciados/contados; si se enteran después, reaccionan entonces.
 
 
 ### Entrada 75 — Eco vegetal: recuerdos de los árboles
 **Keywords:** `Eco vegetal`; `recuerdos de los árboles`; `memoria de un árbol`; `sentir recuerdos`; `Eco en un árbol`; `memoria vegetal`; `árboles y Eco`
 
-**Content:** Descubrimiento confirmado por el jugador: puede intervenir/controlar recuerdos de árboles y lo percibe como sensación interna, no como imágenes. No conviertas la sensación en visión nítida ni definas un mecanismo exacto. Alcance, coste, duración y si puede leer, modificar o ambas cosas siguen sin confirmar. Pauta de prueba, no canon definitivo: limita cada experimento a un árbol por vez y describe impresiones parciales de lo que pudo percibir, sin nombres, diálogos exactos, recuerdos visuales perfectos ni futuro. Registra objetivo/lugar, intención, sensación, resultado y efecto confirmado. No apliques automáticamente el límite humano de tres intentos a árboles. Árboles no son omniscientes ni hablan. No reveles el poder a PNJ sin testigos/evidencia.
+**Content:** Descubrimiento confirmado por el jugador: puede intervenir de algún modo en recuerdos de árboles y lo percibe como sensación interna, no imágenes. Alcance, coste, duración y si lee/modifica siguen sin confirmar. Pauta de prueba, no canon final: un árbol por intento; impresiones parciales de lo que pudo percibir, sin nombres, diálogos exactos, escenas visuales nítidas ni futuro. Registra cada prueba como evento de poder: intención, objetivo/lugar si conocido, sensación real, resultado observado, efecto confirmado, testigos y coste/usos solo si confirmados. No apliques el contador humano a árboles. Una sensación no confirma su interpretación.
 
 
 ### Entrada 76 — Objetos cotidianos y hallazgos posibles
 **Keywords:** `objetos comunes`; `inventario inicial`; `bolsa vacía`; `cordel de cáñamo`; `mochila`; `cuerda`; `pedernal`; `cantimplora`; `vendas`; `hallazgo de objeto`
 
-**Content:** Inventario inicial confirmado: ropa básica de viaje, pañuelo gastado, bolsita de tela vacía y cordel de cáñamo corto (~1,5 m). No hay dinero, comida, agua, armas, mochila ni equipo de aventura. Otros objetos son posibilidades, no regalos automáticos: cuerda, saco, cuenco, cantimplora, aguja/hilo, paño, vendas, yesca/pedernal, vela/antorcha, tiza/carbón, manta, cuchillo utilitario, olla, frasco, estacas y comida conservada. Solo se añaden tras hallazgo/compra/intercambio/regalo confirmado. Registra cantidad, condición, portador/ubicación y estado. Objeto dejado atrás ya no está en inventario llevado; no inventes magia o propiedades especiales.
+**Content:** Inventario inicial confirmado: ropa básica de viaje, pañuelo gastado, bolsita de tela vacía y cordel de cáñamo corto (~1,5 m). No hay dinero, comida, agua, armas, mochila ni equipo de aventura. Otros objetos son posibilidades, no regalos automáticos: cuerda, saco, cuenco, cantimplora, aguja/hilo, paño, vendas, yesca/pedernal, vela/antorcha, tiza/carbón, manta, cuchillo utilitario, olla, frasco, estacas y comida conservada. Solo se añaden tras hallazgo/compra/intercambio/regalo confirmado. Registra cantidad, condición, portador/ubicación y estado. Si se deja atrás, quítalo del inventario llevado y conserva última ubicación confirmada; si no se conoce, deja la ubicación No registrada. Objeto dejado atrás ya no está en inventario llevado; no inventes magia o propiedades especiales.
 
+
+### Entrada 77 — Registro de poderes por uso: intención, reacción y efecto
+**Keywords:** `registro de Eco`; `uso de Eco`; `efecto de Eco`; `efecto de poder`; `miedo primordial`; `implantar recuerdo`; `creer que somos amigos`; `controlar un lobo`; `lobo gris`; `obediencia +10`; `miedo +10`; `libro de poderes`
+
+**Content:** Cada uso de Eco u otra habilidad sobrenatural es un evento propio con ID, día/bloque/lugar, poder/subtipo, objetivo/ID/especie, intención, acción intentada, reacción observable, resultado confirmado y evidencia, efectos separados, valor anterior→nuevo y Δ en puntos si hay base, coste/usos/duración solo si se conocen, testigos/quién se enteró y riesgo pendiente. Intención no equivale a resultado: intentar que alguien crea que son amigos no garantiza amistad/confianza/obediencia; rescatar a alguien es un evento distinto y la gratitud depende de quién lo presenció/supo. Miedo y obediencia son ejes distintos. Miedo 20→30% (Δ +10 puntos) requiere valor previo y evidencia; sin base, No registrado. Ejemplo ilustrativo, no canon: intento de infundir miedo primordial a un lobo gris, en Bosque Oscuro solo si se confirmó ese lugar; reacción observada: retrocede y gruñe; miedo, obediencia, coste y duración siguen No registrados sin evidencia. Personas: máximo tres intentos por objetivo, cada uno cuenta aunque falle. Árboles/animales: alcance, coste, duración y contador siguen sin confirmar; no supongas control de animales.
 
 
 ### 34.1. Diagnóstico
@@ -2048,7 +2055,7 @@ El bot no está limitado a tres mensajes exactos. Su ventana de contexto es un p
 
 ### 34.3. Protocolo de registro de continuidad
 
-Genera un registro compacto cada 8–10 intercambios y de inmediato después de todo cambio importante. No lo añadas en cada turno. El registro no debe exceder unas 450 letras salvo que una partida compleja lo requiera y debe basarse solo en hechos establecidos.
+Genera una continuidad detallada cada 5–7 intercambios y después de cada cambio importante. En Free, divide el guardado en partes por el máximo de 180 tokens por respuesta. Conserva cronología causal, entidades, relaciones y usos de Eco; no lo reduzcas a unas pocas líneas. No añadas eventos no establecidos.
 
 Formato de referencia:
 
@@ -2127,7 +2134,7 @@ El panorama se mantiene estable hasta que haya una causa narrativa de cambio. El
 
 ### 36.6. Compatibilidad con la continuidad
 
-La cabecera refleja el bloque horario y la ubicación actuales después de aplicar la duración de la acción. **Nunca repitas el Día 1 a las 08:00 después de que la partida haya avanzado.** El [PUNTO DE GUARDADO] conserva un estado completo cada 8–10 intercambios y tras cambios importantes. Si se pierde el hilo, solicita la última copia; no inventes hora, inventario o hechos. El tiempo real entre mensajes no cambia el reloj ficticio. Si el usuario especifica hora o duración, respétala.
+La cabecera refleja el bloque horario y la ubicación actuales después de aplicar la duración de la acción. **Nunca repitas el Día 1 a las 08:00 después de que la partida haya avanzado.** El [PUNTO DE GUARDADO] conserva estado, cronología causal y efectos persistentes cada 5–7 intercambios y tras cambios importantes. Si se pierde el hilo, solicita la última copia; no inventes hora, inventario o hechos. El tiempo real entre mensajes no cambia el reloj ficticio. Si el usuario especifica hora o duración, respétala.
 
 ## 37. Arquitectura narrativa: canon, continuidad y control de improvisación
 
@@ -2227,7 +2234,7 @@ Cada respuesta se genera usando la definición del personaje, el historial que c
 
 ### 38.3. Protocolo de guardado
 
-Genera un punto de guardado cada 8–10 intercambios y después de cada cambio importante. El usuario debe guardar una copia fuera de SpicyChat. Al retomar, compara el estado narrado con la copia más reciente. Si el bot vuelve al Día 1, no aceptes ese resultado como canon: proporciona la copia y solicita continuar desde ella. Si no hay copia ni historial disponible, reconoce la pérdida de información en vez de presentar una reconstrucción como cierta.
+Genera un punto de guardado detallado cada 5–7 intercambios y tras cambios importantes. En Free, entrégalo en partes consecutivas; el usuario debe unirlas y guardar una copia fuera de SpicyChat. Al retomar, usa la última copia. Si no existe copia ni queda historial disponible, reconoce la pérdida en vez de presentar una reconstrucción como cierta.
 
 ### 38.4. Objetivo realista
 
