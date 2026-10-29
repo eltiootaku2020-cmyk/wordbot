@@ -112,3 +112,16 @@ La fecha no debe forzar una escena sin continuidad. El sistema debe explicar se�
 - La IA no puede actualizar arbitrariamente salud, inventario, relaciones, recuerdos, muertes o variables sin un resultado validado.
 - Si falta información, el motor solicita datos o usa un resultado incierto; no rellena huecos como hechos.
 - El registro estructurado es la fuente de verdad; el texto narrativo no reemplaza el estado.
+
+## 11. Decisión aprobada: mundo mixto y descubrimiento gradual
+
+El usuario eligió un enfoque mixto para el Bosque de las Bestias. Esto se convierte en una regla de diseño del módulo:
+
+- **Diseño interno completo:** el equipo puede definir el mapa ecológico, subzonas, especies, plantas, recursos, amenazas, secretos, ciclos y relaciones entre elementos antes de que el protagonista los encuentre.
+- **Conocimiento gradual:** el protagonista solo conoce lugares, especies, objetos y reglas que haya observado, investigado, experimentado o aprendido de una fuente.
+- **Separación de estados:** mantener por separado el catálogo/diseño del mundo, el estado real actual del mundo y el conocimiento del protagonista. Un dato puede existir en el diseño sin estar presente ahora; puede estar presente sin haber sido descubierto.
+- **Sin revelación automática:** la narración y la interfaz del personaje no deben mostrar información desconocida solo porque exista en los archivos de diseño.
+- **Presencia condicionada:** las especies y recursos aparecen según hábitat, subzona, hora, clima, población y estado ecológico. No se presupone que las 50 especies estén juntas ni que un encuentro concreto esté garantizado.
+- **Descubrimiento verificable:** un hallazgo añade conocimiento con fuente y grado de certeza; una huella puede sugerir una especie sin confirmar su identidad.
+
+Esta decisión fija el enfoque general, no aprueba automáticamente nombres, estadísticas ni fichas individuales del catálogo.
