@@ -38,11 +38,13 @@ def test_fixed_events_fire_in_order_even_when_the_protagonist_is_elsewhere(tmp_p
         add_event(conn, "first", "first", 1, 481)
         add_event(conn, "middle", "middle", 1, 900)
 
+        assert fire_due_world_events(conn, "session-a", 480, 480) == []
         fired = fire_due_world_events(conn, "session-a", 480, 1440)
 
         assert [item["external_uid"] for item in fired] == ["first", "middle", "later"]
         assert all(item["location"] == "Ciudad lejana" for item in fired)
-        assert all(item["fired_day"] == 2 for item in fired)
+        assert [item["fired_day"] for item in fired] == [1, 1, 2]
+        assert [item["fired_minute"] for item in fired] == [481, 900, 0]
 
         # A retry/replay cannot fire the same world event twice.
         assert fire_due_world_events(conn, "session-a", 480, 1440) == []
