@@ -47,14 +47,15 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 - Pendiente: prueba en SpicyChat. No está instalado ni validado, y no hay JSON de importación porque el exportador no ha sido verificado.
 
 ### 3. Gestor local de canon, Lorebooks y continuidad
-- Carpeta: `proyecto/`
-- Estado: propuesta de producto v0.1; solo documentación, aplicación aún no implementada.
-- Objetivo: la PC conserva los mensajes, el canon, fichas, inventario, relaciones, reloj, recursos, usos de poderes y eventos; la IA recibe contexto selectivo y devuelve narración más cambios estructurados.
-- Flujo: construir contexto relevante → pedir respuesta estructurada → validar con reglas locales → aplicar cambios válidos en una transacción SQLite → guardar registro de eventos y mostrar la narración.
-- Documentos: `README.md`, `ARQUITECTURA.md`, `CONTRATO_RESPUESTA_IA.md`, `ESQUEMA_LOCAL.md`, `PRUEBAS_DE_ACEPTACION.md`.
-- Principio central: la IA propone; el validador decide qué se convierte en estado oficial. Los cambios ambiguos/irreversibles pueden esperar aprobación. No enviar toda la Lorebook en cada turno ni insertar guardados largos en el chat.
-- Siguiente paso: implementar prototipo local y validar persistencia, contexto selectivo, agencia del protagonista, inventario, reloj, relaciones, Eco, restauración y separación entre mundos.
-- Ubicación de trabajo: rama `docs/historias-organizadas`. La rama literal `main` aún solo contiene `.gitignore`; no se movieron las carpetas organizadas de mundos ni lorebooks a `main` en esta tarea.
+- Carpeta: `proyecto/`; aplicación prototipo: `proyecto/app/`.
+- Estado: v0.1 con código inicial real; la documentación anterior que decía «solo documentación» quedó obsoleta. La última CI enlazada por el README del prototipo indica 13 pruebas automáticas aprobadas, no una validación completa en Windows.
+- Stack: Python + FastAPI, HTML/CSS/JavaScript ligero en Chromium, SQLite y proveedores simulados/OpenAI/Gemini.
+- Ya existe: base local, interfaz de chat mínima, importación del JSON real de Isekai v1.16 (76 entradas), creación de mundos/partidas, reparto e inventario inicial, mensajes/eventos, propuestas de cambios y adaptadores de proveedor.
+- Referencias: `INVESTIGACION_REFERENCIAS.md`; decisiones ADR-001 a ADR-014 en `DECISIONES_TECNICAS.md`; prioridades P0–P4 en `ROADMAP_IMPLEMENTACION.md`.
+- **Hallazgo P0 de revisión de código:** el contexto reciente necesita filtrar estrictamente qué mensajes y eventos conoce el PNJ que responde; de lo contrario puede haber fuga de conversaciones privadas o secretos entre personajes. No declarar el sistema listo para una campaña larga hasta que esa prueba pase.
+- Otros pendientes prioritarios: política para autoaplicar operaciones cotidianas de bajo riesgo y retener las ambiguas/de alto impacto; inspector de activación Lorebook; rollback al editar/regenerar; prueba manual Windows; llamadas reales de OpenAI/Gemini; prueba de 50–100 intercambios y restauración.
+- No hay que enviar el Lorebook completo cada turno ni extraer las respuestas de la página de ChatGPT de consumo. La IA debe recibir contexto mínimo a través de API oficial y proponer cambios que el programa valida y guarda.
+- Rama de trabajo: `docs/historias-organizadas`. La rama literal `main` de este repositorio sigue sin las carpetas organizadas de mundos/Lorebooks; no mezclar ni mover ramas sin una tarea explícita.
 
 ## Separación de ramas
 
@@ -73,4 +74,4 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 
 ## Próximo paso recomendado
 
-Probar en SpicyChat el Isekai v1.15 propuesto, incluido el bloque prioritario de Personality, el inventario inicial, las fichas de estado y la importación de las 76 entradas. No crear una partida nueva hasta guardar cualquier progreso actual. Si el bot vuelve al Día 1, no aceptar ese reinicio: usar el último `[PUNTO DE GUARDADO]` copiado y reanudar desde allí. Registrar los resultados en la carpeta de Isekai antes de hacer más cambios.
+Continuar el gestor local en este orden: (1) corregir y probar visibilidad de conocimientos por destinatario/testigos; (2) decidir qué cambios de bajo riesgo se aplican automáticamente y cuáles quedan pendientes; (3) añadir reversión de turnos editados/regenerados; (4) ejecutar la app en Windows y probar una llamada API real; (5) realizar una campaña de 50–100 turnos y reiniciar/restaurar la base para comprobar continuidad. Mantener en paralelo las pruebas de SpicyChat documentadas en la carpeta de Isekai. No declarar «Done» un hito que solo tenga documentación o una prueba simulada.
