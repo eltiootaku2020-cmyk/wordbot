@@ -1,6 +1,6 @@
 # Pruebas de aceptación del gestor local
 
-La aplicación no se considerará fiable por una demostración breve. La CI más reciente validó 38 pruebas automatizadas con datos simulados, además de la sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40890138277. Cubre persistencia, privacidad por audiencia, Lorebook, inventario/recursos, undo y el puente manual ChatGPT/Gemini, incluida la recuperación de una respuesta inválida y varios turnos consecutivos. Esto no valida aún el uso real en Windows, la interacción real con ambos chats web ni la campaña larga. Las pruebas del estado deben poder repetirse sin llamadas pagas.
+La CI de la revisión de evidencia afirmativa validó 75 pruebas Python y la sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40928421073. La suite incluye persistencia, privacidad por audiencia, Lorebook, inventario/recursos, undo, el puente manual ChatGPT/Gemini y regresiones para acciones preguntadas/negadas, incluidas operaciones múltiples propuestas por el narrador. Esto no valida aún el uso real en Windows, la interacción real con ambos chats web ni una campaña narrativa larga. Las pruebas del estado deben poder repetirse sin llamadas pagas.
 
 ## A. Persistencia y recuperación
 
@@ -155,7 +155,7 @@ Se considera apto para una primera partida cuando A, C, D, E, F, G, H e I pasan 
 ## P. Cargar el preset de Isekai sin Destino
 
 1. Pulsar «Cargar Isekai sin Destino v1.16».
-2. Verificar 76 entradas de Lorebook, protagonista y cinco aventureros, cinco objetos iniciales, lugar inicial y Día 1 a las 08:00.
+2. Verificar 77 entradas de Lorebook, protagonista y cinco aventureros, cinco objetos iniciales, lugar inicial y Día 1 a las 08:00.
 3. Pulsar de nuevo y comprobar que se crea una segunda sesión en el mismo mundo sin mezclar mensajes/inventario de partidas anteriores.
 
 **Criterio:** canon y Lorebook compartidos, estado de cada partida aislado. La prueba de CI usa el Lorebook versionado en el repositorio y el narrador simulado; aún falta una prueba manual en Windows y una llamada real al proveedor.
@@ -209,3 +209,16 @@ Se considera apto para una primera partida cuando A, C, D, E, F, G, H e I pasan 
 **Criterio de aceptación:** Wordbot no impone una cuota local de mensajes ni corta los intercambios manuales por haber alcanzado un número fijo. Los límites propios de ChatGPT/Gemini quedan fuera del programa. Una respuesta incorrecta puede corregirse; solo se conserva una vez el turno que supera las validaciones y una respuesta basada en un contexto antiguo se rechaza.
 
 **Cobertura automatizada actual:** las pruebas de recuperación y de tres turnos consecutivos pasan en CI. Pendiente ejecutar estas acciones con las interfaces reales de ChatGPT y Gemini en Windows/Chromium y realizar la campaña completa de 50–100 intercambios con reinicio y restauración.
+
+## U. Evidencia afirmativa del usuario antes de alterar el estado
+
+1. Preguntar si se puede comprar un objeto, recoger un hallazgo, pagar/gastar recursos o usar un poder, sin ordenar la acción.
+2. Repetir con una negativa explícita, por ejemplo «No compro», «No recojo», «No pago» o «No uso Eco».
+3. Hacer que la respuesta simulada del narrador proponga igualmente la compra, el hallazgo, el ingreso, el gasto, el uso del poder y un efecto de relación asociado.
+4. Verificar que el saldo y el inventario permanecen iguales, el contador de usos no aumenta, las relaciones no cambian y los eventos propuestos quedan pendientes.
+5. Enviar una orden afirmativa posterior que nombre la acción y el objeto/recurso correcto; comprobar que solo se aplica la operación correspondiente, sujeta a las validaciones de coste y saldo.
+
+**Criterio:** una pregunta, intención hipotética o acción negada no autoriza por sí sola una operación. Las descripciones del narrador y los motivos de sus propuestas pueden servir como información para revisar el turno, pero nunca sustituyen la evidencia afirmativa en el mensaje del usuario.
+
+**Cobertura automatizada actual:** CI aprobó 75 pruebas Python y la comprobación de sintaxis JavaScript. La prueba de regresión combina preguntas y negaciones para compra, recogida, gasto, ingreso y uso de Eco; otra verifica que pagar por un alojamiento no autoriza una compra que el usuario negó. El estado sigue sin cambiar ante propuestas no autorizadas del narrador. No se hicieron llamadas reales a APIs ni pruebas manuales del navegador.
+

@@ -936,6 +936,123 @@ def save_change(conn, session_id, turn_id, ref, entity_id, field, operation,
     )
 
 
+def split_user_action_clauses(user_text: str) -> list[str]:
+    """Remove interrogative phrases and split independent/contrasting actions."""
+    text = re.sub(r"[^.!?]*\?", " ", user_text or "")
+    return [
+        clause.strip()
+        for clause in re.split(
+            r"(?<=[.!?;])\s*|\b(?:pero|sino|aunque|sin embargo|en cambio|y|e)\b\s*|[,，:]\s*|[\r\n]+",
+            text,
+            flags=re.IGNORECASE
+        )
+        if clause.strip()
+    ]
+
+
+def user_mentions_label(user_text: str, label: str) -> bool:
+    """Return whether the current user message names the item/resource in question."""
+    stopwords = {"de", "del", "la", "las", "el", "los", "un", "una", "unos", "unas", "and", "the"}
+    tokens = [
+        token for token in re.findall(r"[\wáéíóúüñ]+", (label or "").casefold())
+        if len(token) > 1 and token not in stopwords
+    ]
+    for token in tokens:
+        variants = {token}
+        if token.endswith("s"):
+            variants.add(token[:-1])
+        if token.endswith("es"):
+            variants.add(token[:-2])
+        for variant in variants:
+            if variant and re.search(rf"\b{re.escape(variant)}(?:s|es)?\b", user_text or "", re.IGNORECASE):
+                return True
+    return False
+
+
+def has_positive_user_action(user_text: str, action_pattern: re.Pattern[str]) -> bool:
+    """Only affirmative actions in the user's message are evidence; narration is never evidence."""
+    negation_prefix = re.compile(
+        r"\b(?:no|nunca|jam[aá]s|tampoco|ni|rechazo|evito|cancelo|me niego a)\b"
+        r"(?:\s+\w+){0,3}\s*$",
+        re.IGNORECASE
+    )
+    hypothetical_prefix = re.compile(
+        r"\b(?:quiero|quisiera|puedo|podr[ií]a|deber[ií]a|intento|intentar|planeo|"
+        r"pienso|considero|pregunto|preguntar|me gustar[ií]a|tal vez|quiz[aá]s|voy a|si|cuando|mientras)\b"
+        r"(?:\s+\w+){0,3}\s*$",
+        re.IGNORECASE
+    )
+    noun_prefix = re.compile(
+        r"\b(?:el|la|los|las|un|una|unos|unas|mi|mis|tu|tus|su|sus|este|esta|"
+        r"ese|esa|del|al)\s*$",
+        re.IGNORECASE
+    )
+    for clause in split_user_action_clauses(user_text):
+        if "¿" in clause or "?" in clause:
+            continue
+        for match in action_pattern.finditer(clause):
+            prefix = clause[:match.start()].rstrip()
+            if (negation_prefix.search(prefix) or hypothetical_prefix.search(prefix)
+                    or noun_prefix.search(prefix)):
+                continue
+            return True
+    return False
+
+
+def has_positive_user_action_for_label(
+    user_text: str, action_pattern: re.Pattern[str], label: str
+) -> bool:
+    """Require the affirmative action and the relevant item/resource in the same clause."""
+    return any(
+        "¿" not in clause and "?" not in clause
+        and user_mentions_label(clause, label)
+        and has_positive_user_action(clause, action_pattern)
+        for clause in split_user_action_clauses(user_text)
+    )
+
+
+PURCHASE_ACTION_PATTERN = re.compile(
+    r"\b(?:compro|compramos|compr[eé]|compraste|compr[oó]|compraron|"
+    r"adquiero|adquirimos|adquir[ií]|adquiriste|adquiri[oó]|adquirieron|"
+    r"pago|pagamos|pagu[eé]|pagaste|pag[oó]|pagaron|he comprado|hemos comprado|"
+    r"he pagado|hemos pagado|me llevo|nos llevamos)\b",
+    re.IGNORECASE
+)
+FREE_ACQUISITION_ACTION_PATTERN = re.compile(
+    r"\b(?:recojo|recogemos|recog[ií]|recogiste|recogi[oó]|recogieron|"
+    r"levanto|levantamos|levant[eé]|levantaste|levant[oó]|levantaron|"
+    r"tomo|tomamos|tom[eé]|tomaste|tom[oó]|tomaron|agarro|agarramos|agarr[eé]|"
+    r"agarraste|agarr[oó]|agarraron|recibo|recibimos|recib[ií]|recibiste|"
+    r"recibi[oó]|recibieron|acepto|aceptamos|acept[eé]|aceptaste|acept[oó]|"
+    r"aceptaron|me regalan|me regalaron|me entregan|me entregaron)\b",
+    re.IGNORECASE
+)
+RESOURCE_GAIN_ACTION_PATTERN = re.compile(
+    r"\b(?:recibo|recibimos|recib[ií]|recibiste|recibi[oó]|recibieron|"
+    r"cobro|cobramos|cobr[eé]|cobraste|cobr[oó]|cobraron|gano|ganamos|gan[eé]|"
+    r"ganaste|gan[oó]|ganaron|obtengo|obtenemos|obtuve|obtuviste|obtuvo|"
+    r"obtuvieron|acepto|aceptamos|acept[eé]|aceptaste|acept[oó]|aceptaron|"
+    r"me pagan|me pagaron|me entregan|me entregaron|vendo|vendemos|vend[ií]|"
+    r"vendiste|vendi[oó]|vendieron|he recibido|hemos recibido)\b",
+    re.IGNORECASE
+)
+RESOURCE_SPEND_ACTION_PATTERN = re.compile(
+    r"\b(?:pago|pagamos|pagu[eé]|pagaste|pag[oó]|pagaron|he pagado|hemos pagado|"
+    r"gasto|gastamos|gast[eé]|gastaste|gast[oó]|gastaron|alquilo|alquilamos|"
+    r"alquil[eé]|alquilaste|alquil[oó]|alquilaron|compro|compramos|compr[eé]|"
+    r"compraste|compr[oó]|compraron|entrego|entregamos|entregu[eé]|entregaste|"
+    r"entreg[oó]|entregaron|pierdo|perdemos|perd[ií]|perdiste|perdi[oó]|"
+    r"perdieron|he gastado|hemos gastado|me llevo|nos llevamos)\b",
+    re.IGNORECASE
+)
+POWER_ACTION_PATTERN = re.compile(
+    r"/(?:ps[ií]quic[oa]?|hechizo|eco|hipnosis)\b|"
+    r"\b(?:uso|utilizo|activo|lanzo|empleo|invoco)\s+(?:el\s+)?"
+    r"(?:poder\s+de\s+)?(?:eco|hipnosis)\b",
+    re.IGNORECASE
+)
+
+
 def apply_narrator_result(
     conn, session, turn_id: str, source_message_id: str, user_text: str,
     result: NarratorResponse, authorized_skip, visibility: str = "scene",
@@ -964,6 +1081,72 @@ def apply_narrator_result(
     private_subject_ids = (
         {session["protagonist_entity_id"], recipient_id} if visibility == "private" else None
     )
+    explicit_power = has_positive_user_action(user_text, POWER_ACTION_PATTERN)
+
+    # Generated event text may document a proposed outcome, but cannot authorize it.
+    unauthorized_acquisition_refs = set()
+    for operation in result.inventory_ops:
+        if operation.operation != "acquire":
+            continue
+        positive_purchase = has_positive_user_action_for_label(
+            user_text, PURCHASE_ACTION_PATTERN, operation.item_name
+        )
+        positive_pickup = has_positive_user_action_for_label(
+            user_text, FREE_ACQUISITION_ACTION_PATTERN, operation.item_name
+        )
+        if (
+            (operation.cost > 0 and not positive_purchase)
+            or (operation.cost == 0 and not (positive_purchase or positive_pickup))
+        ):
+            unauthorized_acquisition_refs.add(operation.event_ref)
+
+    unauthorized_resource_refs = set()
+    for operation in result.resource_ops:
+        action_pattern = (
+            RESOURCE_GAIN_ACTION_PATTERN if operation.operation == "gain"
+            else RESOURCE_SPEND_ACTION_PATTERN
+        )
+        user_authorized_resource = (
+            has_positive_user_action_for_label(user_text, action_pattern, operation.resource_key)
+            or has_positive_user_action_for_label(user_text, action_pattern, operation.display_name)
+        )
+        if not user_authorized_resource:
+            unauthorized_resource_refs.add(operation.event_ref)
+
+    def explicitly_used_power_for_target(power) -> bool:
+        target = conn.execute(
+            "SELECT name FROM entities WHERE id=? AND world_id=?",
+            (power.target_entity_id, session["world_id"])
+        ).fetchone()
+        if target and has_positive_user_action_for_label(
+            user_text, POWER_ACTION_PATTERN, target["name"]
+        ):
+            return True
+        # A short command such as /eco is an explicit action when it yields only
+        # one proposed target. Multiple targets still require target-specific evidence.
+        distinct_targets = {item.target_entity_id for item in result.power_uses}
+        return bool(
+            explicit_power and len(distinct_targets) == 1
+            and (not recipient_id or recipient_id == power.target_entity_id)
+        )
+
+    unauthorized_power_refs = set()
+    power_uses_by_event: dict[str, list[PowerUseProposal]] = {}
+    for power in result.power_uses:
+        power_uses_by_event.setdefault(power.event_ref, []).append(power)
+    for event in result.events:
+        if event.kind != "power":
+            continue
+        associated_uses = power_uses_by_event.get(event.ref, [])
+        if associated_uses:
+            if any(not explicitly_used_power_for_target(power) for power in associated_uses):
+                unauthorized_power_refs.add(event.ref)
+        elif not explicit_power:
+            unauthorized_power_refs.add(event.ref)
+    unauthorized_effect_refs = (
+        unauthorized_acquisition_refs | unauthorized_resource_refs | unauthorized_power_refs
+    )
+
     event_map: dict[str, dict[str, Any]] = {}
     pending_notes = list(result.pending)
     event_ref_counts: dict[str, int] = {}
@@ -986,6 +1169,12 @@ def apply_narrator_result(
             status = "pending"
             pending_notes.append(
                 f"Referencia de evento duplicada '{event.ref}': evento y cambios asociados requieren revisión."
+            )
+        elif event.ref in unauthorized_effect_refs:
+            conn.execute("UPDATE events SET status='pending' WHERE id=?", (event_id,))
+            status = "pending"
+            pending_notes.append(
+                f"Evento {event.ref} requiere revisión: falta una acción afirmativa del usuario en el mensaje actual."
             )
         elif status == "pending":
             pending_notes.append(
@@ -1073,16 +1262,6 @@ def apply_narrator_result(
         r"[uú]nic\w*|ancestral\w*|relic|unique|cursed|legendary)\b",
         re.IGNORECASE
     )
-    free_acquisition = re.compile(
-        r"\b(encontr\w*|hall\w*|recog\w*|levant\w*|regal\w*|gratis|"
-        r"te entreg\w*|te dio|te da|recib\w* gratis)\b",
-        re.IGNORECASE
-    )
-    paid_acquisition = re.compile(
-        r"\b(compr\w*|pag\w*|precio|cost\w*|monedas? por|oro por|vende por)\b",
-        re.IGNORECASE
-    )
-
     inventory_signature_counts: dict[tuple[str, str, str], int] = {}
     for operation in result.inventory_ops:
         signature = (operation.event_ref, operation.operation, operation.item_name.strip().casefold())
@@ -1120,8 +1299,12 @@ def apply_narrator_result(
             ).fetchone()
 
             if operation.operation == "acquire":
-                source_text = f"{user_text} {source.get('description', '')} {operation.reason}"
-                paid = bool(paid_acquisition.search(source_text))
+                paid = has_positive_user_action_for_label(
+                    user_text, PURCHASE_ACTION_PATTERN, item_name
+                )
+                free_pickup = has_positive_user_action_for_label(
+                    user_text, FREE_ACQUISITION_ACTION_PATTERN, item_name
+                )
                 currency_key = (operation.currency_key or "monedas").strip().casefold()
                 payment_row = None
                 if paid:
@@ -1143,9 +1326,9 @@ def apply_narrator_result(
                         else:
                             reason = ""
                 elif operation.cost > 0:
-                    reason = "La operación declara un coste pero la escena no confirma una compra/pago."
-                elif not free_acquisition.search(source_text):
-                    reason = "No se confirmó que el objeto fuera un hallazgo o regalo gratuito; queda pendiente."
+                    reason = "El mensaje del usuario no contiene una acción afirmativa de compra/pago para este objeto; el texto del narrador no puede autorizarla."
+                elif not free_pickup:
+                    reason = "El mensaje del usuario no confirma afirmativamente la recogida o aceptación de este objeto; queda pendiente."
                 else:
                     reason = ""
 
@@ -1304,16 +1487,10 @@ def apply_narrator_result(
             source["id"] if source else None
         )
 
-    # Generic income/costs (wages, rewards, rent, services). Purchases are debited
-    # inside InventoryOperation so the same event cannot charge twice.
-    explicit_gain = re.compile(
-        r"\b(recib\w*|cobr\w*|gan\w*|recompens\w*|salari\w*|premi\w*|"
-        r"vend\w* por|obtu\w* monedas?)\b", re.IGNORECASE
-    )
-    explicit_spend = re.compile(
-        r"\b(pag\w*|gast\w*|alquil\w*|compr\w*|cost\w*|precio|"
-        r"entreg\w* monedas?|pierd\w* monedas?)\b", re.IGNORECASE
-    )
+    # Economic evidence must come from an affirmative user action, not a
+    # narrator-generated description or operation.reason.
+    explicit_gain = RESOURCE_GAIN_ACTION_PATTERN
+    explicit_spend = RESOURCE_SPEND_ACTION_PATTERN
     resource_signature_counts: dict[tuple[str, str, str], int] = {}
     for operation in result.resource_ops:
         signature = (operation.event_ref, operation.operation, operation.resource_key.strip().casefold())
@@ -1344,11 +1521,13 @@ def apply_narrator_result(
         elif source["entity_id"] not in {"", session["protagonist_entity_id"]}:
             reason = "El recurso personal del protagonista no puede cambiar mediante un evento atribuido a otra entidad."
         else:
-            evidence_text = f"{user_text} {source['description']} {operation.reason}"
-            if operation.operation == "gain" and not explicit_gain.search(evidence_text):
-                reason = "No hay señal explícita de ingreso, recompensa, salario o ganancia."
-            elif operation.operation == "spend" and not explicit_spend.search(evidence_text):
-                reason = "No hay señal explícita de gasto o pago."
+            action_pattern = explicit_gain if operation.operation == "gain" else explicit_spend
+            user_authorized_resource = (
+                has_positive_user_action_for_label(user_text, action_pattern, resource_key)
+                or has_positive_user_action_for_label(user_text, action_pattern, operation.display_name)
+            )
+            if not user_authorized_resource:
+                reason = "No hay una acción afirmativa del usuario que nombre este recurso y autorice el ingreso o gasto."
             else:
                 balance = conn.execute(
                     "SELECT * FROM resources WHERE session_id=? AND resource_key=?",
@@ -1465,10 +1644,6 @@ def apply_narrator_result(
             accepted_value, status, reason, source["id"] if source else None
         )
 
-    explicit_power = bool(re.search(
-        r"/(?:ps[ií]quic[oa]?|hechizo|eco|hipnosis)\b|uso\s+eco|usar\s+eco|intento\s+usar\s+eco",
-        user_text, re.IGNORECASE
-    ))
     eco_aliases = {"eco", "eco_humano", "hipnosis"}
     power_signature_counts: dict[tuple[str, str], int] = {}
     for power in result.power_uses:
@@ -1487,26 +1662,27 @@ def apply_narrator_result(
             source and source["kind"] == "power"
             and source["entity_id"] == power.target_entity_id
         )
+        power_action_authorized = explicitly_used_power_for_target(power)
         can_apply = bool(
-            not duplicated_power and explicit_power and source
+            not duplicated_power and power_action_authorized and source
             and source["status"] == "recorded" and source_is_power_for_target
             and power.target_entity_id in valid_ids
         )
         reason = ""
         if duplicated_power:
             reason = "El mismo poder contra el mismo objetivo aparece varias veces en un turno; se requiere revisión para no duplicar usos."
-        elif not explicit_power:
-            reason = "El uso no coincide con una orden explícita del usuario."
         elif not source:
             reason = "No existe el evento que justifica el uso del poder."
-        elif source["status"] != "recorded":
-            reason = "El evento que justifica el poder está pendiente de revisión."
         elif source["kind"] != "power":
             reason = "El uso debe referenciar un evento de tipo power."
         elif source["entity_id"] != power.target_entity_id:
             reason = "El objetivo del evento de poder no coincide con el objetivo de la operación."
+        elif source["status"] != "recorded":
+            reason = "El evento que justifica el poder está pendiente de revisión."
         elif power.target_entity_id not in valid_ids:
             reason = "El objetivo del poder no pertenece a este mundo."
+        elif not power_action_authorized:
+            reason = "El uso no coincide con una orden afirmativa del usuario dirigida a este objetivo."
         if can_apply and ability in {"eco", "eco_humano", "hipnosis"}:
             count = conn.execute(
                 "SELECT COUNT(*) AS n FROM ability_uses WHERE session_id=? AND target_entity_id=? AND ability_key IN ('eco','eco_humano','hipnosis')",
