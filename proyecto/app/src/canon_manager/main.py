@@ -4,6 +4,7 @@ import json
 import logging
 import os
 import re
+import sqlite3
 import unicodedata
 import uuid
 from datetime import datetime, timezone
@@ -16,7 +17,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .db import Database
-from .models import ApprovalRequest, ContextPreviewRequest, EntityCreate, LocalCommandRequest, LocalSettingsUpdate, ManualPromptRequest, NarratorResponse, SessionCreate, TurnRequest, WorldCreate, WorldStartCreate
+from .models import ApprovalRequest, ContextPreviewRequest, EntityCreate, LocalCommandRequest, LocalSettingsUpdate, ManualPromptRequest, NarratorResponse, SessionCreate, SessionRestoreRequest, TurnRequest, WorldCreate, WorldStartCreate
 from .providers import ProviderError, build_manual_prompt, make_provider
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -2695,3 +2696,241 @@ def backup_session_database(session_id: str):
             )
         database.backup_to(str(backup_path))
     return {"backup_created": True, "path": str(backup_path)}
+
+
+RESTORE_SESSION_TABLES = (
+    "session_presence",
+    "inventory_items",
+    "resources",
+    "relationships",
+    "ability_uses",
+    "messages",
+    "events",
+    "state_changes",
+    "snapshots",
+)
+RESTORE_REQUIRED_COLUMNS = {
+    "session_presence": {"session_id", "entity_id", "location", "presence_status"},
+    "inventory_items": {"id", "session_id", "item_key", "display_name", "quantity", "condition", "carrier_entity_id", "location"},
+    "resources": {"id", "session_id", "resource_key", "display_name", "quantity", "unit"},
+    "relationships": {"id", "session_id", "from_entity_id", "to_entity_id", "axis", "value"},
+    "ability_uses": {"id", "session_id", "turn_id", "ability_key", "target_entity_id", "result"},
+    "messages": {"id", "session_id", "turn_id", "turn_index", "role", "recipient_entity_id", "content", "provider", "generation_status"},
+    "events": {"id", "session_id", "turn_id", "external_ref", "kind", "entity_id", "description", "witnesses_json", "status"},
+    "state_changes": {"id", "session_id", "turn_id", "external_ref", "entity_id", "field", "operation", "proposed_value_json", "status", "reason"},
+    "snapshots": {"id", "session_id", "event_sequence", "state_json"},
+}
+
+
+def _restore_world_signature(conn, world_id: str):
+    """Fingerprint the world's authored content before restoring a session snapshot."""
+    world = conn.execute(
+        "SELECT id,name,canon_text FROM worlds WHERE id=?", (world_id,)
+    ).fetchone()
+    if world is None:
+        return None
+    entities = [
+        tuple(row) for row in conn.execute(
+            "SELECT id,name,kind,profile,canonical_status FROM entities WHERE world_id=? ORDER BY id",
+            (world_id,)
+        ).fetchall()
+    ]
+    lore = [
+        tuple(row) for row in conn.execute(
+            "SELECT id,external_uid,title,keywords_json,content,priority,canon_status "
+            "FROM lore_entries WHERE world_id=? ORDER BY id",
+            (world_id,)
+        ).fetchall()
+    ]
+    return (tuple(world), tuple(entities), tuple(lore))
+
+
+def _table_columns(conn, table: str) -> set[str]:
+    return {
+        row["name"] for row in conn.execute(f"PRAGMA table_info({table})").fetchall()
+    }
+
+
+def _read_session_backup(backup_path: Path, session_id: str):
+    """Read and validate a session snapshot without modifying the active database."""
+    source = None
+    try:
+        source_uri = backup_path.resolve().as_uri() + "?mode=ro"
+        source = sqlite3.connect(source_uri, uri=True, timeout=10)
+        source.row_factory = sqlite3.Row
+        integrity = source.execute("PRAGMA integrity_check").fetchone()
+        if not integrity or integrity[0] != "ok":
+            raise HTTPException(status_code=422, detail="La copia de seguridad no supera la comprobación de integridad.")
+        if source.execute("PRAGMA foreign_key_check").fetchone():
+            raise HTTPException(status_code=422, detail="La copia contiene referencias internas incoherentes.")
+        source_session_row = source.execute(
+            "SELECT id,world_id,protagonist_entity_id,day,minute_of_day,current_location "
+            "FROM sessions WHERE id=?", (session_id,)
+        ).fetchone()
+        if source_session_row is None:
+            raise HTTPException(status_code=422, detail="La copia no contiene esta partida; el archivo no corresponde al identificador seleccionado.")
+
+        source_tables = {
+            row["name"] for row in source.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'"
+            ).fetchall()
+        }
+        missing_tables = [table for table in RESTORE_SESSION_TABLES if table not in source_tables]
+        if missing_tables:
+            raise HTTPException(
+                status_code=422,
+                detail="La copia usa un esquema antiguo o incompleto; no se modificó la partida."
+            )
+
+        table_rows = {}
+        for table in RESTORE_SESSION_TABLES:
+            columns = _table_columns(source, table)
+            if not RESTORE_REQUIRED_COLUMNS[table].issubset(columns):
+                raise HTTPException(
+                    status_code=422,
+                    detail=f"La copia no contiene los campos esenciales de {table}; no se modificó la partida."
+                )
+            table_rows[table] = [
+                dict(row) for row in source.execute(
+                    f"SELECT * FROM {table} WHERE session_id=? ORDER BY rowid",
+                    (session_id,)
+                ).fetchall()
+            ]
+        signature = _restore_world_signature(source, source_session_row["world_id"])
+        if signature is None:
+            raise HTTPException(status_code=422, detail="La copia no contiene el mundo de esta partida.")
+        return dict(source_session_row), signature, table_rows
+    except HTTPException:
+        raise
+    except (sqlite3.Error, OSError, ValueError) as exc:
+        raise HTTPException(
+            status_code=422,
+            detail="No se pudo leer la copia como una base de datos válida; la partida activa no se modificó."
+        ) from exc
+    finally:
+        if source is not None:
+            source.close()
+
+
+def restore_session_from_backup(session_id: str, backup_path: Path) -> dict[str, Any]:
+    backup_session, backup_world_signature, table_rows = _read_session_backup(backup_path, session_id)
+    restored_counts = {table: len(rows) for table, rows in table_rows.items()}
+
+    # A single immediate transaction serializes restoration against turn creation.
+    # If a turn has already started, its persistent "processing" marker blocks restore.
+    with database.transaction() as conn:
+        active_session = session_row(conn, session_id)
+        if active_session is None:
+            raise HTTPException(status_code=404, detail="Partida no encontrada.")
+        if (
+            active_session["world_id"] != backup_session["world_id"]
+            or active_session["protagonist_entity_id"] != backup_session["protagonist_entity_id"]
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="La copia pertenece a otra versión de la partida o a otro protagonista; no se restauró."
+            )
+        in_progress = conn.execute(
+            "SELECT 1 FROM messages WHERE session_id=? AND role='user' "
+            "AND generation_status='processing' LIMIT 1",
+            (session_id,)
+        ).fetchone()
+        if in_progress:
+            raise HTTPException(
+                status_code=409,
+                detail="No se puede restaurar mientras la partida tiene un turno en curso. No se modificó ningún dato."
+            )
+        current_world_signature = _restore_world_signature(conn, active_session["world_id"])
+        if current_world_signature != backup_world_signature:
+            raise HTTPException(
+                status_code=409,
+                detail="El canon, los personajes o el Lorebook del mundo cambiaron desde la copia. Para evitar mezclar versiones, restaura solo después de volver al mismo mundo."
+            )
+
+        conn.execute(
+            "UPDATE sessions SET day=?,minute_of_day=?,current_location=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
+            (
+                int(backup_session["day"]),
+                int(backup_session["minute_of_day"]),
+                backup_session["current_location"],
+                session_id,
+            )
+        )
+        for table in RESTORE_SESSION_TABLES:
+            conn.execute(f"DELETE FROM {table} WHERE session_id=?", (session_id,))
+
+        for table in RESTORE_SESSION_TABLES:
+            rows = table_rows[table]
+            if not rows:
+                continue
+            destination_columns = _table_columns(conn, table)
+            for row in rows:
+                columns = [column for column in row if column in destination_columns]
+                if not RESTORE_REQUIRED_COLUMNS[table].issubset(columns):
+                    raise HTTPException(
+                        status_code=422,
+                        detail=f"No se puede restaurar la estructura de {table}; la transacción fue cancelada."
+                    )
+                placeholders = ",".join("?" for _ in columns)
+                column_sql = ",".join(columns)
+                conn.execute(
+                    f"INSERT INTO {table} ({column_sql}) VALUES ({placeholders})",
+                    tuple(row[column] for column in columns)
+                )
+
+    with database.connection() as conn:
+        state = load_state(conn, session_id)
+    return {"restored_tables": restored_counts, "state": state}
+
+
+@app.get("/api/sessions/{session_id}/backups")
+def list_session_backups(session_id: str):
+    with database.connection() as conn:
+        if conn.execute("SELECT 1 FROM sessions WHERE id=?", (session_id,)).fetchone() is None:
+            raise HTTPException(status_code=404, detail="Partida no encontrada.")
+    backups_dir = (database.path.parent / "backups").resolve()
+    if not backups_dir.exists():
+        return {"backups": []}
+    prefix = f"backup-{session_id}-"
+    backups = []
+    for candidate in backups_dir.glob(f"{prefix}*.sqlite3"):
+        if not candidate.is_file() or candidate.name != candidate.name.strip():
+            continue
+        try:
+            resolved = candidate.resolve()
+            if resolved.parent != backups_dir or not candidate.name.startswith(prefix):
+                continue
+            stat = candidate.stat()
+            backups.append({
+                "name": candidate.name,
+                "created_at": datetime.fromtimestamp(stat.st_mtime, timezone.utc).isoformat(timespec="seconds"),
+                "size_bytes": stat.st_size,
+            })
+        except OSError:
+            continue
+    backups.sort(key=lambda item: item["created_at"], reverse=True)
+    return {"backups": backups[:50]}
+
+
+@app.post("/api/sessions/{session_id}/restore")
+def restore_session_backup(session_id: str, payload: SessionRestoreRequest):
+    if payload.confirmation != "RESTAURAR":
+        raise HTTPException(status_code=422, detail="Para restaurar debes confirmar escribiendo RESTAURAR.")
+    if Path(payload.backup_name).name != payload.backup_name:
+        raise HTTPException(status_code=422, detail="Selecciona una copia de la lista; no se aceptan rutas externas.")
+    backups_dir = (database.path.parent / "backups").resolve()
+    expected_prefix = f"backup-{session_id}-"
+    if not payload.backup_name.startswith(expected_prefix) or not payload.backup_name.endswith(".sqlite3"):
+        raise HTTPException(status_code=422, detail="La copia seleccionada no pertenece a esta partida.")
+    backup_path = (backups_dir / payload.backup_name).resolve()
+    if backup_path.parent != backups_dir or not backup_path.is_file():
+        raise HTTPException(status_code=404, detail="No se encontró la copia seleccionada.")
+    result = restore_session_from_backup(session_id, backup_path)
+    return {
+        "restored": True,
+        "backup_name": payload.backup_name,
+        "restored_tables": result["restored_tables"],
+        "state": result["state"],
+        "message": "Partida restaurada desde la copia seleccionada. La narración y el estado vuelven a ese punto; los otros mundos y partidas no se modificaron."
+    }
+
