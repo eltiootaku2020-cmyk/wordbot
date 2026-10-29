@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .db import Database
-from .models import ApprovalRequest, EntityCreate, NarratorResponse, SessionCreate, TurnRequest, WorldCreate
+from .models import ApprovalRequest, EntityCreate, NarratorResponse, SessionCreate, TurnRequest, WorldCreate, WorldStartCreate
 from .providers import ProviderError, make_provider
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -429,6 +429,67 @@ def list_worlds():
         return [dict(row) for row in conn.execute(
             "SELECT id,name,created_at FROM worlds ORDER BY created_at DESC"
         ).fetchall()]
+
+
+@app.post("/api/worlds/start")
+def create_world_and_start(payload: WorldStartCreate):
+    world_id = new_id()
+    protagonist_id = new_id()
+    session_id = new_id()
+    entity_ids = [protagonist_id]
+    try:
+        with database.transaction() as conn:
+            conn.execute(
+                "INSERT INTO worlds(id,name,canon_text) VALUES(?,?,?)",
+                (world_id, payload.name.strip(), payload.canon_text)
+            )
+            conn.execute(
+                "INSERT INTO entities(id,world_id,name,kind,profile) VALUES(?,?,?,?,?)",
+                (protagonist_id, world_id, payload.protagonist_name.strip(), "protagonist",
+                 payload.protagonist_profile)
+            )
+            for entity in payload.cast:
+                entity_id = new_id()
+                conn.execute(
+                    "INSERT INTO entities(id,world_id,name,kind,profile) VALUES(?,?,?,?,?)",
+                    (entity_id, world_id, entity.name.strip(), entity.kind, entity.profile)
+                )
+                entity_ids.append(entity_id)
+            conn.execute(
+                "INSERT INTO sessions(id,world_id,name,day,minute_of_day,current_location,protagonist_entity_id) "
+                "VALUES(?,?,?,?,?,?,?)",
+                (session_id, world_id, payload.session_name, payload.day, payload.minute_of_day,
+                 payload.location, protagonist_id)
+            )
+            for entity_id in entity_ids:
+                conn.execute(
+                    "INSERT INTO session_presence(session_id,entity_id,location,presence_status) "
+                    "VALUES(?,?,?,'present')",
+                    (session_id, entity_id, payload.location)
+                )
+            valid_ids = set(entity_ids)
+            for item in payload.initial_inventory:
+                carrier = item.carrier_entity_id or protagonist_id
+                if carrier not in valid_ids:
+                    raise HTTPException(status_code=422, detail="El portador inicial debe pertenecer al reparto creado.")
+                location = item.location or payload.location
+                item_key = item.name.strip().casefold()
+                conn.execute(
+                    "INSERT INTO inventory_items(id,session_id,item_key,display_name,quantity,condition,carrier_entity_id,location) "
+                    "VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(session_id,item_key) DO UPDATE SET "
+                    "quantity=inventory_items.quantity+excluded.quantity,condition=excluded.condition,"
+                    "carrier_entity_id=excluded.carrier_entity_id,location=excluded.location",
+                    (new_id(), session_id, item_key, item.name.strip(), item.quantity,
+                     item.condition, carrier, location)
+                )
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=409, detail=f"No se pudo crear el mundo; no se guardó ninguna parte de la operación: {exc}") from exc
+    return {
+        "world_id": world_id, "session_id": session_id,
+        "protagonist_entity_id": protagonist_id, "participant_ids": entity_ids
+    }
 
 
 @app.post("/api/worlds")
