@@ -1,6 +1,6 @@
 # Roadmap de implementación — gestor local v0.1
 
-El prototipo v0.1 ya existe. Las casillas marcan código presente, no necesariamente validación manual completa. La última CI aprobó 28 pruebas automáticas en Linux/Python 3.12 y comprobó sintaxis JavaScript; proveedores reales y la instalación en Windows aún deben probarse.
+El prototipo v0.1 ya existe. Las casillas marcan código presente, no necesariamente validación manual completa. La última CI aprobó 32 pruebas automáticas en Linux/Python 3.12 y comprobó sintaxis JavaScript; proveedores reales y la instalación en Windows aún deben probarse.
 
 ## Fase 0 — Investigación y arquitectura
 - [x] Revisar clientes de roleplay (SillyTavern, RisuAI, Agnai).
@@ -60,7 +60,7 @@ Criterio de salida: el programa envía solo el lore necesario y no convierte un 
 - [ ] Restauración con vista previa.
 - [x] Registrar cambios aceptados, pendientes y rechazados.
 - [ ] Reintento controlado para JSON inválido o timeout.
-- [x] CI: 28 pruebas aprobadas en modo simulado, sin llamadas pagas.
+- [x] CI: 32 pruebas aprobadas en modo simulado, sin llamadas pagas.
 - [ ] Prueba de 50–100 intercambios y reinicio completo.
 
 Criterio de salida: el estado, mensajes y recursos sobreviven al cierre; se pueden detectar y corregir errores de la IA.
@@ -89,7 +89,7 @@ La interfaz ya permite crear un mundo y su primera sesión, con protagonista, ca
 
 - [x] Validar sintaxis del JavaScript de la interfaz en CI.
 
-Última CI aprobada (28 pruebas Python + JavaScript): https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40873768030
+Última CI aprobada (32 pruebas Python + JavaScript): https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40877808136
 
 
 ---
@@ -102,10 +102,10 @@ Esta sección distingue implementado de pendiente. No marcar como terminado nada
 - [x] Alcance/audiencia por turno: privado con destinatario o escena/grupo, guardado en metadatos.
 - [x] Filtrado de contexto por destinatario, audiencia y testigos; eventos pendientes/rechazados no se presentan como hechos confirmados.
 - [x] Prueba aislada: conversación privada con Maelis no aparece en el contexto de Ivar; un privado sin destinatario se rechaza.
-- [ ] Mostrar también el motivo por el que cada mensaje/evento se incluyó o excluyó; el inspector ya explica activación de Lorebook y presupuesto.
+- [x] Mostrar motivos de inclusión/exclusión de mensajes/eventos con el inspector local: audiencia, destinatario, testigos, estado y límite de historial.
 - [ ] Probar cambios de presencia y registros antiguos sin metadatos de audiencia.
 
-**Criterio parcial alcanzado:** regresión privada cubierta por CI; inspector de mensajes/eventos y pruebas de cambios de escena pendientes.
+**Criterio parcial alcanzado:** privacidad e inspector por mensaje/evento cubiertos por CI; quedan cambios de presencia y registros históricos sin metadatos.
 
 ### Prioridad P1 — Política automática para cambios de bajo riesgo
 - [x] Mantener revisión para cambios ambiguos y de alto impacto.
@@ -115,17 +115,18 @@ Esta sección distingue implementado de pendiente. No marcar como terminado nada
 - [x] Pago e ingreso/objeto se registran en SQLite con valores anterior/propuesto/aceptado y fuente; saldo insuficiente deja inventario y dinero intactos.
 - [x] Mantener objetos de alto impacto, operaciones ambiguas y datos contradictorios pendientes.
 
-**Verificación:** 28 pruebas Python aprobadas en CI; proveedor simulado. La idempotencia de compra está probada en la API con proveedor simulado; faltan proveedor real y Windows.
+**Verificación:** 32 pruebas Python aprobadas en CI; proveedor simulado. La idempotencia de compra está probada en la API con proveedor simulado; faltan proveedor real y Windows.
 
 ### Prioridad P2 — Inspector de contexto y activación de Lorebook
 - [x] Mostrar fichas Lorebook seleccionadas y los disparadores concretos.
 - [x] Usar coincidencia de palabra/frase completa con límites Unicode; se prueba que "corriente Brasa" activa su ficha, pero "brasería" no.
 - [x] Limitar Lorebook a 8 entradas y un presupuesto fijo de 4.500 caracteres; los diagnósticos registran entradas omitidas y caracteres empleados.
 - [x] Ordenar por pertinencia del mensaje actual/destinatario/lugar/personajes, con prioridad del Lorebook como desempate.
-- [ ] Hacer configurable el presupuesto y mostrar por mensaje/evento la razón de inclusión/exclusión.
-- [ ] Añadir medición de tokens real por proveedor; la cifra actual es estimación por caracteres, no tokens.
+- [x] Presupuesto configurable entre 500–12.000 caracteres desde la UI, persistido en SQLite y usado en turnos/previsualización.
+- [x] Mostrar motivo por cada mensaje/evento incluido/excluido.
+- [ ] Añadir medición real de tokens por proveedor; el presupuesto aún se expresa en caracteres.
 
-**Criterio parcial alcanzado:** inspector Lorebook cubierto por prueba de CI. El contexto completo todavía no ofrece un inspector explicativo por mensaje/evento y el límite de caracteres no sustituye un tokenizador.
+**Criterio parcial alcanzado:** el inspector y el presupuesto editable ya tienen pruebas de CI; falta tokenización exacta por proveedor.
 
 ### Prioridad P3 — Undo, editar y regenerar de forma segura
 - [x] Crear snapshot preturno con los campos de estado mutables y asociarlo a `turn_id`.
@@ -133,12 +134,12 @@ Esta sección distingue implementado de pendiente. No marcar como terminado nada
 - [x] Conservar auditables las versiones anuladas: mensajes con estado anulada; eventos/cambios rechazados y separados del turno regenerable.
 - [x] Permitir reintentar el mismo `request_id` después de undo sin duplicar eventos, compras ni usos de poderes.
 - [x] Rechazar el undo de turnos antiguos cuando existan turnos posteriores activos.
-- [ ] Añadir pruebas explícitas de rollback de relaciones y poderes, y ensayar la interacción visual en Windows.
+ - [ ] Ensayar manualmente la interacción visual en Windows y ampliar escenarios de campaña larga.
 
-**Criterio parcial alcanzado:** restauración de inventario, recursos y reloj, auditoría y orden de undo cubiertos por CI. Falta probar todas las variantes de relaciones/poderes en una campaña larga.
+**Criterio parcial alcanzado:** restauración de inventario, recursos y reloj, auditoría y orden de undo cubiertos por CI. Quedan escenarios de campaña larga y prueba manual de la interfaz.
 
 ### Prioridad P4 — Pruebas de integración reales y de larga duración
-- [x] CI Linux: 28 pruebas Python y comprobación sintáctica de JavaScript aprobadas el 29-10-2026 (no sustituye las pruebas manuales de Windows).
+- [x] CI Linux: 32 pruebas Python y comprobación sintáctica de JavaScript aprobadas el 29-10-2026 (no sustituye las pruebas manuales de Windows).
 - [ ] Ejecutar la instalación desde cero en Windows/Chromium.
 - [ ] Probar una llamada controlada a OpenAI y otra a Gemini con claves del usuario en su PC; no almacenar claves en Git.
 - [ ] Ejecutar 50–100 turnos con escenas grupales/privadas, compras/consumos, viajes y Eco.
