@@ -1,6 +1,6 @@
 # Pruebas de aceptación del gestor local
 
-La aplicación no se considerará fiable por una demostración breve. La última CI pasa 26 pruebas automatizadas con datos simulados: persistencia/backups, esquema estricto, privacidad por audiencia, inspector Lorebook, turno de extremo a extremo, reintentos idempotentes, inventario, movimientos de PNJ, libro de recursos, compras y creación atómica de mundos. Eso no valida las llamadas reales a OpenAI/Gemini, el uso manual en Windows ni los casos de aceptación pendientes. Las pruebas de estado deben poder repetirse sin llamadas pagas.
+La aplicación no se considerará fiable por una demostración breve. La última CI pasa 28 pruebas automatizadas con datos simulados: persistencia/backups, esquema estricto, privacidad por audiencia, inspector Lorebook, turno de extremo a extremo, reintentos idempotentes, inventario, movimientos de PNJ, libro de recursos, compras y creación atómica de mundos. Eso no valida las llamadas reales a OpenAI/Gemini, el uso manual en Windows ni los casos de aceptación pendientes. Las pruebas de estado deben poder repetirse sin llamadas pagas.
 
 ## A. Persistencia y recuperación
 
@@ -171,3 +171,15 @@ Se considera apto para una primera partida cuando A, C, D, E, F, G, H e I pasan 
 6. Proponer además un segundo gasto de recurso asociado al mismo evento de compra y verificar que no duplique el cargo.
 
 **Cobertura actual:** CI valida los casos de compra suficiente, insuficiente y recompensa explícita con narrador simulado. La idempotencia se verifica al repetir el mismo request_id en la API usando proveedor simulado. Pendiente simular pérdida real de respuesta y probar proveedor remoto.
+
+
+## R. Undo y regeneración segura de turnos
+
+1. Enviar un turno que compre un objeto y avance el reloj.
+2. Pulsar «Deshacer último turno». Reloj, monedas, inventario y presencia deben volver al snapshot anterior; las relaciones y usos de poderes también deben restaurarse.
+3. Comprobar que los mensajes anulados quedan etiquetados y que eventos/cambios de la versión anulada quedan fuera del contexto activo.
+4. Reenviar el mismo `request_id` y comprobar que la operación se regenera sin duplicar eventos ni cobrar dos veces.
+5. Intentar deshacer un turno anterior mientras hay turnos posteriores activos: el programa debe responder 409 y no modificar el estado.
+6. Reiniciar y comprobar que los snapshots persisten; completar después una campaña de 50–100 turnos.
+
+**Cobertura actual:** CI valida restauración de inventario, recursos y reloj; auditoría de eventos/cambios; regeneración; y rechazo de undo fuera de orden. Falta ampliar casos de relaciones/poderes y probar manualmente la UI en Windows.
