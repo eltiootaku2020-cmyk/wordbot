@@ -4580,12 +4580,10 @@ def test_durable_continuity_events_survive_recent_history_window_and_respect_wit
 
 
 def test_narrative_variation_cue_is_stable_per_turn_and_avoids_recent_repeats():
-    with TestClient(app):
-        seed = client_seed = None
-        # The test client fixture initializes an isolated database; seed a world.
-        with TestClient(app) as client:
-            seed = client.post("/api/demo/seed", json={}).json()
-        session_id = seed["session_id"]
+    # Seed a world in the isolated test database.
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+    session_id = seed["session_id"]
         with database.transaction() as conn:
             first = main_module.narrative_variation_hint(conn, session_id, "preview-next")
             repeated_preview = main_module.narrative_variation_hint(conn, session_id, "preview-next")
