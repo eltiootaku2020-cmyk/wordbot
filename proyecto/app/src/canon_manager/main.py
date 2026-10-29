@@ -265,35 +265,51 @@ def build_context(
     # Retrieve a larger candidate set, then keep the ten most recent messages
     # that this character could actually have seen or been told.
     message_rows = conn.execute(
-        "SELECT role,recipient_entity_id,content,metadata_json,turn_id,turn_index "
-        "FROM messages WHERE session_id=? AND turn_id<>? AND generation_status='complete' "
+        "SELECT id,role,recipient_entity_id,content,metadata_json,turn_id,turn_index,generation_status "
+        "FROM messages WHERE session_id=? AND turn_id<>? "
         "ORDER BY turn_index DESC, created_at DESC LIMIT 100",
         (session["id"], current_turn_id)
     ).fetchall()
     recent = []
+    selected_messages_debug = []
+    excluded_messages_debug = []
     for row in message_rows:
         metadata = json.loads(row["metadata_json"] or "{}")
         message_visibility = metadata.get("visibility")
         message_audience = set(metadata.get("audience_ids") or [])
+        reason = ""
 
-        if message_visibility == "private":
+        if row["generation_status"] != "complete":
+            reason = f"mensaje en estado {row['generation_status']}; solo los turnos completos se recuperan"
+        elif message_visibility == "private":
             # Older private messages without audience_ids are visible only to
             # their explicitly selected recipient.
             if not message_audience and row["recipient_entity_id"]:
                 message_audience = {row["recipient_entity_id"]}
             if not recipient_id or recipient_id not in message_audience:
-                continue
+                reason = "el destinatario activo no pertenece a la audiencia privada"
         elif message_audience:
             if recipient_id:
                 if recipient_id not in message_audience:
-                    continue
+                    reason = "el destinatario activo no pertenece a la audiencia de escena"
             elif not (message_audience & scene_ids):
-                continue
+                reason = "la audiencia histórica no coincide con la escena actual"
         elif not message_visibility and row["recipient_entity_id"]:
-            # Backward compatibility: legacy targeted turns had no audience
-            # metadata, so do not expose them to a different NPC.
+            # Backward compatibility for targeted turns written before audience metadata existed.
             if not recipient_id or row["recipient_entity_id"] != recipient_id:
-                continue
+                reason = "mensaje histórico dirigido a otro destinatario"
+
+        if not reason and len(recent) >= MAX_RECENT_MESSAGES:
+            reason = f"supera el máximo de {MAX_RECENT_MESSAGES} mensajes recientes"
+        if reason:
+            excluded_messages_debug.append({
+                "message_id": row["id"], "turn_id": row["turn_id"],
+                "turn_index": row["turn_index"], "role": row["role"],
+                "status": row["generation_status"],
+                "visibility": message_visibility or "legacy",
+                "reason": reason
+            })
+            continue
 
         message_content = row["content"] or ""
         recent.append({
@@ -303,9 +319,20 @@ def build_context(
             "content_truncated": len(message_content) > MAX_RECENT_MESSAGE_CHARS,
             "visibility": message_visibility or "legacy"
         })
-        if len(recent) >= MAX_RECENT_MESSAGES:
-            break
+        selected_messages_debug.append({
+            "message_id": row["id"], "turn_id": row["turn_id"],
+            "turn_index": row["turn_index"], "role": row["role"],
+            "visibility": message_visibility or "legacy",
+            "reason": (
+                "audiencia privada incluye al destinatario activo"
+                if message_visibility == "private"
+                else "destinatario incluido en audiencia de escena"
+                if message_audience and recipient_id
+                else "mensaje accesible por alcance de escena o historial compartido"
+            )
+        })
     recent.reverse()
+    selected_messages_debug.reverse()
 
     trigger_sources = []
     if user_text.strip():
@@ -382,40 +409,55 @@ def build_context(
     # Events are available only if the acting NPC witnessed them or the source
     # conversation was visible to them. Pending/rejected proposals are not facts.
     event_rows = conn.execute(
-        "SELECT e.kind,e.entity_id,e.description,e.status,e.witnesses_json,"
+        "SELECT e.id,e.turn_id,e.kind,e.entity_id,e.description,e.status,e.witnesses_json,"
         "m.recipient_entity_id AS source_recipient_id,m.metadata_json AS source_metadata_json "
         "FROM events e LEFT JOIN messages m ON m.id=e.source_message_id "
-        "WHERE e.session_id=? AND e.status='recorded' "
-        "ORDER BY e.created_at DESC LIMIT 100",
+        "WHERE e.session_id=? ORDER BY e.created_at DESC LIMIT 100",
         (session["id"],)
     ).fetchall()
     recent_events = []
+    selected_events_debug = []
+    excluded_events_debug = []
     for row in event_rows:
         witnesses = set(json.loads(row["witnesses_json"] or "[]"))
         source_metadata = json.loads(row["source_metadata_json"] or "{}")
         source_visibility = source_metadata.get("visibility")
         source_audience = set(source_metadata.get("audience_ids") or [])
+        reason = ""
 
-        if source_visibility == "private":
+        if row["status"] != "recorded":
+            reason = f"evento en estado {row['status']}; solo los eventos registrados se recuperan como hechos"
+        elif source_visibility == "private":
             if not source_audience and row["source_recipient_id"]:
                 source_audience = {row["source_recipient_id"]}
             if not recipient_id or recipient_id not in source_audience:
-                continue
+                reason = "la audiencia privada del evento no incluye al destinatario activo"
         elif source_audience:
             if recipient_id:
                 if recipient_id not in source_audience:
-                    continue
+                    reason = "la audiencia del evento no incluye al destinatario activo"
             elif not (source_audience & scene_ids):
-                continue
+                reason = "la audiencia del evento no coincide con la escena actual"
         elif not source_visibility and row["source_recipient_id"]:
             if not recipient_id or row["source_recipient_id"] != recipient_id:
-                continue
+                reason = "el evento proviene de un mensaje dirigido a otro destinatario"
 
-        if witnesses:
+        if not reason and witnesses:
             if recipient_id and recipient_id not in witnesses:
-                continue
-            if not recipient_id and not (witnesses & scene_ids):
-                continue
+                reason = "el destinatario activo no presenció el evento ni figura entre sus testigos"
+            elif not recipient_id and not (witnesses & scene_ids):
+                reason = "ningún testigo del evento coincide con la escena actual"
+        if not reason and len(recent_events) >= MAX_RECENT_EVENTS:
+            reason = f"supera el máximo de {MAX_RECENT_EVENTS} eventos recientes"
+
+        if reason:
+            excluded_events_debug.append({
+                "event_id": row["id"], "turn_id": row["turn_id"],
+                "kind": row["kind"], "entity_id": row["entity_id"],
+                "status": row["status"], "witness_ids": sorted(witnesses),
+                "reason": reason
+            })
+            continue
 
         event_description = row["description"] or ""
         recent_events.append({
@@ -424,9 +466,19 @@ def build_context(
             "description_truncated": len(event_description) > MAX_EVENT_DESCRIPTION_CHARS,
             "status": row["status"], "witness_ids": sorted(witnesses)
         })
-        if len(recent_events) >= MAX_RECENT_EVENTS:
-            break
+        selected_events_debug.append({
+            "event_id": row["id"], "turn_id": row["turn_id"],
+            "kind": row["kind"], "entity_id": row["entity_id"],
+            "description_preview": event_description[:160],
+            "witness_ids": sorted(witnesses),
+            "reason": (
+                "evento accesible por audiencia privada autorizada"
+                if source_visibility == "private"
+                else "evento accesible por audiencia y testigos válidos"
+            )
+        })
     recent_events.reverse()
+    selected_events_debug.reverse()
 
     eco_uses = [dict(row) for row in conn.execute(
         "SELECT target_entity_id,COUNT(*) AS attempts FROM ability_uses "
@@ -468,8 +520,14 @@ def build_context(
         "lore_chars_budget": MAX_LORE_CHARS,
         "lore_entries_selected": len(lore),
         "lore_entries_max": MAX_LORE_ENTRIES,
+        "selected_messages": selected_messages_debug,
+        "excluded_messages": excluded_messages_debug,
+        "selected_events": selected_events_debug,
+        "excluded_events": excluded_events_debug,
         "recent_messages_selected": len(recent),
         "recent_events_selected": len(recent_events),
+        "messages_excluded_count": len(excluded_messages_debug),
+        "events_excluded_count": len(excluded_events_debug),
         "inventory_items_selected": len(inventory),
         "context_characters": context_chars,
         "limits": {
