@@ -209,3 +209,16 @@ Se considera apto para una primera partida cuando A, C, D, E, F, G, H e I pasan 
 **Criterio de aceptación:** Wordbot no impone una cuota local de mensajes ni corta los intercambios manuales por haber alcanzado un número fijo. Los límites propios de ChatGPT/Gemini quedan fuera del programa. Una respuesta incorrecta puede corregirse; solo se conserva una vez el turno que supera las validaciones y una respuesta basada en un contexto antiguo se rechaza.
 
 **Cobertura automatizada actual:** las pruebas de recuperación y de tres turnos consecutivos pasan en CI. Pendiente ejecutar estas acciones con las interfaces reales de ChatGPT y Gemini en Windows/Chromium y realizar la campaña completa de 50–100 intercambios con reinicio y restauración.
+
+## U. Evidencia afirmativa del usuario antes de alterar el estado
+
+1. Preguntar si se puede comprar un objeto, recoger un hallazgo, pagar/gastar recursos o usar un poder, sin ordenar la acción.
+2. Repetir con una negativa explícita, por ejemplo «No compro», «No recojo», «No pago» o «No uso Eco».
+3. Hacer que la respuesta simulada del narrador proponga igualmente la compra, el hallazgo, el ingreso, el gasto, el uso del poder y un efecto de relación asociado.
+4. Verificar que el saldo y el inventario permanecen iguales, el contador de usos no aumenta, las relaciones no cambian y los eventos propuestos quedan pendientes.
+5. Enviar una orden afirmativa posterior que nombre la acción y el objeto/recurso correcto; comprobar que solo se aplica la operación correspondiente, sujeta a las validaciones de coste y saldo.
+
+**Criterio:** una pregunta, intención hipotética o acción negada no autoriza por sí sola una operación. Las descripciones del narrador y los motivos de sus propuestas pueden servir como información para revisar el turno, pero nunca sustituyen la evidencia afirmativa en el mensaje del usuario.
+
+**Cobertura automatizada propuesta:** una prueba de regresión combina preguntas y negaciones para compra, recogida, gasto, ingreso y uso de Eco; comprueba que no hay mutaciones parciales ni eventos confirmados falsamente. La ejecución de CI de esta revisión debe confirmar el resultado antes de dar el criterio por superado.
+
