@@ -1,10 +1,10 @@
 # ISEKAI SIN DESTINO
-## Libro de lore para SpicyChat — versión 1.17
+## Libro de lore para SpicyChat — versión 1.18
 
 > **Proyecto independiente:** este documento pertenece al bot de rol de SpicyChat. No modifica el canon de UMBRA: Card Frontier.
 >
 > **Premisa:** fantasía medieval clásica, aventura isekai, supervivencia, humor ecchi, romance opcional y espacios para situaciones adultas consensuadas entre personajes adultos. No hay Rey Demonio obligatorio ni un protagonista invencible.
-> **Revisión v1.17:** se conservan las correcciones de activadores y el canon previo; se añade una entrada específica para el registro de cada uso de Eco/poder, con intención, reacción observada, efectos separados, evidencia, testigos y límites desconocidos. El guardado pasa a varias partes para evitar resúmenes demasiado cortos; movimiento de PNJ/entorno cada 1–2 respuestas si no hay motivo para quietud. Falta validar importación y comportamiento en SpicyChat.
+> **Revisión v1.18:** auditoría de coherencia: Content importable menor de 1.000 caracteres, keywords únicas, porcentajes con deltas en puntos porcentuales y coherencia del inventario inicial. El JSON conserva 77 entradas con UID únicos (no consecutivos). Falta validar importación y comportamiento real en SpicyChat.
 
 ## 1. Instrucciones maestras para el director de juego
 
@@ -56,7 +56,7 @@ Las aplicaciones futuras se descubren mediante observación y experimentación, 
 Presentar el mundo, la vulnerabilidad del protagonista y el grupo inicial mixto. No explicar todos los misterios de golpe.
 
 ### Inicio
-El protagonista despierta o aparece en un claro boscoso, vestido únicamente con camisa y pantalones largos. No tiene equipo ni provisiones. Cinco aventureros adultos lo encuentran durante un viaje: una guerrera de 26 años, un lancero de 27, una maga de 24, una arquera de 25 y un encargado de provisiones de 22.
+El protagonista aparece en un claro boscoso con camisa y pantalones largos corrientes, pañuelo gastado, bolsita de tela vacía y cordel corto de cáñamo (~1,5 m). No tiene dinero, comida, agua, armas, mochila ni equipo de aventura. Cinco aventureros adultos lo encuentran durante un viaje: una guerrera de 26 años, un lancero de 27, una maga de 24, una arquera de 25 y un encargado de provisiones de 22.
 
 ### Reacción del grupo
 Cada integrante reacciona de forma distinta. La guerrera prioriza la seguridad; el lancero sospecha una posible emboscada; la maga siente curiosidad por el origen del recién llegado; la arquera vigila el perímetro; el encargado de provisiones se preocupa por los recursos del grupo. No son obligados a rescatarlo: la reacción depende de lo que diga y haga el jugador.
@@ -1081,7 +1081,7 @@ Revisado con la documentación oficial disponible el 25-10-2026; los límites/mo
 - **Greeting:** máximo de 2.000 caracteres. Es la escena inicial, no el lugar para contar toda la historia del mundo.
 - **Configuración total del personaje:** la documentación recomienda como referencia aproximadamente 800–1.100 tokens para dejar espacio para la conversación. El contador de fichas de la interfaz es la comprobación definitiva.
 - **Tags:** hasta 12; usar etiquetas reales disponibles en el menú y no etiquetas inventadas si la plataforma no las ofrece.
-- **Lorebook:** solo puede haber una Lorebook conectada al personaje. Cada entrada puede contener hasta 2.000 caracteres según la documentación oficial consultada; conviene usar bastante menos para ahorrar contexto. Las entradas deben ser pequeñas y tratar un solo tema.
+- **Lorebook:** solo puede haber una Lorebook conectada al personaje. La documentación oficial actual publica hasta 2.000 caracteres por entrada; por prudencia, este proyecto exige menos de 1.000 caracteres por Content. Cada entrada trata un solo tema y el JSON se valida contra ese umbral conservador.
 - **Activación:** se comprueban las palabras clave de los últimos cuatro mensajes de usuario y personaje. Una entrada permanece activa aproximadamente dos turnos; repetir su palabra clave puede mantenerla activa.
 - **No hay activación en cadena:** una entrada no puede activar otra por mencionar su palabra clave. La palabra debe aparecer en el diálogo real reciente.
 - **Presupuesto:** el sistema procura limitar el lore activo a aproximadamente el 20 % de la ventana de contexto; la documentación describe unos 740 tokens para Free, 1.600 para True Supporter y 3.080 para I'm All In. Una ventana mayor no significa que todo el libro esté cargado simultáneamente.
@@ -1221,7 +1221,7 @@ Si falla una prueba, corregir primero Personality, Scenario o la entrada especí
 
 ## 23. Catálogo de entradas listas para copiar en la Lorebook de SpicyChat
 
-Las entradas siguientes son una **capa operativa compacta**, separada de esta biblia extensa. Cada entrada tiene un tema y debe permanecer por debajo de 2.000 caracteres. Crea una Lorebook llamada **Isekai sin Destino**; descripción sugerida: **Fantasía abierta, aventura adulta, ecchi suave y una cronología viva**. Añade cada entrada por separado y escribe cada palabra clave en su campo Keywords, pulsando Enter para guardarla.
+Las entradas siguientes son una **capa operativa compacta**, separada de esta biblia extensa. Cada entrada tiene un tema y debe permanecer por debajo de 1.000 caracteres (margen conservador del proyecto; el máximo oficial actual publicado es 2.000). Crea una Lorebook llamada **Isekai sin Destino**; descripción sugerida: **Fantasía abierta, aventura adulta, ecchi suave y una cronología viva**. Añade cada entrada por separado y escribe cada palabra clave en su campo Keywords, pulsando Enter para guardarla.
 
 No uses todas las palabras clave en una sola entrada. Evita palabras genéricas como «mundo», «persona» o «magia»: activarían demasiado lore. Las reglas permanentes están en Personality; aquí solo se guarda el contexto específico.
 
@@ -1751,7 +1751,7 @@ No revelar todos esos datos al primer encuentro. Muestra uno o dos mediante acci
 
 ## 30. Entradas de Lorebook nuevas para el mapa y los encuentros
 
-Añade estas entradas a la misma Lorebook **Isekai sin Destino**, una por una. Cada Content está pensado para quedar por debajo de 2.000 caracteres y centrado en un tema. Las claves específicas aumentan la precisión; solo se activan si aparecen en los mensajes recientes. No hace falta cargar todo el atlas durante cada respuesta.
+Añade estas entradas a la misma Lorebook **Isekai sin Destino**, una por una. Cada Content debe quedar por debajo de 1.000 caracteres y centrarse en un tema. Las claves específicas aumentan la precisión; solo se activan si aparecen en los mensajes recientes. No hace falta cargar todo el atlas durante cada respuesta.
 
 ### Entrada 42 — Mapa de las cuatro ciudades
 **Keywords:** `/mapa`; `/ruta`; `minimapa`; `cuatro ciudades`; `mapa del continente`
@@ -2015,8 +2015,7 @@ Estas entradas amplían el catálogo compacto. Añádelas individualmente; las r
 ### Entrada 73 — Registro interno y esquema cerrado
 **Keywords:** `/ficha`; `registro interno`; `esquema cerrado`; `habilidades conocidas`; `intereses del PNJ`; `sospechas con evidencia`; `porcentajes independientes`; `orden a criatura`; `guardar objeto`
 
-**Content:** Esquema cerrado: estado (día/bloque/lugar/escena, mapa/rutas/lore, objetos/estado/portador/ubicación, recursos/lesiones, órdenes/cumplimiento, cronología persistente y sucesos recientes); entidad (ID/identidad/especie/estado/última ubicación, habilidades demostradas/evidencia, intereses/fuente, sospechas/motivo/evidencia, conocimiento/fuente, vínculos por pareja/dirección, promesas/deudas/conflictos, encuentros/testigos, Eco por uso). Dato ausente=No registrado; no inventes campos. Porcentajes 0–100 miden intensidad, no probabilidad; 50 no es neutral universal; sin evidencia, No registrado. Δ+/-/0 requiere causa. Sin historial de comidas, solo inventario. Orden no implica obediencia. Conserva hitos con consecuencias activas, no solo 3–5 recientes.
-
+**Content:** Esquema cerrado: estado (día/bloque/lugar/escena, mapa/rutas/lore); objetos/estado/portador/ubicación; recursos/lesiones; órdenes/cumplimiento; hitos persistentes y sucesos recientes; entidad (ID/especie/estado/última ubicación, habilidades demostradas/evidencia, intereses/fuente, sospechas/motivo/evidencia, conocimiento/fuente, vínculos, promesas/deudas/conflictos, encuentros/testigos, Eco por uso). Dato ausente=No registrado; no inventes campos. Porcentajes 0–100 miden intensidad, no probabilidad; 50 no es neutral universal; sin evidencia=No registrado y 0 solo si está establecido. Δ=nuevo−anterior en puntos porcentuales: 20%→30%=+10 puntos, no +10% relativo; Δ0=no cambia por ese hecho, no es estado neutral. Sin historial de comidas, solo inventario. Orden no implica obediencia; conserva hitos con consecuencias activas.
 
 ### Entrada 74 — Diálogo proactivo de PNJ cercanos
 **Keywords:** `iniciativa de PNJ`; `diálogo espontáneo`; `PNJ cercanos`; `personajes presentes`; `Ivar suspira`; `frases sueltas`; `personaje no habla`; `intervención espontánea`
@@ -2037,10 +2036,9 @@ Estas entradas amplían el catálogo compacto. Añádelas individualmente; las r
 
 
 ### Entrada 77 — Registro de poderes por uso: intención, reacción y efecto
-**Keywords:** `registro de Eco`; `uso de Eco`; `efecto de Eco`; `efecto de poder`; `miedo primordial`; `implantar recuerdo`; `creer que somos amigos`; `controlar un lobo`; `lobo gris`; `obediencia +10`; `miedo +10`; `libro de poderes`
+**Keywords:** `registro de poderes`; `evento de poder`; `resultado del poder`; `efecto confirmado`; `libro de poderes`; `intención de Eco`
 
-**Content:** Cada uso de Eco u otra habilidad sobrenatural es un evento propio con ID, día/bloque/lugar, poder/subtipo, objetivo/ID/especie, intención, acción intentada, reacción observable, resultado confirmado y evidencia, efectos separados, valor anterior→nuevo y Δ en puntos si hay base, coste/usos/duración solo si se conocen, testigos/quién se enteró y riesgo pendiente. Intención no equivale a resultado: intentar que alguien crea que son amigos no garantiza amistad/confianza/obediencia; rescatar a alguien es un evento distinto y la gratitud depende de quién lo presenció/supo. Miedo y obediencia son ejes distintos. Miedo 20→30% (Δ +10 puntos) requiere valor previo y evidencia; sin base, No registrado. Ejemplo ilustrativo, no canon: intento de infundir miedo primordial a un lobo gris, en Bosque Oscuro solo si se confirmó ese lugar; reacción observada: retrocede y gruñe; miedo, obediencia, coste y duración siguen No registrados sin evidencia. Personas: máximo tres intentos por objetivo, cada uno cuenta aunque falle. Árboles/animales: alcance, coste, duración y contador siguen sin confirmar; no supongas control de animales.
-
+**Content:** Cada uso de Eco u otro poder es un evento: ID, día/bloque/lugar, poder, objetivo/especie, intención, reacción observable, resultado/evidencia, efectos por eje, valor anterior→nuevo y Δ en puntos si hay base, coste/duración solo si conocidos, testigos/quién se enteró y consecuencias. Intención no es resultado: pedir amistad no confirma confianza u obediencia; gratitud depende de quién vio o supo el acto. En personas, cada intento consume uno aunque falle; máximo 3 por objetivo. Eco vegetal y animal: límites, coste, duración y contador quedan No registrados hasta confirmación; no extrapoles control animal. Ejemplos de porcentajes no son canon.
 
 ### 34.1. Diagnóstico
 
