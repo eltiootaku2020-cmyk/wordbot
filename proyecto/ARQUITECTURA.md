@@ -172,3 +172,16 @@ No se debe automatizar la extracción de respuestas desde el DOM de la página d
 - Los cambios se aplican una vez y en una transacción.
 - Ambigüedad, contradicción o cambio irreversible puede dejarse como pendiente.
 - La base local se considera autoridad, nunca un resumen generado por IA.
+
+
+## Actualización de implementación — 29-10-2026
+
+El código actual incluye:
+- Turnos con alcance `scene/private` y audiencia almacenada en metadatos.
+- Contexto limitado por destinatario, ubicación, audiencia y testigos; la privacidad se aplica en recuperación, no solo por prompt.
+- Inspector de contexto que presenta fichas Lorebook, activadores, límites y uso aproximado en caracteres sin llamar al modelo.
+- Reglas automáticas para operaciones ordinarias de inventario y movimientos no protagonizados con evento fuente validado.
+- Tabla `resources` por partida y adquisición de objeto con coste: saldo y artículo se actualizan en la transacción del turno.
+- En el preset Isekai, monedas iniciales = 0.
+
+CI aprobada: 24 pruebas Python y sintaxis JavaScript, https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40870848920. La prueba usa el narrador simulado. No debe confundirse con una validación manual del navegador, APIs reales, campaña prolongada o rollback al editar/regenerar.
