@@ -1399,10 +1399,13 @@ def apply_narrator_result(
             source["id"] if source else None
         )
 
-    movement_signature_counts: dict[tuple[str, str], int] = {}
+    # A single turn cannot safely commit multiple destinations for the same
+    # entity, even when the model assigns a different event_ref to each move.
+    # Otherwise the result depends on proposal order and the last destination wins.
+    movement_signature_counts: dict[str, int] = {}
     for movement in result.movements:
-        signature = (movement.event_ref, movement.entity_id)
-        movement_signature_counts[signature] = movement_signature_counts.get(signature, 0) + 1
+        entity_key = movement.entity_id
+        movement_signature_counts[entity_key] = movement_signature_counts.get(entity_key, 0) + 1
 
     for move_index, movement in enumerate(result.movements):
         source = event_map.get(movement.event_ref)
@@ -1411,9 +1414,8 @@ def apply_narrator_result(
         accepted_value = None
         reason = "El movimiento requiere revisión."
         destination = movement.destination.strip()
-        signature = (movement.event_ref, movement.entity_id)
-        if movement_signature_counts.get(signature, 0) > 1:
-            reason = "Hay varios destinos propuestos para la misma entidad y evento; todos los movimientos quedan pendientes."
+        if movement_signature_counts.get(movement.entity_id, 0) > 1:
+            reason = "Hay varios movimientos propuestos para la misma entidad en un turno; todos quedan pendientes para evitar que el destino final dependa del orden de la respuesta."
         elif not source:
             reason = "No existe el evento que justifica el movimiento."
         elif source["status"] != "recorded":
