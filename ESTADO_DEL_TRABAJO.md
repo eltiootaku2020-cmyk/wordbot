@@ -18,7 +18,7 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 - Registro interno: incluye habilidades demostradas, intereses/objetivos con fuente, sospechas con evidencia y conocimientos por PNJ; datos ausentes quedan como «No registrado», sin campos nuevos.
 - Coste en caracteres v1.14: Personality 4468; Scenario 795; Greeting 687; Example Dialogue 1044 (verificar tokens con el contador del editor).
 - Persistencia práctica: el bot puede generar `/guardar`, pero SpicyChat no guarda por instrucciones un estado RPG externo. La partida necesita un punto de guardado copiado fuera del chat para recuperarla si el contexto se pierde.
--  El plan Free tiene 4.096 tokens de contexto compartidos y aproximadamente 740 tokens disponibles para Lorebook activada (según documentación oficial, cifras sujetas a cambios); revisar el contador del editor. Las entradas nuevas permanecen compactas y activadas por palabras clave.
+- El plan Free tiene 4.096 tokens de contexto compartidos y aproximadamente 740 tokens disponibles para Lorebook activada (según documentación oficial, cifras sujetas a cambios); revisar el contador del editor. Las entradas nuevas permanecen compactas y activadas por palabras clave.
 - Diagnóstico añadido: `proyectos/isekai-sin-destino/SOLUCION_HISTORIAS_LARGAS.md`. SpicyChat no garantiza el estado exacto de un RPG a partir de prompts; se comparan procedimiento de guardado manual, SillyTavern para uso personal y una aplicación con base de datos por usuario.
 - Pendiente: probar realmente la propuesta v1.10 en SpicyChat; comprobar los bloques de cuatro horas, el mini mapa, la regla de monstruos reaparecidos y el registro de promesas/Eco; decidir si se seguirá en SpicyChat o se probará una interfaz con resúmenes y recuperación.
 
@@ -36,11 +36,11 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 
 ### Actualización Isekai v1.14
 - Añadido el descubrimiento de Eco en árboles como sensación interna, no visual, con límites de prueba y parámetros desconocidos explícitos.
-- Añadido catálogo de objetos comunes posibles; no regala objetos ni modifica el inicio sin equipo.
+- Añadido inventario inicial limitado (pañuelo gastado, bolsita vacía, cordel corto); el resto del catálogo sigue siendo posibilidades, no regalos automáticos.
 - Añadidas pautas para diálogo espontáneo completo de PNJ cercanos y metodología de identidad/estado/conocimiento/objetivos.
 - Añadido documento de investigación con fuentes de SpicyChat, SillyTavern y diseño de PNJ.
 - Pendiente de importar y probar en SpicyChat; no se declara validado.
 
 ## Próximo paso recomendado
 
-Probar en SpicyChat el Isekai v1.8 propuesto, incluido el bloque prioritario de Personality. No crear una partida nueva hasta guardar cualquier progreso actual. Si el bot vuelve al Día 1, no aceptar ese reinicio: usar el último `[PUNTO DE GUARDADO]` copiado y reanudar desde allí. Registrar los resultados en la carpeta de Isekai antes de hacer más cambios.
+Probar en SpicyChat el Isekai v1.14 propuesto, incluido el bloque prioritario de Personality, el inventario inicial, las fichas de estado y la importación de las 76 entradas. No crear una partida nueva hasta guardar cualquier progreso actual. Si el bot vuelve al Día 1, no aceptar ese reinicio: usar el último `[PUNTO DE GUARDADO]` copiado y reanudar desde allí. Registrar los resultados en la carpeta de Isekai antes de hacer más cambios.
