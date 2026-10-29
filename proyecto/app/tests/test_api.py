@@ -3159,6 +3159,30 @@ def test_submit_turn_recovers_owner_that_dies_after_startup_recovery(monkeypatch
         assert "processing_owner_pid" not in old_metadata
         assert "processing_owner_start_token" not in old_metadata
 
+        # Retrying the original request reuses its message/turn, but must clear
+        # annotations that described the failed attempt once a new generation starts.
+        retry = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json={
+                "request_id": request_id,
+                "text": "Turno cuyo propietario muere tras el arranque",
+                "provider": "mock"
+            }
+        )
+        assert retry.status_code == 200, retry.text
+        with database.connection() as conn:
+            retried_marker = conn.execute(
+                "SELECT generation_status,metadata_json FROM messages WHERE turn_id=?",
+                (turn_id,)
+            ).fetchone()
+        assert retried_marker["generation_status"] == "complete"
+        retried_metadata = json.loads(retried_marker["metadata_json"])
+        assert "recovered_after_restart" not in retried_metadata
+        assert "recovered_during_runtime" not in retried_metadata
+        assert "recovery_note" not in retried_metadata
+        assert "processing_owner_pid" not in retried_metadata
+        assert "processing_owner_start_token" not in retried_metadata
+
 
 def test_process_identity_detects_pid_reuse_when_start_token_changes(monkeypatch):
     current_pid = os.getpid()
