@@ -63,7 +63,7 @@ No expongas el servidor a Internet: el prototipo está pensado para ejecutarse s
 
 ## Qué valida la CI actual
 
-La ejecución con 32 pruebas cubre el preset real, privacidad del contexto por destinatario, inspector Lorebook y presupuesto de caracteres, consumo y estado de objetos, movimientos de PNJ, compra con saldo suficiente, rechazo de compra por saldo insuficiente e ingreso de recompensa. La CI usa el proveedor simulado; no mide coste real ni valida API/Windows.
+La ejecución con 32 pruebas cubre el preset real, privacidad por destinatario, inclusión/exclusión de mensajes/eventos, presupuesto Lorebook editable/persistente, consumo y estado de objetos, movimientos de PNJ, compras, ingresos/gastos de recursos, rollback de relación/Eco y undo/regeneración. La CI usa proveedor simulado; no mide tokens/coste real ni valida API/Windows.
 
 Limitaciones conocidas:
 - Las compras se cobran dentro de `InventoryOperation acquire`; no debe emitirse además un `ResourceOperation spend` duplicado para ese evento.
