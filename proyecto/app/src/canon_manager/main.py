@@ -3,6 +3,7 @@ import hmac
 import json
 import os
 import re
+import unicodedata
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
@@ -14,7 +15,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .db import Database
-from .models import ApprovalRequest, ContextPreviewRequest, EntityCreate, LocalSettingsUpdate, ManualPromptRequest, NarratorResponse, SessionCreate, TurnRequest, WorldCreate, WorldStartCreate
+from .models import ApprovalRequest, ContextPreviewRequest, EntityCreate, LocalCommandRequest, LocalSettingsUpdate, ManualPromptRequest, NarratorResponse, SessionCreate, TurnRequest, WorldCreate, WorldStartCreate
 from .providers import ProviderError, build_manual_prompt, make_provider
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -49,9 +50,12 @@ MAX_LORE_CHARS = 4500
 MIN_LORE_CHARS = 500
 MAX_CONFIGURABLE_LORE_CHARS = 12000
 MAX_CANON_CORE_CHARS = 3000
-MAX_RECENT_MESSAGES = 6
+MAX_HISTORY_CANDIDATES = 500
+MAX_RECENT_MESSAGES = 10
+MAX_RELEVANT_MESSAGES = 2
 MAX_RECENT_MESSAGE_CHARS = 1000
 MAX_RECENT_EVENTS = 6
+MAX_RELEVANT_EVENTS = 2
 MAX_EVENT_DESCRIPTION_CHARS = 450
 MAX_CONTEXT_INVENTORY_ITEMS = 40
 
@@ -98,20 +102,106 @@ def manual_context_hash(payload: dict[str, Any]) -> str:
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
+
+
+HISTORY_STOPWORDS = {
+    "para", "desde", "hasta", "esto", "esta", "este", "estos", "estas", "como",
+    "cuando", "donde", "porque", "pero", "sobre", "entre", "ella", "ellos", "ellas",
+    "usted", "ustedes", "algo", "nada", "todo", "toda", "todos", "todas", "mismo",
+    "misma", "ahora", "antes", "despues", "luego", "hacer", "hace", "tiene", "tienen",
+    "tener", "estaba", "estaban", "estar", "estoy", "eres", "ser", "soy", "son", "fue",
+    "hacia", "lugar", "actual", "quiero", "puedo", "puede", "pueden", "debe", "deben",
+    "decir", "dijo", "dice", "responde", "responder", "personaje", "protagonista", "mirar",
+    "veo", "muy", "mas", "menos", "cada", "realmente", "dentro", "fuera", "tambien",
+    "mientras", "entonces", "unos", "unas", "una", "uno", "que", "por", "con", "sin",
+    "del", "las", "los", "sus", "les", "nos", "hay", "seria", "serian"
+}
+
+
+def relevance_terms(*texts: str) -> set[str]:
+    """Build a small deterministic Spanish keyword set for continuity retrieval."""
+    words: set[str] = set()
+    for text in texts:
+        normalized = unicodedata.normalize("NFD", str(text or "").casefold())
+        normalized = "".join(char for char in normalized if not unicodedata.combining(char))
+        words.update(
+            token for token in re.findall(r"[a-z0-9]{4,}", normalized)
+            if token not in HISTORY_STOPWORDS
+        )
+    return words
+
+
+def history_relevance_score(text: str, query_terms: set[str]) -> int:
+    return len(query_terms.intersection(relevance_terms(text)))
+
+
+def select_history_items(items, text_getter, maximum: int, relevant_slots: int,
+                         query_terms: set[str]) -> dict[int, str]:
+    """Keep newest items plus a tiny number of older, lexically relevant facts."""
+    if maximum <= 0:
+        return {}
+    recent_reserve = max(0, maximum - min(relevant_slots, maximum))
+    selected: dict[int, str] = {}
+    for index in range(min(recent_reserve, len(items))):
+        selected[index] = "incluido dentro de la ventana reciente"
+
+    scored = []
+    for index in range(recent_reserve, len(items)):
+        score = history_relevance_score(text_getter(items[index]), query_terms)
+        if score:
+            scored.append((score, index))
+    for score, index in sorted(scored, key=lambda value: (-value[0], value[1]))[:relevant_slots]:
+        selected[index] = f"recuperado por relevancia: coincidencia de {score} términos"
+
+    for index in range(len(items)):
+        if len(selected) >= min(maximum, len(items)):
+            break
+        selected.setdefault(index, "incluido para completar la ventana reciente")
+    return selected
+
+
+def parse_local_command(text: str) -> str | None:
+    """Recognize supported local commands and reject unknown slash commands explicitly."""
+    candidate = (text or "").strip()
+    if not candidate.startswith("/"):
+        return None
+    match = re.fullmatch(r"/(estado|inventario|guardar|ayuda)\s*", candidate, re.IGNORECASE)
+    if match:
+        return match.group(1).casefold()
+    if re.match(r"^/salto(?:\s|$)", candidate, re.IGNORECASE):
+        return "salto"
+    raise HTTPException(
+        status_code=422,
+        detail="Comando desconocido o con formato incorrecto. Usa /ayuda para ver los comandos disponibles."
+    )
+
+
 def new_id() -> str:
     return uuid.uuid4().hex
 
 
 def parse_skip(text: str) -> dict[str, Any] | None:
-    match = re.match(
-        r"^\s*/salto\s+(\d+)\s*(minutos?|mins?|m|horas?|h)\s*(?:->\s*(.*))?$",
-        text.strip(), re.IGNORECASE
+    """Parse explicit minute/hour/day jumps; malformed /salto commands never fall through to the narrator."""
+    candidate = (text or "").strip()
+    if not re.match(r"^/salto\b", candidate, re.IGNORECASE):
+        return None
+    match = re.fullmatch(
+        r"/salto\s+(\d+)\s*(minutos?|mins?|m|horas?|h|d[ií]as?)\s*(?:->\s*(.*))?",
+        candidate, re.IGNORECASE
     )
     if not match:
-        return None
+        raise HTTPException(
+            status_code=422,
+            detail="Formato de salto incorrecto. Usa, por ejemplo, /salto 30 minutos, /salto 2 horas o /salto 1 día -> destino."
+        )
     amount = int(match.group(1))
-    unit = match.group(2).lower()
-    minutes = amount * 60 if unit.startswith("h") else amount
+    unit = match.group(2).casefold()
+    if unit.startswith("d"):
+        minutes = amount * 1440
+    elif unit.startswith("h"):
+        minutes = amount * 60
+    else:
+        minutes = amount
     if minutes < 1 or minutes > 7 * 24 * 60:
         raise HTTPException(status_code=422, detail="El salto debe estar entre 1 minuto y 7 días.")
     return {"minutes": minutes, "destination": (match.group(3) or "").strip()}
@@ -275,7 +365,7 @@ def build_context(
             (session["id"], session["protagonist_entity_id"], recipient_id)
         ).fetchall()]
 
-    include_global_inventory = bool(re.search(r"/estado|/guardar|\\binventario\\b", user_text, re.IGNORECASE))
+    include_global_inventory = bool(re.search(r"/estado|/guardar|\binventario\b", user_text, re.IGNORECASE))
     carrier_ids = sorted(participant_ids | {session["protagonist_entity_id"]})
     placeholders = ",".join("?" for _ in carrier_ids) or "?"
     if include_global_inventory:
@@ -299,21 +389,46 @@ def build_context(
     ).fetchall()]
 
 
-    # Retrieve a larger candidate set, then keep the ten most recent messages
-    # that this character could actually have seen or been told.
+    # Keep enough candidates for long sessions; recent dialogue is always present,
+    # while two spare slots can recover older messages relevant to the current action.
     message_rows = conn.execute(
         "SELECT id,role,recipient_entity_id,content,metadata_json,turn_id,turn_index,generation_status "
         "FROM messages WHERE session_id=? AND turn_id<>? "
-        "ORDER BY turn_index DESC, created_at DESC LIMIT 100",
-        (session["id"], current_turn_id)
+        "ORDER BY turn_index DESC, created_at DESC LIMIT ?",
+        (session["id"], current_turn_id, MAX_HISTORY_CANDIDATES)
     ).fetchall()
-    recent = []
-    selected_messages_debug = []
+    recipient_name = recipient.get("name", "") if recipient else ""
+    relevance_query_terms = relevance_terms(
+        user_text, recipient_name, session["current_location"],
+        *(item.get("name", "") for item in participants)
+    )
+    eligible_messages = []
     excluded_messages_debug = []
     for row in message_rows:
-        metadata = json.loads(row["metadata_json"] or "{}")
+        try:
+            metadata = json.loads(row["metadata_json"] or "{}")
+        except (TypeError, json.JSONDecodeError):
+            metadata = None
+        if not isinstance(metadata, dict):
+            excluded_messages_debug.append({
+                "message_id": row["id"], "turn_id": row["turn_id"],
+                "turn_index": row["turn_index"], "role": row["role"],
+                "status": row["generation_status"], "visibility": "invalid",
+                "reason": "metadatos dañados; se excluye por seguridad"
+            })
+            continue
+
         message_visibility = metadata.get("visibility")
-        message_audience = set(metadata.get("audience_ids") or [])
+        raw_audience = metadata.get("audience_ids") or []
+        if not isinstance(raw_audience, list) or any(not isinstance(value, str) for value in raw_audience):
+            excluded_messages_debug.append({
+                "message_id": row["id"], "turn_id": row["turn_id"],
+                "turn_index": row["turn_index"], "role": row["role"],
+                "status": row["generation_status"], "visibility": "invalid",
+                "reason": "audiencia dañada; se excluye por seguridad"
+            })
+            continue
+        message_audience = set(raw_audience)
         reason = ""
 
         if row["generation_status"] != "complete":
@@ -336,37 +451,56 @@ def build_context(
             if not recipient_id or row["recipient_entity_id"] != recipient_id:
                 reason = "mensaje histórico dirigido a otro destinatario"
 
-        if not reason and len(recent) >= MAX_RECENT_MESSAGES:
-            reason = f"supera el máximo de {MAX_RECENT_MESSAGES} mensajes recientes"
         if reason:
             excluded_messages_debug.append({
                 "message_id": row["id"], "turn_id": row["turn_id"],
                 "turn_index": row["turn_index"], "role": row["role"],
                 "status": row["generation_status"],
-                "visibility": message_visibility or "legacy",
-                "reason": reason
+                "visibility": message_visibility or "legacy", "reason": reason
             })
             continue
+        eligible_messages.append({
+            "row": row, "metadata": metadata, "visibility": message_visibility or "legacy",
+            "audience": message_audience
+        })
 
+    chosen_messages = select_history_items(
+        eligible_messages, lambda item: item["row"]["content"] or "",
+        MAX_RECENT_MESSAGES, MAX_RELEVANT_MESSAGES, relevance_query_terms
+    )
+    recent = []
+    selected_messages_debug = []
+    for index, item in enumerate(eligible_messages):
+        row = item["row"]
+        selection_reason = chosen_messages.get(index)
+        if selection_reason is None:
+            excluded_messages_debug.append({
+                "message_id": row["id"], "turn_id": row["turn_id"],
+                "turn_index": row["turn_index"], "role": row["role"],
+                "status": row["generation_status"], "visibility": item["visibility"],
+                "reason": "fuera del límite contextual; no fue priorizado por relevancia"
+            })
+            continue
         message_content = row["content"] or ""
         recent.append({
             "role": row["role"],
             "recipient_entity_id": row["recipient_entity_id"],
             "content": message_content[:MAX_RECENT_MESSAGE_CHARS],
             "content_truncated": len(message_content) > MAX_RECENT_MESSAGE_CHARS,
-            "visibility": message_visibility or "legacy"
+            "visibility": item["visibility"]
         })
+        access_reason = (
+            "la audiencia privada incluye al destinatario activo"
+            if item["visibility"] == "private"
+            else "destinatario incluido en audiencia de escena"
+            if item["audience"] and recipient_id
+            else "mensaje accesible por alcance de escena o historial compartido"
+        )
         selected_messages_debug.append({
             "message_id": row["id"], "turn_id": row["turn_id"],
             "turn_index": row["turn_index"], "role": row["role"],
-            "visibility": message_visibility or "legacy",
-            "reason": (
-                "audiencia privada incluye al destinatario activo"
-                if message_visibility == "private"
-                else "destinatario incluido en audiencia de escena"
-                if message_audience and recipient_id
-                else "mensaje accesible por alcance de escena o historial compartido"
-            )
+            "visibility": item["visibility"],
+            "reason": f"{access_reason}; {selection_reason}"
         })
     recent.reverse()
     selected_messages_debug.reverse()
@@ -447,20 +581,43 @@ def build_context(
     # Events are available only if the acting NPC witnessed them or the source
     # conversation was visible to them. Pending/rejected proposals are not facts.
     event_rows = conn.execute(
-        "SELECT e.id,e.turn_id,e.kind,e.entity_id,e.description,e.status,e.witnesses_json,"
+        "SELECT e.id,e.turn_id,e.kind,e.entity_id,e.description,e.status,e.witnesses_json,e.created_at,"
         "m.recipient_entity_id AS source_recipient_id,m.metadata_json AS source_metadata_json "
         "FROM events e LEFT JOIN messages m ON m.id=e.source_message_id "
-        "WHERE e.session_id=? ORDER BY e.created_at DESC LIMIT 100",
-        (session["id"],)
+        "WHERE e.session_id=? ORDER BY e.created_at DESC LIMIT ?",
+        (session["id"], MAX_HISTORY_CANDIDATES)
     ).fetchall()
-    recent_events = []
-    selected_events_debug = []
+    eligible_events = []
     excluded_events_debug = []
     for row in event_rows:
-        witnesses = set(json.loads(row["witnesses_json"] or "[]"))
-        source_metadata = json.loads(row["source_metadata_json"] or "{}")
+        try:
+            witnesses_raw = json.loads(row["witnesses_json"] or "[]")
+            source_metadata = json.loads(row["source_metadata_json"] or "{}")
+        except (TypeError, json.JSONDecodeError):
+            witnesses_raw, source_metadata = None, None
+        if (not isinstance(witnesses_raw, list)
+                or any(not isinstance(value, str) for value in witnesses_raw)
+                or not isinstance(source_metadata, dict)):
+            excluded_events_debug.append({
+                "event_id": row["id"], "turn_id": row["turn_id"],
+                "kind": row["kind"], "entity_id": row["entity_id"],
+                "status": row["status"], "witness_ids": [],
+                "reason": "metadatos/testigos dañados; se excluye por seguridad"
+            })
+            continue
+
+        witnesses = set(witnesses_raw)
         source_visibility = source_metadata.get("visibility")
-        source_audience = set(source_metadata.get("audience_ids") or [])
+        raw_source_audience = source_metadata.get("audience_ids") or []
+        if not isinstance(raw_source_audience, list) or any(not isinstance(value, str) for value in raw_source_audience):
+            excluded_events_debug.append({
+                "event_id": row["id"], "turn_id": row["turn_id"],
+                "kind": row["kind"], "entity_id": row["entity_id"],
+                "status": row["status"], "witness_ids": sorted(witnesses),
+                "reason": "audiencia del evento dañada; se excluye por seguridad"
+            })
+            continue
+        source_audience = set(raw_source_audience)
         reason = ""
 
         if row["status"] != "recorded":
@@ -485,8 +642,6 @@ def build_context(
                 reason = "el destinatario activo no presenció el evento ni figura entre sus testigos"
             elif not recipient_id and not (witnesses & scene_ids):
                 reason = "ningún testigo del evento coincide con la escena actual"
-        if not reason and len(recent_events) >= MAX_RECENT_EVENTS:
-            reason = f"supera el máximo de {MAX_RECENT_EVENTS} eventos recientes"
 
         if reason:
             excluded_events_debug.append({
@@ -496,7 +651,29 @@ def build_context(
                 "reason": reason
             })
             continue
+        eligible_events.append({
+            "row": row, "witnesses": witnesses,
+            "source_visibility": source_visibility
+        })
 
+    chosen_events = select_history_items(
+        eligible_events, lambda item: item["row"]["description"] or "",
+        MAX_RECENT_EVENTS, MAX_RELEVANT_EVENTS, relevance_query_terms
+    )
+    recent_events = []
+    selected_events_debug = []
+    for index, item in enumerate(eligible_events):
+        row = item["row"]
+        witnesses = item["witnesses"]
+        selection_reason = chosen_events.get(index)
+        if selection_reason is None:
+            excluded_events_debug.append({
+                "event_id": row["id"], "turn_id": row["turn_id"],
+                "kind": row["kind"], "entity_id": row["entity_id"],
+                "status": row["status"], "witness_ids": sorted(witnesses),
+                "reason": "fuera del límite contextual; no fue priorizado por relevancia"
+            })
+            continue
         event_description = row["description"] or ""
         recent_events.append({
             "kind": row["kind"], "entity_id": row["entity_id"],
@@ -504,16 +681,17 @@ def build_context(
             "description_truncated": len(event_description) > MAX_EVENT_DESCRIPTION_CHARS,
             "status": row["status"], "witness_ids": sorted(witnesses)
         })
+        access_reason = (
+            "evento accesible por audiencia privada autorizada"
+            if item["source_visibility"] == "private"
+            else "evento accesible por audiencia y testigos válidos"
+        )
         selected_events_debug.append({
             "event_id": row["id"], "turn_id": row["turn_id"],
             "kind": row["kind"], "entity_id": row["entity_id"],
             "description_preview": event_description[:160],
             "witness_ids": sorted(witnesses),
-            "reason": (
-                "evento accesible por audiencia privada autorizada"
-                if source_visibility == "private"
-                else "evento accesible por audiencia y testigos válidos"
-            )
+            "reason": f"{access_reason}; {selection_reason}"
         })
     recent_events.reverse()
     selected_events_debug.reverse()
@@ -566,12 +744,18 @@ def build_context(
         "recent_events_selected": len(recent_events),
         "messages_excluded_count": len(excluded_messages_debug),
         "events_excluded_count": len(excluded_events_debug),
+        "messages_recovered_by_relevance": sum(1 for item in selected_messages_debug if "recuperado por relevancia" in item["reason"]),
+        "events_recovered_by_relevance": sum(1 for item in selected_events_debug if "recuperado por relevancia" in item["reason"]),
         "inventory_items_selected": len(inventory),
         "context_characters": context_chars,
         "limits": {
             "canon_core_chars": MAX_CANON_CORE_CHARS,
             "message_chars_each": MAX_RECENT_MESSAGE_CHARS,
             "messages_max": MAX_RECENT_MESSAGES,
+            "messages_candidate_max": MAX_HISTORY_CANDIDATES,
+            "messages_relevance_slots": MAX_RELEVANT_MESSAGES,
+            "events_candidate_max": MAX_HISTORY_CANDIDATES,
+            "events_relevance_slots": MAX_RELEVANT_EVENTS,
             "event_chars_each": MAX_EVENT_DESCRIPTION_CHARS,
             "events_max": MAX_RECENT_EVENTS
         }
@@ -1653,6 +1837,37 @@ def get_session_state(session_id: str):
         return load_state(conn, session_id)
 
 
+@app.post("/api/sessions/{session_id}/commands")
+def execute_local_command(session_id: str, payload: LocalCommandRequest):
+    command = parse_local_command(payload.text)
+    if command is None:
+        raise HTTPException(status_code=422, detail="Escribe un comando local, por ejemplo /estado o /ayuda.")
+    if command == "salto":
+        raise HTTPException(status_code=422, detail="/salto es una acción de la partida; envíala con el botón de turno narrativo.")
+    if command == "ayuda":
+        with database.connection() as conn:
+            if conn.execute("SELECT 1 FROM sessions WHERE id=?", (session_id,)).fetchone() is None:
+                raise HTTPException(status_code=404, detail="Partida no encontrada.")
+        return {
+            "command": command,
+            "help": [
+                "/estado — muestra reloj, ubicación, personajes presentes, recursos y propuestas pendientes.",
+                "/inventario — muestra objetos registrados y sus portadores.",
+                "/guardar — crea una copia de seguridad de la base local.",
+                "/salto 30 minutos | /salto 2 horas | /salto 1 día -> destino — avanza el reloj mediante una acción explícita.",
+                "/ayuda — muestra esta lista. Los comandos locales no consumen turnos narrativos."
+            ]
+        }
+    if command == "guardar":
+        result = backup_session_database(session_id)
+        return {"command": command, **result}
+    with database.connection() as conn:
+        state = load_state(conn, session_id)
+    if command == "inventario":
+        return {"command": command, "inventory": state["inventory"], "resources": state["resources"]}
+    return {"command": command, "state": state}
+
+
 @app.get("/api/sessions/{session_id}/messages")
 def get_messages(session_id: str):
     with database.connection() as conn:
@@ -1758,6 +1973,9 @@ def create_manual_prompt(session_id: str, payload: ManualPromptRequest):
 
 @app.post("/api/sessions/{session_id}/turns")
 async def submit_turn(session_id: str, payload: TurnRequest):
+    local_command = parse_local_command(payload.text)
+    if local_command and local_command != "salto":
+        raise HTTPException(status_code=422, detail=f"/{local_command} es un comando local; ejecútalo desde el panel de comandos.")
     authorized_skip = parse_skip(payload.text)
     client_request_id = payload.request_id.strip()
     if len(client_request_id) < 8:
@@ -2228,6 +2446,6 @@ def backup_session_database(session_id: str):
     with database.connection() as conn:
         if conn.execute("SELECT 1 FROM sessions WHERE id=?", (session_id,)).fetchone() is None:
             raise HTTPException(status_code=404, detail="Partida no encontrada.")
-    backup_path = database.path.parent / "backups" / f"backup-{session_id}-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}.sqlite3"
+    backup_path = database.path.parent / "backups" / f"backup-{session_id}-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S-%f')}.sqlite3"
     database.backup_to(str(backup_path))
     return {"backup_created": True, "path": str(backup_path)}

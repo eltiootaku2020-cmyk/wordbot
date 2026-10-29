@@ -31,3 +31,15 @@ def test_narrator_response_rejects_unknown_fields():
             pending=[],
             invented_stat="should be rejected"
         )
+
+
+
+def test_short_user_actions_are_valid_but_whitespace_only_is_rejected():
+    from pydantic import ValidationError
+    from canon_manager.models import TurnRequest
+
+    short = TurnRequest(request_id="short-action-001", text="  Sí.  ")
+    assert short.text == "Sí."
+
+    with pytest.raises(ValidationError):
+        TurnRequest(request_id="blank-action-001", text="   ")

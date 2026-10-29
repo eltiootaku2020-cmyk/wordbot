@@ -1739,3 +1739,113 @@ def test_manual_web_mode_allows_multiple_consecutive_turns_without_api_calls():
             and message["content"].startswith("Respuesta manual número")
         ]
         assert len(accepted) == 3
+
+
+
+def test_local_commands_work_without_creating_narrative_turns():
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+        session_id = seed["session_id"]
+        before = client.get(f"/api/sessions/{session_id}/messages").json()
+
+        state = client.post(
+            f"/api/sessions/{session_id}/commands", json={"text": "/estado"}
+        )
+        inventory = client.post(
+            f"/api/sessions/{session_id}/commands", json={"text": "/inventario"}
+        )
+        help_response = client.post(
+            f"/api/sessions/{session_id}/commands", json={"text": "/ayuda"}
+        )
+        backup = client.post(
+            f"/api/sessions/{session_id}/commands", json={"text": "/guardar"}
+        )
+
+        assert state.status_code == 200 and state.json()["command"] == "estado"
+        assert state.json()["state"]["state"]["time_label"].endswith("08:00")
+        assert inventory.status_code == 200 and inventory.json()["command"] == "inventario"
+        assert "/salto" in " ".join(help_response.json()["help"])
+        assert backup.status_code == 200 and Path(backup.json()["path"]).exists()
+        after = client.get(f"/api/sessions/{session_id}/messages").json()
+        assert len(after) == len(before)
+
+
+def test_unknown_local_command_is_rejected_instead_of_sent_to_narrator():
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+        session_id = seed["session_id"]
+        response = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json={"request_id": "unknown-command-001", "text": "/teletransportar", "provider": "mock"}
+        )
+        assert response.status_code == 422
+        assert "Comando desconocido" in response.json()["detail"]
+        assert client.get(f"/api/sessions/{session_id}/messages").json() == []
+
+
+def test_skip_command_accepts_days_and_rejects_malformed_units():
+    assert main_module.parse_skip("/salto 1 día") == {"minutes": 1440, "destination": ""}
+    assert main_module.parse_skip("/salto 2 dias -> Aldea") == {"minutes": 2880, "destination": "Aldea"}
+    assert main_module.parse_skip("/salto 30 minutos") == {"minutes": 30, "destination": ""}
+    from fastapi import HTTPException
+    import pytest
+
+    with pytest.raises(HTTPException) as error:
+        main_module.parse_skip("/salto 1 semana")
+    assert error.value.status_code == 422
+    assert "Formato de salto incorrecto" in error.value.detail
+
+
+def test_context_recovers_relevant_old_event_beyond_the_recent_window():
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+        session_id = seed["session_id"]
+        with database.transaction() as conn:
+            session = session_row(conn, session_id)
+            protagonist_id = session["protagonist_entity_id"]
+            conn.execute(
+                "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,witnesses_json,status,created_at) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (uuid.uuid4().hex, session_id, "old-relevant-turn", "old-medallion", "object", protagonist_id,
+                 "El medallón de obsidiana quedó enterrado bajo la torre del norte.", "[]", "recorded", "2020-01-01 00:00:00")
+            )
+            for index in range(18):
+                conn.execute(
+                    "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,witnesses_json,status,created_at) "
+                    "VALUES(?,?,?,?,?,?,?,?,?,?)",
+                    (uuid.uuid4().hex, session_id, f"noise-turn-{index}", f"noise-{index}", "observation", protagonist_id,
+                     f"Un detalle cotidiano irrelevante número {index} ocurrió en la plaza.", "[]", "recorded",
+                     f"2026-10-{(index % 20) + 1:02d} 12:00:00")
+                )
+            context = build_context(
+                conn, session, "Busco el medallón de obsidiana.", "", uuid.uuid4().hex,
+                visibility="scene", include_diagnostics=True
+            )
+        descriptions = [event["description"] for event in context["recent_events"]]
+        assert any("medallón de obsidiana" in description for description in descriptions)
+        diagnostics = context["_diagnostics"]
+        assert diagnostics["events_recovered_by_relevance"] >= 1
+
+
+def test_context_fails_closed_when_old_message_audience_metadata_is_corrupt():
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+        session_id = seed["session_id"]
+        world_id = seed["world_id"]
+        entities = client.get(f"/api/worlds/{world_id}/entities").json()
+        maelis = next(entity for entity in entities if entity["name"] == "Maelis Orven")
+        with database.transaction() as conn:
+            conn.execute(
+                "INSERT INTO messages(id,session_id,turn_id,client_request_id,turn_index,role,recipient_entity_id,content,provider,generation_status,metadata_json) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                (uuid.uuid4().hex, session_id, "corrupt-private-turn", "corrupt-private-001", 99,
+                 "user", maelis["id"], "El secreto es la llave azul.", "mock", "complete", "not-json")
+            )
+            session = session_row(conn, session_id)
+            context = build_context(
+                conn, session, "Pregunto por la llave azul.", maelis["id"], uuid.uuid4().hex,
+                visibility="private", audience_ids=[session["protagonist_entity_id"], maelis["id"]],
+                include_diagnostics=True
+            )
+        assert all("secreto es la llave azul" not in message["content"] for message in context["recent_messages"])
+        assert any("metadatos dañados" in item["reason"] for item in context["_diagnostics"]["excluded_messages"])

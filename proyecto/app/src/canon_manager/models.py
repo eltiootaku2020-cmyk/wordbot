@@ -4,15 +4,15 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class StrictModel(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
 
 class EventProposal(StrictModel):
     ref: str = Field(min_length=1, max_length=40)
     kind: Literal["dialogue", "reaction", "observation", "rumor", "location", "object", "resource", "power", "major_change", "other"]
     entity_id: str = ""
-    description: str
-    witness_ids: list[str] = Field(default_factory=list)
+    description: str = Field(min_length=1, max_length=1000)
+    witness_ids: list[str] = Field(default_factory=list, max_length=30)
 
 
 class StateChangeProposal(StrictModel):
@@ -22,29 +22,29 @@ class StateChangeProposal(StrictModel):
     operation: Literal["delta", "set", "note"]
     numeric_value: int = 0
     text_value: str = ""
-    reason: str
-    event_ref: str
+    reason: str = Field(min_length=1, max_length=600)
+    event_ref: str = Field(min_length=1, max_length=40)
     requires_approval: bool = False
 
 
 class MovementProposal(StrictModel):
     entity_id: str
     destination: str
-    reason: str
-    event_ref: str
+    reason: str = Field(min_length=1, max_length=600)
+    event_ref: str = Field(min_length=1, max_length=40)
 
 
 class InventoryOperation(StrictModel):
     operation: Literal["acquire", "consume", "drop", "transfer", "condition"]
-    item_name: str
+    item_name: str = Field(min_length=1, max_length=120)
     quantity: int = Field(ge=1)
     condition: str = "normal"
     carrier_entity_id: str = ""
     location: str = ""
-    reason: str
-    event_ref: str
+    reason: str = Field(min_length=1, max_length=600)
+    event_ref: str = Field(min_length=1, max_length=40)
     cost: int = Field(default=0, ge=0, le=1000000, description="Coste total de la adquisición; 0 para hallazgos/regalos gratuitos.")
-    currency_key: str = "monedas"
+    currency_key: str = Field(default="monedas", max_length=80)
 
 
 class ResourceSeed(StrictModel):
@@ -73,15 +73,15 @@ class PowerUseProposal(StrictModel):
 
 
 class NarratorResponse(StrictModel):
-    narration: str = Field(min_length=1)
-    events: list[EventProposal] = Field(default_factory=list)
-    state_changes: list[StateChangeProposal] = Field(default_factory=list)
+    narration: str = Field(min_length=1, max_length=12000)
+    events: list[EventProposal] = Field(default_factory=list, max_length=30)
+    state_changes: list[StateChangeProposal] = Field(default_factory=list, max_length=40)
     elapsed_minutes: int = Field(default=1, ge=0, le=1440)
-    movements: list[MovementProposal] = Field(default_factory=list)
-    inventory_ops: list[InventoryOperation] = Field(default_factory=list)
-    resource_ops: list[ResourceOperation] = Field(default_factory=list)
-    power_uses: list[PowerUseProposal] = Field(default_factory=list)
-    pending: list[str] = Field(default_factory=list)
+    movements: list[MovementProposal] = Field(default_factory=list, max_length=20)
+    inventory_ops: list[InventoryOperation] = Field(default_factory=list, max_length=40)
+    resource_ops: list[ResourceOperation] = Field(default_factory=list, max_length=30)
+    power_uses: list[PowerUseProposal] = Field(default_factory=list, max_length=20)
+    pending: list[str] = Field(default_factory=list, max_length=30)
 
 
 class WorldCreate(StrictModel):
@@ -153,6 +153,10 @@ class ContextPreviewRequest(StrictModel):
 class ManualPromptRequest(ContextPreviewRequest):
     text: str = Field(min_length=1, max_length=8000)
     provider: Literal["chatgpt_web", "gemini_web"]
+
+
+class LocalCommandRequest(StrictModel):
+    text: str = Field(min_length=1, max_length=200)
 
 
 class ApprovalRequest(StrictModel):
