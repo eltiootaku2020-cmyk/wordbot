@@ -2053,8 +2053,8 @@ def load_state(conn, session_id: str) -> dict[str, Any]:
             "location": session["current_location"]
         },
         "participants": participants, "inventory": inventory, "resources": resources,
-        "relationships": relationships, "relationships_in_scene": relationships,
-        "continuity_records": continuity_records, "eco_uses": eco, "pending_changes": pending,
+        "relationships": relationships, "continuity_records": continuity_records,
+        "eco_uses": eco, "pending_changes": pending,
         "pending_events": pending_events
     }
 
@@ -2785,7 +2785,7 @@ async def submit_turn(session_id: str, payload: TurnRequest):
             if existing_assistant and existing_assistant["generation_status"] == "complete":
                 saved_state = load_state(conn, session_id)
                 saved_events = [dict(row) for row in conn.execute(
-                    "SELECT kind,entity_id,description,status FROM events WHERE session_id=? AND turn_id=? ORDER BY created_at",
+                    "SELECT kind,entity_id,description,status,continuity,importance FROM events WHERE session_id=? AND turn_id=? ORDER BY created_at",
                     (session_id, existing_user["turn_id"])
                 ).fetchall()]
                 return {
