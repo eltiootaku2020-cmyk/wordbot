@@ -117,6 +117,7 @@ class TurnRequest(StrictModel):
     text: str = Field(min_length=1, max_length=8000)
     recipient_id: str = ""
     provider: Literal["mock", "openai", "gemini"] = "mock"
+    visibility: Literal["scene", "private"] = "scene"
 
 
 class ApprovalRequest(StrictModel):
