@@ -1318,6 +1318,132 @@ def test_payment_for_another_purpose_does_not_authorize_a_denied_purchase():
         assert any("Inventario:" in note for note in pending)
 
 
+def test_conditional_purchase_question_does_not_authorize_narrator_claim():
+    with TestClient(app) as client:
+        started, entities = _create_state_ops_world(client)
+        session_id = started["session_id"]
+        protagonist_id = entities["Protagonista"]["id"]
+        witnesses = [entities[name]["id"] for name in (
+            "Protagonista", "Maelis Orven", "Ivar Dalen", "Brina Solcor"
+        )]
+        result = NarratorResponse(
+            narration="El narrador afirma que la manzana fue comprada.",
+            events=[
+                EventProposal(
+                    ref="conditional-apple-purchase", kind="object",
+                    entity_id=protagonist_id,
+                    description="El protagonista compra una manzana por dos monedas.",
+                    witness_ids=witnesses
+                )
+            ],
+            inventory_ops=[
+                InventoryOperation(
+                    operation="acquire", item_name="Manzana", quantity=1,
+                    carrier_entity_id=protagonist_id, location="Claro del bosque",
+                    reason="Compra afirmada únicamente por el narrador.",
+                    event_ref="conditional-apple-purchase", cost=2, currency_key="monedas"
+                )
+            ]
+        )
+        turn_id, applied, pending = _apply_synthetic_result(
+            session_id,
+            "Si compro una manzana por dos monedas, ¿me alcanza el dinero?",
+            result
+        )
+        with database.connection() as conn:
+            apple = conn.execute(
+                "SELECT quantity FROM inventory_items WHERE session_id=? AND item_key='manzana'",
+                (session_id,)
+            ).fetchone()
+            coins = conn.execute(
+                "SELECT quantity FROM resources WHERE session_id=? AND resource_key='monedas'",
+                (session_id,)
+            ).fetchone()
+            event = conn.execute(
+                "SELECT status FROM events WHERE session_id=? AND turn_id=? AND external_ref=?",
+                (session_id, turn_id, "conditional-apple-purchase")
+            ).fetchone()
+            change = conn.execute(
+                "SELECT status FROM state_changes WHERE session_id=? AND turn_id=? AND field='inventory'",
+                (session_id, turn_id)
+            ).fetchone()
+        assert apple["quantity"] == 2
+        assert coins["quantity"] == 5
+        assert event["status"] == "pending"
+        assert change["status"] == "pending"
+        assert not any("Compra confirmada" in note for note in applied)
+        assert any("Inventario:" in note for note in pending)
+
+
+def test_contradictory_narrator_relationship_changes_remain_pending():
+    with TestClient(app) as client:
+        started, entities = _create_state_ops_world(client)
+        session_id = started["session_id"]
+        protagonist_id = entities["Protagonista"]["id"]
+        maelis_id = entities["Maelis Orven"]["id"]
+        witnesses = [entities[name]["id"] for name in (
+            "Protagonista", "Maelis Orven", "Ivar Dalen", "Brina Solcor"
+        )]
+        with database.transaction() as conn:
+            conn.execute(
+                "INSERT INTO relationships(id,session_id,from_entity_id,to_entity_id,axis,value,reason) "
+                "VALUES(?,?,?,?,?,?,?)",
+                (
+                    uuid.uuid4().hex, session_id, protagonist_id, maelis_id,
+                    "friendship", 50, "Valor confirmado inicial."
+                )
+            )
+        result = NarratorResponse(
+            narration="La misma respuesta afirma tanto una mejora como un empeoramiento del vínculo.",
+            events=[
+                EventProposal(
+                    ref="contradictory-relation-positive", kind="dialogue",
+                    entity_id=maelis_id, description="Maelis expresa mayor confianza.",
+                    witness_ids=witnesses
+                ),
+                EventProposal(
+                    ref="contradictory-relation-negative", kind="dialogue",
+                    entity_id=maelis_id, description="Maelis pierde confianza por la misma acción.",
+                    witness_ids=witnesses
+                )
+            ],
+            state_changes=[
+                StateChangeProposal(
+                    ref="friendship-up", entity_id=maelis_id, field="friendship",
+                    operation="delta", numeric_value=5, text_value="",
+                    reason="Propuesta positiva del narrador.",
+                    event_ref="contradictory-relation-positive", requires_approval=False
+                ),
+                StateChangeProposal(
+                    ref="friendship-down", entity_id=maelis_id, field="friendship",
+                    operation="delta", numeric_value=-7, text_value="",
+                    reason="Propuesta contradictoria del narrador.",
+                    event_ref="contradictory-relation-negative", requires_approval=False
+                )
+            ]
+        )
+        turn_id, applied, pending = _apply_synthetic_result(
+            session_id, "Le pregunto a Maelis cómo se encuentra.", result
+        )
+        with database.connection() as conn:
+            friendship = conn.execute(
+                "SELECT value FROM relationships WHERE session_id=? AND from_entity_id=? "
+                "AND to_entity_id=? AND axis='friendship'",
+                (session_id, protagonist_id, maelis_id)
+            ).fetchone()
+            changes = conn.execute(
+                "SELECT status,reason FROM state_changes WHERE session_id=? AND turn_id=? "
+                "AND field='friendship' ORDER BY external_ref",
+                (session_id, turn_id)
+            ).fetchall()
+        assert friendship["value"] == 50
+        assert len(changes) == 2
+        assert all(row["status"] == "pending" for row in changes)
+        assert all("mismo eje de relación" in row["reason"] for row in changes)
+        assert not any("friendship de" in note for note in applied)
+        assert len(pending) >= 2
+
+
 def test_paid_purchase_api_retry_is_idempotent(monkeypatch):
     with TestClient(app) as client:
         started, entities = _create_state_ops_world(client)
@@ -2098,8 +2224,8 @@ def test_manual_web_turn_rejects_stale_prepared_context():
         assert not any(m["role"] == "user" and m["content"] == "Observo alrededor con atención." for m in messages)
 
 
-def test_manual_web_turn_can_retry_corrected_json_with_same_request_id():
-    """A bad pasted answer must be recoverable without consuming or duplicating a turn."""
+def test_manual_web_turn_can_retry_truncated_json_with_same_request_id():
+    """A truncated pasted response must preserve game state and allow one clean retry."""
     with TestClient(app) as client:
         seed = client.post("/api/demo/seed", json={}).json()
         session_id = seed["session_id"]
@@ -2112,19 +2238,49 @@ def test_manual_web_turn_can_retry_corrected_json_with_same_request_id():
             }
         )
         assert prepared.status_code == 200, prepared.text
+        initial_game_state = client.get(f"/api/sessions/{session_id}/state").json()["state"]
+        with database.connection() as conn:
+            initial_counts = {
+                table: conn.execute(
+                    f"SELECT COUNT(*) FROM {table} WHERE session_id=?", (session_id,)
+                ).fetchone()[0]
+                for table in ("events", "state_changes", "inventory_items", "resources", "ability_uses", "snapshots")
+            }
         common = {
-            "request_id": "manual-web-retry-0001",
+            "request_id": "manual-web-truncated-retry-001",
             "text": "Observo el camino con cuidado.",
             "provider": "chatgpt_web",
             "visibility": "scene",
             "manual_context_hash": prepared.json()["context_hash"]
         }
 
-        invalid = client.post(
+        truncated = client.post(
             f"/api/sessions/{session_id}/turns",
-            json={**common, "external_response": "La respuesta narrativa está fuera del JSON."}
+            json={
+                **common,
+                "external_response": '{"narration":"El camino se abre hacia un arroyo'
+            }
         )
-        assert invalid.status_code == 502
+        assert truncated.status_code == 502
+        assert "JSON válido" in truncated.json()["detail"]
+        assert client.get(f"/api/sessions/{session_id}/state").json()["state"] == initial_game_state
+        messages_after_failure = client.get(f"/api/sessions/{session_id}/messages").json()
+        failed_user = next(
+            message for message in messages_after_failure
+            if message["role"] == "user" and message["content"] == common["text"]
+        )
+        assert failed_user["generation_status"] == "failed"
+        assert not any(
+            message["role"] == "assistant" and message["turn_id"] == failed_user["turn_id"]
+            for message in messages_after_failure
+        )
+        with database.connection() as conn:
+            for table in ("events", "state_changes", "inventory_items", "resources", "ability_uses", "snapshots"):
+                count = conn.execute(
+                    f"SELECT COUNT(*) FROM {table} WHERE session_id=?", (session_id,)
+                ).fetchone()[0]
+                # The malformed JSON must not create any game-state rows.
+                assert count == initial_counts[table]
 
         corrected_json = json.dumps({
             "narration": "El camino desciende hacia un arroyo poco profundo.",
@@ -2144,13 +2300,13 @@ def test_manual_web_turn_can_retry_corrected_json_with_same_request_id():
         assert recovered.status_code == 200, recovered.text
         assert "arroyo poco profundo" in recovered.json()["narration"]
 
-        messages = client.get(f"/api/sessions/{session_id}/messages").json()
+        messages_after_retry = client.get(f"/api/sessions/{session_id}/messages").json()
         user_messages = [
-            message for message in messages
-            if message["role"] == "user" and message["content"] == "Observo el camino con cuidado."
+            message for message in messages_after_retry
+            if message["role"] == "user" and message["content"] == common["text"]
         ]
         assistant_messages = [
-            message for message in messages
+            message for message in messages_after_retry
             if message["role"] == "assistant" and "arroyo poco profundo" in message["content"]
         ]
         assert len(user_messages) == 1
@@ -2647,7 +2803,7 @@ def test_history_retrieval_matches_common_spanish_plural_and_verb_forms():
     assert {"llave", "antigua", "recog"}.issubset(old_fact & current_action)
 
 
-def test_100_short_turns_persist_across_database_reinitialization_and_backup():
+def test_100_short_turns_persist_and_restore_exact_state_after_database_reinitialization():
     import sqlite3
 
     with TestClient(app) as client:
@@ -2668,27 +2824,39 @@ def test_100_short_turns_persist_across_database_reinitialization_and_backup():
             assert response.status_code == 200, f"Turno {index + 1}: {response.text}"
 
         before_state = client.get(f"/api/sessions/{session_id}/state").json()
-        messages = client.get(f"/api/sessions/{session_id}/messages").json()
-        assert len(messages) == 200
-        assert len([message for message in messages if message["role"] == "user"]) == 100
-        assert len([message for message in messages if message["role"] == "assistant" and message["generation_status"] == "complete"]) == 100
+        before_messages = client.get(f"/api/sessions/{session_id}/messages").json()
+        assert len(before_messages) == 200
+        assert len([message for message in before_messages if message["role"] == "user"]) == 100
+        assert len([
+            message for message in before_messages
+            if message["role"] == "assistant" and message["generation_status"] == "complete"
+        ]) == 100
         assert before_state["state"]["minute_of_day"] == 580
 
         with database.connection() as conn:
             event_count = conn.execute(
                 "SELECT COUNT(*) FROM events WHERE session_id=?", (session_id,)
             ).fetchone()[0]
+            before_tables = {
+                table: [
+                    dict(row) for row in conn.execute(
+                        f"SELECT * FROM {table} WHERE session_id=? ORDER BY rowid", (session_id,)
+                    ).fetchall()
+                ]
+                for table in main_module.RESTORE_SESSION_TABLES
+            }
         assert event_count == 100
 
-        # Re-run the initializer, as a lightweight restart simulation: all state
-        # must be read from SQLite rather than hidden process memory.
+        # Reinitialization simulates application restart; no state may live only in process memory.
         database.initialize()
         assert client.get(f"/api/sessions/{session_id}/state").json() == before_state
-        assert len(client.get(f"/api/sessions/{session_id}/messages").json()) == 200
+        assert client.get(f"/api/sessions/{session_id}/messages").json() == before_messages
 
-        backup = client.post(f"/api/sessions/{session_id}/backup")
+        backup = client.post(f"/api/sessions/{session_id}/backup", json={})
         assert backup.status_code == 200, backup.text
-        with sqlite3.connect(backup.json()["path"]) as conn:
+        backup_data = backup.json()
+        backup_name = backup_data["backup_name"]
+        with sqlite3.connect(backup_data["path"]) as conn:
             assert conn.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
             assert conn.execute(
                 "SELECT COUNT(*) FROM messages WHERE session_id=?", (session_id,)
@@ -2696,6 +2864,37 @@ def test_100_short_turns_persist_across_database_reinitialization_and_backup():
             assert conn.execute(
                 "SELECT COUNT(*) FROM events WHERE session_id=?", (session_id,)
             ).fetchone()[0] == 100
+
+        # Introduce one real post-backup mutation so restore must undo it.
+        later_turn = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json={
+                "request_id": "campaign-100-post-backup-mutation",
+                "text": "Sigo.",
+                "provider": "mock",
+                "visibility": "scene"
+            }
+        )
+        assert later_turn.status_code == 200, later_turn.text
+        assert client.get(f"/api/sessions/{session_id}/messages").json() != before_messages
+
+        restored = client.post(
+            f"/api/sessions/{session_id}/restore",
+            json={"backup_name": backup_name, "confirmation": "RESTAURAR"}
+        )
+        assert restored.status_code == 200, restored.text
+        assert client.get(f"/api/sessions/{session_id}/state").json() == before_state
+        assert client.get(f"/api/sessions/{session_id}/messages").json() == before_messages
+        with database.connection() as conn:
+            restored_tables = {
+                table: [
+                    dict(row) for row in conn.execute(
+                        f"SELECT * FROM {table} WHERE session_id=? ORDER BY rowid", (session_id,)
+                    ).fetchall()
+                ]
+                for table in main_module.RESTORE_SESSION_TABLES
+            }
+        assert restored_tables == before_tables
 
 
 def test_short_eco_command_authorizes_one_valid_power_attempt():
@@ -2965,6 +3164,105 @@ def test_session_backup_can_be_listed_and_restored_without_touching_other_sessio
             ]
         assert restored_events == snapshot_events
         assert client.get(f"/api/sessions/{other_session_id}/state").json() == other_before
+
+
+def test_restore_constraint_failure_rolls_back_all_changes_to_the_active_session():
+    import sqlite3
+
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+        session_id = seed["session_id"]
+        first = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json={
+                "request_id": "restore-rollback-seed-turn-001",
+                "text": "Miro alrededor.",
+                "provider": "mock",
+                "visibility": "scene"
+            }
+        )
+        assert first.status_code == 200, first.text
+        before_state = client.get(f"/api/sessions/{session_id}/state").json()
+        before_messages = client.get(f"/api/sessions/{session_id}/messages").json()
+        with database.connection() as conn:
+            before_tables = {
+                table: [
+                    dict(row) for row in conn.execute(
+                        f"SELECT * FROM {table} WHERE session_id=? ORDER BY rowid", (session_id,)
+                    ).fetchall()
+                ]
+                for table in main_module.RESTORE_SESSION_TABLES
+            }
+
+        backup = client.post(f"/api/sessions/{session_id}/backup", json={})
+        assert backup.status_code == 200, backup.text
+        backup_name = backup.json()["backup_name"]
+        backup_path = database.path.parent / "backups" / backup_name
+
+        # Make a well-formed SQLite backup with a relaxed historical inventory schema.
+        # The source passes its own checks, but the active schema rejects a negative quantity.
+        with sqlite3.connect(backup_path) as conn:
+            conn.execute("PRAGMA foreign_keys=OFF")
+            conn.execute("ALTER TABLE inventory_items RENAME TO inventory_items_legacy")
+            conn.execute("""
+                CREATE TABLE inventory_items (
+                    id TEXT PRIMARY KEY,
+                    session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+                    item_key TEXT NOT NULL,
+                    display_name TEXT NOT NULL,
+                    quantity INTEGER NOT NULL,
+                    condition TEXT NOT NULL DEFAULT 'normal',
+                    carrier_entity_id TEXT NOT NULL DEFAULT '',
+                    location TEXT NOT NULL DEFAULT '',
+                    properties_json TEXT NOT NULL DEFAULT '{}',
+                    last_event_id TEXT,
+                    UNIQUE(session_id, item_key)
+                )
+            """)
+            conn.execute("""
+                INSERT INTO inventory_items
+                    (id,session_id,item_key,display_name,quantity,condition,
+                     carrier_entity_id,location,properties_json,last_event_id)
+                SELECT id,session_id,item_key,display_name,quantity,condition,
+                       carrier_entity_id,location,properties_json,last_event_id
+                FROM inventory_items_legacy
+            """)
+            conn.execute("DROP TABLE inventory_items_legacy")
+            row = conn.execute(
+                "SELECT id FROM inventory_items WHERE session_id=? ORDER BY rowid LIMIT 1",
+                (session_id,)
+            ).fetchone()
+            if row:
+                conn.execute("UPDATE inventory_items SET quantity=-1 WHERE id=?", (row[0],))
+            else:
+                conn.execute(
+                    "INSERT INTO inventory_items "
+                    "(id,session_id,item_key,display_name,quantity,condition,carrier_entity_id,location) "
+                    "VALUES(?,?,?,?,?,?,?,?)",
+                    (uuid.uuid4().hex, session_id, "corrupt-test-item", "Objeto de prueba", -1, "normal", "", "")
+                )
+            conn.commit()
+            assert conn.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+            assert conn.execute("PRAGMA foreign_key_check").fetchone() is None
+
+        failed_restore = client.post(
+            f"/api/sessions/{session_id}/restore",
+            json={"backup_name": backup_name, "confirmation": "RESTAURAR"}
+        )
+        assert failed_restore.status_code == 422, failed_restore.text
+        assert "restauración se canceló" in failed_restore.json()["detail"]
+        assert client.get(f"/api/sessions/{session_id}/state").json() == before_state
+        assert client.get(f"/api/sessions/{session_id}/messages").json() == before_messages
+        with database.connection() as conn:
+            after_tables = {
+                table: [
+                    dict(row) for row in conn.execute(
+                        f"SELECT * FROM {table} WHERE session_id=? ORDER BY rowid", (session_id,)
+                    ).fetchall()
+                ]
+                for table in main_module.RESTORE_SESSION_TABLES
+            }
+        assert after_tables == before_tables
 
 
 def test_restore_rejects_backup_when_world_canon_has_changed():
