@@ -367,7 +367,7 @@ CI de la rama organizada: **32 pruebas Python aprobadas**, más comprobación si
 - Inspector de contexto por mensaje/evento: detalla por qué se incluyó o excluyó por audiencia privada, destinatario, testigos, estado y límite de historial.
 - Presupuesto Lorebook editable en UI, guardado en SQLite y aplicado a contexto narrativo y previsualización; rango 500–12.000 caracteres, 4.500 por defecto, máximo ocho entradas.
 
-**Límites sin validar:** instalación/uso manual en Windows, llamadas reales a proveedores, campañas de 50–100 turnos y restauración visual de copias. El undo cubre estado mutable básico; falta ampliar la matriz de pruebas para relaciones/poderes complejos. El inspector ya explica inclusión/exclusión de mensajes/eventos y el presupuesto es configurable desde la interfaz y persistido en SQLite. Sigue medido en caracteres, no tokens exactos.
+**Límites sin validar:** instalación/uso manual en Windows, llamadas reales a proveedores, campañas de 50–100 turnos y restauración visual de copias. El undo tiene pruebas aisladas de inventario, recursos, reloj, una relación y un uso de Eco; falta verificar una campaña prolongada y otros casos límite. El inspector ya explica inclusión/exclusión de mensajes/eventos y el presupuesto es configurable desde la interfaz y persistido en SQLite. Sigue medido en caracteres, no tokens exactos.
 
 ### Decisión de reutilización
 
