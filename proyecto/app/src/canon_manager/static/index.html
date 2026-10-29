@@ -237,6 +237,7 @@ el("sendForm").onsubmit = async event => {
   try {
     const result = await api("/api/sessions/" + currentSession + "/turns", {
       method:"POST", body:JSON.stringify({
+        request_id:(window.crypto && typeof window.crypto.randomUUID === "function") ? window.crypto.randomUUID() : ("req-" + Date.now() + "-" + Math.random().toString(16).slice(2)),
         text:message, recipient_id:el("recipientSelect").value, provider:el("providerSelect").value
       })
     });
