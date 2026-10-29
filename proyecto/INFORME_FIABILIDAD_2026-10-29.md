@@ -8,7 +8,7 @@ Mejorar continuidad y recuperación del gestor local sin convertir ChatGPT/Gemin
 
 - Rama organizada de desarrollo: `docs/historias-organizadas`.
 - La rama `main` conserva únicamente `.gitignore`; el prototipo y la documentación están en `docs/historias-organizadas`.
-- Historial de CI: recuperación de turnos, 71 pruebas; destinos contradictorios, 72; movimientos de PNJ fuera de escena, 73; evidencia afirmativa, 75. La ejecución más reciente aprobó 79 pruebas Python y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40932636884. Esto no sustituye la validación manual en Windows.
+- Historial de CI: recuperación de turnos, 71 pruebas; destinos contradictorios, 72; movimientos de PNJ fuera de escena, 73; evidencia afirmativa, 75; continuidad extendida, 79. La CI posterior al PR #6 aprobó 81 pruebas Python y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40935903505. Esto no sustituye la validación manual en Windows.
 - La suite existente incluye un escenario automatizado de 100 turnos breves con reinicialización de la base y copia/restauración; eso es una prueba de regresión local, no una simulación de todos los errores de una historia real.
 - El modo ChatGPT/Gemini web es manual: preparar prompt, abrir el sitio, copiar y pegar una respuesta JSON. No automatiza el navegador, no lee la cuenta y no requiere clave API.
 
@@ -59,21 +59,30 @@ Las correcciones integradas incluyen recuperación tras reinicio, respaldo aisla
 
 ## Trabajo restante para una primera versión fiable
 
-1. [x] CI: 79 pruebas Python y sintaxis JavaScript aprobadas.
+1. [x] CI: 81 pruebas Python y sintaxis JavaScript aprobadas (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40935903505).
 2. [x] Regresión de JSON truncado: el estado del juego no cambia; la respuesta corregida reutiliza el mismo turno.
 3. [x] Regresión de acciones hipotéticas/preguntas, cambios narrativos contradictorios y propuestas sin evidencia afirmativa.
 4. [x] Restauración exacta tras 100 turnos breves simulados: reinicializar SQLite, guardar copia, aplicar una mutación posterior, restaurar y comparar el estado, los mensajes y todas las tablas restaurables.
 5. [x] Fallo de integridad durante restauración: la transacción se revierte; la API devuelve un 422 controlado y el estado activo permanece idéntico.
 6. [ ] Validar manualmente la interfaz y el intercambio copiar/pegar en Windows/Chromium con ChatGPT web y Gemini web.
 7. [ ] Ejecutar una campaña narrativa real de 50–100 intercambios con escenas privadas/grupales, decisiones, recursos y reinicio/restauración. La prueba de 100 turnos existente utiliza el proveedor simulado y no reemplaza este ensayo.
-8. [ ] Revisar compatibilidad de datos históricos y cambios de presencia; tokenización/coste API solo si se decide usar los adaptadores API.
+8. [x] Compatibilidad histórica de `session_presence` y restauración de backups sin `presence_status` (PR #6). [ ] Revisar mensajes/eventos históricos sin metadatos de audiencia.
 
 No se considera terminado un hito por existir un archivo o una ficha: los criterios deben estar ligados a comportamiento verificable y a una prueba reproducible.
 
-## Última actualización — PR #5: restauración exacta y fallos controlados
+## Histórico de actualización — PR #5:
 
 PR #5 fue integrado en `docs/historias-organizadas` (commit `90e8196331406f999ec42f1a4e5b2eb8f4282937`). La CI del PR aprobó 79 pruebas Python y la comprobación de sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40932636884.
 
 La prueba larga ahora comprueba la igualdad exacta de `/state`, mensajes y las tablas de sesión restaurables después de 100 turnos simulados, una reinicialización de SQLite, la creación de una copia, una mutación posterior y la restauración. Otra prueba modifica el esquema de una copia de forma que el archivo siga siendo una base SQLite legible pero incumpla una restricción de la base activa; la restauración se revierte por completo y devuelve 422. También se añadieron casos para JSON truncado, compras hipotéticas y cambios de relación contradictorios.
 
 No sustituye la validación manual en Windows ni una campaña narrativa prolongada con un chat externo real.
+
+
+## Última actualización — PR #6: compatibilidad de presencia histórica
+
+PR #6 quedó integrado en `docs/historias-organizadas` con commit `8a08870b7e3cbba8a107a34a74bd947e919b9c8a`: https://github.com/eltiootaku2020-cmyk/wordbot/pull/6. La CI posterior a la integración aprobó **81 pruebas Python** y sintaxis JavaScript (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40935903505).
+
+La inicialización migra la tabla `session_presence` si una base antigua carece de `presence_status` o `updated_at`. Las filas y ubicaciones se conservan y el estado de presencia se normaliza respecto de `sessions.current_location`. La restauración también acepta backups cuya tabla de presencia no contiene `presence_status` y reconstruye el campo desde la ubicación guardada.
+
+La cobertura está centrada en estos formatos históricos y no garantiza compatibilidad con todas las variantes posibles. Siguen pendientes la prueba manual del puente web en Windows/Chromium, mensajes/eventos antiguos sin metadatos de audiencia, restauración visual con vista previa y una campaña narrativa de 50–100 turnos con un chat externo real. La rama `main` no se modificó.
