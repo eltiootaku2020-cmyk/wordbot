@@ -1763,8 +1763,16 @@ def undo_latest_turn(session_id: str, turn_id: str):
         ).fetchone()
         if assistant is None:
             raise HTTPException(status_code=409, detail="El turno no existe o ya fue anulado; no hay una respuesta completada que deshacer.")
+        in_progress = conn.execute(
+            "SELECT 1 FROM messages WHERE session_id=? AND role='user' AND generation_status='processing' LIMIT 1",
+            (session_id,)
+        ).fetchone()
+        if in_progress:
+            raise HTTPException(status_code=409, detail="Hay un turno en curso; espera a que termine antes de deshacer el último turno.")
+
         latest = conn.execute(
-            "SELECT MAX(turn_index) AS n FROM messages WHERE session_id=? AND generation_status<>'undone'",
+            "SELECT MAX(turn_index) AS n FROM messages "
+            "WHERE session_id=? AND role='assistant' AND generation_status='complete'",
             (session_id,)
         ).fetchone()["n"]
         if latest is None or int(latest) != int(assistant["turn_index"]):
