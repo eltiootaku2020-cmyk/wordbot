@@ -2479,6 +2479,31 @@ async def submit_turn(session_id: str, payload: TurnRequest):
                             "actual o restaura una copia."
                         )
                     )
+                prior_snapshot = conn.execute(
+                    "SELECT state_json FROM snapshots WHERE session_id=? AND turn_id=?",
+                    (session_id, existing_user["turn_id"])
+                ).fetchone()
+                if prior_snapshot is None:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="No existe una instantánea fiable para ese reintento; crea una acción nueva desde el estado actual."
+                    )
+                try:
+                    prior_state = json.loads(prior_snapshot["state_json"])
+                except (TypeError, ValueError, json.JSONDecodeError) as exc:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="La instantánea anterior no se puede validar; no se reintentó el turno."
+                    ) from exc
+                if prior_state != capture_turn_state(conn, session_id):
+                    raise HTTPException(
+                        status_code=409,
+                        detail=(
+                            "El estado de la partida cambió desde la instantánea de ese turno "
+                            "fallido o anulado. No se puede reutilizar el reintento antiguo; "
+                            "continúa con una acción nueva o restaura una copia."
+                        )
+                    )
             saved_audience = old_metadata.get("audience_ids")
             if isinstance(saved_audience, list) and saved_audience:
                 audience_ids = [str(item) for item in saved_audience]
