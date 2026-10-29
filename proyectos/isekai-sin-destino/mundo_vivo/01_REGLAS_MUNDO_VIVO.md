@@ -140,3 +140,18 @@ El usuario eligió organizar el Bosque de las Bestias mediante una combinación 
 - Se modelará el mapa como nodos, conexiones, territorios y puntos de interés, con estado real separado del conocimiento del protagonista.
 
 La estructura general está aprobada. Los nombres, posiciones, conexiones y fichas de subzonas concretas siguen siendo propuestas hasta su revisión.
+
+## Decisión aprobada: presencia humana y civilizada combinada
+
+El usuario eligió combinar cuatro formas de presencia dentro del Bosque de las Bestias: **aldeas aisladas, campamentos temporales, ruinas y escondites**.
+
+- El bosque no será exclusivamente salvaje ni estará cubierto por una red continua de poblaciones.
+- Las aldeas son comunidades pequeñas y relativamente estables; pueden estar dentro del bosque o en sus límites. Sus habitantes, ubicación, tamaño, economía y relaciones quedan por diseñar.
+- Los campamentos son temporales o móviles y pueden pertenecer a aventureros, cazadores, comerciantes, exploradores u otros grupos. Su permanencia depende de motivos y condiciones.
+- Las ruinas indican ocupaciones o actividades pasadas. Su origen, época, función y peligros son desconocidos hasta reunir evidencia.
+- Los escondites son lugares discretos que pueden servir de refugio, guarida, depósito, puesto de observación u ocultación. No se presupone quién los construyó ni para qué.
+- Cada lugar tendrá estado propio: conocimiento del protagonista, ocupación, condición física, accesibilidad, recursos, riesgos, ocupantes y vínculos con rutas y territorios.
+- No todas las categorías tienen que aparecer en cada zona ni en todas las partidas. La presencia debe tener causas geográficas, históricas, ecológicas y sociales.
+- Un lugar diseñado no equivale a un lugar descubierto; la narración no revelará automáticamente su existencia, ocupantes o propósito.
+
+La decisión aprueba las cuatro categorías y su coexistencia posible. No aprueba todavía nombres, número de aldeas, población, facciones, coordenadas, edificios ni historias concretas.
