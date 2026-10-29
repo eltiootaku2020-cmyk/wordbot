@@ -3138,10 +3138,14 @@ conn.commit()
 print(os.getpid(), flush=True)
 time.sleep(60)
 """
+        with database.connection() as conn:
+            snapshot_state_json = json.dumps(
+                main_module.capture_turn_state(conn, session_id), ensure_ascii=False
+            )
         owner = subprocess.Popen(
             [
                 sys.executable, "-c", child_script, str(database.path), session_id,
-                request_id, turn_id, text_value
+                request_id, turn_id, text_value, snapshot_state_json
             ],
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
