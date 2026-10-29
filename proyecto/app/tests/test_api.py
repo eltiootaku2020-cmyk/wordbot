@@ -285,6 +285,26 @@ def test_load_actual_isekai_preset_imports_lorebook_and_starts_fresh_session():
 
 
 
+def test_isekai_lorebook_import_quality_is_conservative_and_has_unique_keywords():
+    lore_path = Path(__file__).resolve().parents[3] / "proyectos" / "isekai-sin-destino" / "LOREBOOK_IMPORT.json"
+    payload = json.loads(lore_path.read_text(encoding="utf-8"))
+    entries = list(payload["entries"].values())
+
+    assert len(entries) == 77
+    seen_keywords = {}
+    for entry in entries:
+        content = str(entry.get("content", "")).strip()
+        assert content, f"Entrada vacía: {entry.get('uid')}"
+        assert len(content) < 1000, f"Content demasiado largo: uid={entry.get('uid')} length={len(content)}"
+        for keyword in entry.get("key", []):
+            normalized = str(keyword).strip().casefold()
+            assert normalized, f"Palabra clave vacía: uid={entry.get('uid')}"
+            assert normalized not in seen_keywords, (
+                f"Palabra clave duplicada {normalized!r}: UID {seen_keywords.get(normalized)} y {entry.get('uid')}"
+            )
+            seen_keywords[normalized] = entry.get("uid")
+
+
 def test_private_turn_is_not_visible_to_other_npcs():
     with TestClient(app) as client:
         started = client.post(
