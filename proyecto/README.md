@@ -1,6 +1,6 @@
 # Proyecto: gestor local de canon, Lorebooks y continuidad
 
-**Estado:** prototipo de desarrollo v0.1. La CI reporta 13 pruebas automáticas aprobadas; faltan prueba manual en Windows, llamadas reales de OpenAI/Gemini y campaña larga. La revisión de código detectó como prioridad P0 filtrar el contexto por destinatario/testigos para evitar que PNJ conozcan conversaciones privadas.  
+**Estado:** prototipo de desarrollo v0.1. La CI reporta 15 pruebas Python aprobadas y sintaxis JavaScript validada el 29-10-2026; faltan prueba manual en Windows y llamadas reales de OpenAI/Gemini. Se implementó un primer alcance por turno (grupo/privado) y filtrado por audiencia/testigos; el inspector y los casos de cambio de escena siguen pendientes.  
 **Ubicación de trabajo:** rama `docs/historias-organizadas`, carpeta `proyecto/`.
 
 ## Objetivo
@@ -104,4 +104,4 @@ La decisión se basa en la investigación enlazada y puede revisarse después de
 
 **Estado actual:** el código incluye interfaz local en Chromium, SQLite, un narrador simulado, adaptadores iniciales OpenAI/Gemini, importación de Lorebook, guardados y propuestas de cambios. La última ejecución de CI enlazada en este documento aprobó 13 pruebas automáticas; esto no demuestra que las llamadas reales o Windows funcionen.
 
-**Prioridades detectadas por revisión:** P0 filtrar mensajes/eventos por lo que sabe cada PNJ; P1 definir qué cambios cotidianos se aceptan automáticamente y cuáles requieren revisión; P2 mejorar activadores/inspector del contexto; P3 revertir cambios al editar o regenerar turnos; P4 probar APIs reales, Windows y 50–100 intercambios.
+**Prioridades actuales:** completar el inspector de conocimiento y los casos de cambio de escena; P1 definir qué cambios cotidianos se aceptan automáticamente y cuáles requieren revisión; P2 mejorar activadores/inspector de Lorebook; P3 revertir cambios al editar o regenerar turnos; P4 probar APIs reales, Windows y 50–100 intercambios.
