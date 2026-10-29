@@ -623,6 +623,83 @@ def test_valid_npc_movement_is_applied_but_protagonist_movement_is_pending():
 
 
 
+def test_conflicting_npc_destinations_in_one_turn_are_all_pending():
+    with TestClient(app) as client:
+        started, entities = _create_state_ops_world(client)
+        session_id = started["session_id"]
+        protagonist_id = entities["Protagonista"]["id"]
+        ivar_id = entities["Ivar Dalen"]["id"]
+        witnesses = [protagonist_id, ivar_id]
+        initial_state = client.get(f"/api/sessions/{session_id}/state").json()
+        initial_ivar = next(
+            participant for participant in initial_state["participants"]
+            if participant["id"] == ivar_id
+        )
+        initial_location = initial_ivar["location"]
+
+        result = NarratorResponse(
+            narration=(
+                "Ivar parece marcharse hacia Brumaclara, pero la misma respuesta "
+                "también afirma que se dirige al Puerto Gris."
+            ),
+            events=[
+                EventProposal(
+                    ref="ivar-leaves-to-bruma",
+                    kind="location",
+                    entity_id=ivar_id,
+                    description="Ivar deja el claro y se marcha hacia Brumaclara.",
+                    witness_ids=witnesses
+                ),
+                EventProposal(
+                    ref="ivar-leaves-to-port",
+                    kind="location",
+                    entity_id=ivar_id,
+                    description="Ivar deja el claro y se marcha hacia el Puerto Gris.",
+                    witness_ids=witnesses
+                )
+            ],
+            movements=[
+                MovementProposal(
+                    entity_id=ivar_id,
+                    destination="Brumaclara",
+                    reason="Ivar sale del claro hacia Brumaclara.",
+                    event_ref="ivar-leaves-to-bruma"
+                ),
+                MovementProposal(
+                    entity_id=ivar_id,
+                    destination="Puerto Gris",
+                    reason="Ivar sale del claro hacia el Puerto Gris.",
+                    event_ref="ivar-leaves-to-port"
+                )
+            ]
+        )
+        turn_id, applied, pending = _apply_synthetic_result(
+            session_id,
+            "Le pregunto a Ivar si se queda o se marcha",
+            result
+        )
+
+        with database.connection() as conn:
+            presence = conn.execute(
+                "SELECT location,presence_status FROM session_presence "
+                "WHERE session_id=? AND entity_id=?",
+                (session_id, ivar_id)
+            ).fetchone()
+            movement_changes = conn.execute(
+                "SELECT status,reason,proposed_value_json FROM state_changes "
+                "WHERE session_id=? AND turn_id=? AND field='movement' ORDER BY created_at,id",
+                (session_id, turn_id)
+            ).fetchall()
+
+        assert presence["location"] == initial_location
+        assert presence["presence_status"] == "present"
+        assert len(movement_changes) == 2
+        assert all(change["status"] == "pending" for change in movement_changes)
+        assert all("varios movimientos" in change["reason"] for change in movement_changes)
+        assert not any("Movimiento de PNJ guardado" in note for note in applied)
+        assert sum("varios movimientos" in note for note in pending) == 2
+
+
 def test_routine_drop_transfer_and_condition_are_applied_with_source_events():
     with TestClient(app) as client:
         started, entities = _create_state_ops_world(client)
