@@ -2406,3 +2406,121 @@ def test_power_use_is_rejected_when_source_event_type_or_target_does_not_match()
                 "SELECT COUNT(*) FROM ability_uses WHERE session_id=?", (session_id,)
             ).fetchone()[0]
         assert uses == 0
+
+
+def test_session_backup_can_be_listed_and_restored_without_touching_other_sessions():
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seed["world_id"], seed["session_id"]
+        entities = client.get(f"/api/worlds/{world_id}/entities").json()
+        protagonist = next(entity for entity in entities if entity["kind"] == "protagonist")
+        maelis = next(entity for entity in entities if entity["name"] == "Maelis Orven")
+
+        other_created = client.post(
+            f"/api/worlds/{world_id}/sessions",
+            json={
+                "name": "Partida que no se debe tocar",
+                "location": "Aldea del Este",
+                "day": 3,
+                "minute_of_day": 620,
+                "protagonist_entity_id": protagonist["id"],
+                "present_entity_ids": [maelis["id"]],
+                "initial_inventory": [{"name": "llave azul", "quantity": 2}],
+                "initial_resources": [{"key": "monedas", "name": "Monedas", "quantity": 25, "unit": "monedas"}]
+            }
+        )
+        assert other_created.status_code == 200, other_created.text
+        other_session_id = other_created.json()["id"]
+        other_before = client.get(f"/api/sessions/{other_session_id}/state").json()
+
+        first_turn = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json={"request_id": "restore-snapshot-turn-001", "text": "Miro alrededor.", "provider": "mock"}
+        )
+        assert first_turn.status_code == 200, first_turn.text
+        snapshot_state = client.get(f"/api/sessions/{session_id}/state").json()
+        snapshot_messages = client.get(f"/api/sessions/{session_id}/messages").json()
+        snapshot_events = [
+            dict(row) for row in database.connection().__enter__().execute(
+                "SELECT id,turn_id,external_ref,kind,entity_id,description,witnesses_json,status "
+                "FROM events WHERE session_id=? ORDER BY created_at,id", (session_id,)
+            ).fetchall()
+        ]
+
+        backup_response = client.post(f"/api/sessions/{session_id}/backup", json={})
+        assert backup_response.status_code == 200, backup_response.text
+        backup_name = backup_response.json()["backup_name"]
+        listed = client.get(f"/api/sessions/{session_id}/backups")
+        assert listed.status_code == 200
+        assert any(item["name"] == backup_name and item["size_bytes"] > 0 for item in listed.json()["backups"])
+
+        later_turn = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json={"request_id": "restore-snapshot-turn-002", "text": "Sigo.", "provider": "mock"}
+        )
+        assert later_turn.status_code == 200, later_turn.text
+        assert len(client.get(f"/api/sessions/{session_id}/messages").json()) == 4
+
+        bad_path = client.post(
+            f"/api/sessions/{session_id}/restore",
+            json={"backup_name": "../outside.sqlite3", "confirmation": "RESTAURAR"}
+        )
+        assert bad_path.status_code == 422
+
+        # A saved processing marker must block restore so it cannot erase an active turn.
+        with database.transaction() as conn:
+            conn.execute(
+                "INSERT INTO messages(id,session_id,turn_id,client_request_id,turn_index,role,recipient_entity_id,content,provider,generation_status,metadata_json) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                ("restore-processing-row", session_id, "restore-processing-turn",
+                 "restore-processing-request-001", 999, "user", "", "in progress",
+                 "mock", "processing", "{}")
+            )
+        blocked = client.post(
+            f"/api/sessions/{session_id}/restore",
+            json={"backup_name": backup_name, "confirmation": "RESTAURAR"}
+        )
+        assert blocked.status_code == 409
+        with database.transaction() as conn:
+            conn.execute("DELETE FROM messages WHERE id='restore-processing-row'")
+
+        restored = client.post(
+            f"/api/sessions/{session_id}/restore",
+            json={"backup_name": backup_name, "confirmation": "RESTAURAR"}
+        )
+        assert restored.status_code == 200, restored.text
+        assert restored.json()["restored"] is True
+        assert client.get(f"/api/sessions/{session_id}/state").json() == snapshot_state
+        assert client.get(f"/api/sessions/{session_id}/messages").json() == snapshot_messages
+        with database.connection() as conn:
+            restored_events = [
+                dict(row) for row in conn.execute(
+                    "SELECT id,turn_id,external_ref,kind,entity_id,description,witnesses_json,status "
+                    "FROM events WHERE session_id=? ORDER BY created_at,id", (session_id,)
+                ).fetchall()
+            ]
+        assert restored_events == snapshot_events
+        assert client.get(f"/api/sessions/{other_session_id}/state").json() == other_before
+
+
+def test_restore_rejects_backup_when_world_canon_has_changed():
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seed["world_id"], seed["session_id"]
+        backup = client.post(f"/api/sessions/{session_id}/backup", json={})
+        assert backup.status_code == 200, backup.text
+
+        changed = client.post(
+            f"/api/worlds/{world_id}/entities",
+            json={"name": "Personaje añadido después de la copia", "kind": "character", "profile": "Cambio posterior al backup."}
+        )
+        assert changed.status_code == 200, changed.text
+        before = client.get(f"/api/sessions/{session_id}/state").json()
+
+        response = client.post(
+            f"/api/sessions/{session_id}/restore",
+            json={"backup_name": backup.json()["backup_name"], "confirmation": "RESTAURAR"}
+        )
+        assert response.status_code == 409
+        assert "canon" in response.json()["detail"].lower()
+        assert client.get(f"/api/sessions/{session_id}/state").json() == before
