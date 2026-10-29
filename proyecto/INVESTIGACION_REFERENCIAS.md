@@ -354,7 +354,7 @@ OpenAI documenta que Structured Outputs valida contra un subconjunto de JSON Sch
 
 ### Qué está implementado en el prototipo después de esta ronda
 
-CI de la rama organizada: **26 pruebas Python aprobadas**, más comprobación sintáctica del JavaScript, en https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40873010055
+CI de la rama organizada: **28 pruebas Python aprobadas**, más comprobación sintáctica del JavaScript, en https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40873768030
 
 - Visibilidad explícita `scene/private`, audiencia por mensaje y filtrado de contexto por destinatario/testigos.
 - Inspector de contexto que no llama al modelo y explica disparadores de las entradas Lorebook seleccionadas, límites y caracteres aproximados.
@@ -362,8 +362,10 @@ CI de la rama organizada: **26 pruebas Python aprobadas**, más comprobación si
 - Inventario ordinario: consumo, cambio de condición, soltar, transferir, recoger pila registrada y hallazgos/regalos explícitos, con causa y validación.
 - Movimientos de PNJ con evento fuente válido; conversación directa con un personaje fuera de la ubicación actual se rechaza.
 - Libro de recursos por partida, saldo inicial de monedas en cero para Isekai, ingresos explícitos y compras con precio/currency_key. Saldo y objeto se actualizan dentro de la transacción; si no alcanza, ambos quedan sin modificar y la operación permanece pendiente.
+- Snapshot preturno y control UI/API para deshacer el último turno completado. Restaura hora, ubicación, presencia, inventario, recursos, relaciones y usos de poderes; la versión anulada queda en el historial de auditoría y fuera del contexto activo.
+- Pruebas de rollback: compra + avance de reloj → undo restaura dinero/objeto/hora; reintento regenera sin duplicar; deshacer turnos antiguos con turnos posteriores activos se rechaza.
 
-**Límites sin validar:** instalación/uso manual en Windows, llamadas reales a proveedores, campañas de 50–100 turnos, restauración visual y rollback de una respuesta ya aplicada. El inspector aún no muestra la explicación por cada mensaje/evento excluido y el límite de Lorebook está en caracteres fijos, no es todavía un contador exacto de tokens.
+**Límites sin validar:** instalación/uso manual en Windows, llamadas reales a proveedores, campañas de 50–100 turnos y restauración visual de copias. El undo cubre estado mutable básico; falta ampliar la matriz de pruebas para relaciones/poderes complejos. El inspector aún no explica cada mensaje/evento excluido y el presupuesto de Lorebook sigue medido en caracteres fijos, no tokens exactos.
 
 ### Decisión de reutilización
 
