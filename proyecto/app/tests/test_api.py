@@ -1106,3 +1106,55 @@ def test_undo_latest_turn_restores_state_and_allows_safe_regeneration(monkeypatc
         assert regenerated.json()["state"]["state"]["time_label"].endswith("08:07")
         assert next(row for row in regenerated.json()["state"]["resources"] if row["resource_key"] == "monedas")["quantity"] == 3
         assert next(row for row in regenerated.json()["state"]["inventory"] if row["display_name"] == "Manzana")["quantity"] == 3
+
+
+
+def test_undo_rejects_a_turn_that_is_not_the_latest_completed_turn(monkeypatch):
+    with TestClient(app) as client:
+        started, _entities = _create_state_ops_world(client)
+        session_id = started["session_id"]
+        provider_state = {"calls": 0}
+
+        class QuietProvider:
+            name = "mock"
+
+            async def generate(self, payload):
+                provider_state["calls"] += 1
+                return NarratorResponse(
+                    narration="La escena continúa sin un cambio de estado adicional.",
+                    elapsed_minutes=1
+                )
+
+        monkeypatch.setattr(main_module, "make_provider", lambda provider_name, settings: QuietProvider())
+        first = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json={
+                "request_id": "undo-order-first-001",
+                "text": "Miro el claro del bosque",
+                "provider": "mock",
+                "visibility": "scene"
+            }
+        )
+        assert first.status_code == 200, first.text
+        second = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json={
+                "request_id": "undo-order-second-01",
+                "text": "Escucho a los viajeros",
+                "provider": "mock",
+                "visibility": "scene"
+            }
+        )
+        assert second.status_code == 200, second.text
+        assert provider_state["calls"] == 2
+
+        response = client.post(
+            f"/api/sessions/{session_id}/turns/{first.json()['turn_id']}/undo",
+            json={}
+        )
+        assert response.status_code == 409
+        assert "turno completado más reciente" in response.json()["detail"]
+
+        state = client.get(f"/api/sessions/{session_id}/state").json()
+        assert state["state"]["time_label"].endswith("08:02")
+        assert next(row for row in state["resources"] if row["resource_key"] == "monedas")["quantity"] == 5
