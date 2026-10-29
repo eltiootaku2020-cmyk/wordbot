@@ -71,3 +71,6 @@ Todo el contenido de esta carpeta es documentación y datos de diseño. No debe 
 - **Decisión aprobada:** presencia humana y civilizada combinada en el Bosque de las Bestias: aldeas aisladas, campamentos temporales, ruinas y escondites. Se aprueban las categorías y su coexistencia posible, no sus nombres, cantidades, ubicaciones, poblaciones, facciones ni historias concretas. Cada lugar tendrá estado propio y conocimiento separado del protagonista.
 
 - **Decisión aprobada:** densidad equilibrada de presencia civilizada. Habrá varias comunidades pequeñas, campamentos relativamente habituales en rutas y zonas de expedición, y ruinas/escondites repartidos; también se conservarán extensiones amplias de bosque salvaje. No se fijan cantidades, población, facciones ni ubicaciones concretas.
+
+
+- **Decisión aprobada:** ubicación repartida de las aldeas entre límites e interior del Bosque de las Bestias. La distribución será desigual, con mayor concentración relativa cerca de límites y accesos, algunas comunidades aisladas en el interior cuando la ecología y la seguridad lo permitan, y presencia estable muy escasa en zonas profundas/peligrosas. No se fijan nombres, cantidades, población, coordenadas, facciones ni ubicaciones concretas.
