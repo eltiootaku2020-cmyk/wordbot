@@ -1,6 +1,6 @@
 # Proyecto: gestor local de canon, Lorebooks y continuidad
 
-**Estado:** prototipo local v0.1. CI posterior al PR #8 aprobó 83 pruebas Python y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40939319271. La suite cubre continuidad, migración de presencia/backup, audiencia histórica y privacidad al deshacer/regenerar turnos privados. Falta ensayo manual en Windows, restauración visual y campaña narrativa real con chat externo; las pruebas reales de API son opcionales.
+**Estado:** prototipo local v0.1. CI posterior al PR #10 aprobó 86 pruebas Python y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40940906581. La suite cubre continuidad, migración de presencia/backup, audiencia histórica, privacidad al deshacer/regenerar y rechazo de reintentos con snapshots obsoletos. Falta ensayo manual en Windows, restauración visual y campaña narrativa real con chat externo; las pruebas reales de API son opcionales.
 **Ubicación de trabajo:** rama `docs/historias-organizadas`, carpeta `proyecto/`.
 
 ## Objetivo
@@ -40,7 +40,7 @@ No se debe enviar el Lorebook entero en cada mensaje. La aplicación recupera so
 
 - [Investigación de proyectos y referencias](INVESTIGACION_REFERENCIAS.md) — incluye Openovel, Chronicler, RPG Tracker, Open Dungeon, Gamentic, SillyTavern, RisuAI, memoria y APIs.
 - [Decisiones técnicas provisionales](DECISIONES_TECNICAS.md) — ADR-001 a ADR-015.
-- [Roadmap de implementación](ROADMAP_IMPLEMENTACION.md) — prioridades P0–P4 y pruebas pendientes.
+- [Investigación comparativa y errores fantasma](INVESTIGACION_PROGRAMAS_SIMILARES_Y_ERRORES_FANTASMA_2026-10-29.md) — alternativas reales, criterios adoptables y nuevos casos de regresión.\n- [Roadmap de implementación](ROADMAP_IMPLEMENTACION.md) — prioridades P0–P4 y pruebas pendientes.
 
 Para el uso previsto, la interfaz local en Chromium + FastAPI + SQLite incluye un puente manual de copia/pega para el chat web normal. Las API oficiales siguen disponibles como modalidad separada y optativa. No se leerá automáticamente la pestaña de ChatGPT/Gemini.
 
@@ -102,7 +102,7 @@ La decisión se basa en la investigación enlazada y puede revisarse después de
 
 ## Estado y siguientes pasos
 
-**Estado actual:** el código incluye interfaz Chromium, SQLite, narrador simulado, adaptadores API opcionales y modo manual para ChatGPT/Gemini web. CI aprueba 83 pruebas Python y sintaxis JavaScript (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40939319271); incluye JSON truncado, compras hipotéticas, contradicciones, restauración tras 100 turnos simulados, migración de presencia, audiencia histórica y aislamiento de turnos privados al deshacer/regenerar. Falta validación visual manual en Windows y campaña narrativa con chat externo real.
+**Estado actual:** el código incluye interfaz Chromium, SQLite, narrador simulado, adaptadores API opcionales y modo manual para ChatGPT/Gemini web. CI aprueba 86 pruebas Python y sintaxis JavaScript (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40940906581); incluye JSON truncado, compras hipotéticas, contradicciones, restauración tras 100 turnos simulados, migración de presencia, audiencia histórica, privacidad al deshacer/regenerar y protección contra reintentos con snapshots obsoletos. Falta validación visual manual en Windows y campaña narrativa con chat externo real.
 
 **Prioridades actuales:** probar el puente manual con ChatGPT web y Gemini web en Windows; revisar variantes históricas aún no representadas por las pruebas; completar restauración visual con vista previa y realizar una campaña narrativa real de 50–100 turnos con reinicio/restauración. La medición de coste de las APIs queda como validación opcional.
 
@@ -111,4 +111,4 @@ La decisión se basa en la investigación enlazada y puede revisarse después de
 
 El usuario puede elegir ahora **ChatGPT web** o **Gemini web** y continuar en el chat normal de su cuenta, sin clave API. La aplicación prepara el prompt con el estado local y el esquema JSON; el usuario copia el prompt al sitio oficial y después pega la respuesta para que el programa la valide y aplique sus reglas. No se automatiza ni se lee la sesión de navegador.
 
-Implementado en `docs/historias-organizadas`; CI actual de 83 pruebas Python y sintaxis JS: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40939319271. La huella SHA-256 impide aplicar una respuesta si el contexto cambió desde la preparación. La suite prueba también privacidad a través de undo/regeneración; falta la prueba manual real en Windows, restauración visual y campaña narrativa de 50–100 turnos.
+Implementado en `docs/historias-organizadas`; CI actual de 86 pruebas Python y sintaxis JS: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40940906581. La huella SHA-256 impide aplicar una respuesta si el contexto cambió desde la preparación. La suite prueba también privacidad a través de undo/regeneración; falta la prueba manual real en Windows, restauración visual y campaña narrativa de 50–100 turnos.
