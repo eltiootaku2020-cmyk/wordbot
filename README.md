@@ -4,7 +4,7 @@ Este repositorio organiza mundos, bots e historias con sus propias carpetas, con
 
 ## Herramienta en desarrollo
 
-- [Gestor local de canon, Lorebooks y continuidad](proyecto/README.md) — propuesta de aplicación para PC que conserva el estado local y utiliza una IA como narradora. Incluye [investigación de referencias](proyecto/INVESTIGACION_REFERENCIAS.md), [decisiones técnicas](proyecto/DECISIONES_TECNICAS.md), [roadmap](proyecto/ROADMAP_IMPLEMENTACION.md), [arquitectura](proyecto/ARQUITECTURA.md), [contrato IA](proyecto/CONTRATO_RESPUESTA_IA.md), [esquema local](proyecto/ESQUEMA_LOCAL.md) y [pruebas](proyecto/PRUEBAS_DE_ACEPTACION.md).
+- [Gestor local de canon, Lorebooks y continuidad](proyecto/README.md) — prototipo v0.1 con código en [proyecto/app](proyecto/app/README.md). CI: 8 pruebas aprobadas; falta validación manual en Windows y pruebas de proveedores reales. Incluye [investigación](proyecto/INVESTIGACION_REFERENCIAS.md), [decisiones](proyecto/DECISIONES_TECNICAS.md), [roadmap](proyecto/ROADMAP_IMPLEMENTACION.md) y [arquitectura](proyecto/ARQUITECTURA.md).
 
 ## Historias
 
