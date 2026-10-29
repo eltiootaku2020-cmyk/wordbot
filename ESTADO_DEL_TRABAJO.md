@@ -83,3 +83,19 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 ## Próximo paso recomendado
 
 Continuar el gestor local en este orden: (1) probar manualmente la interfaz y undo en Windows; (2) probar una llamada real de bajo riesgo a OpenAI y Gemini; (3) medir tokens/coste y probar registros históricos/cambios de presencia; (4) realizar una campaña de 50–100 turnos y reiniciar/restaurar la base para comprobar continuidad. Mantener en paralelo las pruebas de SpicyChat documentadas en la carpeta de Isekai. No declarar «Done» un hito que solo tenga documentación o una prueba simulada.
+
+
+## Corrección importante: ChatGPT/Gemini web, no necesariamente API
+
+El usuario aclaró que al decir IA se refiere al chat normal de ChatGPT o Gemini en sus páginas web, con su cuenta, no necesariamente a los endpoints API. No asumir que su objetivo primario son llamadas API.
+
+**Implementación en la rama `docs/historias-organizadas`:**
+- El selector ofrece ChatGPT web (manual) y Gemini web (manual), además del modo simulado y los proveedores API separados.
+- `POST /api/sessions/{session_id}/manual-prompt` prepara un prompt con el contexto compacto de la partida y el esquema JSON del narrador.
+- La interfaz permite copiar el prompt, abrir el sitio seleccionado y pegar la respuesta JSON. El backend la valida y después ejecuta las mismas validaciones de estado/inventario/recursos antes de guardar.
+- No se automatizan login, envío de mensajes, lectura del DOM ni extracción automática de respuestas. El usuario revisa qué datos del juego pega al proveedor.
+- Los adaptadores API siguen disponibles opcionalmente y no deben confundirse con la suscripción/cupo de chat web.
+
+**Verificación actual:** CI en https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40880074124 — 35 pruebas Python y comprobación de sintaxis de JavaScript aprobadas. No es todavía una prueba real del navegador.
+
+**Pendiente:** prueba manual en Windows con ChatGPT web y Gemini web; comprobar el intercambio JSON en ambos; probar 50–100 turnos, reinicio y restauración. El chat web manual no tiene medida automática de tokens/coste. No revertir este enfoque a automatización del navegador sin nueva investigación y evaluación de políticas.
