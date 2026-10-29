@@ -303,7 +303,10 @@ def _create_state_ops_world(client):
                 {"name": "Brina Solcor", "kind": "character", "profile": "Guerrera prudente."}
             ],
             "initial_inventory": [
-                {"name": "Manzana", "quantity": 2, "condition": "normal"}
+                {"name": "Manzana", "quantity": 2, "condition": "normal"},
+                {"name": "Cuerda", "quantity": 1, "condition": "normal"},
+                {"name": "Cantimplora", "quantity": 1, "condition": "normal"},
+                {"name": "Camisa", "quantity": 1, "condition": "normal"}
             ]
         }
     )
@@ -530,3 +533,94 @@ def test_valid_npc_movement_is_applied_but_protagonist_movement_is_pending():
         )
         assert response.status_code == 422
         assert "no está en la ubicación actual" in response.json()["detail"]
+
+
+
+def test_routine_drop_transfer_and_condition_are_applied_with_source_events():
+    with TestClient(app) as client:
+        started, entities = _create_state_ops_world(client)
+        protagonist_id = entities["Protagonista"]["id"]
+        ivar_id = entities["Ivar Dalen"]["id"]
+        witnesses = [protagonist_id, ivar_id]
+        event_defs = [
+            EventProposal(
+                ref="event-drop-rope",
+                kind="object",
+                entity_id=protagonist_id,
+                description="El protagonista deja la cuerda completa en el suelo del claro.",
+                witness_ids=witnesses
+            ),
+            EventProposal(
+                ref="event-transfer-flask",
+                kind="object",
+                entity_id=protagonist_id,
+                description="El protagonista entrega la cantimplora a Ivar.",
+                witness_ids=witnesses
+            ),
+            EventProposal(
+                ref="event-wet-shirt",
+                kind="object",
+                entity_id=protagonist_id,
+                description="La camisa del protagonista queda mojada al cruzar el arroyo.",
+                witness_ids=witnesses
+            )
+        ]
+        operations = [
+            InventoryOperation(
+                operation="drop",
+                item_name="Cuerda",
+                quantity=1,
+                carrier_entity_id=protagonist_id,
+                location="Claro del bosque",
+                reason="Deja la cuerda junto al árbol.",
+                event_ref="event-drop-rope"
+            ),
+            InventoryOperation(
+                operation="transfer",
+                item_name="Cantimplora",
+                quantity=1,
+                carrier_entity_id=ivar_id,
+                location="Claro del bosque",
+                reason="Entrega la cantimplora a Ivar.",
+                event_ref="event-transfer-flask"
+            ),
+            InventoryOperation(
+                operation="condition",
+                item_name="Camisa",
+                quantity=1,
+                carrier_entity_id=protagonist_id,
+                condition="mojada",
+                location="Claro del bosque",
+                reason="La camisa se moja al cruzar el arroyo.",
+                event_ref="event-wet-shirt"
+            )
+        ]
+        turn_id, applied, pending = _apply_synthetic_result(
+            started["session_id"],
+            "Dejo la cuerda, entrego la cantimplora a Ivar y cruzo el arroyo",
+            NarratorResponse(
+                narration="La cuerda queda junto al árbol; Ivar recibe la cantimplora y la camisa termina mojada.",
+                events=event_defs,
+                inventory_ops=operations
+            )
+        )
+        with database.connection() as conn:
+            items = {
+                row["item_key"]: dict(row) for row in conn.execute(
+                    "SELECT item_key,quantity,condition,carrier_entity_id,location,last_event_id "
+                    "FROM inventory_items WHERE session_id=?",
+                    (started["session_id"],)
+                ).fetchall()
+            }
+            changes = conn.execute(
+                "SELECT status,operation FROM state_changes WHERE session_id=? AND turn_id=? AND field='inventory'",
+                (started["session_id"], turn_id)
+            ).fetchall()
+        assert items["cuerda"]["carrier_entity_id"] == ""
+        assert items["cuerda"]["location"] == "Claro del bosque"
+        assert items["cantimplora"]["carrier_entity_id"] == ivar_id
+        assert items["camisa"]["condition"] == "mojada"
+        assert len(changes) == 3
+        assert all(row["status"] == "accepted" for row in changes)
+        assert len([note for note in applied if "Objeto actualizado" in note or "Estado del objeto actualizado" in note]) == 3
+        assert not any("Inventario:" in note for note in pending)
