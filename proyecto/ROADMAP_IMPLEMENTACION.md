@@ -76,7 +76,7 @@ Criterio de salida: el estado, mensajes y recursos sobreviven al cierre; se pued
 ## Estado de los hitos
 
 - **Comprobado por CI:** SQLite, backup, validación Pydantic, normalización del esquema, narrador simulado, turno API de extremo a extremo, reintentos idempotentes, aprobación/rechazo de eventos y creación atómica de mundos con reparto e inventario inicial.
-- **No comprobado todavía:** ejecución en Windows, llamadas reales a OpenAI/Gemini, comportamiento prolongado, reintentos idempotentes y todos los cambios de inventario/movimiento.
+- **No comprobado todavía:** ejecución manual en Windows, llamadas reales a OpenAI/Gemini, medición de tokens/coste, cambios de presencia y datos históricos sin metadatos de audiencia, comportamiento de 50–100 turnos y restauración visual del backup.
 
 ## Prioridad práctica
 
