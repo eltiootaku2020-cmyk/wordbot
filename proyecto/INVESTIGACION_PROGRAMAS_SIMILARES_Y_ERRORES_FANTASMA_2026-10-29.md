@@ -132,3 +132,37 @@ El defecto no era solo narrativo: contradecía el registro de auditoría y podí
 7. Restauración de backup mientras hay una propuesta pendiente; comprobar que el registro accepted/pending se mantiene sincronizado con inventario, recursos, relaciones y presencia.
 8. Undo de un turno que contiene varios cambios relacionados con el mismo evento y luego rechazo/aprobación parcial de propuestas de otro turno.
 9. Respuestas manuales web generadas con contexto antiguo después de aprobar/rechazar una propuesta; la huella del prompt debería rechazar aplicar la respuesta si cualquier dato usado en ese contexto cambió.
+
+
+## Actualización de auditoría — PR #13 y PR #14 (29 de octubre de 2026)
+
+### PR #13: revisión concurrente con la generación
+
+Se reprodujo que una generación ya había guardado `generation_status='processing'` y estaba esperando al narrador, mientras una operación independiente podía aceptar/rechazar un cambio de estado o un evento. La IA trabajaba con una vista anterior, y una posterior operación de deshacer podía interpretar mal la secuencia. PR #13 bloquea las cuatro rutas de revisión con HTTP 409 mientras hay un turno en curso. La CI posterior al merge pasó 88 pruebas Python y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40944609761.
+
+### PR #14: cancelación de la tarea del proveedor
+
+**Defecto reproducido en código:** `submit_turn` marca la solicitud como `processing`, confirma la transacción y espera a `provider.generate()`. Las ramas existentes capturaban `ProviderError` y `Exception`; una `asyncio.CancelledError` puede eludir el manejador `Exception` porque deriva de `BaseException`. Si la tarea se cancela sin cerrar el proceso completo, el marcador persistido podía bloquear la sesión hasta el siguiente reinicio.
+
+**Cambio propuesto en PR #14:** la cancelación se captura explícitamente, el mensaje original se marca `failed` en una transacción SQLite separada, se registra un aviso y se vuelve a lanzar la cancelación. No se crea una narración ficticia ni se aplican cambios de estado durante la recuperación. La regresión comprueba estado sin cambios y reintento idempotente con el mismo `request_id`.
+
+- PR #14: https://github.com/eltiootaku2020-cmyk/wordbot/pull/14.
+- CI del HEAD del PR: **89 pruebas Python aprobadas**, sintaxis JavaScript correcta y una advertencia no bloqueante de Starlette/httpx: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40946590907.
+- Fuente técnica: [documentación oficial de cancelación de tareas asyncio](https://docs.python.org/3/library/asyncio-task.html#task-cancellation), que aconseja limpiar recursos y propagar la cancelación.
+
+### Lecciones contrastadas con proyectos comparables
+
+- [Chronicler](https://github.com/yantrikos/chronicler): filtrar ACL/visibilidad al recuperar memoria antes de aplicar relevancia; distinguir recuerdos de distinta confianza. Esto refuerza la separación de Word Bot entre canon confirmado, propuestas y hechos visibles para cada personaje.
+- [AI Adventure](https://github.com/CaoRuiming/ai-adventure): estado estructurado y registro histórico/replay separados de la narración. La respuesta del modelo debe tratarse como eventos propuestos, pasar por un validador local y solo entonces modificar el estado autorizado.
+- [SillyTavern World Info](https://docs.sillytavern.app/usage/core-concepts/worldinfo/): una entrada Lorebook activada se inserta en el contexto, pero eso no obliga al modelo a obedecerla. La solución es validar acciones/estado fuera del prompt e inspeccionar qué se incluyó.
+- [Open Dungeon](https://github.com/newideas99/open-dungeon): controles explícitos para reintentar/editar/borrar y persistencia local, útiles como referencia de recuperación comprensible.
+- [API de backup SQLite](https://www.sqlite.org/backup.html): la copia online consistente es apropiada para preservar una base activa; Word Bot ya usa `sqlite3.Connection.backup` a un archivo temporal y reemplazo atómico.
+
+### Riesgos pendientes, aún no demostrados como defectos
+
+1. Cancelaciones repetidas durante el apagado real de Windows/ASGI y proveedor de red: verificar que la limpieza puede escribir SQLite mientras se cancela el proceso; si el proceso muere antes de finalizar esa transacción, la recuperación al arrancar sigue siendo la red de seguridad.
+2. Doble instancia de la aplicación apuntando a la misma base: comprobar que una instancia no marque como fallidas las generaciones vivas de la otra durante el arranque. El recuperador actual cambia todos los marcadores `processing` de la base al iniciar; con dos procesos simultáneos podría requerirse un identificador/lease de propietario y caducidad. Es candidato de prueba, no un fallo confirmado en uso normal de instancia única.
+3. Respuesta HTTP perdida después de confirmar el turno: repetir el mismo `request_id` debe devolver la respuesta ya guardada sin repetir costes o cambios.
+4. Ejecución completa de 50–100 turnos en Windows/Chromium con ChatGPT y Gemini web, incluyendo cambios de ubicación, compras, eventos privados/grupales, interrupciones, reinicio y restauración.
+
+**Estado honesto:** 89 pruebas automáticas y sintaxis JavaScript aprobadas en el HEAD de PR #14. La prueba de cancelación usa proveedor simulado. La campaña de navegador con chats externos reales, la restauración visual y los casos de varias instancias siguen pendientes. PR #14 aún no está integrado; `main` no se modificó.

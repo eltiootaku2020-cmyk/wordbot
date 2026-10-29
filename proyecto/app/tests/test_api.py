@@ -4058,3 +4058,83 @@ def test_undo_and_regenerate_private_turn_never_leaks_to_scene_bystanders(monkey
         visible_events = [item["description"] for item in maelis_context.json()["context"]["recent_events"]]
         assert any(private_code in content for content in visible_messages)
         assert any(private_code in description for description in visible_events)
+
+
+def test_cancelled_provider_generation_marks_turn_failed_and_allows_same_request_retry(monkeypatch):
+    import asyncio
+    from concurrent.futures import CancelledError as FutureCancelledError
+
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+        session_id = seed["session_id"]
+        state_before = client.get(f"/api/sessions/{session_id}/state").json()
+        counters = {"cancelled": 0, "recovery": 0}
+
+        class CancelledProvider:
+            async def generate(self, payload):
+                counters["cancelled"] += 1
+                raise asyncio.CancelledError("simulated task cancellation")
+
+        class RecoveryProvider:
+            async def generate(self, payload):
+                counters["recovery"] += 1
+                return NarratorResponse(
+                    narration="La respuesta recuperada se guardó una sola vez.",
+                    elapsed_minutes=1
+                )
+
+        monkeypatch.setattr(
+            main_module, "make_provider",
+            lambda provider_name, settings: CancelledProvider()
+        )
+        payload = {
+            "request_id": "cancelled-provider-recovery-001",
+            "text": "Observo el camino y espero una respuesta.",
+            "provider": "mock",
+            "visibility": "scene"
+        }
+
+        # Depending on the ASGI test transport, a propagated cancellation may
+        # surface as asyncio.CancelledError or as a 5xx response. Either way,
+        # the durable message must be failed, not left in processing.
+        try:
+            cancelled_response = client.post(
+                f"/api/sessions/{session_id}/turns", json=payload
+            )
+        except (asyncio.CancelledError, FutureCancelledError):
+            cancelled_response = None
+        if cancelled_response is not None:
+            assert cancelled_response.status_code >= 500
+
+        messages = client.get(f"/api/sessions/{session_id}/messages").json()
+        failed_user = next(
+            message for message in messages
+            if message["role"] == "user" and message["content"] == payload["text"]
+        )
+        assert failed_user["generation_status"] == "failed"
+        assert not any(
+            message["role"] == "assistant" and message["turn_id"] == failed_user["turn_id"]
+            for message in messages
+        )
+        assert client.get(f"/api/sessions/{session_id}/state").json() == state_before
+        assert counters["cancelled"] == 1
+
+        monkeypatch.setattr(
+            main_module, "make_provider",
+            lambda provider_name, settings: RecoveryProvider()
+        )
+        retried = client.post(f"/api/sessions/{session_id}/turns", json=payload)
+        assert retried.status_code == 200, retried.text
+        assert retried.json()["turn_id"] == failed_user["turn_id"]
+        assert retried.json()["replayed"] is False
+        assert counters["recovery"] == 1
+
+        messages_after = client.get(f"/api/sessions/{session_id}/messages").json()
+        assert len([
+            message for message in messages_after
+            if message["role"] == "user" and message["content"] == payload["text"]
+        ]) == 1
+        assert len([
+            message for message in messages_after
+            if message["role"] == "assistant" and message["turn_id"] == failed_user["turn_id"]
+        ]) == 1
