@@ -2137,8 +2137,8 @@ def test_duplicate_inventory_and_resource_operations_never_apply_twice():
         state = client.get(f"/api/sessions/{session_id}/state").json()
         assert not any(item["display_name"].casefold() == "pan" for item in state["inventory"])
         assert not any(resource["resource_key"] == "monedas" for resource in state["resources"])
-        assert any("varias veces" in note for note in response.json()["pending_notes"])
-        assert any("varias veces" in note for note in response.json()["pending_notes"])
+        assert any("Inventario: acquire pan" in note and "varias veces" in note for note in response.json()["pending_notes"])
+        assert any("Recurso: gain Monedas" in note and "varias veces" in note for note in response.json()["pending_notes"])
 
 
 def test_unexpected_state_application_failure_marks_turn_failed_and_allows_same_request_retry(monkeypatch):
@@ -2182,3 +2182,54 @@ def test_history_retrieval_matches_common_spanish_plural_and_verb_forms():
     old_fact = relevance_terms("Las llaves antiguas quedaron junto al cofre; recogí una bolsa.")
     current_action = relevance_terms("Busco la llave antigua y quiero recoger la bolsa.")
     assert {"llave", "antigua", "recog"}.issubset(old_fact & current_action)
+
+
+def test_100_short_turns_persist_across_database_reinitialization_and_backup():
+    import sqlite3
+
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+        session_id = seed["session_id"]
+        short_actions = ["Sí.", "No.", "Sigo.", "Miro alrededor.", "Escucho con atención."]
+
+        for index in range(100):
+            response = client.post(
+                f"/api/sessions/{session_id}/turns",
+                json={
+                    "request_id": f"campaign-100-{index:03d}-request",
+                    "text": short_actions[index % len(short_actions)],
+                    "provider": "mock",
+                    "visibility": "scene"
+                }
+            )
+            assert response.status_code == 200, f"Turno {index + 1}: {response.text}"
+
+        before_state = client.get(f"/api/sessions/{session_id}/state").json()
+        messages = client.get(f"/api/sessions/{session_id}/messages").json()
+        assert len(messages) == 200
+        assert len([message for message in messages if message["role"] == "user"]) == 100
+        assert len([message for message in messages if message["role"] == "assistant" and message["generation_status"] == "complete"]) == 100
+        assert before_state["state"]["minute_of_day"] == 580
+
+        with database.connection() as conn:
+            event_count = conn.execute(
+                "SELECT COUNT(*) FROM events WHERE session_id=?", (session_id,)
+            ).fetchone()[0]
+        assert event_count == 100
+
+        # Re-run the initializer, as a lightweight restart simulation: all state
+        # must be read from SQLite rather than hidden process memory.
+        database.initialize()
+        assert client.get(f"/api/sessions/{session_id}/state").json() == before_state
+        assert len(client.get(f"/api/sessions/{session_id}/messages").json()) == 200
+
+        backup = client.post(f"/api/sessions/{session_id}/backup")
+        assert backup.status_code == 200, backup.text
+        with sqlite3.connect(backup.json()["path"]) as conn:
+            assert conn.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+            assert conn.execute(
+                "SELECT COUNT(*) FROM messages WHERE session_id=?", (session_id,)
+            ).fetchone()[0] == 200
+            assert conn.execute(
+                "SELECT COUNT(*) FROM events WHERE session_id=?", (session_id,)
+            ).fetchone()[0] == 100
