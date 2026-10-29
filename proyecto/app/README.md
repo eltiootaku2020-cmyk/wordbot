@@ -1,6 +1,6 @@
 # Gestor local de canon — prototipo v0.1
 
-**Estado de validación:** CI aprobó 79 pruebas Python y la comprobación sintáctica JavaScript: [ver resultados](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40932636884). Incluye JSON truncado, acciones hipotéticas, cambios contradictorios y restauración exacta después de 100 turnos breves simulados. Falta probar el intercambio real en Windows y ejecutar una campaña narrativa con un chat externo.
+**Estado de validación:** CI aprobó **81 pruebas Python** y la comprobación sintáctica JavaScript: [ver resultados](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40935903505). Incluye JSON truncado, acciones hipotéticas, cambios contradictorios, restauración exacta después de 100 turnos breves simulados, migración del esquema histórico de presencia y restauración de copias sin `presence_status`. Falta probar el intercambio real en Windows y ejecutar una campaña narrativa con un chat externo.
 
 Esta carpeta contiene un primer prototipo ejecutable del flujo local: interfaz de chat en Chromium, base SQLite y narrador simulado por defecto. El proveedor simulado permite probar la persistencia sin clave ni coste. OpenAI y Gemini son opciones externas configurables.
 
@@ -70,20 +70,20 @@ Este es un prototipo de desarrollo, no una aplicación final endurecida para pro
 
 ## Validación automática
 
-Nota histórica: las ejecuciones de 15, 38 y 73 pruebas pertenecen a revisiones anteriores. La ejecución más reciente aprobó 79 pruebas Python y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40932636884. Ninguna sustituye la prueba manual en Windows.
+Nota histórica: las ejecuciones de 15, 38, 73 y 79 pruebas pertenecen a revisiones anteriores. La más reciente aprobó 81 pruebas Python y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40935903505. Ninguna sustituye la prueba manual en Windows.
 
 ## Hallazgos importantes antes de una campaña larga
 
 - **Privacidad básica implementada y probada en CI:** el selector permite escena/grupo o privado con destinatario; mensajes y eventos se filtran por audiencia/testigos. La comprobación actual aún necesita una prueba manual en Windows para los flujos visuales.
-- Las operaciones de inventario y movimiento se validan localmente; las compras requieren acción afirmativa del usuario, coste y saldo suficientes. Las propuestas ambiguas o de alto impacto permanecen pendientes.
-- Faltan la prueba manual de edición/undo e intercambio copiar/pegar en Windows y una campaña narrativa de 50–100 turnos con un chat externo. La llamada real a una API es opcional para la modalidad de chat web manual; la prueba automatizada de 100 turnos breves usa el proveedor simulado.
+- La migración de la tabla de presencia y la restauración de backups históricos sin `presence_status` pasan CI; los mensajes/eventos antiguos sin metadatos de audiencia siguen pendientes de compatibilidad.
+- Faltan la prueba manual de edición/undo e intercambio copiar/pegar en Windows, la restauración visual con vista previa y una campaña narrativa de 50–100 turnos con un chat externo. La compatibilidad de esquema de presencia y backups históricos sin `presence_status` ya está cubierta por CI; todavía debe revisarse el tratamiento de mensajes/eventos antiguos sin metadatos de audiencia.
 
 No expongas el servidor a Internet: el prototipo está pensado para ejecutarse solo en el PC.
 
 
 ## Qué valida la CI actual
 
-La ejecución más reciente del workflow aprobó 79 pruebas Python y la comprobación sintáctica JavaScript, incluida la prueba del preset de 77 entradas, tamaño de Content, unicidad de keywords, JSON truncado y restauración de la partida tras 100 turnos breves simulados. Revisa el resumen de la ejecución aquí: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40932636884. La CI no utiliza respuestas reales de chats web, no demuestra el intercambio manual en Windows y no mide tokens/coste de API.
+La ejecución más reciente del workflow aprobó 81 pruebas Python y la comprobación sintáctica JavaScript, incluida la prueba del preset de 77 entradas, tamaño de Content, unicidad de keywords, JSON truncado, restauración tras 100 turnos simulados y compatibilidad de presencia histórica. Consulta el resultado: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40935903505. La CI no usa respuestas reales de chats web ni demuestra el intercambio manual en Windows, ni mide tokens/coste de API.
 
 Limitaciones conocidas:
 - Las compras se cobran dentro de `InventoryOperation acquire`; no debe emitirse además un `ResourceOperation spend` duplicado para ese evento.
