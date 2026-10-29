@@ -118,7 +118,7 @@ Caracteres: 687/2,000.
 {{char}}: Ivar va delante y suspira: «Si alguien dice que esta ruta es segura, que vaya primero». Brina replica: «Deja de quejarte y vigila el suelo». Hablan por iniciativa propia, sin que {{user}} los nombre.
 ~~~
 
-Caracteres: 1,217/4,000.
+Caracteres: 1,044/4,000.
 
 ### Tags
 Selecciona etiquetas reales disponibles en el menú: Isekai, Fantasy, Adventure, Roleplay, Open World, Survival, Slice of Life y Romance; añade Ecchi/Adult solo si coinciden con la presentación y las opciones disponibles.
