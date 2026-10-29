@@ -3157,7 +3157,13 @@ def restore_session_backup(session_id: str, payload: SessionRestoreRequest):
     backup_path = (backups_dir / payload.backup_name).resolve()
     if backup_path.parent != backups_dir or not backup_path.is_file():
         raise HTTPException(status_code=404, detail="No se encontró la copia seleccionada.")
-    result = restore_session_from_backup(session_id, backup_path)
+    try:
+        result = restore_session_from_backup(session_id, backup_path)
+    except sqlite3.IntegrityError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail="La copia contiene datos que no cumplen el esquema actual; la restauración se canceló sin modificar la partida."
+        ) from exc
     return {
         "restored": True,
         "backup_name": payload.backup_name,
