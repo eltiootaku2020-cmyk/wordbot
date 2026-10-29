@@ -230,6 +230,7 @@ MAX_RELEVANT_MESSAGES = 2
 MAX_RECENT_MESSAGE_CHARS = 1000
 MAX_RECENT_EVENTS = 6
 MAX_RELEVANT_EVENTS = 2
+MAX_CONTINUITY_EVENTS = 12
 MAX_EVENT_DESCRIPTION_CHARS = 450
 MAX_CONTEXT_INVENTORY_ITEMS = 40
 
@@ -274,6 +275,61 @@ def manual_context_hash(payload: dict[str, Any]) -> str:
     """Stable fingerprint so a pasted reply cannot mutate a changed game state."""
     canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
     return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+NARRATIVE_VARIATION_CUES = (
+    ("environmental_detail", "Si encaja, introduce un detalle concreto del entorno que afecte a la escena; no crees un peligro nuevo."),
+    ("npc_initiative", "Si un PNJ tiene motivo, permite una iniciativa pequeña y coherente sin hacer hablar a todo el grupo."),
+    ("dialogue_subtext", "Prioriza subtexto y una reacción breve antes que explicar emociones de forma redundante."),
+    ("practical_obstacle", "Si la acción lo permite, muestra un obstáculo cotidiano y concreto; no bloquees artificialmente el progreso."),
+    ("quiet_tension", "Usa una pausa, silencio o gesto significativo cuando sea más natural que otro diálogo."),
+    ("independent_activity", "Si hay varios PNJ presentes, uno puede continuar una actividad propia relevante sin robar el foco."),
+    ("sensory_observation", "Varía con un detalle sensorial observable y pertinente, sin convertirlo en una pista falsa."),
+    ("light_humor", "Si la personalidad y la situación lo permiten, admite un toque breve de humor; no fuerces un chiste."),
+)
+
+
+def narrative_variation_hint(conn, session_id: str, current_turn_id: str) -> dict[str, Any]:
+    """Choose a repeat-averse style cue deterministically for this turn.
+
+    The same prepared manual prompt and submitted turn receive the same cue;
+    retries therefore cannot change the narrative instructions mid-request.
+    """
+    current = conn.execute(
+        "SELECT turn_index FROM messages WHERE session_id=? AND turn_id=? AND role='user' LIMIT 1",
+        (session_id, current_turn_id)
+    ).fetchone()
+    if current is not None:
+        turn_number = int(current["turn_index"])
+    else:
+        turn_number = int(conn.execute(
+            "SELECT COALESCE(MAX(turn_index),0)+1 AS n FROM messages WHERE session_id=?",
+            (session_id,)
+        ).fetchone()["n"])
+
+    previous_rows = conn.execute(
+        "SELECT metadata_json FROM messages WHERE session_id=? AND role='assistant' AND turn_index<? "
+        "ORDER BY turn_index DESC LIMIT 3",
+        (session_id, turn_number)
+    ).fetchall()
+    previous_cues = set()
+    for row in previous_rows:
+        try:
+            metadata = json.loads(row["metadata_json"] or "{}")
+        except (TypeError, ValueError, json.JSONDecodeError):
+            continue
+        if isinstance(metadata, dict) and isinstance(metadata.get("variation_cue"), str):
+            previous_cues.add(metadata["variation_cue"])
+
+    digest = hashlib.sha256(f"{session_id}:{turn_number}".encode("utf-8")).digest()
+    start = int.from_bytes(digest[:4], "big") % len(NARRATIVE_VARIATION_CUES)
+    selected = NARRATIVE_VARIATION_CUES[start]
+    for offset in range(len(NARRATIVE_VARIATION_CUES)):
+        candidate = NARRATIVE_VARIATION_CUES[(start + offset) % len(NARRATIVE_VARIATION_CUES)]
+        if candidate[0] not in previous_cues:
+            selected = candidate
+            break
+    return {"turn_index": turn_number, "cue": selected[0], "instruction": selected[1]}
 
 
 
@@ -846,7 +902,7 @@ def build_context(
     # Events are available only if the acting NPC witnessed them or the source
     # conversation was visible to them. Pending/rejected proposals are not facts.
     event_rows = conn.execute(
-        "SELECT e.id,e.turn_id,e.kind,e.entity_id,e.description,e.status,e.witnesses_json,e.created_at,"
+        "SELECT e.id,e.turn_id,e.kind,e.entity_id,e.description,e.status,e.witnesses_json,e.created_at,e.continuity,e.importance,"
         "m.id AS matched_source_message_id,m.recipient_entity_id AS source_recipient_id,"
         "m.metadata_json AS source_metadata_json "
         "FROM events e LEFT JOIN messages m ON m.id=e.source_message_id "
@@ -928,13 +984,34 @@ def build_context(
             "source_visibility": source_visibility
         })
 
+    continuity_candidates = [
+        item for item in eligible_events
+        if bool(item["row"]["continuity"]) or int(item["row"]["importance"] or 1) >= 4
+    ]
+    continuity_candidates.sort(
+        key=lambda item: (int(item["row"]["importance"] or 1), str(item["row"]["created_at"])),
+        reverse=True
+    )
+    selected_continuity = continuity_candidates[:MAX_CONTINUITY_EVENTS]
+    continuity_event_ids = {item["row"]["id"] for item in selected_continuity}
+    continuity_records = [{
+        "event_id": item["row"]["id"], "kind": item["row"]["kind"],
+        "entity_id": item["row"]["entity_id"],
+        "description": (item["row"]["description"] or "")[:MAX_EVENT_DESCRIPTION_CHARS],
+        "importance": int(item["row"]["importance"] or 1),
+        "witness_ids": sorted(item["witnesses"]),
+        "created_at": item["row"]["created_at"]
+    } for item in selected_continuity]
+    normal_eligible_events = [
+        item for item in eligible_events if item["row"]["id"] not in continuity_event_ids
+    ]
     chosen_events = select_history_items(
-        eligible_events, lambda item: item["row"]["description"] or "",
+        normal_eligible_events, lambda item: item["row"]["description"] or "",
         MAX_RECENT_EVENTS, MAX_RELEVANT_EVENTS, relevance_query_terms
     )
     recent_events = []
     selected_events_debug = []
-    for index, item in enumerate(eligible_events):
+    for index, item in enumerate(normal_eligible_events):
         row = item["row"]
         witnesses = item["witnesses"]
         selection_reason = chosen_events.get(index)
@@ -997,6 +1074,8 @@ def build_context(
         "human_eco_attempts_by_target": eco_uses,
         "recent_messages": recent,
         "recent_events": recent_events,
+        "continuity_records": continuity_records,
+        "narrative_variation": narrative_variation_hint(conn, session["id"], current_turn_id),
         "relevant_lore": lore
     }
     context_chars = len(json.dumps(context, ensure_ascii=False))
@@ -1011,6 +1090,10 @@ def build_context(
         "selected_messages": selected_messages_debug,
         "excluded_messages": excluded_messages_debug,
         "selected_events": selected_events_debug,
+        "selected_continuity_records": [
+            {"event_id": item["event_id"], "kind": item["kind"], "importance": item["importance"],
+             "witness_ids": item["witness_ids"]} for item in continuity_records
+        ],
         "excluded_events": excluded_events_debug,
         "recent_messages_selected": len(recent),
         "recent_events_selected": len(recent_events),
@@ -1029,7 +1112,8 @@ def build_context(
             "events_candidate_max": MAX_HISTORY_CANDIDATES,
             "events_relevance_slots": MAX_RELEVANT_EVENTS,
             "event_chars_each": MAX_EVENT_DESCRIPTION_CHARS,
-            "events_max": MAX_RECENT_EVENTS
+            "events_max": MAX_RECENT_EVENTS,
+            "continuity_events_max": MAX_CONTINUITY_EVENTS
         }
     }
     if include_diagnostics:
@@ -1067,11 +1151,14 @@ def write_event(
         witness for witness in proposed_witnesses
         if witness in valid_ids and (allowed_witnesses is None or witness in allowed_witnesses)
     ]
+    durable_kinds = {"promise", "quest", "injury", "clue", "secret", "deadline", "threat", "timeline_anchor", "knowledge", "tracked_fact"}
+    continuity = bool(event.continuity or event.kind in durable_kinds)
     conn.execute(
-        "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,witnesses_json,status,source_message_id) "
-        "VALUES(?,?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,witnesses_json,continuity,importance,status,source_message_id) "
+        "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
         (event_id, session_id, turn_id, event.ref, event.kind, event.entity_id,
-         event.description, json.dumps(witnesses, ensure_ascii=False), status, source_message_id)
+         event.description, json.dumps(witnesses, ensure_ascii=False), int(continuity),
+         int(event.importance), status, source_message_id)
     )
     return event.ref, event_id, status
 
@@ -2797,7 +2884,8 @@ async def submit_turn(session_id: str, payload: TurnRequest):
                  json.dumps({
                      "pending": result.pending,
                      "visibility": payload.visibility,
-                     "audience_ids": audience_ids
+                     "audience_ids": audience_ids,
+                     "variation_cue": context.get("narrative_variation", {}).get("cue", "")
                  }, ensure_ascii=False))
             )
             user_metadata_row = conn.execute(
