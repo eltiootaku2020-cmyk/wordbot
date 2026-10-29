@@ -1662,12 +1662,12 @@ def apply_narrator_result(
             reason = "El mismo poder contra el mismo objetivo aparece varias veces en un turno; se requiere revisión para no duplicar usos."
         elif not source:
             reason = "No existe el evento que justifica el uso del poder."
-        elif source["status"] != "recorded":
-            reason = "El evento que justifica el poder está pendiente de revisión."
         elif source["kind"] != "power":
             reason = "El uso debe referenciar un evento de tipo power."
         elif source["entity_id"] != power.target_entity_id:
             reason = "El objetivo del evento de poder no coincide con el objetivo de la operación."
+        elif source["status"] != "recorded":
+            reason = "El evento que justifica el poder está pendiente de revisión."
         elif power.target_entity_id not in valid_ids:
             reason = "El objetivo del poder no pertenece a este mundo."
         elif not power_action_authorized:
