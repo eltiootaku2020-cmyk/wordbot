@@ -52,9 +52,9 @@ La investigación recomienda una interfaz web local en Chromium, backend Python/
 - [Base de datos y esquema SQLite](app/src/canon_manager/db.py)
 - [Narrador simulado y adaptadores OpenAI/Gemini](app/src/canon_manager/providers.py)
 - [Pruebas automáticas](app/tests/)
-- [Ejecución CI registrada: 32 pruebas aprobadas](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40877808136)
+- [Ejecución CI vigente: 35 pruebas aprobadas](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40880074124)
 
-La prueba de integración ejecuta «Hola, linda» dirigido a Maelis y registra mensajes/eventos; el cambio numérico queda pendiente si no existe una base confirmada. También se prueba crear mundos personalizados de forma atómica y cargar el preset real de Isekai: 76 entradas de Lorebook, cinco aventureros, el protagonista y los objetos iniciales. La CI valida el modo simulado y la sintaxis JavaScript, pero no sustituye la prueba manual en Windows ni las llamadas reales a proveedores.
+Las pruebas de integración cubren «Hola, linda» con Maelis, eventos y cambios pendientes, creación atómica de mundos, el preset de Isekai (76 entradas), privacidad por audiencia, presupuesto Lorebook, undo/recursos y el puente manual ChatGPT/Gemini. La CI valida el modo simulado, la preparación del prompt y el JSON pegado; no sustituye la prueba manual en Windows. Las llamadas API reales son opcionales.
 
 ## Componentes previstos
 
@@ -102,7 +102,7 @@ La decisión se basa en la investigación enlazada y puede revisarse después de
 
 ## Estado y siguientes pasos
 
-**Estado actual:** el código incluye interfaz Chromium, SQLite, narrador simulado, adaptadores iniciales OpenAI/Gemini, preset real de Isekai (76 entradas), privacidad por audiencia, inspector que explica inclusión/exclusión de mensajes/eventos, presupuesto Lorebook configurable (500–12.000 caracteres), inventario/recursos/compras validados y undo seguro del último turno. CI aprueba 32 pruebas Python y sintaxis JavaScript. No valida llamadas reales ni uso manual en Windows.
+**Estado actual:** el código incluye interfaz Chromium, SQLite, narrador simulado, adaptadores API opcionales, modo manual para chat web normal de ChatGPT/Gemini, preset real de Isekai (76 entradas), privacidad por audiencia, inspector de contexto, presupuesto Lorebook configurable, inventario/recursos/compras validados y undo seguro. CI aprueba 35 pruebas Python y sintaxis JavaScript. Falta uso manual real en Windows.
 
 **Prioridades actuales:** probar el puente manual con ChatGPT web y Gemini web en Windows; verificar registros históricos/cambios de presencia; realizar una campaña de 50–100 turnos con reinicio/restauración. Las llamadas y la medición de coste de las APIs quedan como validación opcional.
 
