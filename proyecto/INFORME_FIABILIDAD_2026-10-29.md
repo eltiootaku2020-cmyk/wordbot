@@ -149,7 +149,7 @@ Pendiente: validación de interfaz Windows/Chromium y campaña externa larga rea
 
 Las operaciones de aprobar/rechazar propuestas de estado y eventos ahora se bloquean con HTTP 409 durante una generación activa en la misma sesión. Con esto se evita cambiar el estado confirmado o la visibilidad de hechos mientras el narrador usa un contexto obsoleto. CI post-merge: 88 pruebas Python y sintaxis JavaScript correctas (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40944609761).
 
-### Cancelación explícita durante espera del proveedor (PR #14, pendiente de integrar)
+### Cancelación explícita durante espera del proveedor (PR #14, integrado)
 
 Se detectó que `asyncio.CancelledError` puede escapar de los manejadores `except Exception`, dejando un turno persistido en `processing` si la tarea se cancela pero la aplicación continúa viva. El cambio captura esa cancelación alrededor de `provider.generate`, marca la solicitud como `failed` de forma transaccional, registra el incidente y vuelve a propagar la cancelación. La prueba conserva el texto original, verifica que el estado de juego no cambie y vuelve a intentar el mismo `request_id` una sola vez.
 
