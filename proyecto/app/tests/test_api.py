@@ -22,7 +22,7 @@ def test_seeded_chat_turn_is_saved_and_changes_are_validated():
 
         response = client.post(
             f"/api/sessions/{session_id}/turns",
-            json={"text": "Hola, linda", "recipient_id": maelis["id"], "provider": "mock"}
+            json={"request_id": "request-test-maelis-001", "text": "Hola, linda", "recipient_id": maelis["id"], "provider": "mock"}
         )
         assert response.status_code == 200, response.text
         data = response.json()
@@ -36,6 +36,16 @@ def test_seeded_chat_turn_is_saved_and_changes_are_validated():
         assert len(messages) == 2
         assert [message["role"] for message in messages] == ["user", "assistant"]
 
+        retry = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json={"request_id": "request-test-maelis-001", "text": "Hola, linda", "recipient_id": maelis["id"], "provider": "mock"}
+        )
+        assert retry.status_code == 200
+        assert retry.json()["replayed"] is True
+        assert retry.json()["turn_id"] == data["turn_id"]
+
+        messages_after_retry = client.get(f"/api/sessions/{session_id}/messages").json()
+        assert len(messages_after_retry) == 2
         state = client.get(f"/api/sessions/{session_id}/state").json()
         assert state["state"]["time_label"].endswith("08:01")
         assert state["state"]["location"] == "Claro en el Bosque de las Bestias"
