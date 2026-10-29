@@ -1,6 +1,6 @@
 # Pruebas de aceptación del gestor local
 
-La aplicación no se considerará fiable por una demostración breve. La CI actual pasa 8 pruebas automatizadas con datos simulados: persistencia/backups, esquema estricto, comportamiento del narrador y un turno de extremo a extremo. Eso no valida las llamadas reales a OpenAI/Gemini, el uso manual en Windows ni los casos de aceptación pendientes. Las pruebas de estado deben poder repetirse sin llamadas pagas.
+La aplicación no se considerará fiable por una demostración breve. La CI actual pasa 12 pruebas automatizadas con datos simulados: persistencia/backups, esquema estricto, comportamiento del narrador, turno de extremo a extremo, reintentos idempotentes, revisión de eventos y creación atómica de mundos con reparto/inventario inicial. Eso no valida las llamadas reales a OpenAI/Gemini, el uso manual en Windows ni los casos de aceptación pendientes. Las pruebas de estado deben poder repetirse sin llamadas pagas.
 
 ## A. Persistencia y recuperación
 
@@ -141,3 +141,12 @@ Se considera apto para una primera partida cuando A, C, D, E, F, G, H e I pasan 
 4. Verificar la prioridad: canon/estado/fichas presentes antes que lore secundaria.
 
 **Criterio:** no se envía toda la biblioteca por defecto y el sistema registra qué fichas se incluyeron en cada solicitud.
+
+
+## O. Crear una partida desde cero
+
+1. Crear un mundo con canon breve, protagonista, dos personajes y varios objetos iniciales.
+2. Consultar el estado y comprobar que las entidades, ubicación/hora y objetos quedaron registrados.
+3. Intentar crear un mundo con dos entidades de nombre duplicado.
+
+**Criterio:** la creación válida guarda mundo y sesión completos; un error de unicidad hace rollback y no deja un mundo incompleto. Está cubierto por pruebas de integración simuladas, pero falta el ensayo manual en Windows.
