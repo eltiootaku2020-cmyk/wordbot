@@ -936,6 +936,100 @@ def save_change(conn, session_id, turn_id, ref, entity_id, field, operation,
     )
 
 
+def user_mentions_label(user_text: str, label: str) -> bool:
+    """Return whether the current user message names the item/resource in question."""
+    stopwords = {"de", "del", "la", "las", "el", "los", "un", "una", "unos", "unas", "and", "the"}
+    tokens = [
+        token for token in re.findall(r"[\wáéíóúüñ]+", (label or "").casefold())
+        if len(token) > 1 and token not in stopwords
+    ]
+    for token in tokens:
+        variants = {token}
+        if token.endswith("s"):
+            variants.add(token[:-1])
+        if token.endswith("es"):
+            variants.add(token[:-2])
+        for variant in variants:
+            if variant and re.search(rf"\b{re.escape(variant)}(?:s|es)?\b", user_text or "", re.IGNORECASE):
+                return True
+    return False
+
+
+def has_positive_user_action(user_text: str, action_pattern: re.Pattern[str]) -> bool:
+    """Only affirmative actions in the user's message are evidence; narration is never evidence."""
+    negation_prefix = re.compile(
+        r"\b(?:no|nunca|jam[aá]s|tampoco|ni|rechazo|evito|cancelo|me niego a)\b"
+        r"(?:\s+\w+){0,3}\s*$",
+        re.IGNORECASE
+    )
+    hypothetical_prefix = re.compile(
+        r"\b(?:quiero|quisiera|puedo|podr[ií]a|deber[ií]a|intento|intentar|planeo|"
+        r"pienso|considero|pregunto|preguntar|me gustar[ií]a|tal vez|quiz[aá]s|voy a)\b"
+        r"(?:\s+\w+){0,3}\s*$",
+        re.IGNORECASE
+    )
+    noun_prefix = re.compile(
+        r"\b(?:el|la|los|las|un|una|unos|unas|mi|mis|tu|tus|su|sus|este|esta|"
+        r"ese|esa|del|al)\s*$",
+        re.IGNORECASE
+    )
+    # Keep punctuation on each clause so a question such as "¿Compro X?" cannot
+    # be mistaken for an instruction. A later affirmative clause is checked separately.
+    for clause in re.split(r"(?<=[.!?;])\s*|[\r\n]+", user_text or ""):
+        if not clause.strip() or "¿" in clause or "?" in clause:
+            continue
+        for match in action_pattern.finditer(clause):
+            # A comma can separate a negation from a later correction/action.
+            prefix = re.split(r"[,，:]\s*", clause[:match.start()])[-1]
+            if (negation_prefix.search(prefix) or hypothetical_prefix.search(prefix)
+                    or noun_prefix.search(prefix)):
+                continue
+            return True
+    return False
+
+
+PURCHASE_ACTION_PATTERN = re.compile(
+    r"\b(?:compro|compramos|compr[eé]|compraste|compr[oó]|compraron|"
+    r"adquiero|adquirimos|adquir[ií]|adquiriste|adquiri[oó]|adquirieron|"
+    r"pago|pagamos|pagu[eé]|pagaste|pag[oó]|pagaron|he comprado|hemos comprado|"
+    r"he pagado|hemos pagado|me llevo|nos llevamos)\b",
+    re.IGNORECASE
+)
+FREE_ACQUISITION_ACTION_PATTERN = re.compile(
+    r"\b(?:recojo|recogemos|recog[ií]|recogiste|recogi[oó]|recogieron|"
+    r"levanto|levantamos|levant[eé]|levantaste|levant[oó]|levantaron|"
+    r"tomo|tomamos|tom[eé]|tomaste|tom[oó]|tomaron|agarro|agarramos|agarr[eé]|"
+    r"agarraste|agarr[oó]|agarraron|recibo|recibimos|recib[ií]|recibiste|"
+    r"recibi[oó]|recibieron|acepto|aceptamos|acept[eé]|aceptaste|acept[oó]|"
+    r"aceptaron|me regalan|me regalaron|me entregan|me entregaron)\b",
+    re.IGNORECASE
+)
+RESOURCE_GAIN_ACTION_PATTERN = re.compile(
+    r"\b(?:recibo|recibimos|recib[ií]|recibiste|recibi[oó]|recibieron|"
+    r"cobro|cobramos|cobr[eé]|cobraste|cobr[oó]|cobraron|gano|ganamos|gan[eé]|"
+    r"ganaste|gan[oó]|ganaron|obtengo|obtenemos|obtuve|obtuviste|obtuvo|"
+    r"obtuvieron|acepto|aceptamos|acept[eé]|aceptaste|acept[oó]|aceptaron|"
+    r"me pagan|me pagaron|me entregan|me entregaron|vendo|vendemos|vend[ií]|"
+    r"vendiste|vendi[oó]|vendieron|he recibido|hemos recibido)\b",
+    re.IGNORECASE
+)
+RESOURCE_SPEND_ACTION_PATTERN = re.compile(
+    r"\b(?:pago|pagamos|pagu[eé]|pagaste|pag[oó]|pagaron|he pagado|hemos pagado|"
+    r"gasto|gastamos|gast[eé]|gastaste|gast[oó]|gastaron|alquilo|alquilamos|"
+    r"alquil[eé]|alquilaste|alquil[oó]|alquilaron|compro|compramos|compr[eé]|"
+    r"compraste|compr[oó]|compraron|entrego|entregamos|entregu[eé]|entregaste|"
+    r"entreg[oó]|entregaron|pierdo|perdemos|perd[ií]|perdiste|perdi[oó]|"
+    r"perdieron|he gastado|hemos gastado|me llevo|nos llevamos)\b",
+    re.IGNORECASE
+)
+POWER_ACTION_PATTERN = re.compile(
+    r"/(?:ps[ií]quic[oa]?|hechizo|eco|hipnosis)\b|"
+    r"\b(?:uso|utilizo|activo|lanzo|empleo|invoco)\s+(?:el\s+)?"
+    r"(?:poder\s+de\s+)?(?:eco|hipnosis)\b",
+    re.IGNORECASE
+)
+
+
 def apply_narrator_result(
     conn, session, turn_id: str, source_message_id: str, user_text: str,
     result: NarratorResponse, authorized_skip, visibility: str = "scene",
@@ -964,6 +1058,47 @@ def apply_narrator_result(
     private_subject_ids = (
         {session["protagonist_entity_id"], recipient_id} if visibility == "private" else None
     )
+    explicit_power = has_positive_user_action(user_text, POWER_ACTION_PATTERN)
+
+    # Generated event text may document a proposed outcome, but cannot authorize it.
+    unauthorized_acquisition_refs = set()
+    for operation in result.inventory_ops:
+        if operation.operation != "acquire":
+            continue
+        mentions_item = user_mentions_label(user_text, operation.item_name)
+        positive_purchase = (
+            has_positive_user_action(user_text, PURCHASE_ACTION_PATTERN) and mentions_item
+        )
+        positive_pickup = (
+            has_positive_user_action(user_text, FREE_ACQUISITION_ACTION_PATTERN) and mentions_item
+        )
+        if (
+            (operation.cost > 0 and not positive_purchase)
+            or (operation.cost == 0 and (positive_purchase or not positive_pickup))
+        ):
+            unauthorized_acquisition_refs.add(operation.event_ref)
+
+    unauthorized_resource_refs = set()
+    for operation in result.resource_ops:
+        resource_named = (
+            user_mentions_label(user_text, operation.resource_key)
+            or user_mentions_label(user_text, operation.display_name)
+        )
+        action_pattern = (
+            RESOURCE_GAIN_ACTION_PATTERN if operation.operation == "gain"
+            else RESOURCE_SPEND_ACTION_PATTERN
+        )
+        if not resource_named or not has_positive_user_action(user_text, action_pattern):
+            unauthorized_resource_refs.add(operation.event_ref)
+
+    unauthorized_power_refs = {
+        event.ref for event in result.events
+        if event.kind == "power" and not explicit_power
+    }
+    unauthorized_effect_refs = (
+        unauthorized_acquisition_refs | unauthorized_resource_refs | unauthorized_power_refs
+    )
+
     event_map: dict[str, dict[str, Any]] = {}
     pending_notes = list(result.pending)
     event_ref_counts: dict[str, int] = {}
@@ -986,6 +1121,12 @@ def apply_narrator_result(
             status = "pending"
             pending_notes.append(
                 f"Referencia de evento duplicada '{event.ref}': evento y cambios asociados requieren revisión."
+            )
+        elif event.ref in unauthorized_effect_refs:
+            conn.execute("UPDATE events SET status='pending' WHERE id=?", (event_id,))
+            status = "pending"
+            pending_notes.append(
+                f"Evento {event.ref} requiere revisión: falta una acción afirmativa del usuario en el mensaje actual."
             )
         elif status == "pending":
             pending_notes.append(
@@ -1120,8 +1261,15 @@ def apply_narrator_result(
             ).fetchone()
 
             if operation.operation == "acquire":
-                source_text = f"{user_text} {source.get('description', '')} {operation.reason}"
-                paid = bool(paid_acquisition.search(source_text))
+                mentions_item = user_mentions_label(user_text, item_name)
+                paid = (
+                    has_positive_user_action(user_text, PURCHASE_ACTION_PATTERN)
+                    and mentions_item
+                )
+                free_pickup = (
+                    has_positive_user_action(user_text, FREE_ACQUISITION_ACTION_PATTERN)
+                    and mentions_item
+                )
                 currency_key = (operation.currency_key or "monedas").strip().casefold()
                 payment_row = None
                 if paid:
@@ -1143,9 +1291,9 @@ def apply_narrator_result(
                         else:
                             reason = ""
                 elif operation.cost > 0:
-                    reason = "La operación declara un coste pero la escena no confirma una compra/pago."
-                elif not free_acquisition.search(source_text):
-                    reason = "No se confirmó que el objeto fuera un hallazgo o regalo gratuito; queda pendiente."
+                    reason = "El mensaje del usuario no contiene una acción afirmativa de compra/pago para este objeto; el texto del narrador no puede autorizarla."
+                elif not free_pickup:
+                    reason = "El mensaje del usuario no confirma afirmativamente la recogida o aceptación de este objeto; queda pendiente."
                 else:
                     reason = ""
 
@@ -1304,16 +1452,10 @@ def apply_narrator_result(
             source["id"] if source else None
         )
 
-    # Generic income/costs (wages, rewards, rent, services). Purchases are debited
-    # inside InventoryOperation so the same event cannot charge twice.
-    explicit_gain = re.compile(
-        r"\b(recib\w*|cobr\w*|gan\w*|recompens\w*|salari\w*|premi\w*|"
-        r"vend\w* por|obtu\w* monedas?)\b", re.IGNORECASE
-    )
-    explicit_spend = re.compile(
-        r"\b(pag\w*|gast\w*|alquil\w*|compr\w*|cost\w*|precio|"
-        r"entreg\w* monedas?|pierd\w* monedas?)\b", re.IGNORECASE
-    )
+    # Economic evidence must come from an affirmative user action, not a
+    # narrator-generated description or operation.reason.
+    explicit_gain = RESOURCE_GAIN_ACTION_PATTERN
+    explicit_spend = RESOURCE_SPEND_ACTION_PATTERN
     resource_signature_counts: dict[tuple[str, str, str], int] = {}
     for operation in result.resource_ops:
         signature = (operation.event_ref, operation.operation, operation.resource_key.strip().casefold())
@@ -1344,11 +1486,15 @@ def apply_narrator_result(
         elif source["entity_id"] not in {"", session["protagonist_entity_id"]}:
             reason = "El recurso personal del protagonista no puede cambiar mediante un evento atribuido a otra entidad."
         else:
-            evidence_text = f"{user_text} {source['description']} {operation.reason}"
-            if operation.operation == "gain" and not explicit_gain.search(evidence_text):
-                reason = "No hay señal explícita de ingreso, recompensa, salario o ganancia."
-            elif operation.operation == "spend" and not explicit_spend.search(evidence_text):
-                reason = "No hay señal explícita de gasto o pago."
+            resource_named = (
+                user_mentions_label(user_text, resource_key)
+                or user_mentions_label(user_text, operation.display_name)
+            )
+            action_pattern = explicit_gain if operation.operation == "gain" else explicit_spend
+            if not resource_named:
+                reason = "El mensaje del usuario no identifica afirmativamente este recurso; la narración no puede autorizar el cambio."
+            elif not has_positive_user_action(user_text, action_pattern):
+                reason = "No hay una acción afirmativa del usuario que autorice este ingreso o gasto."
             else:
                 balance = conn.execute(
                     "SELECT * FROM resources WHERE session_id=? AND resource_key=?",
@@ -1465,10 +1611,6 @@ def apply_narrator_result(
             accepted_value, status, reason, source["id"] if source else None
         )
 
-    explicit_power = bool(re.search(
-        r"/(?:ps[ií]quic[oa]?|hechizo|eco|hipnosis)\b|uso\s+eco|usar\s+eco|intento\s+usar\s+eco",
-        user_text, re.IGNORECASE
-    ))
     eco_aliases = {"eco", "eco_humano", "hipnosis"}
     power_signature_counts: dict[tuple[str, str], int] = {}
     for power in result.power_uses:
