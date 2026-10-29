@@ -1,6 +1,6 @@
 # Roadmap de implementación — gestor local v0.1
 
-El prototipo v0.1 ya existe. Las casillas marcan código presente, no necesariamente validación manual completa. La CI aprobó 13 pruebas automáticas en Linux/Python 3.12; proveedores reales y la instalación en Windows aún deben probarse.
+El prototipo v0.1 ya existe. Las casillas marcan código presente, no necesariamente validación manual completa. La última CI aprobó 24 pruebas automáticas en Linux/Python 3.12 y comprobó sintaxis JavaScript; proveedores reales y la instalación en Windows aún deben probarse.
 
 ## Fase 0 — Investigación y arquitectura
 - [x] Revisar clientes de roleplay (SillyTavern, RisuAI, Agnai).
@@ -25,7 +25,7 @@ Criterio de salida: se puede crear/seleccionar un mundo, enviar un mensaje simul
 
 ## Fase 2 — Un turno completo con salida estructurada
 - [x] Implementar narrador simulado y adaptadores iniciales OpenAI/Gemini; llamadas reales aún no validadas.
-- [x] Enviar contexto reducido con estado, participantes, historial reciente y Lorebook relevante (máximo 12 entradas).
+- [x] Enviar contexto reducido con estado, participantes, historial reciente y Lorebook relevante (máximo 8 entradas y presupuesto fijo de 4.500 caracteres de Lorebook).
 - [x] Recibir narración, eventos y cambios propuestos en un contrato Pydantic/JSON.
 - [x] Validar estructura, entidades y evento fuente; la validación semántica completa sigue pendiente.
 - [x] Guardar mensajes, eventos y cambios aceptados/pendientes/rechazados en SQLite.
@@ -35,7 +35,7 @@ Criterio de salida: el caso «Hola, linda» genera una escena y un registro del 
 
 ## Fase 3 — Estado esencial del juego
 - [x] Guardar día, hora, ubicación y personajes presentes; reloj básico y /salto explícito implementados.
-- [x] Guardar inventario con cantidad, condición, portador y ubicación; operaciones nuevas requieren aprobación.
+- [x] Guardar inventario con cantidad, condición, portador y ubicación; consumo, condición, soltar, transferir, recoger pilas registradas y hallazgos/regalos de bajo riesgo pasan validaciones locales. Compras se integran con libro de recursos y saldo.
 - [x] Guardar relaciones por eje y su motivo; cambios sin base confirmada quedan pendientes.
 - [x] Guardar usos de poderes y aplicar el límite humano de Eco al aprobar un uso; faltan pruebas de casos límite.
 - [x] Registrar eventos, testigos y fuente; el conocimiento individual requiere más desarrollo.
@@ -57,7 +57,7 @@ Criterio de salida: el programa envía solo el lore necesario y no convierte un 
 - [ ] Restauración con vista previa.
 - [x] Registrar cambios aceptados, pendientes y rechazados.
 - [ ] Reintento controlado para JSON inválido o timeout.
-- [x] CI: 8 pruebas aprobadas en modo simulado, sin llamadas pagas.
+- [x] CI: 24 pruebas aprobadas en modo simulado, sin llamadas pagas.
 - [ ] Prueba de 50–100 intercambios y reinicio completo.
 
 Criterio de salida: el estado, mensajes y recursos sobreviven al cierre; se pueden detectar y corregir errores de la IA.
@@ -86,7 +86,7 @@ La interfaz ya permite crear un mundo y su primera sesión, con protagonista, ca
 
 - [x] Validar sintaxis del JavaScript de la interfaz en CI.
 
-Última CI aprobada (13 pruebas Python + JavaScript): https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40863341616
+Última CI aprobada (24 pruebas Python + JavaScript): https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40870848920
 
 
 ---
@@ -96,31 +96,33 @@ La interfaz ya permite crear un mundo y su primera sesión, con protagonista, ca
 Esta sección distingue implementado de pendiente. No marcar como terminado nada que no haya pasado CI y prueba manual.
 
 ### Prioridad P0 — Evitar fugas de conocimiento entre personajes
-- [x] Alcance/audiencia por turno: privado con destinatario o escena/grupo. Visibilidad y lista de audiencia se guardan en metadatos.
-- [x] Filtrado de contexto por destinatario, audiencia y testigos; los eventos pendientes/rechazados no se insertan como hechos confirmados.
-- [x] Prueba aislada: una conversación privada con Maelis no aparece en el contexto posterior de Ivar; turnos privados sin destinatario se rechazan.
-- [ ] Mostrar en el inspector por qué cada recuerdo es visible al PNJ seleccionado.
-- [ ] Probar los cambios de presencia y registros antiguos sin metadatos de audiencia.
+- [x] Alcance/audiencia por turno: privado con destinatario o escena/grupo, guardado en metadatos.
+- [x] Filtrado de contexto por destinatario, audiencia y testigos; eventos pendientes/rechazados no se presentan como hechos confirmados.
+- [x] Prueba aislada: conversación privada con Maelis no aparece en el contexto de Ivar; un privado sin destinatario se rechaza.
+- [ ] Mostrar también el motivo por el que cada mensaje/evento se incluyó o excluyó; el inspector ya explica activación de Lorebook y presupuesto.
+- [ ] Probar cambios de presencia y registros antiguos sin metadatos de audiencia.
 
-**Criterio parcial alcanzado:** la regresión privada está cubierta por CI. P0 no queda completamente cerrado hasta añadir inspector de contexto y completar las pruebas con cambios de escena.
+**Criterio parcial alcanzado:** regresión privada cubierta por CI; inspector de mensajes/eventos y pruebas de cambios de escena pendientes.
 
 ### Prioridad P1 — Política automática para cambios de bajo riesgo
-- [ ] Mantener revisión para cambios ambiguos y de alto impacto.
-- [ ] Implementar autoaceptación de movimientos cotidianos de PNJ solo con evento fuente válido, entidad registrada, destino plausible y causa.
-- [ ] Implementar operaciones de inventario normal (compra, consumo, soltar, entregar) con objeto, cantidad, saldo/coste cuando corresponda y evento fuente verificables.
-- [ ] Exigir aprobación para objetos únicos/mágicos, muertes, giros de canon, nuevos poderes y decisiones del protagonista no explícitas.
-- [ ] Registrar valor anterior/propuesto/aceptado, motivo y fuente.
+- [x] Mantener revisión para cambios ambiguos y de alto impacto.
+- [x] Autoaceptar movimientos de PNJ con evento fuente registrado, entidad válida, destino y causa; se rechaza mover al protagonista sin autorización explícita.
+- [x] Validar consumo, condición, soltar/transferir pila completa y recogida de objeto rastreado; requieren objeto/portador/cantidad y evento fuente coherentes.
+- [x] Libro de recursos por partida: saldo inicial configurable y monedas a cero en Isekai; ingresos explícitos y compras con coste positivo/moneda/saldo verificados.
+- [x] Pago e ingreso/objeto se registran en SQLite con valores anterior/propuesto/aceptado y fuente; saldo insuficiente deja inventario y dinero intactos.
+- [x] Mantener objetos de alto impacto, operaciones ambiguas y datos contradictorios pendientes.
 
-**Criterio de salida:** un intercambio cotidiano se guarda automáticamente; una propuesta incierta no cambia el estado oficial silenciosamente.
+**Verificación:** 24 pruebas Python aprobadas en CI; proveedor simulado. Pendiente prueba de compra en conversación real de API, Windows e idempotencia de compra bajo reintento.
 
 ### Prioridad P2 — Inspector de contexto y activación de Lorebook
-- [ ] Mostrar las fichas activadas y su disparador.
-- [ ] Sustituir búsquedas accidentales por subcadena por un modo de coincidencia configurable (frase/palabra completa/regex limitada).
-- [ ] Añadir presupuesto de contexto por tokens aproximados o caracteres, además del máximo de entradas.
-- [ ] Ordenar por prioridad y pertinencia de entidades/escena.
-- [ ] Probar que una ficha con una palabra corta (por ejemplo un nombre de corriente mágica) no se active en texto ajeno por accidente.
+- [x] Mostrar fichas Lorebook seleccionadas y los disparadores concretos.
+- [x] Usar coincidencia de palabra/frase completa con límites Unicode; se prueba que "corriente Brasa" activa su ficha, pero "brasería" no.
+- [x] Limitar Lorebook a 8 entradas y un presupuesto fijo de 4.500 caracteres; los diagnósticos registran entradas omitidas y caracteres empleados.
+- [x] Ordenar por pertinencia del mensaje actual/destinatario/lugar/personajes, con prioridad del Lorebook como desempate.
+- [ ] Hacer configurable el presupuesto y mostrar por mensaje/evento la razón de inclusión/exclusión.
+- [ ] Añadir medición de tokens real por proveedor; la cifra actual es estimación por caracteres, no tokens.
 
-**Criterio de salida:** el usuario puede inspeccionar el contexto enviado y entender por qué entró o no entró una ficha.
+**Criterio parcial alcanzado:** inspector Lorebook cubierto por prueba de CI. El contexto completo todavía no ofrece un inspector explicativo por mensaje/evento y el límite de caracteres no sustituye un tokenizador.
 
 ### Prioridad P3 — Undo, editar y regenerar de forma segura
 - [ ] Crear snapshot o conjunto reversible de cambios por turno.
@@ -132,7 +134,7 @@ Esta sección distingue implementado de pendiente. No marcar como terminado nada
 **Criterio de salida:** regenerar una respuesta no duplica ni conserva efectos de la versión que ya no se muestra.
 
 ### Prioridad P4 — Pruebas de integración reales y de larga duración
-- [x] CI Linux: 15 pruebas Python y comprobación sintáctica de JavaScript aprobadas el 29-10-2026 (no sustituye las pruebas manuales de Windows).
+- [x] CI Linux: 24 pruebas Python y comprobación sintáctica de JavaScript aprobadas el 29-10-2026 (no sustituye las pruebas manuales de Windows).
 - [ ] Ejecutar la instalación desde cero en Windows/Chromium.
 - [ ] Probar una llamada controlada a OpenAI y otra a Gemini con claves del usuario en su PC; no almacenar claves en Git.
 - [ ] Ejecutar 50–100 turnos con escenas grupales/privadas, compras/consumos, viajes y Eco.
