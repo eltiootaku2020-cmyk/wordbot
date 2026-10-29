@@ -290,12 +290,12 @@ def test_isekai_lorebook_import_quality_is_conservative_and_has_unique_keywords(
     lore_path = Path(__file__).resolve().parents[3] / "proyectos" / "isekai-sin-destino" / "LOREBOOK_IMPORT.json"
     payload = json.loads(lore_path.read_text(encoding="utf-8"))
     entries = list(payload["entries"].values())
-    version_match = re.search(r"\\bv(\\d+\\.\\d+)\\b", str(payload.get("description", "")))
+    version_match = re.search(r"\bv(\d+\.\d+)\b", str(payload.get("description", "")))
     assert version_match, "La descripción del Lorebook debe declarar una versión."
     html_path = Path(__file__).resolve().parents[1] / "src" / "canon_manager" / "static" / "index.html"
     html = html_path.read_text(encoding="utf-8")
     button_match = re.search(
-        r'<button id="isekaiPreset">Cargar Isekai sin Destino v(\\d+\\.\\d+)</button>',
+        r'<button id="isekaiPreset">Cargar Isekai sin Destino v(\d+\.\d+)</button>',
         html
     )
     assert button_match, "El botón del preset debe mostrar su versión."
