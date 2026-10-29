@@ -10,7 +10,7 @@ os.environ["APP_DB_PATH"] = str(Path(tempfile.mkdtemp(prefix="canon-test-")) / "
 from fastapi.testclient import TestClient
 
 from canon_manager.main import app, database, build_context, session_row, apply_narrator_result
-from canon_manager.models import NarratorResponse, EventProposal, InventoryOperation, MovementProposal
+from canon_manager.models import NarratorResponse, EventProposal, InventoryOperation, MovementProposal, ResourceOperation
 
 
 def test_seeded_chat_turn_is_saved_and_changes_are_validated():
@@ -192,6 +192,8 @@ def test_load_actual_isekai_preset_imports_lorebook_and_starts_fresh_session():
         }
         item_names = {item["display_name"] for item in state["inventory"]}
         assert {"Camisa corriente", "Pantalones largos", "Pañuelo gastado", "Bolsita de tela vacía", "Cordel de cáñamo corto"} <= item_names
+        assert any(resource["resource_key"] == "monedas" and resource["quantity"] == 0
+                   for resource in state["resources"])
 
         second = client.post("/api/presets/isekai-sin-destino", json={})
         assert second.status_code == 200, second.text
@@ -307,6 +309,9 @@ def _create_state_ops_world(client):
                 {"name": "Cuerda", "quantity": 1, "condition": "normal"},
                 {"name": "Cantimplora", "quantity": 1, "condition": "normal"},
                 {"name": "Camisa", "quantity": 1, "condition": "normal"}
+            ],
+            "initial_resources": [
+                {"key": "monedas", "name": "Monedas", "quantity": 5, "unit": "monedas"}
             ]
         }
     )
@@ -674,3 +679,164 @@ def test_private_context_preview_requires_present_recipient():
         )
         assert preview.status_code == 422
         assert "requiere destinatario" in preview.json()["detail"]
+
+
+
+def test_paid_inventory_purchase_debits_local_currency_and_adds_item_atomically():
+    with TestClient(app) as client:
+        started, entities = _create_state_ops_world(client)
+        session_id = started["session_id"]
+        protagonist_id = entities["Protagonista"]["id"]
+        witnesses = [entities[name]["id"] for name in ("Protagonista", "Maelis Orven", "Ivar Dalen", "Brina Solcor")]
+        result = NarratorResponse(
+            narration="Pagas dos monedas y recibes una manzana del comerciante.",
+            events=[
+                EventProposal(
+                    ref="event-buy-apple-with-coins",
+                    kind="object",
+                    entity_id=protagonist_id,
+                    description="El protagonista compra una manzana por dos monedas y la recibe.",
+                    witness_ids=witnesses
+                )
+            ],
+            inventory_ops=[
+                InventoryOperation(
+                    operation="acquire",
+                    item_name="Manzana",
+                    quantity=1,
+                    carrier_entity_id=protagonist_id,
+                    location="Claro del bosque",
+                    reason="Compra explícita por dos monedas.",
+                    event_ref="event-buy-apple-with-coins",
+                    cost=2,
+                    currency_key="monedas"
+                )
+            ]
+        )
+        turn_id, applied, pending = _apply_synthetic_result(
+            session_id, "Compro una manzana por dos monedas", result
+        )
+        with database.connection() as conn:
+            apple = conn.execute(
+                "SELECT quantity FROM inventory_items WHERE session_id=? AND item_key='manzana'",
+                (session_id,)
+            ).fetchone()
+            coins = conn.execute(
+                "SELECT quantity FROM resources WHERE session_id=? AND resource_key='monedas'",
+                (session_id,)
+            ).fetchone()
+            changes = conn.execute(
+                "SELECT field,status,accepted_value_json FROM state_changes WHERE session_id=? AND turn_id=?",
+                (session_id, turn_id)
+            ).fetchall()
+        assert apple["quantity"] == 3
+        assert coins["quantity"] == 3
+        assert len(changes) == 2
+        assert all(change["status"] == "accepted" for change in changes)
+        assert {change["field"] for change in changes} == {"inventory", "resource"}
+        assert any("Pagado: 2 Monedas" in note for note in applied)
+        assert any("Compra confirmada" in note for note in applied)
+        assert not pending
+
+
+def test_paid_inventory_purchase_with_insufficient_currency_remains_pending_without_mutation():
+    with TestClient(app) as client:
+        started, entities = _create_state_ops_world(client)
+        session_id = started["session_id"]
+        protagonist_id = entities["Protagonista"]["id"]
+        witnesses = [entities[name]["id"] for name in ("Protagonista", "Maelis Orven", "Ivar Dalen", "Brina Solcor")]
+        result = NarratorResponse(
+            narration="El comerciante pide seis monedas por una manzana.",
+            events=[
+                EventProposal(
+                    ref="event-buy-expensive-apple",
+                    kind="object",
+                    entity_id=protagonist_id,
+                    description="El protagonista intenta comprar una manzana por seis monedas.",
+                    witness_ids=witnesses
+                )
+            ],
+            inventory_ops=[
+                InventoryOperation(
+                    operation="acquire",
+                    item_name="Manzana",
+                    quantity=1,
+                    carrier_entity_id=protagonist_id,
+                    location="Claro del bosque",
+                    reason="Compra por seis monedas.",
+                    event_ref="event-buy-expensive-apple",
+                    cost=6,
+                    currency_key="monedas"
+                )
+            ]
+        )
+        turn_id, applied, pending = _apply_synthetic_result(
+            session_id, "Intento comprar una manzana por seis monedas", result
+        )
+        with database.connection() as conn:
+            apple = conn.execute(
+                "SELECT quantity FROM inventory_items WHERE session_id=? AND item_key='manzana'",
+                (session_id,)
+            ).fetchone()
+            coins = conn.execute(
+                "SELECT quantity FROM resources WHERE session_id=? AND resource_key='monedas'",
+                (session_id,)
+            ).fetchone()
+            change = conn.execute(
+                "SELECT status,reason FROM state_changes WHERE session_id=? AND turn_id=? AND field='inventory'",
+                (session_id, turn_id)
+            ).fetchone()
+        assert apple["quantity"] == 2
+        assert coins["quantity"] == 5
+        assert change["status"] == "pending"
+        assert "Saldo insuficiente" in change["reason"]
+        assert any("Inventario:" in note for note in pending)
+        assert not any("Pagado:" in note for note in applied)
+
+
+def test_explicit_work_reward_increases_local_currency_balance():
+    with TestClient(app) as client:
+        started, entities = _create_state_ops_world(client)
+        session_id = started["session_id"]
+        protagonist_id = entities["Protagonista"]["id"]
+        witnesses = [entities[name]["id"] for name in ("Protagonista", "Maelis Orven", "Ivar Dalen", "Brina Solcor")]
+        result = NarratorResponse(
+            narration="La posadera te paga cinco monedas como recompensa por el trabajo.",
+            events=[
+                EventProposal(
+                    ref="event-work-reward",
+                    kind="resource",
+                    entity_id=protagonist_id,
+                    description="El protagonista recibe cinco monedas como recompensa por el trabajo.",
+                    witness_ids=witnesses
+                )
+            ],
+            resource_ops=[
+                ResourceOperation(
+                    operation="gain",
+                    resource_key="monedas",
+                    display_name="Monedas",
+                    quantity=5,
+                    unit="monedas",
+                    reason="Recompensa de trabajo explícita.",
+                    event_ref="event-work-reward"
+                )
+            ]
+        )
+        turn_id, applied, pending = _apply_synthetic_result(
+            session_id, "Cobro cinco monedas como recompensa por el trabajo", result
+        )
+        with database.connection() as conn:
+            coins = conn.execute(
+                "SELECT quantity FROM resources WHERE session_id=? AND resource_key='monedas'",
+                (session_id,)
+            ).fetchone()
+            change = conn.execute(
+                "SELECT status,accepted_value_json FROM state_changes WHERE session_id=? AND turn_id=? AND field='resource'",
+                (session_id, turn_id)
+            ).fetchone()
+        assert coins["quantity"] == 10
+        assert change["status"] == "accepted"
+        assert json.loads(change["accepted_value_json"])["quantity"] == 10
+        assert any("Recurso ganado: +5 Monedas" in note for note in applied)
+        assert not pending
