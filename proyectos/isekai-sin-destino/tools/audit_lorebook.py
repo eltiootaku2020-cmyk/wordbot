@@ -18,6 +18,7 @@ CONFIG_PATH = BASE / "CONFIG_LIGERA.md"
 MASTER_PATH = BASE / "LOREBOOK_MAESTRA.md"
 SCHEMA_PATH = BASE / "REGISTRO_INTERNO_ESQUEMA.md"
 README_PATH = BASE / "README.md"
+RULES_PATH = BASE / "CUADRO_REGLAS_PRIORITARIAS.md"
 
 errors: list[str] = []
 checks = 0
@@ -122,6 +123,7 @@ config = read(CONFIG_PATH)
 master = read(MASTER_PATH)
 schema = read(SCHEMA_PATH)
 readme = read(README_PATH)
+rules_doc = read(RULES_PATH)
 
 field_specs = [
     ("Personality", "### Personality", "### Scenario", 5000),
@@ -130,6 +132,7 @@ field_specs = [
     ("Example Dialogue", "### Example Dialogue", "### Tags", 4000),
 ]
 
+personality_text: str | None = None
 for label, start_heading, end_heading, limit in field_specs:
     start = config.find(start_heading)
     end = config.find(end_heading, start + len(start_heading)) if start >= 0 else -1
@@ -143,6 +146,8 @@ for label, start_heading, end_heading, limit in field_specs:
     if open_fence < 0 or close_fence <= open_fence:
         continue
     field_text = section[open_fence + len("~~~text\n"):close_fence]
+    if label == "Personality":
+        personality_text = field_text
     ok(len(field_text) <= limit, f"{label}: {len(field_text)} caracteres supera el límite {limit}.")
     count_match = re.search(r"Caracteres:\s*([\d.,]+)/([\d.,]+)\.", section)
     ok(count_match is not None, f"{label}: falta el contador de caracteres.")
@@ -160,6 +165,23 @@ for label, start_heading, end_heading, limit in field_specs:
             "PNJ solo saben",
         ):
             ok(phrase.casefold() in field_text.casefold(), f"Personality: falta regla {phrase!r}.")
+
+# The standalone install sheet must carry the exact same Personality block.
+rules_start = rules_doc.find("## Bloque para copiar en Personality")
+rules_end = rules_doc.find("## Cómo funciona el mapa", rules_start)
+ok(rules_start >= 0 and rules_end > rules_start, "No se localizó Personality en CUADRO_REGLAS_PRIORITARIAS.md.")
+if rules_start >= 0 and rules_end > rules_start:
+    rules_section = rules_doc[rules_start:rules_end]
+    rules_open = rules_section.find("~~~text\n")
+    rules_close = rules_section.find("\n~~~", rules_open + 8) if rules_open >= 0 else -1
+    ok(rules_open >= 0 and rules_close > rules_open, "El cuadro de reglas no tiene un bloque Personality válido.")
+    if rules_open >= 0 and rules_close > rules_open:
+        rules_personality = rules_section[rules_open + len("~~~text\n"):rules_close]
+        ok(personality_text is not None and rules_personality == personality_text, "Personality de CONFIG_LIGERA.md y CUADRO_REGLAS_PRIORITARIAS.md no coincide.")
+        rules_count = re.search(r"Tiene \*\*(\d+) caracteres\*\*", rules_section)
+        ok(rules_count is not None, "Falta el contador de caracteres en el cuadro de reglas.")
+        if rules_count:
+            ok(int(rules_count.group(1)) == len(rules_personality), "El contador de Personality del cuadro de reglas no coincide con su texto.")
 
 for phrase in (
     "No registrado",
