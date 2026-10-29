@@ -129,7 +129,7 @@ class ManualChatProvider:
             return parse_narrator_response(raw)
         except Exception as exc:
             raise ProviderError(
-                "No pude validar la respuesta pegada. Copia un único objeto JSON completo (se acepta también un bloque Markdown de JSON), comprueba que incluya narration y los campos requeridos, y vuelve a intentarlo. No se aplicó ningún cambio."
+                "No pude validar un JSON válido en la respuesta pegada. Copia un único objeto JSON completo (se acepta también un bloque Markdown de JSON), comprueba que incluya narration y los campos requeridos, y vuelve a intentarlo. No se aplicó ningún cambio."
             ) from exc
 
 

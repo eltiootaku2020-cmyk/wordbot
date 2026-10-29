@@ -160,20 +160,52 @@ def select_history_items(items, text_getter, maximum: int, relevant_slots: int,
     return selected
 
 
+def _local_command_distance(left: str, right: str) -> int:
+    """Damerau-Levenshtein distance for short command names, including transpositions."""
+    rows, cols = len(left) + 1, len(right) + 1
+    distance = [[0] * cols for _ in range(rows)]
+    for i in range(rows):
+        distance[i][0] = i
+    for j in range(cols):
+        distance[0][j] = j
+    for i in range(1, rows):
+        for j in range(1, cols):
+            cost = 0 if left[i - 1] == right[j - 1] else 1
+            distance[i][j] = min(
+                distance[i - 1][j] + 1,
+                distance[i][j - 1] + 1,
+                distance[i - 1][j - 1] + cost,
+            )
+            if i > 1 and j > 1 and left[i - 1] == right[j - 2] and left[i - 2] == right[j - 1]:
+                distance[i][j] = min(distance[i][j], distance[i - 2][j - 2] + 1)
+    return distance[-1][-1]
+
+
 def parse_local_command(text: str) -> str | None:
-    """Recognize supported local commands and reject unknown slash commands explicitly."""
+    """Recognize local commands, flag likely typos, and leave other slash actions to the narrator."""
     candidate = (text or "").strip()
     if not candidate.startswith("/"):
         return None
-    match = re.fullmatch(r"/(estado|inventario|guardar|ayuda)\s*", candidate, re.IGNORECASE)
-    if match:
-        return match.group(1).casefold()
-    if re.match(r"^/salto(?:\s|$)", candidate, re.IGNORECASE):
-        return "salto"
-    raise HTTPException(
-        status_code=422,
-        detail="Comando desconocido o con formato incorrecto. Usa /ayuda para ver los comandos disponibles."
-    )
+    match = re.match(r"^/([\wáéíóúñü-]+)", candidate, re.IGNORECASE)
+    if not match:
+        return None
+    token = match.group(1).casefold()
+    supported = ("estado", "inventario", "guardar", "ayuda", "salto")
+    if token in supported:
+        if token == "salto":
+            return "salto"
+        if candidate[len(match.group(0)):].strip():
+            raise HTTPException(status_code=422, detail=f"/{token} no admite argumentos. Usa /ayuda para ver los comandos disponibles.")
+        return token
+    closest = min(supported, key=lambda command: _local_command_distance(token, command))
+    distance = _local_command_distance(token, closest)
+    if distance <= 2:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Parece un error tipográfico en /{closest}. Usa /{closest} o /ayuda; los comandos de poderes y acciones no reservados pueden empezar con /."
+        )
+    # Slash-prefixed powers, spells, or game actions (e.g. /psiquico) are narrative input.
+    return None
 
 
 def new_id() -> str:

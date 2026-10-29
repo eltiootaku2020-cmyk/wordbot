@@ -1762,7 +1762,7 @@ def test_local_commands_work_without_creating_narrative_turns():
         )
 
         assert state.status_code == 200 and state.json()["command"] == "estado"
-        assert state.json()["state"]["state"]["time_label"].endswith("08:00")
+        assert state.json()["state"]["state"]["time_label"] == client.get(f"/api/sessions/{session_id}/state").json()["state"]["time_label"]
         assert inventory.status_code == 200 and inventory.json()["command"] == "inventario"
         assert "/salto" in " ".join(help_response.json()["help"])
         assert backup.status_code == 200 and Path(backup.json()["path"]).exists()
@@ -1770,17 +1770,19 @@ def test_local_commands_work_without_creating_narrative_turns():
         assert len(after) == len(before)
 
 
-def test_unknown_local_command_is_rejected_instead_of_sent_to_narrator():
+def test_typo_of_reserved_local_command_is_rejected_without_creating_a_turn():
     with TestClient(app) as client:
         seed = client.post("/api/demo/seed", json={}).json()
         session_id = seed["session_id"]
+        before = client.get(f"/api/sessions/{session_id}/messages").json()
         response = client.post(
             f"/api/sessions/{session_id}/turns",
-            json={"request_id": "unknown-command-001", "text": "/teletransportar", "provider": "mock"}
+            json={"request_id": "unknown-command-001", "text": "/estdao", "provider": "mock"}
         )
         assert response.status_code == 422
-        assert "Comando desconocido" in response.json()["detail"]
-        assert client.get(f"/api/sessions/{session_id}/messages").json() == []
+        assert "error tipográfico" in response.json()["detail"]
+        after = client.get(f"/api/sessions/{session_id}/messages").json()
+        assert after == before
 
 
 def test_skip_command_accepts_days_and_rejects_malformed_units():

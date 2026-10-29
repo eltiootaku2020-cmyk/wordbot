@@ -172,6 +172,27 @@ async function loadLocalSettings() {
     " caracteres · máximo " + config.lore_max_entries +
     " entradas. Se aplica a próximas respuestas y previsualizaciones; no equivale a tokens exactos.";
 }
+function localCommandDistance(left, right) {
+  const rows = left.length + 1, cols = right.length + 1;
+  const d = Array.from({length:rows}, () => Array(cols).fill(0));
+  for (let i=0;i<rows;i++) d[i][0] = i;
+  for (let j=0;j<cols;j++) d[0][j] = j;
+  for (let i=1;i<rows;i++) for (let j=1;j<cols;j++) {
+    const cost = left[i-1] === right[j-1] ? 0 : 1;
+    d[i][j] = Math.min(d[i-1][j]+1, d[i][j-1]+1, d[i-1][j-1]+cost);
+    if (i>1 && j>1 && left[i-1] === right[j-2] && left[i-2] === right[j-1]) {
+      d[i][j] = Math.min(d[i][j], d[i-2][j-2]+1);
+    }
+  }
+  return d[rows-1][cols-1];
+}
+function isLocalCommandInput(text) {
+  const match = (text || "").trim().match(/^\/([\wáéíóúñü-]+)/i);
+  if (!match) return false;
+  const token = match[1].toLocaleLowerCase("es-AR");
+  const commands = ["estado","inventario","guardar","ayuda","salto"];
+  return commands.includes(token) || commands.some(command => localCommandDistance(token, command) <= 2);
+}
 function setStatus(text, good) {
   el("status").textContent = text;
   el("status").style.color = good ? "var(--good)" : "var(--warn)";
@@ -526,7 +547,7 @@ el("sendForm").onsubmit = async event => {
     el("messageInput").focus();
     return;
   }
-  if (message.startsWith("/") && !/^\/salto(?:\s|$)/i.test(message)) {
+  if (isLocalCommandInput(message) && !/^\/salto(?:\s|$)/i.test(message)) {
     try {
       const result = await api("/api/sessions/" + encodeURIComponent(currentSession) + "/commands", {
         method:"POST", body:JSON.stringify({text:message})
