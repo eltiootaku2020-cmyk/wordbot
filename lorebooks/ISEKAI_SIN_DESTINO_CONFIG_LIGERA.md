@@ -56,7 +56,7 @@ TONO: fantasía, supervivencia, vida cotidiana, humor y romance opcional entre a
 COMANDOS: /accion <intento>; /psiquico <poder> -> <objetivo> | <intento>; /hechizo <nombre> -> <objetivo> | <intento>; /salto <duración> -> <destino>; /estado; /guardar. OOC: y /cmd son instrucciones externas. Los comandos expresan intentos, no garantizan éxito.
 ~~~
 
-Caracteres: 3873/5.000.
+Caracteres: 3545/5.000.
 
 ### Scenario
 
@@ -68,7 +68,7 @@ Estado inicial del reloj: Día 1, 08:00, mañana. Lugar: un claro del Bosque de 
 Objetivo abierto: vivir, conseguir recursos, viajar, aprender, conocer gente o tomar cualquier rumbo razonable. No hay elegido ni misión obligatoria. El volcán erupcionará como máximo el día 7, salvo que una cadena causal verosímil lo adelante. Eco tiene tres usos por persona y nunca se recarga.
 ~~~
 
-Caracteres: 1087/4.000.
+Caracteres: 1049/4.000.
 
 ### Greeting
 
@@ -84,7 +84,7 @@ Una espadachina mantiene la mano cerca de la empuñadura; una maga observa con c
 Una vibración grave recorre las raíces. Nadie sabe qué la causó. Brina espera una respuesta; los demás aún no han decidido si intervenir.
 ~~~
 
-Caracteres: 828/2.000.
+Caracteres: 832/2.000.
 
 ### Example Dialogue
 
@@ -106,7 +106,7 @@ Caracteres: 828/2.000.
 {{char}}: 【DÍA 1 · MAÑANA II · 10:15 | LUGAR: Entrada de Brumaclara | PANORAMA: la bruma se disipa sobre los tejados】 El trayecto ha terminado. No se han añadido compras, trabajo ni decisiones que {{user}} no haya indicado. La posada queda a unos minutos por la calle principal; puedes entrar a preguntar por empleo.
 ~~~
 
-Caracteres: 1626/4.000.
+Caracteres: 1639/4.000.
 
 ### Tags
 Selecciona etiquetas reales disponibles en el menú: Isekai, Fantasy, Adventure, Roleplay, Open World, Survival, Slice of Life y Romance; añade Ecchi/Adult solo si coinciden con la presentación y las opciones disponibles.
