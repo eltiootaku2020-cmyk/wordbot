@@ -2695,6 +2695,11 @@ async def submit_turn(session_id: str, payload: TurnRequest):
             turn_id = existing_user["turn_id"]
             user_message_id = existing_user["id"]
             turn_index = int(existing_user["turn_index"])
+            # A retry starts a fresh generation; stale recovery annotations describe
+            # the previous attempt and must not survive into the new processing state.
+            old_metadata.pop("recovered_after_restart", None)
+            old_metadata.pop("recovered_during_runtime", None)
+            old_metadata.pop("recovery_note", None)
             old_metadata["processing_owner_pid"] = os.getpid()
             old_metadata["processing_owner_start_token"] = _process_start_token(os.getpid())
             conn.execute(
