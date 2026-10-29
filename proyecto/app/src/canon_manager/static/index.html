@@ -38,8 +38,10 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}label{font-size:13px;
       <select id="sessionSelect" aria-label="Partida"><option value="">Selecciona partida</option></select>
       <select id="providerSelect" aria-label="Proveedor">
         <option value="mock">Simulado (sin coste)</option>
-        <option value="openai">OpenAI API</option>
-        <option value="gemini">Gemini API</option>
+        <option value="chatgpt_web">ChatGPT web (mi cuenta, manual)</option>
+        <option value="gemini_web">Gemini web (mi cuenta, manual)</option>
+        <option value="openai">OpenAI API (requiere API key)</option>
+        <option value="gemini">Gemini API (requiere API key)</option>
       </select>
     </div>
     <details class="setup">
@@ -91,6 +93,21 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}label{font-size:13px;
       <textarea id="messageInput" required maxlength="8000" placeholder="Escribe tu acción o diálogo… (por ejemplo: Hola, linda)"></textarea>
       <button id="sendButton" class="primary" type="submit">Enviar</button>
     </form>
+    <details id="manualHandoff" class="setup" hidden>
+      <summary>Usar tu chat normal de ChatGPT o Gemini</summary>
+      <p class="muted">El programa no entra ni lee tu cuenta. Copia este prompt al chat web, envíalo allí, copia la respuesta JSON completa y pégala abajo. La partida solo se guardará después de validar la respuesta.</p>
+      <div class="toolbar">
+        <button id="copyManualPrompt" type="button">Copiar prompt</button>
+        <a id="manualChatLink" href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">Abrir chat web</a>
+      </div>
+      <label for="manualPromptText">Prompt preparado con el contexto de esta partida</label>
+      <textarea id="manualPromptText" rows="8" readonly placeholder="Selecciona ChatGPT web o Gemini web y prepara un turno."></textarea>
+      <label for="manualResponseText">Respuesta completa del chat (JSON)</label>
+      <textarea id="manualResponseText" rows="8" placeholder="Pega aquí el objeto JSON que devolvió ChatGPT/Gemini. No pegues claves ni contraseñas."></textarea>
+      <div class="toolbar">
+        <button id="applyManualResponse" class="primary" type="button">Validar y guardar turno</button>
+      </div>
+    </details>
     <div class="toolbar">
       <button id="retryButton" hidden>Reintentar último envío</button>
       <button id="undoTurnButton" type="button">Deshacer último turno</button>
@@ -134,6 +151,7 @@ let entityNames = {};
 let lastState = null;
 let failedRequest = null;
 let latestCompletedTurnId = "";
+let preparedManualRequest = null;
 
 async function api(path, options) {
   const init = Object.assign({headers:{"Content-Type":"application/json"}}, options || {});
@@ -429,6 +447,31 @@ el("importLore").onclick = async () => {
     setStatus("Lorebook importada: " + result.imported + " entradas", true);
   } catch (err) { setStatus(err.message, false); }
 };
+async function prepareManualTurn(request) {
+  try {
+    const data = await api("/api/sessions/" + encodeURIComponent(request.sessionId) + "/manual-prompt", {
+      method:"POST",
+      body:JSON.stringify({
+        text:request.payload.text,
+        recipient_id:request.payload.recipient_id,
+        visibility:request.payload.visibility,
+        provider:request.payload.provider
+      })
+    });
+    preparedManualRequest = request;
+    el("manualPromptText").value = data.prompt;
+    el("manualResponseText").value = "";
+    const isGemini = request.payload.provider === "gemini_web";
+    el("manualChatLink").href = isGemini ? "https://gemini.google.com/app" : "https://chatgpt.com/";
+    el("manualChatLink").textContent = isGemini ? "Abrir Gemini" : "Abrir ChatGPT";
+    el("manualHandoff").hidden = false;
+    el("manualHandoff").open = true;
+    setStatus("Prompt listo. Cópialo al chat web; luego pega aquí su respuesta JSON completa.", true);
+    el("manualHandoff").scrollIntoView({behavior:"smooth", block:"nearest"});
+  } catch (err) {
+    setStatus(err.message, false);
+  }
+}
 async function sendTurn(request) {
   if (request.sessionId !== currentSession) {
     setStatus("El reintento pertenece a otra partida. Selecciona esa partida para repetirlo.", false);
@@ -445,12 +488,14 @@ async function sendTurn(request) {
     el("retryButton").hidden = true;
     const pendingCount = (result.state.pending_changes || []).length + (result.state.pending_events || []).length;
     setStatus((result.replayed ? "Turno recuperado sin duplicarlo" : "Turno guardado") + " · " + pendingCount + " revisión(es) pendiente(s)", true);
+    return true;
   } catch (err) {
     await loadMessages().catch(() => {});
     addMessage("assistant", "No se pudo confirmar la respuesta: " + err.message, true);
     setStatus(err.message, false);
     failedRequest = request;
     el("retryButton").hidden = false;
+    return false;
   } finally { button.disabled = false; }
 }
 el("sendForm").onsubmit = async event => {
@@ -477,8 +522,49 @@ el("sendForm").onsubmit = async event => {
       visibility
     }
   };
+  if (["chatgpt_web", "gemini_web"].includes(request.payload.provider)) {
+    await prepareManualTurn(request);
+    return;
+  }
   el("messageInput").value = "";
   await sendTurn(request);
+};
+el("providerSelect").onchange = () => {
+  const manual = ["chatgpt_web", "gemini_web"].includes(el("providerSelect").value);
+  el("manualHandoff").hidden = !manual;
+  el("sendButton").textContent = manual ? "Preparar prompt" : "Enviar";
+  if (!manual) preparedManualRequest = null;
+};
+el("copyManualPrompt").onclick = async () => {
+  try {
+    const text = el("manualPromptText").value;
+    if (!text) throw new Error("Primero prepara un prompt.");
+    await navigator.clipboard.writeText(text);
+    setStatus("Prompt copiado. Pégalo en el chat web seleccionado.", true);
+  } catch (err) {
+    setStatus("No se pudo copiar automáticamente; selecciona el texto del prompt y cópialo manualmente. " + err.message, false);
+  }
+};
+el("applyManualResponse").onclick = async () => {
+  try {
+    if (!preparedManualRequest) throw new Error("Primero escribe el turno y pulsa «Preparar prompt».");
+    const raw = el("manualResponseText").value.trim();
+    if (!raw) throw new Error("Pega la respuesta completa de ChatGPT/Gemini.");
+    const request = {
+      sessionId: preparedManualRequest.sessionId,
+      payload: {...preparedManualRequest.payload, external_response:raw}
+    };
+    const success = await sendTurn(request);
+    if (success) {
+      el("messageInput").value = "";
+      el("manualResponseText").value = "";
+      el("manualPromptText").value = "";
+      preparedManualRequest = null;
+      el("manualHandoff").open = false;
+    }
+  } catch (err) {
+    setStatus(err.message, false);
+  }
 };
 el("retryButton").onclick = async () => {
   if (failedRequest) await sendTurn(failedRequest);
