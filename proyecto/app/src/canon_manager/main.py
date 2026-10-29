@@ -1049,8 +1049,6 @@ def list_worlds():
         ).fetchall()]
 
 
-@app.post("/api/worlds/start")
-def create_world_and_start(payload: WorldStartCreate):
 def seed_resource(conn, session_id: str, resource) -> None:
     resource_name = resource.name.strip()
     resource_key = (resource.key.strip() or resource_name).casefold()
@@ -1064,8 +1062,8 @@ def seed_resource(conn, session_id: str, resource) -> None:
         (new_id(), session_id, resource_key, resource_name, resource.quantity, resource.unit.strip())
     )
 
-
-
+@app.post("/api/worlds/start")
+def create_world_and_start(payload: WorldStartCreate):
     world_id = new_id()
     protagonist_id = new_id()
     session_id = new_id()
