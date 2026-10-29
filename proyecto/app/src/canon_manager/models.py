@@ -83,6 +83,25 @@ class InventorySeed(StrictModel):
     location: str = ""
 
 
+class InitialEntity(StrictModel):
+    name: str = Field(min_length=1, max_length=120)
+    kind: Literal["character", "creature", "npc", "other"] = "character"
+    profile: str = ""
+
+
+class WorldStartCreate(StrictModel):
+    name: str = Field(min_length=1, max_length=120)
+    canon_text: str = ""
+    protagonist_name: str = Field(default="Protagonista", min_length=1, max_length=120)
+    protagonist_profile: str = "El usuario controla todas las acciones y diálogos del protagonista."
+    session_name: str = "Partida 1"
+    location: str = "Lugar desconocido"
+    day: int = Field(default=1, ge=1)
+    minute_of_day: int = Field(default=480, ge=0, le=1439)
+    cast: list[InitialEntity] = Field(default_factory=list)
+    initial_inventory: list[InventorySeed] = Field(default_factory=list)
+
+
 class SessionCreate(StrictModel):
     name: str = Field(min_length=1, max_length=120)
     location: str = "Lugar desconocido"
