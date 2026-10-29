@@ -144,6 +144,17 @@ Implementación inicial en la rama organizada y prueba aislada en commit `456ac5
 - El recurso y objeto se actualizan en el mismo turno/transacción; si la validación de compra falla, no se cambia ninguno.
 - La operación y su valor anterior/propuesto/aceptado quedan en `state_changes`.
 
-**Verificación:** CI con 26 pruebas Python y sintaxis de JavaScript aprobadas el 29-10-2026: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40873010055. Incluye compra con saldo suficiente, saldo insuficiente sin mutación, ingreso y gasto explícitos, y reintento de API sin cobro duplicado.
+**Verificación:** CI con 28 pruebas Python y sintaxis de JavaScript aprobadas el 29-10-2026: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40873768030. Incluye compra con saldo suficiente, saldo insuficiente sin mutación, ingreso y gasto explícitos, y reintento de API sin cobro duplicado.
 
-**Pendiente:** registrar y probar repetición idempotente de la misma compra en un turno real de API, realizar prueba manual en Windows y probar el contrato con un proveedor real. La CI usa narrador simulado.
+**Verificado con narrador simulado:** compra suficiente/insuficiente, ingresos/gastos explícitos y reintento del mismo request_id sin doble cargo. Pendiente: prueba manual en Windows y contrato con proveedor real.
+
+
+## ADR-016 — Snapshot por turno y anulación segura
+
+**Decisión:** antes de invocar al proveedor, guardar un snapshot local asociado a `session_id` y `turn_id`. La aplicación puede anular únicamente el último turno completado, restaurando reloj, ubicación, presencia, inventario, recursos, relaciones y usos de poderes. Los mensajes quedan marcados como anulados; eventos y cambios de estado se conservan con estado de rechazo e identificador de auditoría, sin entrar en el contexto activo.
+
+**Regeneración:** el texto original vuelve al cuadro de entrada para poder editarse y enviarse como un nuevo turno. También está cubierto el reintento del mismo `request_id` tras el undo. El sistema rechaza anular un turno antiguo mientras haya turnos posteriores activos.
+
+**Verificación:** CI con 28 pruebas Python y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40873768030. Incluye restauración de compra/inventario/monedas/reloj, regeneración sin duplicados y rechazo de undo fuera de orden. La CI usa narrador simulado.
+
+**Pendiente:** ampliar pruebas de rollback para relaciones y usos de poderes complejos, y probar manualmente UI en Windows. La restauración visual de una copia completa SQLite es distinta del undo de un turno.
