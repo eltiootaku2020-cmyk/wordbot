@@ -120,5 +120,11 @@ class TurnRequest(StrictModel):
     visibility: Literal["scene", "private"] = "scene"
 
 
+class ContextPreviewRequest(StrictModel):
+    text: str = Field(default="", max_length=8000)
+    recipient_id: str = ""
+    visibility: Literal["scene", "private"] = "scene"
+
+
 class ApprovalRequest(StrictModel):
     initial_value: float | None = Field(default=None, ge=0, le=100)
