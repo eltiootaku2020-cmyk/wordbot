@@ -3433,3 +3433,101 @@ def test_legacy_audience_metadata_fails_closed_without_source_or_witnesses():
                 if item["event_id"] == unknown_event_id
             )
             assert "sin mensaje fuente ni testigos" in excluded["reason"]
+
+
+def test_undo_and_regenerate_private_turn_never_leaks_to_scene_bystanders(monkeypatch):
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seed["world_id"], seed["session_id"]
+        entities = client.get(f"/api/worlds/{world_id}/entities").json()
+        maelis = next(entity for entity in entities if entity["name"] == "Maelis Orven")
+        ivar = next(entity for entity in entities if entity["name"] == "Ivar Dalen")
+        with database.connection() as conn:
+            protagonist_id = session_row(conn, session_id)["protagonist_entity_id"]
+        private_code = "ORQUIDEA-314"
+
+        class PrivateProvider:
+            name = "mock"
+
+            async def generate(self, payload):
+                audience = list(payload["context"]["audience_ids"])
+                return NarratorResponse(
+                    narration=f"Maelis susurra el código privado {private_code}.",
+                    elapsed_minutes=1,
+                    events=[
+                        EventProposal(
+                            ref="private-undo-regenerate-code",
+                            kind="dialogue",
+                            entity_id=maelis["id"],
+                            description=f"Maelis reveló el código confidencial {private_code}.",
+                            witness_ids=audience
+                        )
+                    ]
+                )
+
+        monkeypatch.setattr(
+            main_module, "make_provider",
+            lambda provider_name, settings: PrivateProvider()
+        )
+        payload = {
+            "request_id": "private-undo-regenerate-001",
+            "text": "Le pregunto a Maelis si conoce algún código.",
+            "recipient_id": maelis["id"],
+            "provider": "mock",
+            "visibility": "private"
+        }
+
+        first = client.post(f"/api/sessions/{session_id}/turns", json=payload)
+        assert first.status_code == 200, first.text
+        turn_id = first.json()["turn_id"]
+        assert private_code in first.json()["narration"]
+
+        def preview(recipient_id, visibility="scene"):
+            return client.post(
+                f"/api/sessions/{session_id}/context-preview",
+                json={
+                    "text": "¿Qué código conoce Maelis?",
+                    "recipient_id": recipient_id,
+                    "visibility": visibility
+                }
+            )
+
+        def assert_secret_absent(context_response):
+            assert context_response.status_code == 200, context_response.text
+            context = context_response.json()["context"]
+            assert not any(private_code in item["content"] for item in context["recent_messages"])
+            assert not any(private_code in item["description"] for item in context["recent_events"])
+
+        # The ordinary scene context excludes the private exchange even before undo.
+        assert_secret_absent(preview(ivar["id"]))
+
+        undone = client.post(f"/api/sessions/{session_id}/turns/{turn_id}/undo", json={})
+        assert undone.status_code == 200, undone.text
+        assert undone.json()["undone"] is True
+
+        # Undo must also remove its narration/event from the active context, not
+        # merely restore the numerical world state.
+        assert_secret_absent(preview(ivar["id"]))
+        with database.connection() as conn:
+            audited = conn.execute(
+                "SELECT status,turn_id,description FROM events WHERE session_id=? AND external_ref=?",
+                (session_id, "private-undo-regenerate-code")
+            ).fetchone()
+            assert audited is not None
+            assert audited["status"] == "rejected"
+            assert audited["turn_id"] == undone.json()["audit_turn_id"]
+
+        # Regenerating the same request reuses its turn slot, but must keep the
+        # original private visibility/audience attached to the new response.
+        regenerated = client.post(f"/api/sessions/{session_id}/turns", json=payload)
+        assert regenerated.status_code == 200, regenerated.text
+        assert regenerated.json()["replayed"] is False
+        assert regenerated.json()["turn_id"] == turn_id
+        assert_secret_absent(preview(ivar["id"]))
+
+        maelis_context = preview(maelis["id"], visibility="private")
+        assert maelis_context.status_code == 200, maelis_context.text
+        visible_messages = [item["content"] for item in maelis_context.json()["context"]["recent_messages"]]
+        visible_events = [item["description"] for item in maelis_context.json()["context"]["recent_events"]]
+        assert any(private_code in content for content in visible_messages)
+        assert any(private_code in description for description in visible_events)
