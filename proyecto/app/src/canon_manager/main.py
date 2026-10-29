@@ -1429,15 +1429,30 @@ def apply_narrator_result(
         canonical_ability = "eco_humano" if ability in eco_aliases else ability
         signature = (canonical_ability, power.target_entity_id)
         duplicated_power = power_signature_counts.get(signature, 0) > 1
+        source_is_power_for_target = bool(
+            source and source["kind"] == "power"
+            and source["entity_id"] == power.target_entity_id
+        )
         can_apply = bool(
             not duplicated_power and explicit_power and source
-            and source["status"] == "recorded" and power.target_entity_id in valid_ids
+            and source["status"] == "recorded" and source_is_power_for_target
+            and power.target_entity_id in valid_ids
         )
         reason = ""
         if duplicated_power:
             reason = "El mismo poder contra el mismo objetivo aparece varias veces en un turno; se requiere revisión para no duplicar usos."
-        elif not can_apply:
-            reason = "El uso no coincide con una acción explícita y un objetivo válido."
+        elif not explicit_power:
+            reason = "El uso no coincide con una orden explícita del usuario."
+        elif not source:
+            reason = "No existe el evento que justifica el uso del poder."
+        elif source["status"] != "recorded":
+            reason = "El evento que justifica el poder está pendiente de revisión."
+        elif source["kind"] != "power":
+            reason = "El uso debe referenciar un evento de tipo power."
+        elif source["entity_id"] != power.target_entity_id:
+            reason = "El objetivo del evento de poder no coincide con el objetivo de la operación."
+        elif power.target_entity_id not in valid_ids:
+            reason = "El objetivo del poder no pertenece a este mundo."
         if can_apply and ability in {"eco", "eco_humano", "hipnosis"}:
             count = conn.execute(
                 "SELECT COUNT(*) AS n FROM ability_uses WHERE session_id=? AND target_entity_id=? AND ability_key IN ('eco','eco_humano','hipnosis')",
