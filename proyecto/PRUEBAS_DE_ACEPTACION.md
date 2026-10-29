@@ -1,6 +1,6 @@
 # Pruebas de aceptación del gestor local
 
-La CI más reciente validó **81 pruebas Python** y la sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40935903505.
+La CI más reciente validó **82 pruebas Python** y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40937190743.
 
 ## A. Persistencia y recuperación
 
@@ -220,7 +220,7 @@ Se considera apto para una primera partida cuando A, C, D, E, F, G, H e I pasan 
 
 **Criterio:** una pregunta, intención hipotética o acción negada no autoriza por sí sola una operación. Las descripciones del narrador y los motivos de sus propuestas pueden servir como información para revisar el turno, pero nunca sustituyen la evidencia afirmativa en el mensaje del usuario.
 
-**Cobertura automatizada actual:** CI aprobó 81 pruebas Python y la comprobación de sintaxis JavaScript (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40935903505).
+**Cobertura automatizada actual:** CI posterior al PR #7 aprobó 82 pruebas Python y sintaxis JavaScript (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40937190743); se mantiene la cobertura de acción afirmativa y se añade control de audiencia para mensajes/eventos heredados.
 
 ## V. Continuidad extendida, respuestas incompletas y restauración con rollback
 
@@ -230,7 +230,7 @@ Se considera apto para una primera partida cuando A, C, D, E, F, G, H e I pasan 
 4. Ejecutar 100 turnos breves con el proveedor simulado, reinicializar SQLite y comprobar que el estado y todos los mensajes siguen idénticos. Crear copia, aplicar un turno posterior y restaurar; comparar el estado, mensajes y todas las tablas listadas en `RESTORE_SESSION_TABLES` con la instantánea anterior.
 5. Construir una copia SQLite que pase la validación de lectura pero contenga una fila que incumpla una restricción del esquema activo. La restauración debe revertir la transacción completa, devolver un error 422 controlado y dejar el estado y las tablas activas exactamente iguales a la instantánea anterior.
 
-**Cobertura automatizada actual:** CI posterior al PR #6 aprobó 81 pruebas Python y sintaxis JavaScript (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40935903505). Incluye los cinco escenarios de continuidad del PR #5 y la migración de datos históricos de presencia descrita en la sección W. Los 100 turnos son una prueba con proveedor simulado, no una campaña narrativa externa.
+**Cobertura automatizada actual:** CI posterior al PR #7 aprobó 82 pruebas Python y sintaxis JavaScript (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40937190743). Incluye los cinco escenarios de continuidad del PR #5, migración de presencia del PR #6 y controles de audiencia histórica del PR #7. Los 100 turnos automatizados usan proveedor simulado.
 
 **Pendiente:** probar manualmente la instalación e intercambio copiar/pegar en Windows/Chromium con las páginas reales de ChatGPT y Gemini y ejecutar una campaña narrativa prolongada. Las API reales son opcionales y no se requieren para los casos cubiertos por CI.
 
@@ -243,6 +243,20 @@ Se considera apto para una primera partida cuando A, C, D, E, F, G, H e I pasan 
 4. Alterar intencionalmente un estado almacenado para que contradiga la ubicación, volver a inicializar y comprobar que se normaliza sin cambiar la ubicación.
 5. Crear una copia de seguridad, sustituir su tabla de presencia por el formato histórico sin `presence_status`, modificar la partida activa y restaurar. El endpoint debe aceptar la copia y reconstruir el estado de presencia derivado.
 
-**Cobertura automatizada actual:** los cinco puntos tienen cobertura con pruebas de migración SQLite y restauración API. CI posterior al merge aprobó 81 pruebas Python y sintaxis JavaScript (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40935903505). La prueba no pretende certificar todas las variantes posibles de esquemas históricos ni los metadatos de audiencia antiguos.
+**Cobertura automatizada actual:** los cinco puntos tienen cobertura con pruebas de migración SQLite y restauración API. CI posterior a PR #7 aprobó 82 pruebas Python y sintaxis JavaScript (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40937190743). La prueba cubre formatos específicos y no certifica todas las variantes históricas posibles.
 
 **Pendiente:** instalar y probar visualmente en Windows/Chromium, completar el intercambio manual con ChatGPT/Gemini web y ejecutar una campaña narrativa real de 50–100 turnos.
+
+
+## X. Audiencia de mensajes y eventos históricos sin metadatos
+
+1. Insertar mensajes heredados sin `visibility` ni `audience_ids`, pero conservando `recipient_entity_id` para una conversación dirigida a Maelis.
+2. Preparar contexto para Maelis y comprobar que el diálogo heredado es recuperable; preparar contexto para Ivar y comprobar que no recibe el contenido privado de Maelis.
+3. Insertar un evento con mensaje fuente dirigido a Maelis y sin nuevos metadatos: el destinatario conservado debe seguir limitándolo a Maelis.
+4. Insertar un evento antiguo sin mensaje fuente resoluble ni testigos. Debe omitirse del contexto de cualquier personaje y el diagnóstico debe indicar que se excluyó por carecer de fuente y testigos.
+5. Confirmar que el evento excluido no se borra de la base y sigue disponible para inspección/auditoría.
+6. Confirmar que un evento antiguo con testigos identificables sí puede recuperarse, incluso cuando se selecciona por relevancia más allá de la ventana reciente.
+
+**Cobertura automatizada actual:** CI posterior al PR #7 aprobó 82 pruebas Python y sintaxis JavaScript (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40937190743). Se prueba la exclusión de eventos sin procedencia, el acceso por destinatario de mensajes heredados y la recuperación por relevancia cuando hay testigos explícitos. La regla evita inventar una audiencia ausente; no pretende certificar todos los formatos históricos posibles.
+
+**Pendiente:** revisar otras variantes de migración, prueba manual de Windows/Chromium con ChatGPT/Gemini web, restauración visual con vista previa y campaña narrativa real de 50–100 turnos.
