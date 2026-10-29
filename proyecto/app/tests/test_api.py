@@ -3220,6 +3220,114 @@ time.sleep(60)
         assert main_module.recover_interrupted_turns() == 0
 
 
+def test_two_os_processes_serialize_turns_for_the_same_session():
+    """A real second Python process must not overlap a turn owned by the first process."""
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={})
+        assert seed.status_code == 200, seed.text
+        session_id = seed.json()["session_id"]
+        before = client.get(f"/api/sessions/{session_id}/state").json()
+
+        child_script = r"""
+import asyncio, json, os, sys, time
+from fastapi.testclient import TestClient
+import canon_manager.main as main_module
+from canon_manager.main import app
+from canon_manager.models import NarratorResponse
+
+session_id = sys.argv[1]
+class SlowProvider:
+    name = "mock"
+    async def generate(self, payload):
+        print("PROVIDER_ENTERED", flush=True)
+        await asyncio.to_thread(time.sleep, 2.0)
+        return NarratorResponse(
+            narration="El proceso propietario resolvió el turno una sola vez.",
+            elapsed_minutes=1
+        )
+main_module.make_provider = lambda provider_name, settings: SlowProvider()
+with TestClient(app) as child_client:
+    response = child_client.post(
+        f"/api/sessions/{session_id}/turns",
+        json={
+            "request_id": "multiprocess-owner-request-001",
+            "text": "Observo el sendero desde el proceso propietario.",
+            "provider": "mock"
+        }
+    )
+    print("CHILD_RESPONSE " + json.dumps({
+        "status_code": response.status_code,
+        "body": response.json()
+    }), flush=True)
+    if response.status_code != 200:
+        raise SystemExit(2)
+"""
+        child_env = os.environ.copy()
+        child_env["APP_DB_PATH"] = str(database.path)
+        child_env["APP_PROVIDER"] = "mock"
+        child = subprocess.Popen(
+            [sys.executable, "-c", child_script, session_id],
+            cwd=str(Path(__file__).resolve().parents[1]),
+            env=child_env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1
+        )
+        try:
+            # Wait until the real application flow in the child reaches its provider.
+            entered = child.stdout.readline().strip()
+            assert entered == "PROVIDER_ENTERED", (
+                f"El proceso hijo no alcanzó el proveedor: {entered!r}; "
+                f"stderr={child.stderr.read()}"
+            )
+
+            with database.connection() as conn:
+                marker = conn.execute(
+                    "SELECT generation_status,metadata_json FROM messages "
+                    "WHERE session_id=? AND client_request_id=?",
+                    (session_id, "multiprocess-owner-request-001")
+                ).fetchone()
+            assert marker is not None
+            assert marker["generation_status"] == "processing"
+            owner_pid = json.loads(marker["metadata_json"])["processing_owner_pid"]
+            assert owner_pid == child.pid
+
+            competing = client.post(
+                f"/api/sessions/{session_id}/turns",
+                json={
+                    "request_id": "multiprocess-competing-request-001",
+                    "text": "Intento avanzar desde el proceso principal.",
+                    "provider": "mock"
+                }
+            )
+            assert competing.status_code == 409, competing.text
+            assert "otro turno en curso" in competing.json()["detail"]
+
+            child_output = child.stdout.readline().strip()
+            assert child_output.startswith("CHILD_RESPONSE "), child_output
+            child_result = json.loads(child_output[len("CHILD_RESPONSE "):])
+            assert child_result["status_code"] == 200, child_result
+            assert child.wait(timeout=10) == 0
+        finally:
+            if child.poll() is None:
+                child.kill()
+                child.wait(timeout=10)
+
+        final_state = client.get(f"/api/sessions/{session_id}/state").json()
+        assert final_state["state"]["minute_of_day"] == before["state"]["minute_of_day"] + 1
+        messages = client.get(f"/api/sessions/{session_id}/messages").json()
+        users = [m for m in messages if m["role"] == "user"]
+        assistants = [
+            m for m in messages
+            if m["role"] == "assistant" and m["generation_status"] == "complete"
+        ]
+        assert len([m for m in users if m["client_request_id"] == "multiprocess-owner-request-001"]) == 1
+        assert not any(m["client_request_id"] == "multiprocess-competing-request-001" for m in users)
+        assert len(assistants) == 1
+        assert main_module.recover_interrupted_turns() == 0
+
+
 def test_concurrent_session_requests_stay_serial_across_two_app_clients(monkeypatch):
     """A second app client must not recover or overlap a generation owned by the first."""
     entered_provider = threading.Event()
