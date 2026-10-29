@@ -1,6 +1,6 @@
 # Roadmap de implementación — gestor local v0.1
 
-El prototipo v0.1 ya existe. Las casillas marcan código presente, no necesariamente validación manual completa. La CI del 29-10-2026 aprobó 36 pruebas automáticas en Linux/Python 3.12 y comprobó sintaxis JavaScript. Ya existe un puente manual para el chat web normal de ChatGPT/Gemini; la interfaz e intercambio real deben probarse en Windows. Las APIs son opcionales.
+El prototipo v0.1 ya existe. Las casillas marcan código presente, no necesariamente validación manual completa. La CI más reciente de la rama de corrección aprobó 71 pruebas Python en Linux/Python 3.12 y comprobó sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40906597871. Ya existe un puente manual para el chat web normal de ChatGPT/Gemini; la interfaz e intercambio real deben probarse en Windows. Las APIs son opcionales.
 
 ## Fase 0 — Investigación y arquitectura
 - [x] Revisar clientes de roleplay (SillyTavern, RisuAI, Agnai).
@@ -61,7 +61,7 @@ Criterio de salida: el programa envía solo el lore necesario y no convierte un 
 - [ ] Restauración con vista previa.
 - [x] Registrar cambios aceptados, pendientes y rechazados.
 - [ ] Reintento controlado para JSON inválido o timeout.
-- [x] CI: 36 pruebas Python y sintaxis JavaScript aprobadas en modo simulado/manual-input, sin llamadas API pagas.
+- [x] CI: 71 pruebas Python y sintaxis JavaScript aprobadas en modo simulado/manual-input, sin llamadas API pagas: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40906597871.
 - [ ] Prueba de 50–100 intercambios y reinicio completo.
 
 Criterio de salida: el estado, mensajes y recursos sobreviven al cierre; se pueden detectar y corregir errores de la IA.
@@ -90,7 +90,7 @@ La interfaz ya permite crear un mundo y su primera sesión, con protagonista, ca
 
 - [x] Validar sintaxis del JavaScript de la interfaz en CI.
 
-Última CI aprobada (36 pruebas Python + JavaScript): https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40881062754
+Última CI aprobada (71 pruebas Python + JavaScript): https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40906597871
 
 
 ---
@@ -116,7 +116,7 @@ Esta sección distingue implementado de pendiente. No marcar como terminado nada
 - [x] Pago e ingreso/objeto se registran en SQLite con valores anterior/propuesto/aceptado y fuente; saldo insuficiente deja inventario y dinero intactos.
 - [x] Mantener objetos de alto impacto, operaciones ambiguas y datos contradictorios pendientes.
 
-**Verificación:** 36 pruebas Python aprobadas en CI, incluidos los tests del puente manual y el rechazo de contexto desactualizado. La idempotencia de compra está probada con proveedor simulado; falta Windows y uso manual real de ChatGPT/Gemini.
+**Verificación:** 71 pruebas Python aprobadas en CI, incluidos los tests del puente manual y el rechazo de contexto desactualizado: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40906597871. La idempotencia de compra está probada con proveedor simulado; falta validación visual manual en Windows.
 
 ### Prioridad P2 — Inspector de contexto y activación de Lorebook
 - [x] Mostrar fichas Lorebook seleccionadas y los disparadores concretos.
@@ -140,7 +140,7 @@ Esta sección distingue implementado de pendiente. No marcar como terminado nada
 **Criterio parcial alcanzado:** restauración de inventario, recursos y reloj, auditoría y orden de undo cubiertos por CI. Quedan escenarios de campaña larga y prueba manual de la interfaz.
 
 ### Prioridad P4 — Pruebas de integración reales y de larga duración
-- [x] CI Linux: 36 pruebas Python y comprobación sintáctica de JavaScript aprobadas el 29-10-2026 (no sustituye las pruebas manuales de Windows).
+- [x] CI Linux: 71 pruebas Python y comprobación sintáctica de JavaScript aprobadas el 29-10-2026 (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40906597871; no sustituye las pruebas manuales de Windows).
 - [ ] Ejecutar la instalación desde cero en Windows/Chromium.
 - [ ] Probar manualmente en Windows el flujo completo con el chat web normal de ChatGPT y con Gemini.
 - [ ] (Opcional para la modalidad API) Probar una llamada controlada a OpenAI API y otra a Gemini API; no almacenar claves en Git.
@@ -174,4 +174,4 @@ Esta sección distingue implementado de pendiente. No marcar como terminado nada
 - [ ] Hacer la prueba manual en Windows con un chat real de ChatGPT y otro de Gemini.
 - [ ] Completar la campaña de 50–100 turnos y comprobar cierre, reinicio y restauración.
 
-**Criterio para la primera entrega sin API:** el usuario puede usar su cuenta normal en el sitio web mediante copiar/pegar; el programa conserva y valida el estado localmente. No se requiere que las APIs estén configuradas ni se automatiza la lectura del chat web. CI de este modo aprobada (36 pruebas, incluida huella de contexto): https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40881062754.
+**Criterio para la primera entrega sin API:** el usuario puede usar su cuenta normal en el sitio web mediante copiar/pegar; el programa conserva y valida el estado localmente. No se requiere que las APIs estén configuradas ni se automatiza la lectura del chat web. CI de este modo aprobada (71 pruebas, incluida huella de contexto): https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40906597871.
