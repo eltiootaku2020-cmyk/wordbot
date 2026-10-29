@@ -938,11 +938,11 @@ def save_change(conn, session_id, turn_id, ref, entity_id, field, operation,
 
 def split_user_action_clauses(user_text: str) -> list[str]:
     """Remove interrogative phrases and split independent/contrasting actions."""
-    text = re.sub(r"[^.!?]*\\?", " ", user_text or "")
+    text = re.sub(r"[^.!?]*\?", " ", user_text or "")
     return [
         clause.strip()
         for clause in re.split(
-            r"(?<=[.!?;])\\s*|\\b(?:pero|sino|aunque|sin embargo|en cambio|y|e)\\b\\s*|[,，:]\\s*|[\\r\\n]+",
+            r"(?<=[.!?;])\s*|\b(?:pero|sino|aunque|sin embargo|en cambio|y|e)\b\s*|[,，:]\s*|[\r\n]+",
             text,
             flags=re.IGNORECASE
         )
@@ -954,7 +954,7 @@ def user_mentions_label(user_text: str, label: str) -> bool:
     """Return whether the current user message names the item/resource in question."""
     stopwords = {"de", "del", "la", "las", "el", "los", "un", "una", "unos", "unas", "and", "the"}
     tokens = [
-        token for token in re.findall(r"[\\wáéíóúüñ]+", (label or "").casefold())
+        token for token in re.findall(r"[\wáéíóúüñ]+", (label or "").casefold())
         if len(token) > 1 and token not in stopwords
     ]
     for token in tokens:
@@ -964,7 +964,7 @@ def user_mentions_label(user_text: str, label: str) -> bool:
         if token.endswith("es"):
             variants.add(token[:-2])
         for variant in variants:
-            if variant and re.search(rf"\\b{re.escape(variant)}(?:s|es)?\\b", user_text or "", re.IGNORECASE):
+            if variant and re.search(rf"\b{re.escape(variant)}(?:s|es)?\b", user_text or "", re.IGNORECASE):
                 return True
     return False
 
@@ -972,19 +972,19 @@ def user_mentions_label(user_text: str, label: str) -> bool:
 def has_positive_user_action(user_text: str, action_pattern: re.Pattern[str]) -> bool:
     """Only affirmative actions in the user's message are evidence; narration is never evidence."""
     negation_prefix = re.compile(
-        r"\\b(?:no|nunca|jam[aá]s|tampoco|ni|rechazo|evito|cancelo|me niego a)\\b"
-        r"(?:\\s+\\w+){0,3}\\s*$",
+        r"\b(?:no|nunca|jam[aá]s|tampoco|ni|rechazo|evito|cancelo|me niego a)\b"
+        r"(?:\s+\w+){0,3}\s*$",
         re.IGNORECASE
     )
     hypothetical_prefix = re.compile(
-        r"\\b(?:quiero|quisiera|puedo|podr[ií]a|deber[ií]a|intento|intentar|planeo|"
-        r"pienso|considero|pregunto|preguntar|me gustar[ií]a|tal vez|quiz[aá]s|voy a|si|cuando|mientras)\\b"
-        r"(?:\\s+\\w+){0,3}\\s*$",
+        r"\b(?:quiero|quisiera|puedo|podr[ií]a|deber[ií]a|intento|intentar|planeo|"
+        r"pienso|considero|pregunto|preguntar|me gustar[ií]a|tal vez|quiz[aá]s|voy a|si|cuando|mientras)\b"
+        r"(?:\s+\w+){0,3}\s*$",
         re.IGNORECASE
     )
     noun_prefix = re.compile(
-        r"\\b(?:el|la|los|las|un|una|unos|unas|mi|mis|tu|tus|su|sus|este|esta|"
-        r"ese|esa|del|al)\\s*$",
+        r"\b(?:el|la|los|las|un|una|unos|unas|mi|mis|tu|tus|su|sus|este|esta|"
+        r"ese|esa|del|al)\s*$",
         re.IGNORECASE
     )
     for clause in split_user_action_clauses(user_text):
