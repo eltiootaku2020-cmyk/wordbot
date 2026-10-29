@@ -1,6 +1,6 @@
 # Pruebas de aceptación del gestor local
 
-La CI de la revisión de evidencia afirmativa validó 75 pruebas Python y la sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40928421073. La suite incluye persistencia, privacidad por audiencia, Lorebook, inventario/recursos, undo, el puente manual ChatGPT/Gemini y regresiones para acciones preguntadas/negadas, incluidas operaciones múltiples propuestas por el narrador. Esto no valida aún el uso real en Windows, la interacción real con ambos chats web ni una campaña narrativa larga. Las pruebas del estado deben poder repetirse sin llamadas pagas.
+La CI más reciente validó 79 pruebas Python y la sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40932636884. La suite incluye persistencia, privacidad por audiencia, Lorebook, inventario/recursos, undo, el puente manual ChatGPT/Gemini, acciones preguntadas/negadas, JSON truncado, propuestas contradictorias y restauración exacta tras 100 turnos breves simulados. Esto no valida aún el uso real en Windows, la interacción real con ambos chats web ni una campaña narrativa externa larga. Las pruebas locales deben poder repetirse sin llamadas pagas.
 
 ## A. Persistencia y recuperación
 
@@ -222,3 +222,14 @@ Se considera apto para una primera partida cuando A, C, D, E, F, G, H e I pasan 
 
 **Cobertura automatizada actual:** CI aprobó 75 pruebas Python y la comprobación de sintaxis JavaScript. La prueba de regresión combina preguntas y negaciones para compra, recogida, gasto, ingreso y uso de Eco; otra verifica que pagar por un alojamiento no autoriza una compra que el usuario negó. El estado sigue sin cambiar ante propuestas no autorizadas del narrador. No se hicieron llamadas reales a APIs ni pruebas manuales del navegador.
 
+## V. Continuidad extendida, respuestas incompletas y restauración con rollback
+
+1. Enviar una respuesta de ChatGPT/Gemini web con JSON truncado. El turno debe fallar sin modificar el estado del juego ni insertar narración o cambios. Luego pegar JSON completo con el mismo `request_id`: se completa un único turno y no se duplican mensajes.
+2. Para una orden hipotética o interrogativa como «Si compro una manzana por dos monedas, ¿me alcanza?», hacer que el narrador afirme que la compra ocurrió. El inventario y el saldo permanecen intactos; el evento y la operación quedan pendientes.
+3. Proponer dos cambios distintos y contradictorios sobre el mismo eje de relación del mismo personaje en una respuesta. Ninguno de los cambios debe aplicarse y el valor confirmado debe conservarse.
+4. Ejecutar 100 turnos breves con el proveedor simulado, reinicializar SQLite y comprobar que el estado y todos los mensajes siguen idénticos. Crear copia, aplicar un turno posterior y restaurar; comparar el estado, mensajes y todas las tablas listadas en `RESTORE_SESSION_TABLES` con la instantánea anterior.
+5. Construir una copia SQLite que pase la validación de lectura pero contenga una fila que incumpla una restricción del esquema activo. La restauración debe revertir la transacción completa, devolver un error 422 controlado y dejar el estado y las tablas activas exactamente iguales a la instantánea anterior.
+
+**Cobertura automatizada actual:** la ejecución CI del PR #5 aprobó 79 pruebas Python y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40932636884. Incluye los cinco escenarios anteriores. Los 100 turnos son una prueba de continuidad con proveedor simulado, no una campaña narrativa con un modelo externo.
+
+**Pendiente:** probar manualmente la instalación e intercambio copiar/pegar en Windows/Chromium con las páginas reales de ChatGPT y Gemini y ejecutar una campaña narrativa prolongada. Las API reales son opcionales y no se requieren para los casos cubiertos por CI.
