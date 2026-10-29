@@ -388,3 +388,43 @@ Se verificaron también los repositorios públicos y sus archivos `LICENSE` medi
 | [SillyTavern World Info](https://docs.sillytavern.app/usage/core-concepts/worldinfo/) | Documentación del proyecto | Activación por claves, profundidad y presupuesto de tokens; el lore orienta al modelo, pero no garantiza que obedezca. | Activadores/inspector y presupuesto configurable ya existen; falta contar tokens reales por proveedor. |
 
 La licencia del repositorio no sustituye a revisar dependencias, atribuciones o licencias de modelos antes de reutilizar cualquier componente.
+
+
+## Chat web normal: integración manual con ChatGPT/Gemini
+
+**Corrección de alcance aplicada:** cuando el usuario dice «usar ChatGPT o Gemini», puede referirse a la conversación web normal de su cuenta, no a las APIs de desarrollador. Son dos vías distintas. El prototipo conserva los adaptadores API como opción, pero incorpora ahora un puente manual para los chats web.
+
+### Proyectos públicos contrastados
+
+- **ChatGPT Browser Bridge:** https://github.com/Serjik85/chatgpt-browser-bridge — puente local de FastAPI/Playwright a una sesión de navegador autenticada; referencia de arquitectura, no integración oficial.
+- **ChatGPT Playwright Backend:** https://github.com/qayshp/chatgpt-playwright-backend — prueba de concepto que se conecta a una sesión Chrome que el usuario ya abrió y autenticó.
+- **chatgpt-use:** https://github.com/leeguooooo/chatgpt-use — automatiza la interfaz web a través de herramientas de navegador; su estado experimental sirve como advertencia sobre la dependencia de la interfaz.
+- **Gemini Web Agent:** https://github.com/HuggingBunny/gemini-web-agent — automatiza Gemini mediante Playwright y sesión persistente; el propio README lo describe como trabajo en curso y avisa que los selectores pueden quedar obsoletos.
+- **SillyTavern World Info:** https://docs.sillytavern.app/usage/worldinfo/ — referencia para Lorebook y contexto de roleplay, aunque no convierte a ChatGPT web o Gemini web en APIs oficiales.
+
+Los proyectos anteriores prueban que el control del navegador es técnicamente posible, pero no garantizan estabilidad, compatibilidad con las condiciones de cada servicio ni continuidad después de cambios en la interfaz.
+
+### Condiciones de los servicios y decisión
+
+- **OpenAI, condiciones vigentes desde el 1 de enero de 2026:** https://openai.com/es-ES/policies/terms-of-use/ — las condiciones prohíben extraer automáticamente o de forma programática datos o resultados de los servicios de consumo.
+- **Google, condiciones vigentes desde el 30 de julio de 2026:** https://policies.google.com/terms?hl=es — prohíben medios automatizados de acceso cuando infringen las instrucciones legibles por máquina publicadas en sus páginas.
+
+Por lo tanto, el prototipo **no automatiza el inicio de sesión, el envío a una web autenticada ni la lectura automática de respuestas**. Se eligió una interacción manual, explícita y revisable por el usuario, en vez de depender de selectores de la página o extraer respuestas programáticamente.
+
+### Puente manual implementado en la rama organizada
+
+1. El usuario selecciona «ChatGPT web (mi cuenta, manual)» o «Gemini web (mi cuenta, manual)».
+2. La aplicación construye un prompt con la acción escrita, el contexto compacto de la partida, las fichas Lorebook pertinentes y un esquema JSON.
+3. El usuario copia el prompt, lo envía en el chat web normal y copia la respuesta completa de vuelta a la aplicación.
+4. El programa analiza el JSON con el modelo estricto Pydantic y vuelve a aplicar sus validaciones locales antes de guardar el turno en SQLite.
+5. Si la respuesta está vacía o no es JSON válido, no se crea una respuesta del narrador ni se aplican cambios de ese turno; el mensaje fallido queda registrado para revisión/reintento.
+
+Este modo no necesita una clave API ni realiza una llamada de red al proveedor desde el programa. El límite/cupo aplicable es el del chat web usado por el usuario. No se puede medir el coste/tokens exactos de esa conversación desde esta integración manual.
+
+**Privacidad:** el prompt puede contener el estado, historial reciente y entradas Lorebook relevantes, así que el usuario debe revisarlo antes de pegarlo. Los datos siguen en la base local hasta que el usuario los copia explícitamente al chat. No se incluyen credenciales ni claves API.
+
+### Verificación y límites restantes
+
+La CI del commit `6f80b2154952decf38695361dfc187e6157fdc17` aprobó **35 pruebas Python** y la comprobación sintáctica de JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40880074124. Los tests cubren la construcción del prompt, el procesamiento de una respuesta JSON pegada y el rechazo de texto no JSON.
+
+Esto no demuestra aún el uso real del navegador ni una campaña larga: falta probar manualmente en Windows la copia/pegado entre la aplicación, ChatGPT y Gemini. Los adaptadores de API siguen disponibles como modalidad distinta y su validación real es opcional para comprobar el modo de chat web.
