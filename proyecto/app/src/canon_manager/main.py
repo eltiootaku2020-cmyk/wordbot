@@ -1145,7 +1145,7 @@ def write_event(
     event_id = new_id()
     status = "recorded"
     proposed_witnesses = [w for w in event.witness_ids if w]
-    if event.kind == "major_change":
+    if event.kind in {"major_change", "timeline_anchor"}:
         status = "pending"
     if event.entity_id and event.entity_id not in valid_ids:
         status = "pending"
