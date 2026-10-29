@@ -1,6 +1,6 @@
 # Roadmap de implementación — gestor local v0.1
 
-El prototipo v0.1 ya existe. Las casillas marcan código presente, no necesariamente validación manual completa. La CI más reciente de la rama de corrección aprobó 71 pruebas Python en Linux/Python 3.12 y comprobó sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40906597871. Ya existe un puente manual para el chat web normal de ChatGPT/Gemini; la interfaz e intercambio real deben probarse en Windows. Las APIs son opcionales.
+El prototipo v0.1 ya existe. Las casillas marcan código presente, no necesariamente validación manual completa. La CI más reciente aprobó 73 pruebas Python en Linux/Python 3.12 y comprobó sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40908949397. Ya existe un puente manual para el chat web normal de ChatGPT/Gemini; la interfaz e intercambio real deben probarse en Windows. Las APIs son opcionales.
 
 ## Fase 0 — Investigación y arquitectura
 - [x] Revisar clientes de roleplay (SillyTavern, RisuAI, Agnai).
@@ -40,7 +40,7 @@ Criterio de salida: el caso «Hola, linda» genera una escena y un registro del 
 - [x] Guardar relaciones por eje y su motivo; cambios sin base confirmada quedan pendientes.
 - [x] Guardar usos de poderes y aplicar el límite humano de Eco al aprobar un uso; faltan pruebas de casos límite.
 - [x] Registrar eventos, testigos y fuente; el conocimiento individual requiere más desarrollo.
-- [ ] Validaciones de acciones, movimiento, compras y usos de habilidades.
+- [x] Validaciones locales de acciones, movimientos, compras, recursos y usos de habilidades; cubiertas por pruebas automáticas, con propuestas ambiguas o contradictorias dejadas pendientes.
 
 Criterio de salida: un cambio sólo se aplica si tiene una causa válida; el mismo mensaje no puede descontar un poder dos veces.
 
@@ -61,7 +61,7 @@ Criterio de salida: el programa envía solo el lore necesario y no convierte un 
 - [ ] Restauración con vista previa.
 - [x] Registrar cambios aceptados, pendientes y rechazados.
 - [ ] Reintento controlado para JSON inválido o timeout.
-- [x] CI: 71 pruebas Python y sintaxis JavaScript aprobadas en modo simulado/manual-input, sin llamadas API pagas: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40906597871.
+- [x] CI: 73 pruebas Python y sintaxis JavaScript aprobadas en modo simulado/manual-input, sin llamadas API pagas: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40908949397.
 - [ ] Prueba de 50–100 intercambios y reinicio completo.
 
 Criterio de salida: el estado, mensajes y recursos sobreviven al cierre; se pueden detectar y corregir errores de la IA.
@@ -90,7 +90,7 @@ La interfaz ya permite crear un mundo y su primera sesión, con protagonista, ca
 
 - [x] Validar sintaxis del JavaScript de la interfaz en CI.
 
-Última CI aprobada (71 pruebas Python + JavaScript): https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40906597871
+Última CI aprobada (73 pruebas Python + JavaScript): https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40908949397
 
 
 ---
@@ -110,13 +110,13 @@ Esta sección distingue implementado de pendiente. No marcar como terminado nada
 
 ### Prioridad P1 — Política automática para cambios de bajo riesgo
 - [x] Mantener revisión para cambios ambiguos y de alto impacto.
-- [x] Autoaceptar movimientos de PNJ con evento fuente registrado, entidad válida, destino y causa; se rechaza mover al protagonista sin autorización explícita.
+- [x] Autoaceptar movimientos de PNJ solo si están presentes en la escena actual, con evento fuente y causa válidos; varios destinos para la misma entidad en un turno quedan pendientes. Se rechaza mover al protagonista sin autorización explícita.
 - [x] Validar consumo, condición, soltar/transferir pila completa y recogida de objeto rastreado; requieren objeto/portador/cantidad y evento fuente coherentes.
 - [x] Libro de recursos por partida: saldo inicial configurable y monedas a cero en Isekai; ingresos explícitos y compras con coste positivo/moneda/saldo verificados.
 - [x] Pago e ingreso/objeto se registran en SQLite con valores anterior/propuesto/aceptado y fuente; saldo insuficiente deja inventario y dinero intactos.
 - [x] Mantener objetos de alto impacto, operaciones ambiguas y datos contradictorios pendientes.
 
-**Verificación:** 71 pruebas Python aprobadas en CI, incluidos los tests del puente manual y el rechazo de contexto desactualizado: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40906597871. La idempotencia de compra está probada con proveedor simulado; falta validación visual manual en Windows.
+**Verificación:** 73 pruebas Python aprobadas en CI, incluidos puente manual, contexto desactualizado, destinos contradictorios y movimientos fuera de escena: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40908949397. La idempotencia de compra está probada con proveedor simulado; falta validación visual manual en Windows.
 
 ### Prioridad P2 — Inspector de contexto y activación de Lorebook
 - [x] Mostrar fichas Lorebook seleccionadas y los disparadores concretos.
@@ -140,7 +140,7 @@ Esta sección distingue implementado de pendiente. No marcar como terminado nada
 **Criterio parcial alcanzado:** restauración de inventario, recursos y reloj, auditoría y orden de undo cubiertos por CI. Quedan escenarios de campaña larga y prueba manual de la interfaz.
 
 ### Prioridad P4 — Pruebas de integración reales y de larga duración
-- [x] CI Linux: 71 pruebas Python y comprobación sintáctica de JavaScript aprobadas el 29-10-2026 (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40906597871; no sustituye las pruebas manuales de Windows).
+- [x] CI Linux: 73 pruebas Python y comprobación sintáctica de JavaScript aprobadas el 29-10-2026 (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40908949397; no sustituye las pruebas manuales de Windows).
 - [ ] Ejecutar la instalación desde cero en Windows/Chromium.
 - [ ] Probar manualmente en Windows el flujo completo con el chat web normal de ChatGPT y con Gemini.
 - [ ] (Opcional para la modalidad API) Probar una llamada controlada a OpenAI API y otra a Gemini API; no almacenar claves en Git.
@@ -174,4 +174,4 @@ Esta sección distingue implementado de pendiente. No marcar como terminado nada
 - [ ] Hacer la prueba manual en Windows con un chat real de ChatGPT y otro de Gemini.
 - [ ] Completar la campaña de 50–100 turnos y comprobar cierre, reinicio y restauración.
 
-**Criterio para la primera entrega sin API:** el usuario puede usar su cuenta normal en el sitio web mediante copiar/pegar; el programa conserva y valida el estado localmente. No se requiere que las APIs estén configuradas ni se automatiza la lectura del chat web. CI de este modo aprobada (71 pruebas, incluida huella de contexto): https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40906597871.
+**Criterio para la primera entrega sin API:** el usuario puede usar su cuenta normal en el sitio web mediante copiar/pegar; el programa conserva y valida el estado localmente. No se requiere que las APIs estén configuradas ni se automatiza la lectura del chat web. CI de este modo aprobada (73 pruebas, incluida huella de contexto): https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40908949397.
