@@ -33,6 +33,7 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}label{font-size:13px;
   <section class="panel">
     <div class="toolbar">
       <button id="demo" class="primary">Cargar mundo de prueba</button>
+      <button id="isekaiPreset">Cargar Isekai sin Destino v1.16</button>
       <select id="worldSelect" aria-label="Mundo"><option value="">Selecciona mundo</option></select>
       <select id="sessionSelect" aria-label="Partida"><option value="">Selecciona partida</option></select>
       <select id="providerSelect" aria-label="Proveedor">
@@ -314,6 +315,20 @@ el("createWorldForm").onsubmit = async event => {
     el("recipientSelect").value = "";
     await loadSession(currentSession);
     setStatus("Mundo y partida creados. Ya puedes importar el Lorebook JSON.", true);
+  } catch (err) { setStatus(err.message, false); }
+};
+el("isekaiPreset").onclick = async () => {
+  try {
+    setStatus("Cargando mundo y Lorebook v1.16…", false);
+    const result = await api("/api/presets/isekai-sin-destino", {method:"POST", body:"{}"});
+    currentWorld = result.world_id;
+    currentSession = result.session_id;
+    await refreshWorlds();
+    el("worldSelect").value = currentWorld;
+    await refreshSessions();
+    el("sessionSelect").value = currentSession;
+    await loadSession(currentSession);
+    setStatus("Isekai cargado · " + result.lore_entries + " entradas · " + result.participants + " personajes · " + result.inventory_items + " objetos iniciales", true);
   } catch (err) { setStatus(err.message, false); }
 };
 el("demo").onclick = async () => {
