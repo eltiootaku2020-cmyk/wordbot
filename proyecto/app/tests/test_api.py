@@ -1862,3 +1862,61 @@ def test_context_fails_closed_when_old_message_audience_metadata_is_corrupt():
             )
         assert all("secreto es la llave azul" not in message["content"] for message in context["recent_messages"])
         assert any("metadatos dañados" in item["reason"] for item in context["_diagnostics"]["excluded_messages"])
+
+
+
+def test_new_turn_is_rejected_while_another_turn_is_processing():
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+        session_id = seed["session_id"]
+        with database.transaction() as conn:
+            conn.execute(
+                "INSERT INTO messages(id,session_id,turn_id,client_request_id,turn_index,role,recipient_entity_id,content,provider,generation_status,metadata_json) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                (uuid.uuid4().hex, session_id, "active-turn-test", "active-turn-request-001",
+                 999, "user", "", "Observa la puerta.", "mock", "processing",
+                 json.dumps({"visibility":"scene","audience_ids":[]}))
+            )
+        before = client.get(f"/api/sessions/{session_id}/messages").json()
+        response = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json={"request_id":"overlap-turn-request-001","text":"Sigo por el camino.","provider":"mock"}
+        )
+        assert response.status_code == 409
+        assert "otro turno en curso" in response.json()["detail"]
+        assert client.get(f"/api/sessions/{session_id}/messages").json() == before
+
+
+def test_backup_rejects_in_flight_turn_and_keeps_no_partial_file():
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+        session_id = seed["session_id"]
+        with database.transaction() as conn:
+            conn.execute(
+                "INSERT INTO messages(id,session_id,turn_id,client_request_id,turn_index,role,recipient_entity_id,content,provider,generation_status,metadata_json) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                (uuid.uuid4().hex, session_id, "active-backup-test", "active-backup-request-001",
+                 999, "user", "", "Observa la puerta.", "mock", "processing",
+                 json.dumps({"visibility":"scene","audience_ids":[]}))
+            )
+        response = client.post(f"/api/sessions/{session_id}/backup")
+        assert response.status_code == 409
+        assert "turno en curso" in response.json()["detail"]
+        backup_dir = database.path.parent / "backups"
+        assert not list(backup_dir.glob(f"backup-{session_id}-*.sqlite3")) if backup_dir.exists() else True
+
+
+def test_backup_is_a_complete_readable_sqlite_database():
+    import sqlite3
+
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+        session_id = seed["session_id"]
+        response = client.post(f"/api/sessions/{session_id}/backup")
+        assert response.status_code == 200, response.text
+        backup_path = Path(response.json()["path"])
+        assert backup_path.exists()
+        assert not backup_path.with_name(backup_path.name + ".tmp").exists()
+        with sqlite3.connect(str(backup_path)) as conn:
+            assert conn.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+            assert conn.execute("SELECT 1 FROM sessions WHERE id=?", (session_id,)).fetchone() is not None

@@ -1,3 +1,4 @@
+import os
 import sqlite3
 from contextlib import contextmanager
 from pathlib import Path
@@ -153,6 +154,13 @@ class Database:
     def backup_to(self, destination: str) -> None:
         target = Path(destination).expanduser()
         target.parent.mkdir(parents=True, exist_ok=True)
-        with self._connect() as source:
-            with sqlite3.connect(str(target)) as backup:
-                source.backup(backup)
+        temporary = target.with_name(target.name + ".tmp")
+        temporary.unlink(missing_ok=True)
+        try:
+            with self._connect() as source:
+                with sqlite3.connect(str(temporary)) as backup:
+                    source.backup(backup)
+            os.replace(temporary, target)
+        except Exception:
+            temporary.unlink(missing_ok=True)
+            raise

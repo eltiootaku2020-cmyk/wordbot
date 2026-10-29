@@ -426,7 +426,7 @@ def build_context(
     message_rows = conn.execute(
         "SELECT id,role,recipient_entity_id,content,metadata_json,turn_id,turn_index,generation_status "
         "FROM messages WHERE session_id=? AND turn_id<>? "
-        "ORDER BY turn_index DESC, created_at DESC LIMIT ?",
+        "ORDER BY turn_index DESC, created_at DESC, rowid DESC LIMIT ?",
         (session["id"], current_turn_id, MAX_HISTORY_CANDIDATES)
     ).fetchall()
     recipient_name = recipient.get("name", "") if recipient else ""
@@ -616,7 +616,7 @@ def build_context(
         "SELECT e.id,e.turn_id,e.kind,e.entity_id,e.description,e.status,e.witnesses_json,e.created_at,"
         "m.recipient_entity_id AS source_recipient_id,m.metadata_json AS source_metadata_json "
         "FROM events e LEFT JOIN messages m ON m.id=e.source_message_id "
-        "WHERE e.session_id=? ORDER BY e.created_at DESC LIMIT ?",
+        "WHERE e.session_id=? ORDER BY e.created_at DESC,e.rowid DESC LIMIT ?",
         (session["id"], MAX_HISTORY_CANDIDATES)
     ).fetchall()
     eligible_events = []
@@ -2048,6 +2048,16 @@ async def submit_turn(session_id: str, payload: TurnRequest):
             "SELECT * FROM messages WHERE session_id=? AND client_request_id=? AND role='user'",
             (session_id, client_request_id)
         ).fetchone()
+        active_turn = conn.execute(
+            "SELECT turn_id,client_request_id FROM messages "
+            "WHERE session_id=? AND role='user' AND generation_status='processing' LIMIT 1",
+            (session_id,)
+        ).fetchone()
+        if active_turn and (not existing_user or existing_user["turn_id"] != active_turn["turn_id"]):
+            raise HTTPException(
+                status_code=409,
+                detail="Hay otro turno en curso en esta partida. Espera a que se complete o falle antes de enviar otra acción."
+            )
         if existing_user:
             old_metadata = json.loads(existing_user["metadata_json"] or "{}")
             old_visibility = old_metadata.get("visibility", "scene")
@@ -2475,9 +2485,19 @@ def reject_event(session_id: str, event_id: str):
 
 @app.post("/api/sessions/{session_id}/backup")
 def backup_session_database(session_id: str):
-    with database.connection() as conn:
+    backup_path = database.path.parent / "backups" / f"backup-{session_id}-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S-%f')}.sqlite3"
+    # Hold the writer lock between checking for in-flight turns and taking the
+    # database snapshot, so a new turn cannot start halfway through the backup.
+    with database.transaction() as conn:
         if conn.execute("SELECT 1 FROM sessions WHERE id=?", (session_id,)).fetchone() is None:
             raise HTTPException(status_code=404, detail="Partida no encontrada.")
-    backup_path = database.path.parent / "backups" / f"backup-{session_id}-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S-%f')}.sqlite3"
-    database.backup_to(str(backup_path))
+        in_progress = conn.execute(
+            "SELECT 1 FROM messages WHERE role='user' AND generation_status='processing' LIMIT 1"
+        ).fetchone()
+        if in_progress:
+            raise HTTPException(
+                status_code=409,
+                detail="No se puede crear una copia coherente mientras hay un turno en curso. Espera a que termine y vuelve a guardar."
+            )
+        database.backup_to(str(backup_path))
     return {"backup_created": True, "path": str(backup_path)}
