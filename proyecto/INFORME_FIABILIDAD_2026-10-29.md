@@ -124,3 +124,20 @@ PR #11 integrado en `docs/historias-organizadas`: https://github.com/eltiootaku2
 La etiqueta se actualizó a v1.19, el README de la app se corrigió y una prueba de regresión compara automáticamente la versión extraída del JSON con la del botón. CI aprobó **86 pruebas Python** y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40941934304. La auditoría independiente de Lorebook aprobó 659 comprobaciones: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40941934333.
 
 La prueba detecta discrepancias entre texto estático y fuente de datos, pero no sustituye la inspección visual manual en Windows/Chromium.
+
+
+## Última actualización — PR #12: no revertir aprobaciones posteriores con undo
+
+PR #12 quedó integrado en `docs/historias-organizadas`: https://github.com/eltiootaku2020-cmyk/wordbot/pull/12; commit `6e2b940ea76b4d7a7ff36e5495674be9f13a0016`.
+
+### Reproducción
+Un primer turno dejó pendiente una propuesta de amistad para Maelis. Después se completó otro turno que avanzó el reloj a las 08:12. Al aprobar luego la propuesta del turno anterior, la relación quedó en 55 y su fila de cambio pasó a `accepted`. Antes de la corrección, deshacer el segundo turno devolvía éxito y restauraba 08:05, borrando la relación, mientras el registro seguía como aceptado. La prueba falló así contra el código anterior, demostrando la pérdida real del estado.
+
+### Corrección
+- Cada turno completado guarda en el JSON del snapshot una huella SHA-256 compacta del estado mutable posterior al turno; no requiere migración de esquema.
+- Deshacer compara el estado actual con esa huella. Si hubo una aprobación, restauración u otra alteración del estado después del turno, responde 409 dentro de la transacción sin tocar la partida.
+- Los snapshots antiguos sin huella conservan la opción de deshacer si no existe una aprobación aceptada posterior de otro turno; la huella se completa mientras la transacción tiene el bloqueo de escritura. Si se detecta una aprobación posterior, falla de forma conservadora y mantiene el estado.
+- Los reintentos seguros siguen funcionando porque se compara el estado preturno sin mezclarlo con el metadato de la huella; tras regenerar correctamente se actualiza la huella posterior.
+- CI PR #12: **87 pruebas Python aprobadas**, una advertencia no bloqueante y sintaxis JavaScript correcta: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40943636768.
+
+Pendiente: validación de interfaz Windows/Chromium y campaña externa larga real; la CI usa proveedor simulado.
