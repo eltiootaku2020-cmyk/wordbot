@@ -117,3 +117,17 @@ La plantilla es conceptual; no es todavía un esquema JSON validado ni una tabla
 3. Crear localizaciones de ejemplo marcadas como propuestas.
 4. Revisar cómo las comunidades obtienen recursos y reaccionan a criaturas y acontecimientos.
 5. Convertir las fichas a datos estructurados y validarlas antes de conectarlas al motor.
+
+
+## 6.2. Decisión aprobada: ubicación repartida de las aldeas
+
+**Decisión del usuario:** las aldeas estarán repartidas entre los límites y el interior del Bosque de las Bestias.
+
+- La distribución será desigual, no uniforme.
+- Habrá una mayor concentración relativa de aldeas pequeñas cerca de los límites y accesos, donde el intercambio, el abastecimiento y el contacto con el exterior resultan más viables.
+- También podrán existir comunidades aisladas en subzonas interiores cuando la disponibilidad de agua, alimento, refugio, rutas y seguridad lo justifique.
+- En zonas profundas o especialmente peligrosas la presencia estable será muy escasa; cualquier comunidad allí requerirá una explicación excepcional de supervivencia y acceso.
+- Las rutas conocidas pueden conectar comunidades, pero no implican que todas estén habitadas ni que exista una red continua.
+- Esta decisión fija el patrón general de distribución, no nombres, cantidades, población, coordenadas, facciones ni localizaciones concretas.
+
+La propuesta espacial anterior queda refinada por esta decisión: los límites tienen mayor peso relativo, pero el interior no queda vacío.
