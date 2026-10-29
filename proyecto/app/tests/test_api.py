@@ -106,3 +106,68 @@ def test_pending_major_event_can_be_approved_or_rejected():
         assert approved["status"] == "recorded"
         assert rejected["status"] == "rejected"
         assert linked_change["status"] == "rejected"
+
+
+
+def test_create_world_and_start_with_cast_and_inventory():
+    with TestClient(app) as client:
+        response = client.post(
+            "/api/worlds/start",
+            json={
+                "name": "Prueba mundo personalizado",
+                "canon_text": "El canon breve se conserva localmente.",
+                "protagonist_name": "Ari",
+                "protagonist_profile": "El usuario controla al protagonista.",
+                "session_name": "Primera partida",
+                "location": "Puerto de prueba",
+                "day": 1,
+                "minute_of_day": 480,
+                "cast": [
+                    {"name": "Maelis Test", "kind": "character", "profile": "Maga curiosa."},
+                    {"name": "Guardia Test", "kind": "npc", "profile": "Guarda la puerta."}
+                ],
+                "initial_inventory": [
+                    {"name": "Pañuelo", "quantity": 1, "condition": "gastado"},
+                    {"name": "Moneda", "quantity": 3, "condition": "normal"}
+                ]
+            }
+        )
+        assert response.status_code == 200, response.text
+        data = response.json()
+        world_id, session_id = data["world_id"], data["session_id"]
+
+        entities = client.get(f"/api/worlds/{world_id}/entities").json()
+        names = {entity["name"] for entity in entities}
+        assert {"Ari", "Maelis Test", "Guardia Test"} <= names
+
+        state = client.get(f"/api/sessions/{session_id}/state").json()
+        assert state["state"]["location"] == "Puerto de prueba"
+        assert state["state"]["time_label"].endswith("08:00")
+        assert {person["name"] for person in state["participants"]} >= {"Ari", "Maelis Test", "Guardia Test"}
+        items = {item["display_name"]: item for item in state["inventory"]}
+        assert items["Pañuelo"]["quantity"] == 1
+        assert items["Pañuelo"]["condition"] == "gastado"
+        assert items["Moneda"]["quantity"] == 3
+
+
+def test_world_creation_rolls_back_when_cast_has_duplicate_names():
+    with TestClient(app) as client:
+        before = {world["name"] for world in client.get("/api/worlds").json()}
+        response = client.post(
+            "/api/worlds/start",
+            json={
+                "name": "Prueba mundo con error",
+                "canon_text": "",
+                "protagonist_name": "Ari",
+                "session_name": "Partida inválida",
+                "location": "Bosque",
+                "cast": [
+                    {"name": "Mismo PNJ", "kind": "npc", "profile": ""},
+                    {"name": "Mismo PNJ", "kind": "npc", "profile": ""}
+                ],
+                "initial_inventory": []
+            }
+        )
+        assert response.status_code == 409
+        after = {world["name"] for world in client.get("/api/worlds").json()}
+        assert after == before
