@@ -1,6 +1,6 @@
 # Roadmap de implementación — gestor local v0.1
 
-El proyecto está en fase de investigación y especificación. Las fases siguientes son propuestas de trabajo, no funcionalidades terminadas.
+El prototipo v0.1 ya existe. Las casillas marcan código presente, no necesariamente validación manual completa. La CI aprobó 8 pruebas automáticas en Linux/Python 3.12; proveedores reales y la instalación en Windows aún deben probarse.
 
 ## Fase 0 — Investigación y arquitectura
 - [x] Revisar clientes de roleplay (SillyTavern, RisuAI, Agnai).
@@ -9,41 +9,42 @@ El proyecto está en fase de investigación y especificación. Las fases siguien
 - [x] Revisar transacciones, WAL y copias de seguridad de SQLite.
 - [x] Documentar restricciones de la página de consumo y facturación API.
 - [x] Preparar las decisiones técnicas provisionales.
-- [ ] Revisar la decisión con una prueba técnica pequeña.
+- [x] Crear y probar un flujo pequeño con proveedor simulado.
+- [ ] Probar manualmente la instalación en Windows y revisar la interfaz en Chromium.
 
 ## Fase 1 — Esqueleto ejecutable
-- [ ] Crear estructura del paquete Python y configuración de entorno.
-- [ ] Crear SQLite y migraciones iniciales.
-- [ ] Crear endpoints locales para mundos, partidas, mensajes y estado.
-- [ ] Crear página de chat mínima abierta en Chromium.
-- [ ] Crear configuración de proveedor y manejo seguro de claves.
-- [ ] Añadir pantalla de error y log local.
+- [x] Crear estructura del paquete Python y configuración de entorno.
+- [x] Crear SQLite y tablas iniciales.
+- [x] Crear endpoints locales para mundo de prueba, entidades, partidas, mensajes, estado y Lorebook.
+- [x] Crear página de chat mínima abierta en Chromium.
+- [x] Crear configuración de proveedor en archivo .env fuera de Git; la UI no recibe claves.
+- [x] Mostrar errores en la interfaz y guardar mensajes fallidos en la base; falta un sistema completo de logs técnicos.
 
 Criterio de salida: se puede crear/seleccionar un mundo, enviar un mensaje simulado, guardar texto y reiniciar sin perderlo; aún no requiere un proveedor real.
 
 ## Fase 2 — Un turno completo con salida estructurada
-- [ ] Implementar un adaptador de proveedor inicial.
-- [ ] Enviar contexto reducido.
-- [ ] Recibir narración + eventos + cambios propuestos conforme al esquema.
-- [ ] Validar estructura e IDs.
-- [ ] Guardar narración, propuestas y resultado de validación.
-- [ ] Implementar idempotencia para que un reintento no duplique operaciones.
+- [x] Implementar narrador simulado y adaptadores iniciales OpenAI/Gemini; llamadas reales aún no validadas.
+- [x] Enviar contexto reducido con estado, participantes, historial reciente y Lorebook relevante (máximo 12 entradas).
+- [x] Recibir narración, eventos y cambios propuestos en un contrato Pydantic/JSON.
+- [x] Validar estructura, entidades y evento fuente; la validación semántica completa sigue pendiente.
+- [x] Guardar mensajes, eventos y cambios aceptados/pendientes/rechazados en SQLite.
+- [ ] Implementar clave de idempotencia a nivel de solicitud para reintentos del cliente.
 
 Criterio de salida: el caso «Hola, linda» genera una escena y un registro del intercambio, sin requerir un bloque de guardado en el chat.
 
 ## Fase 3 — Estado esencial del juego
-- [ ] Reloj, día, bloque, ubicación y personajes presentes.
-- [ ] Inventario con cantidad, condición, portador y ubicación.
-- [ ] Relaciones por eje, con causa y fuente.
-- [ ] Habilidades/recursos y usos limitados de poderes.
-- [ ] Registro de eventos y procedencia del conocimiento de cada PNJ.
+- [x] Guardar día, hora, ubicación y personajes presentes; reloj básico y /salto explícito implementados.
+- [x] Guardar inventario con cantidad, condición, portador y ubicación; operaciones nuevas requieren aprobación.
+- [x] Guardar relaciones por eje y su motivo; cambios sin base confirmada quedan pendientes.
+- [x] Guardar usos de poderes y aplicar el límite humano de Eco al aprobar un uso; faltan pruebas de casos límite.
+- [x] Registrar eventos, testigos y fuente; el conocimiento individual requiere más desarrollo.
 - [ ] Validaciones de acciones, movimiento, compras y usos de habilidades.
 
 Criterio de salida: un cambio sólo se aplica si tiene una causa válida; el mismo mensaje no puede descontar un poder dos veces.
 
 ## Fase 4 — Lorebook y recuperación
-- [ ] Importar/exportar entradas Markdown/JSON.
-- [ ] Activar fichas por personajes presentes, palabras clave y contexto de la escena.
+- [x] Importar Lorebook JSON compatible con SpicyChat; exportación de mundos y partidas sigue pendiente.
+- [x] Activar fichas por palabras clave, nombres de participantes y lugar; falta ampliar y probar selección.
 - [ ] Resolver conflictos de prioridades y estados canon/pendiente/rumor.
 - [ ] Añadir búsqueda de eventos/diálogos antiguos.
 - [ ] Definir un presupuesto de tokens configurable y mostrar qué se envió al modelo.
@@ -51,22 +52,27 @@ Criterio de salida: un cambio sólo se aplica si tiene una causa válida; el mis
 Criterio de salida: el programa envía solo el lore necesario y no convierte un rumor en hecho.
 
 ## Fase 5 — Fiabilidad y recuperación
-- [ ] Snapshots y backup SQLite consistentes.
+- [x] Crear copia SQLite consistente; restauración visual y snapshots automáticos siguen pendientes.
 - [ ] Restauración con vista previa.
-- [ ] Registro de cambios aceptados/rechazados.
+- [x] Registrar cambios aceptados, pendientes y rechazados.
 - [ ] Reintento controlado para JSON inválido o timeout.
-- [ ] Pruebas automatizadas sin llamadas pagas.
+- [x] CI: 8 pruebas aprobadas en modo simulado, sin llamadas pagas.
 - [ ] Prueba de 50–100 intercambios y reinicio completo.
 
 Criterio de salida: el estado, mensajes y recursos sobreviven al cierre; se pueden detectar y corregir errores de la IA.
 
 ## Fase 6 — Segundo proveedor y calidad de vida
-- [ ] Adaptador del segundo proveedor (OpenAI/Gemini en orden configurable).
+- [x] Implementar adaptadores iniciales para OpenAI y Gemini; validación real pendiente.
 - [ ] Medición de tokens/coste cuando el proveedor lo exponga.
 - [ ] Exportación de mundo, partida y logs.
 - [ ] Panel para aprobar cambios pendientes.
 - [ ] Importar la Lorebook actual de Isekai sin Destino como banco de prueba.
 - [ ] Evaluar memoria semántica, RAG o grafo temporal solo si las pruebas muestran necesidad.
+
+## Estado de los hitos
+
+- **Comprobado por CI:** SQLite, backup, validación Pydantic, normalización del esquema, narrador simulado y un turno de API de extremo a extremo con inventario inicial.
+- **No comprobado todavía:** ejecución en Windows, llamadas reales a OpenAI/Gemini, comportamiento prolongado, reintentos idempotentes y todos los cambios de inventario/movimiento.
 
 ## Prioridad práctica
 
