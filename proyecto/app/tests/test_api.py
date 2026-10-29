@@ -202,8 +202,24 @@ def test_load_actual_isekai_preset_imports_lorebook_and_starts_fresh_session():
 
 def test_private_turn_is_not_visible_to_other_npcs():
     with TestClient(app) as client:
-        seed = client.post("/api/demo/seed", json={}).json()
-        world_id, session_id = seed["world_id"], seed["session_id"]
+        started = client.post(
+            "/api/worlds/start",
+            json={
+                "name": "Prueba de privacidad " + uuid.uuid4().hex,
+                "canon_text": "El contexto privado solo lo conocen el protagonista y su destinataria.",
+                "protagonist_name": "Protagonista",
+                "session_name": "Prueba privada",
+                "location": "Claro del bosque",
+                "cast": [
+                    {"name": "Maelis Orven", "kind": "character", "profile": "Maga curiosa."},
+                    {"name": "Ivar Dalen", "kind": "character", "profile": "Lancero sarcástico."},
+                    {"name": "Brina Solcor", "kind": "character", "profile": "Guerrera prudente."}
+                ],
+                "initial_inventory": []
+            }
+        )
+        assert started.status_code == 200, started.text
+        world_id, session_id = started.json()["world_id"], started.json()["session_id"]
         entities = client.get(f"/api/worlds/{world_id}/entities").json()
         by_name = {entity["name"]: entity for entity in entities}
         maelis = by_name["Maelis Orven"]
@@ -213,7 +229,7 @@ def test_private_turn_is_not_visible_to_other_npcs():
             f"/api/sessions/{session_id}/turns",
             json={
                 "request_id": "private-maelis-0001",
-                "text": "Hola, linda",
+                "text": "Hola, linda; esto es confidencial",
                 "recipient_id": maelis["id"],
                 "provider": "mock",
                 "visibility": "private"
@@ -248,7 +264,7 @@ def test_private_turn_is_not_visible_to_other_npcs():
 
         # A private exchange and its events are omitted from Ivar's context,
         # even though Maelis remains physically present in the wider scene.
-        assert not any("Hola, linda" in msg["content"] for msg in context_for_ivar["recent_messages"])
+        assert not any("esto es confidencial" in msg["content"] for msg in context_for_ivar["recent_messages"])
         assert not any("incomodidad ante un saludo" in event["description"] for event in context_for_ivar["recent_events"])
         # Explicitly private scenes include only the protagonist and recipient.
         private_participant_ids = {person["id"] for person in private_context_for_ivar["participants"]}
