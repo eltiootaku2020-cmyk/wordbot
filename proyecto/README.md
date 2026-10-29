@@ -36,6 +36,14 @@ No se debe enviar el Lorebook entero en cada mensaje. La aplicación recupera so
 - **Privacidad local:** Lorebook, registros e inventario se almacenan en el PC. Solo se envía al proveedor el contexto necesario para generar la respuesta.
 - **Sin extracción de páginas web:** priorizar conectores oficiales por API en lugar de depender de leer o controlar automáticamente las páginas web de chat.
 
+## Investigación, decisiones y plan de implementación
+
+- [Investigación de proyectos y referencias](INVESTIGACION_REFERENCIAS.md)
+- [Decisiones técnicas provisionales](DECISIONES_TECNICAS.md)
+- [Roadmap de implementación](ROADMAP_IMPLEMENTACION.md)
+
+La investigación recomienda una interfaz web local en Chromium, backend Python/FastAPI, SQLite y adaptadores para APIs oficiales. No se leerá automáticamente la pestaña de ChatGPT de consumo. La decisión podrá reconsiderarse tras una prueba técnica de un solo turno.
+
 ## Componentes previstos
 
 - Interfaz local de chat y panel de estado.
