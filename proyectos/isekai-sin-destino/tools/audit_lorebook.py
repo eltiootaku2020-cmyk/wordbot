@@ -178,7 +178,7 @@ if rules_start >= 0 and rules_end > rules_start:
     if rules_open >= 0 and rules_close > rules_open:
         rules_personality = rules_section[rules_open + len("~~~text\n"):rules_close]
         ok(personality_text is not None and rules_personality == personality_text, "Personality de CONFIG_LIGERA.md y CUADRO_REGLAS_PRIORITARIAS.md no coincide.")
-        rules_count = re.search(r"Tiene \*\*(\d+) caracteres\*\*", rules_section)
+        rules_count = re.search(r"Tiene \*\*(\d+) caracteres\*\*", rules_doc[:rules_start])
         ok(rules_count is not None, "Falta el contador de caracteres en el cuadro de reglas.")
         if rules_count:
             ok(int(rules_count.group(1)) == len(rules_personality), "El contador de Personality del cuadro de reglas no coincide con su texto.")
