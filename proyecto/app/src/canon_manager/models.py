@@ -141,6 +141,7 @@ class TurnRequest(StrictModel):
     provider: Literal["mock", "openai", "gemini", "chatgpt_web", "gemini_web"] = "mock"
     visibility: Literal["scene", "private"] = "scene"
     external_response: str = Field(default="", max_length=60000)
+    manual_context_hash: str = Field(default="", max_length=64)
 
 
 class ContextPreviewRequest(StrictModel):
