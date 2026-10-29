@@ -115,3 +115,12 @@ La prueba fortalece la interacción entre privacidad, testigos, undo y reintento
 - Corrección: la aplicación rechaza el reintento si hay turnos de usuario posteriores y compara el snapshot preturno con el estado mutable actual. Los snapshots ausentes, ilegibles o diferentes fallan de forma conservadora. Un reintento sigue siendo válido cuando no ocurrió ningún cambio y la instantánea sigue coincidiendo.
 - Nuevas regresiones: reintento de turno anulado tras un turno nuevo; reintento de turno fallido tras turno nuevo; reintento fallido después de mutación del estado sin un turno narrativo posterior.
 - Pendiente: Windows/Chromium y campaña manual real de 50–100 intercambios. La CI usa proveedor simulado y no comprueba una cuenta web real.
+
+
+## Última actualización — PR #11: versión UI/JSON desincronizada
+
+PR #11 integrado en `docs/historias-organizadas`: https://github.com/eltiootaku2020-cmyk/wordbot/pull/11. Se encontró que el botón HTML mostraba `v1.16`, el README de la aplicación decía `v1.18`, pero el endpoint cargaba el archivo de Lorebook cuyo `description` y README de proyecto declaran `v1.19`. El programa cargaba el JSON real correctamente; era la etiqueta/documentación la que engañaba al usuario.
+
+La etiqueta se actualizó a v1.19, el README de la app se corrigió y una prueba de regresión compara automáticamente la versión extraída del JSON con la del botón. CI aprobó **86 pruebas Python** y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40941934304. La auditoría independiente de Lorebook aprobó 659 comprobaciones: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40941934333.
+
+La prueba detecta discrepancias entre texto estático y fuente de datos, pero no sustituye la inspección visual manual en Windows/Chromium.
