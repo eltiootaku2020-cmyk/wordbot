@@ -1,0 +1,175 @@
+{
+  "schema_version": "0.1.0",
+  "status": "design_proposal_not_runtime",
+  "scales": {
+    "common_numeric": {
+      "min": 0,
+      "max": 100,
+      "meaning": "intensity_or_magnitude_not_probability"
+    },
+    "missing_value": "not_registered",
+    "change_record": [
+      "previous_value",
+      "new_value",
+      "cause",
+      "evidence",
+      "timestamp_or_world_time"
+    ]
+  },
+  "world_state": {
+    "world_id": "isekai_sin_destino",
+    "day": null,
+    "time_block": null,
+    "exact_time": null,
+    "region_id": null,
+    "subzone_id": null,
+    "weather": null,
+    "visibility": null,
+    "terrain_conditions": [],
+    "ambient_magic": null,
+    "active_events": [],
+    "known_rumors": []
+  },
+  "entity_common": {
+    "entity_id": "unique_stable_id",
+    "entity_type": [
+      "person",
+      "animal",
+      "monster",
+      "plant",
+      "object",
+      "group",
+      "phenomenon"
+    ],
+    "name": null,
+    "species_id": null,
+    "current_location": null,
+    "last_confirmed_location": null,
+    "alive_or_active_status": "unknown",
+    "needs": {
+      "hunger": null,
+      "thirst": null,
+      "fatigue": null,
+      "sleep": null
+    },
+    "condition": {
+      "health": null,
+      "wounds": [],
+      "pain": null,
+      "poisoning": null,
+      "magical_effects": []
+    },
+    "behavior": {
+      "temperament": null,
+      "alertness": null,
+      "aggression": null,
+      "fear": null,
+      "curiosity": null
+    },
+    "cognition": {
+      "goals": [],
+      "memories": [],
+      "knowledge_sources": [],
+      "suspicions": []
+    },
+    "relationships": [],
+    "abilities": [],
+    "resistances": [],
+    "inventory_or_carried_items": [],
+    "history_events": [],
+    "variables_applicable": [],
+    "unknown_fields_policy": "No registrado; never infer zero or neutral"
+  },
+  "ecology": {
+    "biome_id": "forest_of_beasts",
+    "species_catalog_file": "03_CATALOGO_50_ESPECIES.json",
+    "population_estimates": "unknown_until_defined",
+    "habitat_rules": [],
+    "encounter_factors": [
+      "subzone",
+      "time",
+      "weather",
+      "visibility",
+      "season_if_defined",
+      "population",
+      "tracks",
+      "noise",
+      "food",
+      "predator_prey_state",
+      "recent_events",
+      "player_actions"
+    ],
+    "valid_outcomes": [
+      "creature",
+      "trace",
+      "sound",
+      "object_or_resource",
+      "hazard",
+      "weather_event",
+      "nothing"
+    ]
+  },
+  "psico_eco": {
+    "modes": [
+      "information",
+      "influence",
+      "memory",
+      "perception",
+      "biological",
+      "self_intervention",
+      "individual_specialization"
+    ],
+    "attempts_by_target": {
+      "human": "historical_rule_max_3_attempts_including_failures",
+      "animal": "not_defined",
+      "plant": "not_defined",
+      "self": "not_defined"
+    },
+    "target_specific_resistance": true,
+    "biological_constraints": true,
+    "record_each_use": true
+  },
+  "exploration": {
+    "action_pipeline": [
+      "intent",
+      "method",
+      "execution",
+      "target_response",
+      "validated_outcome",
+      "persistent_consequences"
+    ],
+    "hidden_threats_require_detection_check": true,
+    "search_does_not_guarantee_discovery": true
+  },
+  "narrative_choices": {
+    "suggested_choices": 3,
+    "always_include_free_input": "Otro",
+    "suggestions_are_nonbinding": true
+  },
+  "endings": {
+    "volcano_day": 12,
+    "main_endings": [
+      "hero",
+      "villain",
+      "monarch",
+      "coward",
+      "tragic_hero"
+    ],
+    "final_selection": "emerges_from_persistent_decisions_not_menu_selection"
+  },
+  "persistence": {
+    "required_records": [
+      "world_state",
+      "entity_states",
+      "inventory",
+      "relationships",
+      "memories_and_knowledge_sources",
+      "psico_eco_uses",
+      "events",
+      "deaths",
+      "routes",
+      "random_generation_trace"
+    ],
+    "update_only_after_validated_outcome": true
+  }
+}
