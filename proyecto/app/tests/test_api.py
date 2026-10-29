@@ -516,3 +516,17 @@ def test_valid_npc_movement_is_applied_but_protagonist_movement_is_pending():
         assert "nunca mueve al protagonista" in protagonist_change["reason"]
         assert any("Movimiento de PNJ guardado" in note for note in applied)
         assert any("Movimiento de" in note for note in pending)
+
+        # A character who moved to another location cannot remain selectable
+        # as a direct conversation partner in the old scene.
+        response = client.post(
+            f"/api/sessions/{started['session_id']}/turns",
+            json={
+                "request_id": "talk-to-away-npc-001",
+                "text": "Le pregunto a Ivar qué piensa",
+                "recipient_id": ivar_id,
+                "provider": "mock"
+            }
+        )
+        assert response.status_code == 422
+        assert "no está en la ubicación actual" in response.json()["detail"]
