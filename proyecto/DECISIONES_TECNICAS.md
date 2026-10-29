@@ -129,3 +129,21 @@ Implementación inicial en la rama organizada y prueba aislada en commit `456ac5
 - CI: 15 pruebas aprobadas y JavaScript validado: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40867432602
 
 **Pendiente para completar ADR-010:** inspector de por qué un recuerdo es visible, pruebas con personajes que entran/salen de escena y pruebas manuales con OpenAI/Gemini. Los registros previos sin metadatos requieren tratamiento conservador.
+
+
+## ADR-015 — Libro de recursos y transacciones de compra
+
+**Decisión:** cada partida puede guardar recursos numéricos en SQLite (por ejemplo monedas, fichas o cargas), separados del inventario de objetos. La IA solo propone una adquisición con coste total y clave de moneda; el programa consulta saldo, verifica que existe el evento fuente, valida que el coste esté explícito y que el saldo alcance. Solo entonces descuenta recurso y añade el objeto dentro de la misma transacción SQLite.
+
+**Reglas implementadas y límites:**
+- Isekai sin Destino crea un saldo de monedas igual a cero, coherente con su inicio sin dinero.
+- Un mundo/partida creada desde la interfaz puede definir recursos iniciales.
+- Las compras necesitan coste positivo, moneda registrada y saldo suficiente. No se infieren precios ni se crea dinero para cubrir un faltante.
+- El cobro de un artículo se registra como cambio de recurso asociado al evento de compra; el narrador no debe devolver además una segunda operación `spend` para la misma compra.
+- Los ingresos/gastos genéricos requieren evento fuente de tipo `resource` y una señal explícita de ingreso o gasto; el saldo nunca puede ser negativo.
+- El recurso y objeto se actualizan en el mismo turno/transacción; si la validación de compra falla, no se cambia ninguno.
+- La operación y su valor anterior/propuesto/aceptado quedan en `state_changes`.
+
+**Verificación:** CI con 24 pruebas Python y sintaxis de JavaScript aprobadas el 29-10-2026: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40870848920. Incluye compra con saldo suficiente, saldo insuficiente sin mutación e ingreso de recompensa explícito.
+
+**Pendiente:** registrar y probar repetición idempotente de la misma compra en un turno real de API, realizar prueba manual en Windows y probar el contrato con un proveedor real. La CI usa narrador simulado.
