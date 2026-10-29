@@ -52,11 +52,15 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}label{font-size:13px;
       <textarea id="messageInput" required maxlength="8000" placeholder="Escribe tu acción o diálogo… (por ejemplo: Hola, linda)"></textarea>
       <button id="sendButton" class="primary" type="submit">Enviar</button>
     </form>
+    <div class="toolbar"><button id="retryButton" hidden>Reintentar último envío</button></div>
     <p class="muted">La conversación, el canon importado y el estado se guardan en SQLite en este PC. Las propuestas dudosas no se aplican sin revisión.</p>
   </section>
   <aside class="panel">
     <h2>Estado de partida</h2>
     <div id="state"><p class="muted">Carga el mundo de prueba para empezar.</p></div>
+    <hr>
+    <h2>Eventos importantes pendientes</h2>
+    <div id="pendingEvents"><p class="muted">No hay eventos pendientes.</p></div>
     <hr>
     <h2>Propuestas pendientes</h2>
     <div id="pending"><p class="muted">No hay propuestas cargadas.</p></div>
@@ -71,6 +75,7 @@ let currentWorld = "";
 let currentSession = "";
 let entityNames = {};
 let lastState = null;
+let failedRequest = null;
 
 async function api(path, options) {
   const init = Object.assign({headers:{"Content-Type":"application/json"}}, options || {});
@@ -147,6 +152,39 @@ function renderState(payload) {
   el("state").appendChild(makeCard("Relaciones registradas: " + (rels.length ? rels.map(r => (entityNames[r.to_entity_id] || r.to_entity_id) + " · " + r.axis + " " + r.value).join("; ") : "sin puntuaciones iniciales")));
   const eco = payload.eco_uses || [];
   el("state").appendChild(makeCard("Eco humano: " + (eco.length ? eco.map(x => (entityNames[x.target_entity_id] || x.target_entity_id) + " " + x.attempts + "/3 usados").join("; ") : "sin intentos registrados")));
+  clearChildren(el("pendingEvents"));
+  const pendingEvents = payload.pending_events || [];
+  if (!pendingEvents.length) {
+    el("pendingEvents").appendChild(makeCard("No hay eventos importantes pendientes.", "good"));
+  } else {
+    pendingEvents.forEach(item => {
+      const card = document.createElement("div"); card.className = "card";
+      const title = document.createElement("strong");
+      title.textContent = item.kind + " · " + (entityNames[item.entity_id] || item.entity_id || "evento mundial");
+      const description = document.createElement("p"); description.textContent = item.description;
+      const witnesses = document.createElement("p"); witnesses.className = "muted";
+      witnesses.textContent = "Testigos: " + ((item.witness_ids || []).map(id => entityNames[id] || id).join(", ") || "ninguno registrado");
+      const actions = document.createElement("div"); actions.className = "actions";
+      const approve = document.createElement("button"); approve.textContent = "Confirmar evento";
+      approve.onclick = async () => {
+        try {
+          await api("/api/sessions/" + currentSession + "/events/" + item.id + "/approve", {method:"POST",body:"{}"});
+          setStatus("Evento confirmado; sus cambios vinculados siguen sujetos a revisión", true);
+          await loadState();
+        } catch (err) { setStatus(err.message, false); }
+      };
+      const reject = document.createElement("button"); reject.textContent = "Rechazar evento";
+      reject.onclick = async () => {
+        try {
+          await api("/api/sessions/" + currentSession + "/events/" + item.id + "/reject", {method:"POST",body:"{}"});
+          setStatus("Evento rechazado; se rechazaron sus cambios vinculados", true);
+          await loadState();
+        } catch (err) { setStatus(err.message, false); }
+      };
+      actions.append(approve, reject); card.append(title, description, witnesses, actions);
+      el("pendingEvents").appendChild(card);
+    });
+  }
   clearChildren(el("pending"));
   if (!payload.pending_changes.length) {
     el("pending").appendChild(makeCard("No hay propuestas pendientes.", "good"));
@@ -227,29 +265,52 @@ el("importLore").onclick = async () => {
     setStatus("Lorebook importada: " + result.imported + " entradas", true);
   } catch (err) { setStatus(err.message, false); }
 };
+async function sendTurn(request) {
+  if (request.sessionId !== currentSession) {
+    setStatus("El reintento pertenece a otra partida. Selecciona esa partida para repetirlo.", false);
+    return;
+  }
+  const button = el("sendButton"); button.disabled = true;
+  try {
+    const result = await api("/api/sessions/" + request.sessionId + "/turns", {
+      method:"POST", body:JSON.stringify(request.payload)
+    });
+    await loadMessages();
+    await loadState();
+    failedRequest = null;
+    el("retryButton").hidden = true;
+    const pendingCount = (result.state.pending_changes || []).length + (result.state.pending_events || []).length;
+    setStatus((result.replayed ? "Turno recuperado sin duplicarlo" : "Turno guardado") + " · " + pendingCount + " revisión(es) pendiente(s)", true);
+  } catch (err) {
+    await loadMessages().catch(() => {});
+    addMessage("assistant", "No se pudo confirmar la respuesta: " + err.message, true);
+    setStatus(err.message, false);
+    failedRequest = request;
+    el("retryButton").hidden = false;
+  } finally { button.disabled = false; }
+}
 el("sendForm").onsubmit = async event => {
   event.preventDefault();
   if (!currentSession) { setStatus("Carga primero el mundo de prueba.", false); return; }
   const message = el("messageInput").value.trim();
   if (!message) return;
-  const button = el("sendButton"); button.disabled = true;
+  const requestId = (window.crypto && typeof window.crypto.randomUUID === "function")
+    ? window.crypto.randomUUID()
+    : ("req-" + Date.now() + "-" + Math.random().toString(16).slice(2));
+  const request = {
+    sessionId: currentSession,
+    payload: {
+      request_id: requestId,
+      text: message,
+      recipient_id: el("recipientSelect").value,
+      provider: el("providerSelect").value
+    }
+  };
   el("messageInput").value = "";
-  try {
-    const result = await api("/api/sessions/" + currentSession + "/turns", {
-      method:"POST", body:JSON.stringify({
-        request_id:(window.crypto && typeof window.crypto.randomUUID === "function") ? window.crypto.randomUUID() : ("req-" + Date.now() + "-" + Math.random().toString(16).slice(2)),
-        text:message, recipient_id:el("recipientSelect").value, provider:el("providerSelect").value
-      })
-    });
-    await loadMessages();
-    await loadState();
-    const pendingCount = result.state.pending_changes.length;
-    setStatus("Turno guardado · " + pendingCount + " propuesta(s) pendiente(s)", true);
-  } catch (err) {
-    await loadMessages().catch(() => {});
-    addMessage("assistant", "No se pudo generar la respuesta: " + err.message, true);
-    setStatus(err.message, false);
-  } finally { button.disabled = false; }
+  await sendTurn(request);
+};
+el("retryButton").onclick = async () => {
+  if (failedRequest) await sendTurn(failedRequest);
 };
 el("backup").onclick = async () => {
   try {
