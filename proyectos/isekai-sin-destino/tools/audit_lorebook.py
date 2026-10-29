@@ -188,6 +188,34 @@ for label, text in (("CONFIG_LIGERA.md", config), ("LOREBOOK_MAESTRA.md", master
 master_headers = re.findall(r"^### Entrada (7[0-7]) — .+$", master, flags=re.MULTILINE)
 ok(len(master_headers) == 8, f"La Lorebook maestra debe tener 8 encabezados Entry 70–77; encontró {len(master_headers)}.")
 ok(sorted(int(uid) for uid in master_headers) == list(range(70, 78)), "La Lorebook maestra debe numerar una vez cada Entry 70–77, sin duplicados.")
+
+master_uid_map = [(71, 70), (72, 71), (73, 72), (74, 73), (75, 74), (76, 75), (77, 77)]
+for ordinal, uid in master_uid_map:
+    marker = f"### Entrada {ordinal} — "
+    start = master.find(marker)
+    ok(start >= 0, f"Falta la entrada {ordinal} en la Lorebook maestra.")
+    if start < 0:
+        continue
+    possible_ends = [
+        position for position in (
+            master.find("\n### Entrada ", start + len(marker)),
+            master.find("\n### 34.1. Diagnóstico", start + len(marker)),
+        ) if position >= 0
+    ]
+    end = min(possible_ends) if possible_ends else len(master)
+    section = master[start:end]
+    content_marker = "**Content:** "
+    ok(content_marker in section, f"Entrada maestra {ordinal}: falta Content.")
+    if content_marker in section:
+        master_content = section.split(content_marker, 1)[1].strip()
+        canonical_entry = by_uid.get(uid)
+        ok(isinstance(canonical_entry, dict), f"Falta UID {uid} para entrada maestra {ordinal}.")
+        if isinstance(canonical_entry, dict):
+            ok(
+                master_content == str(canonical_entry.get("content", "")).strip(),
+                f"Entrada maestra {ordinal} no coincide con el Content de JSON UID {uid}.",
+            )
+
 ok("v1.19" in readme, "README de Isekai no menciona la revisión v1.19.")
 
 if errors:
