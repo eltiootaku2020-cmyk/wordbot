@@ -1,6 +1,6 @@
 # Roadmap de implementación — gestor local v0.1
 
-La CI más reciente aprobó 86 pruebas Python en Linux/Python 3.12 y comprobó sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40941934304.
+La CI más reciente aprobó 87 pruebas Python en Linux/Python 3.12 y comprobó sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40943636768.
 
 ## Fase 0 — Investigación y arquitectura
 - [x] Revisar clientes de roleplay (SillyTavern, RisuAI, Agnai).
@@ -240,3 +240,13 @@ CI aprobada con 83 pruebas Python y sintaxis JavaScript: https://github.com/elti
 - [x] CI: 86 pruebas Python aprobadas y sintaxis JavaScript correcta: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40941934304.
 - [x] Auditoría de Isekai v1.19: 659 comprobaciones aprobadas: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40941934333.
 - [ ] Prueba visual manual de Windows/Chromium sigue pendiente.
+
+
+## Actualización — 29-10-2026, integridad del deshacer (PR #12)
+
+- [x] Detectar si el estado actual difiere del estado posterior al turno que se quiere deshacer usando una huella SHA-256 guardada en el snapshot.
+- [x] Rechazar undo con 409 si una aprobación posterior cambió el estado, sin borrar el cambio ni alterar el reloj.
+- [x] Preservar el undo de snapshots antiguos cuando no hay una aprobación posterior registrada; bloquear conservadoramente si la hay.
+- [x] Mantener compatibilidad con undo/regeneración inmediata y actualizar la huella después de regenerar.
+- [x] CI PR #12: 87 pruebas Python y sintaxis JavaScript aprobadas: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40943636768.
+- [ ] Validar manualmente UI Windows/Chromium y campaña real de 50–100 turnos con reinicio/backup/restore.
