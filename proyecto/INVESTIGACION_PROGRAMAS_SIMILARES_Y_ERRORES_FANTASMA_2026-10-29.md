@@ -107,3 +107,28 @@ Se corrigió el botón a v1.19, se actualizó la documentación y se añadió un
 - PR #11: https://github.com/eltiootaku2020-cmyk/wordbot/pull/11
 - CI: 86 pruebas Python y sintaxis JavaScript correcta: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40941934304
 - Auditoría del Lorebook v1.19: 659 comprobaciones aprobadas: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40941934333
+
+
+## Tercer error fantasma: undo que borra una aprobación posterior (PR #12)
+
+### Secuencia reproducible
+1. Turno A crea una propuesta pendiente de amistad para Maelis, con evento fuente registrado.
+2. Turno B avanza el reloj hasta las 08:12 y termina correctamente.
+3. Se aprueba la propuesta pendiente de A después de B, creando una relación de valor 55 y marcando la fila como `accepted`.
+4. Antes del arreglo, el endpoint de undo de B respondía 200, restauraba el snapshot anterior a B (08:05) y eliminaba la relación recién aprobada, pero la propuesta A seguía en estado `accepted`.
+
+El defecto no era solo narrativo: contradecía el registro de auditoría y podía borrar hechos aprobados. La regresión se ejecutó primero contra el código anterior y falló exactamente porque devolvía 200 en lugar de 409.
+
+### Corrección integrada
+- PR #12: https://github.com/eltiootaku2020-cmyk/wordbot/pull/12
+- Se guarda una huella SHA-256 del estado mutable posterior a cada turno completado dentro del snapshot existente.
+- Undo compara el estado actual con esa huella y no modifica nada cuando el estado cambió tras el turno.
+- Los snapshots antiguos sin huella se pueden deshacer si no existe una aprobación aceptada posterior de otro turno; la huella se añade durante el undo protegido. Si el registro indica una aprobación posterior, se rechaza el undo por seguridad.
+- Se conservan los reintentos seguros, quitando la metadata de huella al comparar el snapshot preturno, y se actualiza la huella al terminar la regeneración.
+- CI: 87 pruebas Python aprobadas y sintaxis JavaScript correcta: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40943636768.
+
+## Siguientes posibles errores fantasma (candidatos, no defectos confirmados)
+
+7. Restauración de backup mientras hay una propuesta pendiente; comprobar que el registro accepted/pending se mantiene sincronizado con inventario, recursos, relaciones y presencia.
+8. Undo de un turno que contiene varios cambios relacionados con el mismo evento y luego rechazo/aprobación parcial de propuestas de otro turno.
+9. Respuestas manuales web generadas con contexto antiguo después de aprobar/rechazar una propuesta; la huella del prompt debería rechazar aplicar la respuesta si cualquier dato usado en ese contexto cambió.
