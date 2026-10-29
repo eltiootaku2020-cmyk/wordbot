@@ -8,7 +8,7 @@ Mejorar continuidad y recuperación del gestor local sin convertir ChatGPT/Gemin
 
 - Rama organizada de desarrollo: `docs/historias-organizadas`.
 - La rama `main` conserva únicamente `.gitignore`; el prototipo y la documentación están en `docs/historias-organizadas`.
-- Historial de CI: recuperación de turnos, 71 pruebas; destinos contradictorios, 72; movimientos de PNJ fuera de escena, 73; evidencia afirmativa, 75; continuidad extendida, 79; presencia/backup histórico, 81. La CI posterior al PR #7 aprobó 82 pruebas Python y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40937190743. Esto no sustituye la validación manual en Windows.
+- Historial de CI: recuperación de turnos, 71 pruebas; destinos contradictorios, 72; movimientos de PNJ fuera de escena, 73; evidencia afirmativa, 75; continuidad extendida, 79; presencia/backup histórico, 81; audiencia histórica, 82. La CI posterior al PR #8 aprobó 83 pruebas Python y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40939319271. Esto no sustituye la validación manual en Windows.
 - La suite existente incluye un escenario automatizado de 100 turnos breves con reinicialización de la base y copia/restauración; eso es una prueba de regresión local, no una simulación de todos los errores de una historia real.
 - El modo ChatGPT/Gemini web es manual: preparar prompt, abrir el sitio, copiar y pegar una respuesta JSON. No automatiza el navegador, no lee la cuenta y no requiere clave API.
 
@@ -55,11 +55,11 @@ No se realizaron llamadas reales a APIs ni pruebas manuales de las páginas de C
 
 ## Validación
 
-Las correcciones integradas incluyen recuperación tras reinicio, respaldo aislado por sesión, destinos contradictorios, movimientos fuera de escena, evidencia afirmativa, restauración con rollback, compatibilidad de presencia/backup histórico y protección de audiencia para datos heredados. La CI posterior al PR #7 aprobó 82 pruebas Python y sintaxis JavaScript correctamente (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40937190743). No se hicieron llamadas reales a cuentas ChatGPT/Gemini ni a APIs.
+Las correcciones integradas incluyen recuperación tras reinicio, respaldo aislado por sesión, movimientos y acciones validados, restauración con rollback, compatibilidad de presencia/backup histórico, protección de audiencia heredada y aislamiento privado al deshacer/regenerar. La CI posterior al PR #8 aprobó 83 pruebas Python y sintaxis JavaScript correctamente (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40939319271). No se hicieron llamadas reales a cuentas ChatGPT/Gemini ni a APIs.
 
 ## Trabajo restante para una primera versión fiable
 
-1. [x] CI: 82 pruebas Python y sintaxis JavaScript aprobadas (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40937190743).
+1. [x] CI: 83 pruebas Python y sintaxis JavaScript aprobadas (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40939319271).
 2. [x] Regresión de JSON truncado: el estado del juego no cambia; la respuesta corregida reutiliza el mismo turno.
 3. [x] Regresión de acciones hipotéticas/preguntas, cambios narrativos contradictorios y propuestas sin evidencia afirmativa.
 4. [x] Restauración exacta tras 100 turnos breves simulados: reinicializar SQLite, guardar copia, aplicar una mutación posterior, restaurar y comparar el estado, los mensajes y todas las tablas restaurables.
@@ -95,3 +95,12 @@ PR #7 quedó integrado en `docs/historias-organizadas` con commit `63710dd575774
 Cuando un mensaje anterior al sistema de audiencias conserva `recipient_entity_id`, el contexto mantiene ese límite y no se lo entrega a otro personaje. Para eventos, un vínculo a un mensaje fuente o testigos identificables permite aplicar las reglas existentes; si faltan ambos, el evento se excluye del contexto del modelo y el diagnóstico explica por qué. Los eventos no se borran y siguen disponibles para auditoría.
 
 Esto complementa la migración de presencia y la restauración de backups antiguos del PR #6. No reemplaza la inspección manual de otras variantes de datos históricos ni las pruebas de Windows/Chromium y la campaña real de 50–100 turnos.
+
+
+## Última actualización — PR #8: aislamiento privado a través de undo/regeneración
+
+PR #8 quedó integrado en `docs/historias-organizadas` con commit `312c10ab4e2cdabc9e92a2842765c7f70fb0b0a5`: https://github.com/eltiootaku2020-cmyk/wordbot/pull/8. La CI posterior a la integración aprobó **83 pruebas Python** y sintaxis JavaScript (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40939319271).
+
+La regresión nueva realiza una conversación privada con Maelis que contiene un código distinguible, deshace el turno y lo regenera con el mismo identificador de solicitud. El contexto compartido de Ivar no revela ni el código de la narración ni el del evento antes de deshacer, después de deshacer o después de regenerar. El contexto privado de Maelis sí recupera el diálogo tras la regeneración. El evento anulado queda en el turno de auditoría con estado rechazado.
+
+La prueba fortalece la interacción entre privacidad, testigos, undo y reintento idempotente, pero sigue usando un proveedor simulado. No sustituye la prueba manual de Windows/Chromium ni la campaña real de 50–100 turnos con ChatGPT/Gemini web.
