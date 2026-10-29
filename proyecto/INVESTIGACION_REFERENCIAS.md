@@ -197,3 +197,87 @@ Esta elección evita atar el canon a la ventana de un chat de consumo y permite 
 - SQLite backup API: https://www.sqlite.org/backup.html
 - OpenAI Terms of Use: https://openai.com/policies/row-terms-of-use/
 - OpenAI API billing: https://help.openai.com/en/articles/9039756-managing-billing-settings-on-the-chatgpt-web-and-api-platform
+
+
+---
+
+## Segunda ronda de investigación — proyectos muy cercanos al objetivo
+
+**Actualizado:** 29 de octubre de 2026. Esta ronda compara implementaciones públicas y además inspecciona el código actual del prototipo. Las referencias son diseños para estudiar, no dependencias que debamos instalar automáticamente.
+
+### 9. Openovel — narración en primer plano y mantenimiento de historia en segundo plano
+
+Repositorio: https://github.com/Feed-Scription/openovel  
+Licencia que declara el repositorio: Apache-2.0. Confirmar el archivo LICENSE de la versión exacta antes de reutilizar código.
+
+Openovel separa el ciclo de narración visible de un proceso de mantenimiento que actualiza archivos de historia. El estado narrativo se guarda en archivos simples en vez de depender obligatoriamente de una base vectorial. Es la semejanza conceptual más directa con la idea del usuario: la IA narra; otro componente conserva la continuidad.
+
+**Qué adoptar:** separación entre respuesta visible y mantenimiento del estado, contexto selectivo y datos de historia legibles por humanos.
+
+**Qué no copiar en v0.1:** un conjunto de agentes de fondo que puedan cambiar canon de forma autónoma. Primero validar el turno en una sola llamada estructurada y aplicar sus propuestas localmente. La documentación actual etiqueta el proyecto como beta/demo y señala que el nivel de prueba varía entre sistemas operativos; no asumir que está listo para nuestro Windows.
+
+### 10. Chronicler — niveles de memoria y visibilidad de secretos
+
+Repositorio: https://github.com/yantrikos/chronicler  
+El repositorio describe tres niveles: memoria efímera, inferencias revisables y canon duradero, más controles de visibilidad por memoria para evitar que un personaje conozca secretos que no le contaron. Licencia declarada: MIT; verificar la licencia del commit elegido antes de reutilizar código.
+
+**Qué adoptar:** etiquetar cada elemento como canon, hecho de partida, observación, rumor, hipótesis o propuesta; registrar quién lo sabe y de dónde salió; permitir revisar/corregir memorias inferidas.
+
+**Qué no adoptar todavía:** su sistema de memoria cognitiva y la infraestructura adicional. Nuestro registro local estructurado tiene que seguir siendo la autoridad para inventario, cantidades, reloj, estados y usos de poderes.
+
+### 11. RPG Tracker para SillyTavern — estado RPG y reversión
+
+Repositorio: https://github.com/Soyo5800/rpg-tracker-for-sillytavern
+
+El README lo califica como experimental. Rastrea estadísticas, fichas, inventarios, misiones, relaciones y estado del mundo, y documenta snapshots para volver atrás cuando se cambia o elimina una respuesta. Es una referencia funcional para el panel de estado y las consecuencias de regenerar mensajes.
+
+**Qué adoptar:** snapshot antes/después del turno, reversión de operaciones y pruebas de edición/regeneración. No reutilizar código sin comprobar primero licencia y avisos del repositorio.
+
+### 12. Open Dungeon — juego narrativo local y corrección de escenas
+
+Repositorio: https://github.com/newideas99/open-dungeon  
+El proyecto describe una aplicación de roleplay local con SQLite, archivos locales, controles Do/Say/Story, reintentar, borrar y editar pasajes, y resumen progresivo del historial. Declara licencia MIT; confirmar los componentes/recursos concretos antes de incorporarlos.
+
+**Qué adoptar:** controles explícitos para editar/reintentar escenas y almacenamiento local. Su resumen histórico puede ayudar a recuperar mensajes antiguos, pero no reemplaza tablas y eventos para datos exactos como los usos de Eco.
+
+### 13. Gamentic — pruebas en el límite del proveedor
+
+Repositorio: https://github.com/hec-ovi/gamentic
+
+El proyecto publica una arquitectura FastAPI + SQLite + interfaz web ligera y pruebas que simulan el modelo en el límite del servicio para que la base y la lógica puedan evaluarse sin llamadas de IA. Su objetivo de hardware/modelo local es diferente al nuestro; no hace falta traer su requisito de GPU, generación de imágenes o agentes por personaje.
+
+**Qué adoptar:** probar validadores, persistencia, conflictos y recuperación con respuestas simuladas; reservar las llamadas reales para pruebas de integración separadas.
+
+### 14. SillyTavern, RisuAI y la activación de Lorebook
+
+- SillyTavern: https://github.com/SillyTavern/SillyTavern
+- World Info / Lorebook: https://docs.sillytavern.app/usage/worldinfo/
+- RisuAI: https://github.com/risuai/RisuAI
+
+La documentación de World Info describe activación por claves, presupuesto de contexto, profundidad de búsqueda y contenido conciso. Advierte que insertar una ficha ayuda a orientar el modelo, pero no garantiza que obedezca el lore. Esto respalda la separación entre recuperar lore y validar hechos.
+
+**Qué adoptar:** presupuesto explícito, prioridad de fichas, historial de activación y una pantalla que muestre qué datos se enviaron al modelo. Una coincidencia parcial de texto no debe ser la única forma de decidir qué información recibe un personaje.
+
+### 15. OpenAI y Gemini — salida estructurada no es verdad semántica
+
+- OpenAI Structured Outputs: https://developers.openai.com/api/docs/guides/structured-outputs
+- Gemini Structured Output: https://ai.google.dev/gemini-api/docs/structured-output
+
+Ambos proveedores permiten restringir la salida a un esquema JSON compatible. Esto reduce errores de formato, pero no prueba que el efecto narrativo propuesto sea verdadero ni que respete el canon. El validador local sigue siendo obligatorio; el subconjunto exacto de JSON Schema se debe probar con el modelo/API elegido.
+
+### 16. Qué reveló la inspección del prototipo actual
+
+El código actual de `proyecto/app/src/canon_manager/main.py` ya recupera un contexto reducido, registra los turnos y conserva participantes, relaciones, inventario, Lorebook y usos de Eco. La inspección identifica cuatro tareas concretas antes de llamarlo fiable:
+
+1. **Conocimiento privado de PNJ — prioridad crítica.** El constructor de contexto recupera los últimos mensajes de toda la partida sin filtrar por destinatario, y recupera eventos recientes sin aplicar un filtro de testigos. En una escena privada, Maelis podría recibir contexto de una conversación ajena, o Ivar podría recibir información que nunca presenció. Se debe añadir alcance de conocimiento por evento/mensaje y filtrar por destinatario, testigos o información que alguien le haya contado.
+2. **Cambios cotidianos que hoy siempre quedan pendientes.** Los movimientos y operaciones de inventario se marcan para revisión en esta versión. Es prudente para evitar errores, pero no cumple el objetivo final de actualizar automáticamente cambios claros. Se necesita una política de riesgo: operaciones sencillas con evento fuente, IDs válidos, cantidad y causa verificables pueden autoaplicarse; cambios ambiguos o de alto impacto quedan pendientes.
+3. **Activación de lore.** El prototipo busca claves por subcadena dentro de mensaje, lugar y nombres, y detiene la selección a 12 entradas. Conviene usar coincidencia de frase/palabra configurable, calcular prioridad/coste, mostrar el motivo de activación y aplicar un presupuesto de contexto; mantener una opción para claves expresamente diseñadas como fragmentos.
+4. **Editar/regenerar una respuesta.** Hay idempotencia del mismo request ID, pero el plan de fiabilidad debe probar snapshots y reversión de los cambios derivados si se edita/borrra/regenera un mensaje. No se deben acumular efectos duplicados.
+
+Son hallazgos de revisión del código, no defectos confirmados en una partida real. Requieren pruebas reproducibles y correcciones antes de dar la versión por validada.
+
+## Decisión resultante de la segunda ronda
+
+Mantener el prototipo ligero actual: FastAPI + interfaz en Chromium + SQLite + un turno estructurado por llamada. Añadir primero seguridad de conocimiento, política de aplicación de cambios y reversión. Dejar Mem0, Graphiti, memoria de embeddings, bucles multiagente y generación de imágenes como opciones futuras, solo si las pruebas muestran que el registro estructurado y la recuperación selectiva no bastan.
+
+El programa seguirá sin extraer respuestas de la pestaña de ChatGPT de consumo. Los proveedores remotos se conectarán por APIs oficiales; la UI y los datos persistentes seguirán locales.
