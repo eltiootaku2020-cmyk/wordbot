@@ -113,3 +113,16 @@ El motor deberá:
 - Permitir que dos partidas descubran rutas y secretos diferentes sin alterar arbitrariamente la geografía establecida.
 
 Esta especificación es documental. Todavía no existe un grafo ejecutable ni una integración con SQLite.
+
+
+## Decisión aprobada: densidad equilibrada de lugares civilizados
+
+La distribución global de aldeas, campamentos, ruinas y escondites será **equilibrada**:
+- Varias aldeas pequeñas, separadas entre sí; no habrá una cadena de poblaciones que cubra todo el bosque.
+- Campamentos relativamente habituales cerca de rutas transitadas, recursos y áreas de expedición, con ocupación cambiante.
+- Ruinas y escondites repartidos por el territorio, sin que todos sean visibles o accesibles.
+- Amplias extensiones salvajes y subzonas sin presencia civilizada estable.
+- La distribución se ajustará a nodos, conexiones, recursos, seguridad, historia y territorios ecológicos; no a una cuota uniforme por zona.
+- La categoría equilibrada es una pauta de diseño global, no una probabilidad o garantía de encuentro para el protagonista.
+
+No se fijan cantidades ni localizaciones concretas. La decisión no modifica el principio de descubrimiento gradual.
