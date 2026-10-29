@@ -1,19 +1,19 @@
 # Isekai sin Destino
 
-**Versión propuesta:** v1.13 (registro interno con porcentajes, objetos, ubicaciones y órdenes; pendiente de probar en SpicyChat)  
+**Versión propuesta:** v1.14 (registro interno con porcentajes, objetos, ubicaciones y órdenes; pendiente de probar en SpicyChat)  
 **Rama:** `docs/historias-organizadas`  
 **Carpeta:** `proyectos/isekai-sin-destino/`
 
 ## Archivos
 - [Configuración ligera](CONFIG_LIGERA.md)
-- [Cuadro de reglas prioritarias v1.13](CUADRO_REGLAS_PRIORITARIAS.md)
-- [Registro interno y esquema cerrado v1.13](REGISTRO_INTERNO_ESQUEMA.md)
+- [Cuadro de reglas prioritarias v1.14](CUADRO_REGLAS_PRIORITARIAS.md)
+- [Registro interno y esquema cerrado v1.14](REGISTRO_INTERNO_ESQUEMA.md)
 - [Lorebook maestra, 76 entradas](LOREBOOK_MAESTRA.md)
 - [JSON de importación de Lorebook](LOREBOOK_IMPORT.json)
 - [Solución para historias largas](SOLUCION_HISTORIAS_LARGAS.md)
 - [Investigación aplicada: diálogo, continuidad y Eco vegetal](INVESTIGACION_DIALOGO_MEMORIA_Y_ECO_VEGETAL.md)
 
-## Registro v1.13
+## Registro v1.14
 - Porcentajes independientes 0–100 por eje: relaciones por pareja/dirección; habilidad solo tras demostración; interés tras declaración/patrón; sospecha con motivo y evidencia.
 - Los porcentajes miden intensidad, no probabilidad; 50% no es neutral universal. Delta +/−=subida/bajada; 0=sin cambio. Sin evidencia = «No registrado». La sospecha no prueba culpabilidad.
 - Ficha por PNJ/criatura relevante: identidad, estado, ubicación actual o última confirmada, habilidades, intereses, sospechas, conocimiento/fuente, vínculos, órdenes dadas y cumplimiento confirmado/desconocido.
@@ -33,7 +33,7 @@
 ## Coste de contexto y memoria
 - La documentación oficial indica 4.096 tokens de contexto y máximo de 180 tokens por respuesta en el plan Free. El contexto se comparte entre definición, historial reciente, instrucciones y Lorebook activada.
 - Las entradas de Lorebook se activan por palabras clave; no se carga toda la biblioteca en cada turno. En Free, la guía oficial estima alrededor de 740 tokens para Lorebook activa, así que conviene evitar que muchos registros se activen a la vez.
-- Los campos estáticos actuales: Personality 4386 caracteres; Scenario 684; Greeting 727; Example Dialogue 1217. Son caracteres, no tokens; juntos suman 7.014 caracteres y el contador visible de SpicyChat da el coste exacto.
+
 - El estado dinámico no se vuelve una base de datos oculta: puede mantenerse mientras siga en contexto, pero para recuperarlo tras un olvido hay que conservar `/guardar` fuera del chat.
 
 Fuentes oficiales:
@@ -41,14 +41,16 @@ Fuentes oficiales:
 - https://support.spicychat.ai/support/solutions/articles/153000260673-lorebooks
 - https://support.spicychat.ai/support/solutions/articles/153000260533-plans-and-what-s-included
 
+- Campos estáticos (caracteres): Personality 4631; Scenario 811; Greeting 845; Example Dialogue 1217. Caracteres no equivalen a tokens; verifica el coste real con el contador del editor SpicyChat.
+
 ## Validación
 - JSON válido sintácticamente; 76 entradas. Las entradas de estado nuevo están compactadas.
 - Personality por debajo de 5.000 caracteres.
 - Pendiente: probar importación y comportamiento en SpicyChat. GitHub no instala los cambios automáticamente.
 
 
-## Eco vegetal y objetos comunes v1.13
-- El descubrimiento de recuerdos de árboles se registra como experiencia sensorial, no visual; sus parámetros siguen sin confirmar.
-- Se añaden límites provisionales de prueba y un catálogo de objetos cotidianos posibles, sin modificar el inventario inicial.
+## Eco vegetal y objetos comunes v1.14
+- El descubrimiento de recuerdos de árboles se registra como experiencia sensorial, no visual; alcance, coste y mecanismo siguen sin confirmar.
+- Se añaden límites provisionales de prueba y un catálogo de objetos cotidianos posibles, y tres objetos comunes iniciales confirmados (pañuelo, bolsita vacía, cordel).
 - Se amplía la investigación con documentación oficial de SpicyChat y referencias de diseño de PNJ/diálogo.
 - JSON: 76 entradas; importación y comportamiento real siguen pendientes de probar en SpicyChat.
