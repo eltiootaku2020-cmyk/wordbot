@@ -1,6 +1,6 @@
 # Pruebas de aceptación del gestor local
 
-La aplicación no se considerará fiable por una demostración breve. La última CI pasa 28 pruebas automatizadas con datos simulados: persistencia/backups, esquema estricto, privacidad por audiencia, inspector Lorebook, turno de extremo a extremo, reintentos idempotentes, inventario, movimientos de PNJ, libro de recursos, compras y creación atómica de mundos. Eso no valida las llamadas reales a OpenAI/Gemini, el uso manual en Windows ni los casos de aceptación pendientes. Las pruebas de estado deben poder repetirse sin llamadas pagas.
+La aplicación no se considerará fiable por una demostración breve. La última CI pasa 32 pruebas automatizadas con datos simulados: persistencia/backups, esquema estricto, privacidad por audiencia, inspector Lorebook, turno de extremo a extremo, reintentos idempotentes, inventario, movimientos de PNJ, libro de recursos, compras y creación atómica de mundos. Eso no valida las llamadas reales a OpenAI/Gemini, el uso manual en Windows ni los casos de aceptación pendientes. Las pruebas de estado deben poder repetirse sin llamadas pagas.
 
 ## A. Persistencia y recuperación
 
@@ -182,4 +182,15 @@ Se considera apto para una primera partida cuando A, C, D, E, F, G, H e I pasan 
 5. Intentar deshacer un turno anterior mientras hay turnos posteriores activos: el programa debe responder 409 y no modificar el estado.
 6. Reiniciar y comprobar que los snapshots persisten; completar después una campaña de 50–100 turnos.
 
-**Cobertura actual:** CI valida restauración de inventario, recursos y reloj; auditoría de eventos/cambios; regeneración; y rechazo de undo fuera de orden. Falta ampliar casos de relaciones/poderes y probar manualmente la UI en Windows.
+**Cobertura actual:** CI valida inventario, recursos, reloj, una relación y el uso de Eco; auditoría de eventos/cambios; regeneración; y rechazo de undo fuera de orden. Falta probar manualmente la UI en Windows y realizar campaña larga.
+
+
+## S. Presupuesto local configurable de Lorebook
+
+1. Consultar `GET /api/settings`: por defecto muestra 4.500 caracteres y máximo ocho entradas.
+2. Guardar 500 caracteres y comprobar que persiste al volver a consultar el endpoint.
+3. Previsualizar una escena que activa dos entradas cuya suma excede el presupuesto; solo entra la primera que cabe y la segunda aparece en `omitted_lore_by_limit`.
+4. Intentar guardar 499 caracteres: la API responde 422 y no altera la preferencia anterior.
+5. Confirmar que el mismo presupuesto afecta el contexto de los turnos narrativos.
+
+**Cobertura actual:** CI valida persistencia, rango mínimo, selección de entradas y motivo de omisión. Pendiente ensayo manual de la interfaz en Windows y conteo exacto de tokens por proveedor.
