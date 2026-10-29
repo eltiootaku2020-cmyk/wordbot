@@ -15,7 +15,7 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 - Stack: Python/FastAPI, HTML/CSS/JavaScript para Chromium, SQLite, narrador simulado y adaptadores iniciales OpenAI/Gemini.
 - Flujo de ejemplo: «Hola, linda» dirigido a Maelis produce narración + evento + propuesta de cambio; la confianza queda pendiente si no existe valor inicial confirmado.
 - Preset Isekai v1.19: botón dedicado carga las 77 entradas del JSON de Lorebook, el reparto inicial y cinco objetos, y abre una sesión independiente por partida.
-- CI más reciente de fiabilidad: **83 pruebas Python aprobadas** y sintaxis JavaScript correcta: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40939319271. PR #1–#8 están integrados en `docs/historias-organizadas`; PR #8 añade una regresión combinada para garantizar que deshacer y regenerar un turno privado no filtre su contenido a otros personajes. No valida Windows manual ni una campaña real con modelo externo.
+- CI más reciente de fiabilidad: **86 pruebas Python aprobadas** y sintaxis JavaScript correcta: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40940906581. PR #1–#10 están integrados en `docs/historias-organizadas`; PR #9 impide regenerar un turno anulado fuera de orden y PR #10 extiende la protección a turnos fallidos y snapshots obsoletos. `main` permanece intacta. Esto no valida Windows manual ni una campaña real con modelo externo.
 - Pendiente: prueba manual en Windows con ChatGPT/Gemini web; exportación/restauración visual; campaña de 50–100 intercambios con chat externo; revisión de variantes históricas fuera de los casos ya cubiertos. Las llamadas API reales y la medición de coste son opcionales.
 - Documentos: `INVESTIGACION_REFERENCIAS.md`, `DECISIONES_TECNICAS.md`, `ROADMAP_IMPLEMENTACION.md`, `ARQUITECTURA.md`, `CONTRATO_RESPUESTA_IA.md`, `ESQUEMA_LOCAL.md`, `PRUEBAS_DE_ACEPTACION.md`.
 - Ubicación de trabajo: rama `docs/historias-organizadas`. La rama literal `main` aún no contiene las carpetas organizadas de mundos.
@@ -168,3 +168,13 @@ Cada prompt preparado devuelve una huella SHA-256 del contexto exacto. Al pegar 
 - Antes de deshacer, después de deshacer y después de regenerar, el contexto de escena de Ivar no contiene el mensaje ni el evento privado; el contexto privado de Maelis sí conserva el intercambio tras la regeneración.
 - La prueba verifica además que el evento del turno anulado permanece separado en el turno de auditoría y marcado como rechazado.
 - Pendiente: pruebas manuales en Windows/Chromium con ChatGPT/Gemini web, restauración visual con vista previa y campaña real de 50–100 turnos con reinicio/restauración.
+
+
+## Actualización de fiabilidad — 29-10-2026: reintentos con snapshots obsoletos (PR #9 y PR #10)
+
+- PR #9 integrado en `docs/historias-organizadas`: https://github.com/eltiootaku2020-cmyk/wordbot/pull/9. La CI aprobó 84 pruebas Python y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40940376539.
+- PR #10 integrado en `docs/historias-organizadas`: https://github.com/eltiootaku2020-cmyk/wordbot/pull/10. La CI aprobó **86 pruebas Python**, una advertencia no bloqueante y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40940906581.
+- Detectado: después de deshacer un turno, un turno fallido o una aprobación que cambia recursos/relaciones, el reintento antiguo podía pretender reutilizar una instantánea anterior.
+- Corregido: un reintento de turno anulado/fallido se rechaza si existen turnos posteriores, si falta/no se puede leer el snapshot o si este no coincide exactamente con el estado actual. Se conserva el reintento si no cambió el estado y el snapshot sigue siendo válido.
+- Pendiente: prueba manual Windows/Chromium, puente web real de ChatGPT/Gemini, campaña narrativa de 50–100 intercambios y compatibilidad con otras variantes históricas no cubiertas. La CI no se debe presentar como prueba de navegador real.
+- Investigación comparativa y matriz de futuros errores fantasma: `proyecto/INVESTIGACION_PROGRAMAS_SIMILARES_Y_ERRORES_FANTASMA_2026-10-29.md`.
