@@ -11,7 +11,7 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 
 ### 1. Isekai sin Destino
 - Carpeta: `proyectos/isekai-sin-destino/`
-- Versión de configuración: v1.15 propuesta (pendiente de prueba); Lorebook ampliada con encuentros emergentes, porcentajes independientes, objetos/ubicación, órdenes de entidades y tres objetos comunes iniciales.
+- Versión de configuración: Personality y esquema de continuidad v1.15; Lorebook revisada v1.16 (76 entradas, activadores depurados y contenido contaminado corregido). Importación y comportamiento real siguen pendientes de probar.
 - Archivos: `CONFIG_LIGERA.md`, `CUADRO_REGLAS_PRIORITARIAS.md`, `REGISTRO_INTERNO_ESQUEMA.md`, `LOREBOOK_MAESTRA.md`, `LOREBOOK_IMPORT.json`, `README.md`.
 - Lorebook: 76 entradas.
 - Cambios recientes: cuadro prioritario v1.15; registro interno cerrado y porcentual con delta 0=sin cambio; reloj por seis bloques de cuatro horas; mini mapa progresivo que solo revela lo conocido por el protagonista; reloj con cabecera dinámica para que el saludo del Día 1 no se repita; encuentros aleatorios controlados; persistencia de estado de monstruos y PNJ; los compañeros conservan recuerdos; un monstruo muerto no reaparece como el mismo individuo sin causa; Eco mantiene usos y efectos por objetivo; se registran promesas, objetos y animales afectados por Eco/hipnosis; los vínculos incluyen sospechas, discusiones, amistad, respeto, deudas y conflictos, no solo romance; los compañeros solo reaccionan a hechos que presenciaron o les contaron, incluso si se enteran después; los PNJ cercanos pueden iniciar diálogo espontáneamente sin que el usuario los nombre o mire, con 1–2 intervenciones naturales por respuesta de grupo y sin frases sueltas.
@@ -20,7 +20,7 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 - Persistencia práctica: el bot puede generar `/guardar`, pero SpicyChat no guarda por instrucciones un estado RPG externo. La partida necesita un punto de guardado copiado fuera del chat para recuperarla si el contexto se pierde.
 - El plan Free tiene 4.096 tokens de contexto compartidos y aproximadamente 740 tokens disponibles para Lorebook activada (según documentación oficial, cifras sujetas a cambios); revisar el contador del editor. Las entradas nuevas permanecen compactas y activadas por palabras clave.
 - Diagnóstico añadido: `proyectos/isekai-sin-destino/SOLUCION_HISTORIAS_LARGAS.md`. SpicyChat no garantiza el estado exacto de un RPG a partir de prompts; se comparan procedimiento de guardado manual, SillyTavern para uso personal y una aplicación con base de datos por usuario.
-- Pendiente: probar realmente la propuesta v1.10 en SpicyChat; comprobar los bloques de cuatro horas, el mini mapa, la regla de monstruos reaparecidos y el registro de promesas/Eco; decidir si se seguirá en SpicyChat o se probará una interfaz con resúmenes y recuperación.
+- Pendiente: probar la Lorebook v1.16 en SpicyChat; comprobar los bloques de cuatro horas, el mini mapa, la regla de monstruos reaparecidos y el registro de promesas/Eco; decidir si se seguirá en SpicyChat o se probará una interfaz con resúmenes y recuperación.
 
 ### 2. DanMachi
 - Carpeta: `proyectos/danmachi/`
@@ -33,6 +33,16 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 - Narración: encuentros abiertos; PNJ cercanos pueden hacer comentarios naturales, sin forzar que todos hablen. Solo reaccionan a hechos presenciados o contados.
 - Protagonista: base provisional de adulto recién llegado, sin Familia/Falna/poder original confirmado; identidad y decisiones siguen pendientes.
 - Pendiente: prueba en SpicyChat. No está instalado ni validado, y no hay JSON de importación porque el exportador no ha sido verificado.
+
+### 3. Gestor local de canon, Lorebooks y continuidad
+- Carpeta: `proyecto/`
+- Estado: propuesta de producto v0.1; solo documentación, aplicación aún no implementada.
+- Objetivo: la PC conserva los mensajes, el canon, fichas, inventario, relaciones, reloj, recursos, usos de poderes y eventos; la IA recibe contexto selectivo y devuelve narración más cambios estructurados.
+- Flujo: construir contexto relevante → pedir respuesta estructurada → validar con reglas locales → aplicar cambios válidos en una transacción SQLite → guardar registro de eventos y mostrar la narración.
+- Documentos: `README.md`, `ARQUITECTURA.md`, `CONTRATO_RESPUESTA_IA.md`, `ESQUEMA_LOCAL.md`, `PRUEBAS_DE_ACEPTACION.md`.
+- Principio central: la IA propone; el validador decide qué se convierte en estado oficial. Los cambios ambiguos/irreversibles pueden esperar aprobación. No enviar toda la Lorebook en cada turno ni insertar guardados largos en el chat.
+- Siguiente paso: implementar prototipo local y validar persistencia, contexto selectivo, agencia del protagonista, inventario, reloj, relaciones, Eco, restauración y separación entre mundos.
+- Ubicación de trabajo: rama `docs/historias-organizadas`. La rama literal `main` aún solo contiene `.gitignore`; no se movieron las carpetas organizadas de mundos ni lorebooks a `main` en esta tarea.
 
 ## Separación de ramas
 
