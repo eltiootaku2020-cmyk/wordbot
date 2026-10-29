@@ -40,8 +40,70 @@ settings = Settings()
 logger = logging.getLogger(__name__)
 
 
-def _process_is_alive(pid_value: Any) -> bool:
-    """Return whether a recorded local process still exists, on Windows and POSIX."""
+def _process_start_token(pid_value: Any) -> str | None:
+    """Return a stable process-start identity where the OS exposes one.
+
+    Linux uses /proc start ticks; Windows uses the process creation FILETIME.
+    Unknown platforms fail closed for PID-reuse detection: a live PID is kept
+    rather than risking interruption of a legitimate generation.
+    """
+    try:
+        pid = int(pid_value)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    if pid <= 0:
+        return None
+
+    if os.name == "nt":
+        import ctypes
+        from ctypes import wintypes
+
+        class FILETIME(ctypes.Structure):
+            _fields_ = [("dwLowDateTime", wintypes.DWORD), ("dwHighDateTime", wintypes.DWORD)]
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+        kernel32.OpenProcess.restype = wintypes.HANDLE
+        handle = kernel32.OpenProcess(0x1000, False, pid)
+        if not handle:
+            return None
+        try:
+            creation, exit_time, kernel_time, user_time = FILETIME(), FILETIME(), FILETIME(), FILETIME()
+            get_times = kernel32.GetProcessTimes
+            get_times.argtypes = (
+                wintypes.HANDLE,
+                ctypes.POINTER(FILETIME),
+                ctypes.POINTER(FILETIME),
+                ctypes.POINTER(FILETIME),
+                ctypes.POINTER(FILETIME),
+            )
+            get_times.restype = wintypes.BOOL
+            if not get_times(
+                handle, ctypes.byref(creation), ctypes.byref(exit_time),
+                ctypes.byref(kernel_time), ctypes.byref(user_time)
+            ):
+                return None
+            ticks = (creation.dwHighDateTime << 32) | creation.dwLowDateTime
+            return str(ticks)
+        finally:
+            kernel32.CloseHandle(handle)
+
+    # /proc/<pid>/stat field 22 is the process start time in clock ticks.
+    # Split after the final ')' because the comm field itself may contain spaces.
+    stat_path = Path(f"/proc/{pid}/stat")
+    if stat_path.exists():
+        try:
+            stat_text = stat_path.read_text(encoding="utf-8")
+            closing_paren = stat_text.rfind(")")
+            fields = stat_text[closing_paren + 2:].split()
+            return fields[19] if len(fields) > 19 else None
+        except (OSError, IndexError):
+            return None
+    return None
+
+
+def _process_is_alive(pid_value: Any, expected_start_token: Any = None) -> bool:
+    """Check process liveness and, where possible, distinguish PID reuse."""
     try:
         pid = int(pid_value)
     except (TypeError, ValueError, OverflowError):
@@ -49,6 +111,7 @@ def _process_is_alive(pid_value: Any) -> bool:
     if pid <= 0:
         return False
 
+    alive = False
     if os.name == "nt":
         # os.kill(pid, 0) is not a safe liveness probe on Windows; OpenProcess is.
         import ctypes
@@ -59,61 +122,76 @@ def _process_is_alive(pid_value: Any) -> bool:
         handle = kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
         if handle:
             kernel32.CloseHandle(handle)
-            return True
-        return ctypes.get_last_error() == 5  # ERROR_ACCESS_DENIED means the PID exists.
+            alive = True
+        else:
+            alive = ctypes.get_last_error() == 5  # ERROR_ACCESS_DENIED means the PID exists.
+    else:
+        try:
+            os.kill(pid, 0)
+            alive = True
+        except ProcessLookupError:
+            alive = False
+        except PermissionError:
+            alive = True
+        except OSError:
+            alive = False
 
-    try:
-        os.kill(pid, 0)
-        return True
-    except ProcessLookupError:
+    if not alive:
         return False
-    except PermissionError:
-        return True
-    except OSError:
-        return False
+    if expected_start_token is not None:
+        actual_start_token = _process_start_token(pid)
+        if actual_start_token is not None and str(actual_start_token) != str(expected_start_token):
+            return False
+    return True
 
 
 database = Database(settings.db_path)
 database.initialize()
 
-def recover_interrupted_turns() -> int:
-    """Mark unfinished user turns as failed after an application restart.
-
-    The original user text and audience metadata remain available so the UI can
-    offer a safe retry. No narrator output or state change is fabricated.
-    """
+def _recover_interrupted_turns(conn, session_id: str | None = None) -> int:
+    """Recover orphaned processing markers inside the caller's SQLite transaction."""
     recovered = 0
-    with database.transaction() as conn:
-        rows = conn.execute(
-            "SELECT id,metadata_json FROM messages "
-            "WHERE role='user' AND generation_status='processing'"
-        ).fetchall()
-        for row in rows:
-            try:
-                metadata = json.loads(row["metadata_json"] or "{}")
-                if not isinstance(metadata, dict):
-                    metadata = {}
-            except (TypeError, ValueError, json.JSONDecodeError):
+    query = (
+        "SELECT id,metadata_json FROM messages "
+        "WHERE role='user' AND generation_status='processing'"
+    )
+    params: tuple[Any, ...] = ()
+    if session_id is not None:
+        query += " AND session_id=?"
+        params = (session_id,)
+    rows = conn.execute(query, params).fetchall()
+    for row in rows:
+        try:
+            metadata = json.loads(row["metadata_json"] or "{}")
+            if not isinstance(metadata, dict):
                 metadata = {}
-            owner_pid = metadata.get("processing_owner_pid")
-            if owner_pid is not None and _process_is_alive(owner_pid):
-                # Another application instance still owns this generation. It is
-                # unsafe to release its session lock merely because this instance
-                # has just started against the same SQLite file.
-                continue
-            metadata.pop("processing_owner_pid", None)
-            metadata["recovered_after_restart"] = True
-            metadata["recovery_note"] = (
-                "El turno se interrumpió antes de terminar. No se aplicaron "
-                "cambios; revisa el mensaje y reintenta."
-            )
-            cursor = conn.execute(
-                "UPDATE messages SET generation_status='failed',metadata_json=? "
-                "WHERE id=? AND role='user' AND generation_status='processing'",
-                (json.dumps(metadata, ensure_ascii=False), row["id"])
-            )
-            recovered += max(0, cursor.rowcount)
+        except (TypeError, ValueError, json.JSONDecodeError):
+            metadata = {}
+        owner_pid = metadata.get("processing_owner_pid")
+        owner_start_token = metadata.get("processing_owner_start_token")
+        if owner_pid is not None and _process_is_alive(owner_pid, owner_start_token):
+            # Never release a marker while its recorded owner is still the same process.
+            continue
+        metadata.pop("processing_owner_pid", None)
+        metadata.pop("processing_owner_start_token", None)
+        metadata["recovered_after_restart"] = True
+        metadata["recovery_note"] = (
+            "El turno se interrumpió antes de terminar. No se aplicaron "
+            "cambios; revisa el mensaje y reintenta."
+        )
+        cursor = conn.execute(
+            "UPDATE messages SET generation_status='failed',metadata_json=? "
+            "WHERE id=? AND role='user' AND generation_status='processing'",
+            (json.dumps(metadata, ensure_ascii=False), row["id"])
+        )
+        recovered += max(0, cursor.rowcount)
     return recovered
+
+
+def recover_interrupted_turns() -> int:
+    """Recover unfinished turns at startup without interrupting live owners."""
+    with database.transaction() as conn:
+        return _recover_interrupted_turns(conn)
 
 
 @asynccontextmanager
@@ -2481,6 +2559,10 @@ async def submit_turn(session_id: str, payload: TurnRequest):
         session = session_row(conn, session_id)
         if session is None:
             raise HTTPException(status_code=404, detail="Partida no encontrada.")
+        # Recheck the session's owner on every turn request. If an instance died
+        # after startup recovery observed it alive, the next request can release
+        # the orphan without requiring another application restart.
+        _recover_interrupted_turns(conn, session_id=session_id)
         if payload.recipient_id:
             if conn.execute(
                 "SELECT 1 FROM entities WHERE id=? AND world_id=?",
@@ -2610,6 +2692,7 @@ async def submit_turn(session_id: str, payload: TurnRequest):
             user_message_id = existing_user["id"]
             turn_index = int(existing_user["turn_index"])
             old_metadata["processing_owner_pid"] = os.getpid()
+            old_metadata["processing_owner_start_token"] = _process_start_token(os.getpid())
             conn.execute(
                 "UPDATE messages SET generation_status='processing',metadata_json=? WHERE id=?",
                 (json.dumps(old_metadata, ensure_ascii=False), user_message_id)
@@ -2627,7 +2710,8 @@ async def submit_turn(session_id: str, payload: TurnRequest):
                  json.dumps({
                      "visibility": payload.visibility,
                      "audience_ids": audience_ids,
-                     "processing_owner_pid": os.getpid()
+                     "processing_owner_pid": os.getpid(),
+                     "processing_owner_start_token": _process_start_token(os.getpid())
                  }, ensure_ascii=False))
             )
         create_turn_snapshot(conn, session_id, turn_id, turn_index)
@@ -2722,6 +2806,7 @@ async def submit_turn(session_id: str, payload: TurnRequest):
             except (TypeError, ValueError, json.JSONDecodeError):
                 user_metadata = {}
             user_metadata.pop("processing_owner_pid", None)
+            user_metadata.pop("processing_owner_start_token", None)
             conn.execute(
                 "UPDATE messages SET generation_status='complete',metadata_json=? WHERE id=?",
                 (json.dumps(user_metadata, ensure_ascii=False), user_message_id)
