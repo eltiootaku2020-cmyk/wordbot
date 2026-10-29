@@ -1387,3 +1387,73 @@ def test_context_inspector_explains_private_messages_and_events_excluded_for_ano
         assert excluded_private_events
         assert any("audiencia privada" in item["reason"] for item in excluded_private_events)
         assert not any("confidencial" in item.get("description", "") for item in context["recent_events"])
+
+
+
+def test_local_lorebook_budget_persists_and_changes_selection():
+    with TestClient(app) as client:
+        previous = client.get("/api/settings")
+        assert previous.status_code == 200, previous.text
+        previous_budget = previous.json()["lore_budget_chars"]
+        started = client.post(
+            "/api/worlds/start",
+            json={
+                "name": "Presupuesto Lorebook " + uuid.uuid4().hex,
+                "canon_text": "Prueba de selección de fichas con presupuesto editable.",
+                "protagonist_name": "Protagonista",
+                "session_name": "Presupuesto",
+                "location": "Claro del bosque",
+                "cast": [
+                    {"name": "Maelis Orven", "kind": "character", "profile": "Maga."}
+                ],
+                "initial_inventory": [],
+                "initial_resources": []
+            }
+        )
+        assert started.status_code == 200, started.text
+        world_id, session_id = started.json()["world_id"], started.json()["session_id"]
+        try:
+            with database.transaction() as conn:
+                for idx, (key, title, priority) in enumerate([
+                    ("presupuesto-alpha", "Ficha Alpha", 1),
+                    ("presupuesto-beta", "Ficha Beta", 2)
+                ]):
+                    conn.execute(
+                        "INSERT INTO lore_entries(id,world_id,external_uid,title,keywords_json,content,priority,canon_status) "
+                        "VALUES(?,?,?,?,?,?,?,?)",
+                        (
+                            uuid.uuid4().hex, world_id, f"test-budget-{idx}", title,
+                            json.dumps([key]), "x" * 320, priority, "confirmed"
+                        )
+                    )
+
+            saved = client.post("/api/settings", json={"lore_budget_chars": 500})
+            assert saved.status_code == 200, saved.text
+            assert saved.json()["lore_budget_chars"] == 500
+            assert client.get("/api/settings").json()["lore_budget_chars"] == 500
+
+            preview = client.post(
+                f"/api/sessions/{session_id}/context-preview",
+                json={
+                    "text": "presupuesto-alpha y presupuesto-beta",
+                    "visibility": "scene"
+                }
+            )
+            assert preview.status_code == 200, preview.text
+            context = preview.json()["context"]
+            diagnostics = preview.json()["diagnostics"]
+            selected_titles = [item["title"] for item in context["relevant_lore"]]
+            assert selected_titles == ["Ficha Alpha"]
+            assert diagnostics["lore_chars_budget"] == 500
+            assert diagnostics["lore_chars_used"] <= 500
+            omitted = {item["title"]: item["reason"] for item in diagnostics["omitted_lore_by_limit"]}
+            assert omitted["Ficha Beta"] == "presupuesto de caracteres"
+
+            invalid = client.post("/api/settings", json={"lore_budget_chars": 499})
+            assert invalid.status_code == 422
+        finally:
+            restore = client.post(
+                "/api/settings",
+                json={"lore_budget_chars": previous_budget}
+            )
+            assert restore.status_code == 200, restore.text
