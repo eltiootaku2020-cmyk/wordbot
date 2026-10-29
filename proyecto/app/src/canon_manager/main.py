@@ -2705,7 +2705,7 @@ def undo_latest_turn(session_id: str, turn_id: str):
             raise HTTPException(status_code=404, detail="Partida no encontrada.")
 
         assistant = conn.execute(
-            "SELECT id,turn_index,content,recipient_entity_id,metadata_json FROM messages "
+            "SELECT id,turn_index,content,recipient_entity_id,metadata_json,created_at FROM messages "
             "WHERE session_id=? AND turn_id=? AND role='assistant' AND generation_status='complete'",
             (session_id, turn_id)
         ).fetchone()
@@ -2749,17 +2749,38 @@ def undo_latest_turn(session_id: str, turn_id: str):
                 status_code=409,
                 detail="La instantánea no contiene un estado verificable; no se deshizo el turno."
             )
+        current_mutable_state = capture_turn_state(conn, session_id)
+        current_state_hash = turn_state_fingerprint(current_mutable_state)
         expected_post_hash = prior_state.get("_post_turn_state_hash")
         if not isinstance(expected_post_hash, str) or len(expected_post_hash) != 64:
-            raise HTTPException(
-                status_code=409,
-                detail=(
-                    "Este turno se guardó con una versión anterior y no tiene una huella del estado posterior. "
-                    "No lo deshice para evitar borrar cambios que no se pueden verificar; continúa desde el "
-                    "estado actual o restaura una copia."
+            # Backward compatibility for snapshots created before post-state hashes
+            # existed: all out-of-band mutations of authoritative state must have
+            # an accepted state_changes audit row. Refuse the legacy undo if any
+            # such approval happened at or after this assistant turn.
+            later_approval = conn.execute(
+                "SELECT 1 FROM state_changes WHERE session_id=? AND turn_id<>? "
+                "AND status='accepted' AND applied_at IS NOT NULL "
+                "AND julianday(applied_at)>=julianday(?) LIMIT 1",
+                (session_id, turn_id, assistant["created_at"])
+            ).fetchone()
+            if later_approval:
+                raise HTTPException(
+                    status_code=409,
+                    detail=(
+                        "El turno usa una instantánea antigua y hay una aprobación posterior que podría "
+                        "desaparecer al deshacer. No se modificó nada; continúa desde el estado actual."
+                    )
                 )
+            # If no post-turn approval exists, preserve undo for older sessions by
+            # recording a fingerprint of the current state while the SQLite writer
+            # lock is held. All future undo attempts can then verify it exactly.
+            prior_state["_post_turn_state_hash"] = current_state_hash
+            conn.execute(
+                "UPDATE snapshots SET state_json=? WHERE session_id=? AND turn_id=?",
+                (json.dumps(prior_state, ensure_ascii=False, separators=(",", ":")),
+                 session_id, turn_id)
             )
-        current_state_hash = turn_state_fingerprint(capture_turn_state(conn, session_id))
+            expected_post_hash = current_state_hash
         if not hmac.compare_digest(expected_post_hash, current_state_hash):
             raise HTTPException(
                 status_code=409,
