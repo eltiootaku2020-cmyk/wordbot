@@ -1723,6 +1723,138 @@ def test_undo_latest_turn_restores_state_and_allows_safe_regeneration(monkeypatc
 
 
 
+def test_undo_refuses_to_overwrite_a_later_approved_state_change(monkeypatch):
+    with TestClient(app) as client:
+        started, entities = _create_state_ops_world(client)
+        session_id = started["session_id"]
+        maelis_id = entities["Maelis Orven"]["id"]
+        provider_state = {"calls": 0}
+
+        class RelationshipProvider:
+            name = "mock"
+
+            async def generate(self, payload):
+                provider_state["calls"] += 1
+                if provider_state["calls"] == 1:
+                    return NarratorResponse(
+                        narration="Maelis escucha al protagonista hablar con sinceridad.",
+                        elapsed_minutes=5,
+                        events=[
+                            EventProposal(
+                                ref="pending-friendship-source",
+                                kind="dialogue",
+                                entity_id=maelis_id,
+                                description="El protagonista conversa con Maelis sobre la ayuda recibida.",
+                                witness_ids=list(payload["context"]["audience_ids"])
+                            )
+                        ],
+                        state_changes=[
+                            StateChangeProposal(
+                                ref="pending-friendship-change",
+                                entity_id=maelis_id,
+                                field="friendship",
+                                operation="delta",
+                                numeric_value=5,
+                                text_value="",
+                                reason="La conversación puede mejorar la amistad, pero requiere aprobación.",
+                                event_ref="pending-friendship-source",
+                                requires_approval=True
+                            )
+                        ]
+                    )
+                return NarratorResponse(
+                    narration="El grupo continúa caminando unos minutos.",
+                    elapsed_minutes=7
+                )
+
+        monkeypatch.setattr(
+            main_module, "make_provider",
+            lambda provider_name, settings: RelationshipProvider()
+        )
+
+        first = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json={
+                "request_id": "ghost-approval-turn-001",
+                "text": "Le digo a Maelis que agradezco su ayuda.",
+                "provider": "mock"
+            }
+        )
+        assert first.status_code == 200, first.text
+        first_turn_id = first.json()["turn_id"]
+        assert first.json()["state"]["state"]["time_label"].endswith("08:05")
+
+        with database.connection() as conn:
+            pending_change = conn.execute(
+                "SELECT id,status FROM state_changes WHERE session_id=? AND turn_id=? "
+                "AND external_ref='pending-friendship-change'",
+                (session_id, first_turn_id)
+            ).fetchone()
+        assert pending_change is not None
+        assert pending_change["status"] == "pending"
+
+        second = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json={
+                "request_id": "ghost-approval-turn-002",
+                "text": "Seguimos caminando por el claro.",
+                "provider": "mock"
+            }
+        )
+        assert second.status_code == 200, second.text
+        second_turn_id = second.json()["turn_id"]
+        assert second.json()["state"]["state"]["time_label"].endswith("08:12")
+        assert provider_state["calls"] == 2
+
+        approved = client.post(
+            f"/api/sessions/{session_id}/changes/{pending_change['id']}/approve",
+            json={"initial_value": 50}
+        )
+        assert approved.status_code == 200, approved.text
+        assert approved.json()["accepted_value"] == 55
+
+        with database.connection() as conn:
+            relationship_before_undo = conn.execute(
+                "SELECT value FROM relationships WHERE session_id=? "
+                "AND to_entity_id=? AND axis='friendship'",
+                (session_id, maelis_id)
+            ).fetchone()
+            change_before_undo = conn.execute(
+                "SELECT status FROM state_changes WHERE id=?",
+                (pending_change["id"],)
+            ).fetchone()
+        assert relationship_before_undo is not None
+        assert relationship_before_undo["value"] == 55
+        assert change_before_undo["status"] == "accepted"
+
+        # Undoing turn B must refuse to roll back the approved relationship change
+        # that happened after B. The audit row for A must not claim a change that
+        # is missing from the authoritative state.
+        undo = client.post(
+            f"/api/sessions/{session_id}/turns/{second_turn_id}/undo",
+            json={}
+        )
+        assert undo.status_code == 409, undo.text
+        assert "estado de la partida cambió" in undo.json()["detail"].casefold()
+        assert provider_state["calls"] == 2
+
+        current = client.get(f"/api/sessions/{session_id}/state").json()
+        assert current["state"]["time_label"].endswith("08:12")
+        with database.connection() as conn:
+            relationship_after_undo = conn.execute(
+                "SELECT value FROM relationships WHERE session_id=? "
+                "AND to_entity_id=? AND axis='friendship'",
+                (session_id, maelis_id)
+            ).fetchone()
+            change_after_undo = conn.execute(
+                "SELECT status FROM state_changes WHERE id=?",
+                (pending_change["id"],)
+            ).fetchone()
+        assert relationship_after_undo is not None
+        assert relationship_after_undo["value"] == 55
+        assert change_after_undo["status"] == "accepted"
+
+
 def test_undone_turn_cannot_be_regenerated_after_a_later_turn(monkeypatch):
     with TestClient(app) as client:
         started, _entities = _create_state_ops_world(client)
