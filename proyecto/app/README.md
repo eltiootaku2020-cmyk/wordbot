@@ -75,7 +75,7 @@ Nota histórica: las ejecuciones de 15, 38, 73 y 79 pruebas pertenecen a revisio
 ## Hallazgos importantes antes de una campaña larga
 
 - **Privacidad básica implementada y probada en CI:** el selector permite escena/grupo o privado con destinatario; mensajes y eventos se filtran por audiencia/testigos. La comprobación actual aún necesita una prueba manual en Windows para los flujos visuales.
-- La migración de la tabla de presencia y la restauración de backups históricos sin `presence_status` pasan CI; los mensajes/eventos antiguos sin metadatos de audiencia siguen pendientes de compatibilidad.
+- Las operaciones de inventario y movimiento se validan localmente; las compras requieren acción afirmativa del usuario, coste y saldo suficientes. Las propuestas ambiguas o de alto impacto permanecen pendientes. La migración de la tabla de presencia y la restauración de backups históricos sin `presence_status` también pasan CI; los mensajes/eventos antiguos sin metadatos de audiencia siguen pendientes de compatibilidad.
 - Faltan la prueba manual de edición/undo e intercambio copiar/pegar en Windows, la restauración visual con vista previa y una campaña narrativa de 50–100 turnos con un chat externo. La compatibilidad de esquema de presencia y backups históricos sin `presence_status` ya está cubierta por CI; todavía debe revisarse el tratamiento de mensajes/eventos antiguos sin metadatos de audiencia.
 
 No expongas el servidor a Internet: el prototipo está pensado para ejecutarse solo en el PC.
