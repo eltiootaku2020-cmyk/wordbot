@@ -66,3 +66,6 @@ Este documento evita que una propuesta nueva sobrescriba silenciosamente datos a
 ## Estado de implementación
 
 Todo el contenido de esta carpeta es documentación y datos de diseño. No debe etiquetarse como función ejecutable ni como integración terminada. Para implementarlo en Word Bot habrá que diseñar módulos, migraciones, validadores, API, interfaz y pruebas en una fase técnica separada.
+
+
+- **Decisión aprobada:** presencia humana y civilizada combinada en el Bosque de las Bestias: aldeas aisladas, campamentos temporales, ruinas y escondites. Se aprueban las categorías y su coexistencia posible, no sus nombres, cantidades, ubicaciones, poblaciones, facciones ni historias concretas. Cada lugar tendrá estado propio y conocimiento separado del protagonista.
