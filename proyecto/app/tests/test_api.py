@@ -240,11 +240,20 @@ def test_private_turn_is_not_visible_to_other_npcs():
                 conn, session, "¿Qué dijo Maelis?", ivar["id"],
                 "future-turn-not-yet-created", visibility="scene"
             )
+            private_context_for_ivar = build_context(
+                conn, session, "Hola", ivar["id"],
+                "future-private-turn", visibility="private",
+                audience_ids=[session["protagonist_entity_id"], ivar["id"]]
+            )
 
-        # A private exchange and its events are omitted from Ivar's context.
+        # A private exchange and its events are omitted from Ivar's context,
+        # even though Maelis remains physically present in the wider scene.
         assert not any("Hola, linda" in msg["content"] for msg in context_for_ivar["recent_messages"])
         assert not any("incomodidad ante un saludo" in event["description"] for event in context_for_ivar["recent_events"])
-        assert all(person["id"] != maelis["id"] or person["id"] == ivar["id"] for person in context_for_ivar["participants"])
+        # Explicitly private scenes include only the protagonist and recipient.
+        private_participant_ids = {person["id"] for person in private_context_for_ivar["participants"]}
+        assert maelis["id"] not in private_participant_ids
+        assert ivar["id"] in private_participant_ids
 
 
 def test_private_turn_requires_recipient():
