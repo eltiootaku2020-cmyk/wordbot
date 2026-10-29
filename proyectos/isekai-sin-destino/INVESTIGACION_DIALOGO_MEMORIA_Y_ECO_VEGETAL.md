@@ -1,4 +1,4 @@
-# Investigación aplicada — SpicyChat, personalidad de PNJ, cronología y estado (v1.14)
+# Investigación aplicada — SpicyChat, personalidad de PNJ, cronología y estado (v1.15)
 
 ## Objetivo
 Mejorar Isekai sin Destino sin convertir Personality en una enciclopedia ni gastar contexto registrando cada detalle. Se combinan límites reales de SpicyChat con patrones documentados de diseño de personajes y estado en juegos narrativos.
@@ -66,7 +66,7 @@ Catálogo de cosas plausibles: cuerda, saco de tela, cuenco, cantimplora, aguja/
 - Microsoft, [NPC Dialogue](https://learn.microsoft.com/minecraft/creator/documents/NPCDialogue)
 
 
-## Actualización investigada v1.14: datos verificables, no guion fijo
+## Actualización investigada v1.15: datos verificables, no guion fijo
 
 ### Límites de SpicyChat comprobados
 La ayuda oficial consultada el 29 de octubre de 2026 indica que Free tiene **4.096 tokens de contexto compartido** y máximo de **180 tokens por respuesta**. El contexto incluye definición, instrucciones y mensajes recientes; al llenarse, salen mensajes antiguos. SpicyChat recomienda una definición compacta de aproximadamente 800–1.100 tokens. La Lorebook se activa por palabras clave y solo inserta entradas pertinentes. Las páginas oficiales difieren en cómo expresan algunos topes; usa el contador del editor y la tabla de planes como referencia práctica.
