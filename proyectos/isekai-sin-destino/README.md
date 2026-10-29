@@ -31,4 +31,3 @@
 - JSON parseable; 77 entradas; todos los Content <1.000 caracteres; keywords únicas tras normalizar espacios y mayúsculas.
 - Personality: 4344; Scenario: 795; Greeting: 687; Example Dialogue: 1044 caracteres.
 - Test del preset local actualizado a 77 entradas, con comprobación de longitud/keywords.
-- Pendiente: importar en SpicyChat y probar continuidad real.
