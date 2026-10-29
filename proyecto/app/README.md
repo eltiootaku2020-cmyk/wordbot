@@ -50,11 +50,11 @@ Este es un prototipo de desarrollo, no una aplicación final endurecida para pro
 
 ## Validación automática
 
-La última ejecución de CI enlazada en esta guía informa 13 pruebas de Python aprobadas y comprobación de sintaxis del JavaScript incrustado: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40863341616. Es una prueba automatizada en el entorno de CI; no demuestra que la interfaz se haya probado visualmente en Windows ni que las claves/modelos reales funcionen.
+La última ejecución de CI enlazada en esta guía informa 15 pruebas de Python aprobadas y comprobación de sintaxis del JavaScript incrustado: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40867432602. Es una prueba automatizada en el entorno de CI; no demuestra que la interfaz se haya probado visualmente en Windows ni que las claves/modelos reales funcionen.
 
 ## Hallazgos importantes antes de una campaña larga
 
-- **P0 pendiente:** revisar el filtrado de contexto por destinatario/testigos; la inspección de código encontró consultas que podrían incluir mensajes/eventos fuera del conocimiento del PNJ seleccionado.
+- **Privacidad básica implementada y probada en CI:** el selector de alcance permite escena/grupo o privado con destinatario; mensajes y eventos se filtran por audiencia/testigos. Faltan el inspector y los casos de cambio de presencia.
 - Las operaciones de inventario y movimiento se registran como propuestas pendientes en esta versión; falta una política segura para autoaplicar cambios cotidianos de baja ambigüedad.
 - Falta probar edición/regeneración con reversión de efectos, llamadas API reales y una partida de 50–100 turnos.
 
