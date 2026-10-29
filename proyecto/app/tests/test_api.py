@@ -4,14 +4,25 @@ from pathlib import Path
 import uuid
 import json
 
+import pytest
+
+_TEST_DB_DIR = tempfile.TemporaryDirectory(prefix="canon-test-")
 os.environ["APP_PROVIDER"] = "mock"
-os.environ["APP_DB_PATH"] = str(Path(tempfile.mkdtemp(prefix="canon-test-")) / "test.sqlite3")
+os.environ["APP_DB_PATH"] = str(Path(_TEST_DB_DIR.name) / "initial.sqlite3")
 
 from fastapi.testclient import TestClient
 
 import canon_manager.main as main_module
 from canon_manager.main import app, database, build_context, session_row, apply_narrator_result
 from canon_manager.models import NarratorResponse, EventProposal, StateChangeProposal, InventoryOperation, MovementProposal, PowerUseProposal, ResourceOperation
+
+
+@pytest.fixture(autouse=True)
+def isolate_test_database():
+    """Each API test gets a clean SQLite file; TemporaryDirectory removes all of them at exit."""
+    database.path = Path(_TEST_DB_DIR.name) / f"test-{uuid.uuid4().hex}.sqlite3"
+    database.initialize()
+    yield
 
 
 def test_seeded_chat_turn_is_saved_and_changes_are_validated():
