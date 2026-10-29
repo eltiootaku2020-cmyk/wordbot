@@ -1457,3 +1457,90 @@ def test_local_lorebook_budget_persists_and_changes_selection():
                 json={"lore_budget_chars": previous_budget}
             )
             assert restore.status_code == 200, restore.text
+
+
+
+def test_manual_prompt_contains_game_context_and_json_contract():
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+        world_id = seed["world_id"]
+        session_id = seed["session_id"]
+        entities = client.get(f"/api/worlds/{world_id}/entities").json()
+        maelis = next(entity for entity in entities if entity["name"] == "Maelis Orven")
+
+        response = client.post(
+            f"/api/sessions/{session_id}/manual-prompt",
+            json={
+                "text": "Le pregunto si conoce el camino.",
+                "recipient_id": maelis["id"],
+                "provider": "chatgpt_web",
+                "visibility": "private"
+            }
+        )
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["provider"] == "chatgpt_web"
+        assert "INPUT_JSON" in data["prompt"]
+        assert "Le pregunto si conoce el camino." in data["prompt"]
+        assert "Maelis Orven" in data["prompt"]
+        assert '"narration"' in data["prompt"]
+        assert "OPENAI_API_KEY" not in data["prompt"]
+
+
+def test_manual_web_turn_accepts_pasted_json_without_api_call():
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+        world_id = seed["world_id"]
+        session_id = seed["session_id"]
+        entities = client.get(f"/api/worlds/{world_id}/entities").json()
+        maelis = next(entity for entity in entities if entity["name"] == "Maelis Orven")
+        pasted = json.dumps({
+            "narration": "Maelis observa la senda y responde que no está segura.",
+            "events": [],
+            "state_changes": [],
+            "elapsed_minutes": 1,
+            "movements": [],
+            "inventory_ops": [],
+            "resource_ops": [],
+            "power_uses": [],
+            "pending": []
+        }, ensure_ascii=False)
+
+        response = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json={
+                "request_id": "manual-web-turn-0001",
+                "text": "Le pregunto por la senda.",
+                "recipient_id": maelis["id"],
+                "provider": "chatgpt_web",
+                "visibility": "private",
+                "external_response": pasted
+            }
+        )
+        assert response.status_code == 200, response.text
+        data = response.json()
+        assert data["narration"].startswith("Maelis observa la senda")
+        messages = client.get(f"/api/sessions/{session_id}/messages").json()
+        assistant = next(message for message in messages if message["role"] == "assistant")
+        assert assistant["provider"] == "chatgpt_web"
+        assert assistant["generation_status"] == "complete"
+
+
+def test_manual_web_turn_rejects_non_json_response():
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+        session_id = seed["session_id"]
+        response = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json={
+                "request_id": "manual-web-invalid-0001",
+                "text": "Observo alrededor.",
+                "provider": "gemini_web",
+                "external_response": "La respuesta es que ves una torre."
+            }
+        )
+        assert response.status_code == 502
+        assert "JSON válido" in response.json()["detail"]
+        messages = client.get(f"/api/sessions/{session_id}/messages").json()
+        assert len(messages) == 1
+        assert messages[0]["generation_status"] == "failed"
