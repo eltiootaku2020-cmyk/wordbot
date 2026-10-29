@@ -1,6 +1,6 @@
 # Pruebas de aceptación del gestor local
 
-La CI más reciente validó **83 pruebas Python** y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40939319271.
+La CI más reciente validó **86 pruebas Python** y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40940906581.
 
 ## A. Persistencia y recuperación
 
@@ -274,3 +274,16 @@ Se considera apto para una primera partida cuando A, C, D, E, F, G, H e I pasan 
 **Cobertura automatizada actual:** CI posterior al PR #8 aprobó 83 pruebas Python y sintaxis JavaScript (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40939319271). Esta prueba usa un proveedor simulado y verifica mensajes, eventos, auditoría, undo y regeneración dentro de un único flujo. No sustituye una prueba real con el navegador.
 
 **Pendiente:** probar manualmente Windows/Chromium con ChatGPT/Gemini web y ejecutar una campaña narrativa real de 50–100 turnos con reinicio y restauración.
+
+
+## AC. Reintentos seguros y snapshots obsoletos (PR #9/#10)
+
+1. Completar un turno A, deshacerlo y regenerarlo inmediatamente con el mismo `request_id` mientras el estado siga igual. El reintento debe poder continuar y no duplicar eventos/operaciones.
+2. Completar A, deshacer A, completar un turno B y volver a enviar A. La aplicación debe responder 409 sin llamar al proveedor ni cambiar la hora, recursos o inventario de B.
+3. Hacer que A falle en el proveedor; después completar B y reintentar A. Debe responder 409 y preservar B.
+4. Hacer que A falle; modificar el estado mediante una aprobación que no cree turno; reintentar A. Debe responder 409 porque la instantánea ya no coincide.
+5. Verificar por API que un snapshot ausente o ilegible también impide un reintento antiguo con mutación.
+
+**Criterio:** el reintento solo se acepta cuando no hay turnos posteriores y el estado mutable actual coincide con el snapshot previo. No debe ejecutarse el proveedor ni mutarse el estado en casos rechazados.
+
+**Cobertura automatizada:** PR #10 ejecutó 86 pruebas Python y sintaxis JavaScript en CI: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40940906581. La ejecución usa proveedor simulado; campaña manual real sigue pendiente.
