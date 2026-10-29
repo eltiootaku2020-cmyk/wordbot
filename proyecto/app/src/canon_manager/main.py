@@ -629,7 +629,9 @@ def get_messages(session_id: str):
 @app.post("/api/sessions/{session_id}/turns")
 async def submit_turn(session_id: str, payload: TurnRequest):
     authorized_skip = parse_skip(payload.text)
-    client_request_id = payload.request_id.strip() or new_id()
+    client_request_id = payload.request_id.strip()
+    if len(client_request_id) < 8:
+        raise HTTPException(status_code=422, detail="request_id debe tener al menos 8 caracteres y mantenerse igual al reintentar.")
     turn_id = new_id()
     user_message_id = new_id()
     with database.transaction() as conn:
