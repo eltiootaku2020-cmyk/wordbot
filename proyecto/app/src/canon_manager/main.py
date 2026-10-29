@@ -104,10 +104,11 @@ def build_context(
     audience_ids: list[str] | None = None,
 ) -> dict[str, Any]:
     participant_rows = conn.execute(
-        "SELECT e.id,e.name,e.kind,e.profile,p.location,p.presence_status "
+        "SELECT e.id,e.name,e.kind,e.profile,p.location,"
+        "CASE WHEN LOWER(p.location)=LOWER(?) THEN 'present' ELSE 'away' END AS presence_status "
         "FROM session_presence p JOIN entities e ON e.id=p.entity_id "
         "WHERE p.session_id=? AND LOWER(p.location)=LOWER(?) ORDER BY e.name",
-        (session["id"], session["current_location"])
+        (session["current_location"], session["id"], session["current_location"])
     ).fetchall()
     scene_participants = [dict(row) for row in participant_rows]
     scene_ids = {item["id"] for item in scene_participants}
