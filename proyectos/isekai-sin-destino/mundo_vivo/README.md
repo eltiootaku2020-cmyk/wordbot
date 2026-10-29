@@ -37,6 +37,20 @@ El usuario eligió combinar **aldeas aisladas, campamentos temporales, ruinas y 
 - Los lugares pueden estar ocupados, abandonados, disputados, ocultos o en transición.
 - La presencia no se garantiza en cada zona ni en cada partida; el protagonista solo conoce lo que descubre.
 
+
+
+### Densidad civilizada equilibrada
+
+El usuario eligió una densidad **equilibrada** para la presencia civilizada del bosque.
+
+- Habrá varias comunidades pequeñas, pero no una población continua ni asentamientos en cada subzona.
+- Los campamentos serán relativamente habituales en rutas transitadas, zonas de expedición y puntos con recursos, pero su presencia será temporal y variable.
+- Las ruinas y los escondites estarán repartidos por el territorio, aunque muchos permanecerán ocultos, inaccesibles o sin descubrir.
+- Deben existir extensiones amplias de bosque salvaje entre los lugares habitados, con rutas y regiones donde la presencia civilizada sea escasa o inexistente.
+- La densidad no se traduce todavía en cantidades exactas. La distribución concreta dependerá de geografía, recursos, seguridad, historia, accesibilidad y presión ecológica.
+- La categoría equilibrada describe el diseño global, no garantiza que el protagonista encuentre pronto una aldea o un campamento.
+- No se aprueban todavía nombres, número exacto de asentamientos, población, facciones ni ubicaciones específicas.
+
 ## Mapa de documentos
 
 1. [Reglas del mundo vivo](01_REGLAS_MUNDO_VIVO.md)
