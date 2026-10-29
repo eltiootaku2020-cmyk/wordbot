@@ -129,6 +129,10 @@ La IA propone una duración estimada y los acontecimientos ocurridos. El program
 
 El movimiento de un PNJ puede aceptarse si la acción es coherente con la escena. El protagonista solo se mueve conforme a la acción explícita del usuario o a un salto que este haya autorizado.
 
+### 6.1 Cronología programada por mundo
+
+La cronología fija pertenece al mundo, no a un preset ni a un género. Cada acontecimiento tiene un identificador estable, fecha/hora local del mundo, ubicación opcional y descripción confirmada. Cada partida mantiene su propio registro de activación, con restricción única por acontecimiento para que los reintentos no lo dupliquen. Al avanzar el reloj, el motor activa todos los sucesos confirmados cuya fecha ya se alcanzó, en orden temporal, incluso si ocurren lejos del protagonista. El contexto del narrador los recibe en un bloque separado como hechos del mundo que no implican conocimiento del protagonista o de los PNJ; no deben revelarse sin una vía narrativa. La primera versión automatiza fechas fijas; los disparadores condicionales, cancelaciones narrativas y consecuencias complejas siguen pendientes.
+
 ## 7. Errores y recuperación
 
 Si la IA responde con JSON inválido, falta un ID o el resultado contradice el canon:
