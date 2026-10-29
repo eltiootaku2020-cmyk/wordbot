@@ -113,7 +113,19 @@ def test_interrupted_turn_is_recovered_without_losing_user_message():
 def test_backup_for_one_session_is_not_blocked_by_another_session_turn():
     with TestClient(app) as client:
         first = client.post("/api/demo/seed", json={}).json()
-        second = client.post("/api/demo/seed", json={}).json()
+        second_response = client.post(
+            "/api/worlds/start",
+            json={
+                "name": "Otra partida para respaldo " + uuid.uuid4().hex,
+                "protagonist_name": "Protagonista",
+                "session_name": "Partida independiente",
+                "location": "Otra ubicación",
+                "cast": [],
+                "initial_inventory": []
+            }
+        )
+        assert second_response.status_code == 200, second_response.text
+        second = second_response.json()
         assert first["session_id"] != second["session_id"]
 
         with database.transaction() as conn:
