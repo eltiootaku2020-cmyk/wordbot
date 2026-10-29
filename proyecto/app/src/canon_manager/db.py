@@ -130,6 +130,33 @@ class Database:
                 "ON snapshots(session_id,turn_id) WHERE turn_id<>''"
             )
 
+            # Older local databases may predate presence_status/updated_at. Add
+            # these columns in place so the existing session and its cast survive.
+            presence_columns = {
+                row["name"] for row in conn.execute("PRAGMA table_info(session_presence)").fetchall()
+            }
+            if "presence_status" not in presence_columns:
+                conn.execute(
+                    "ALTER TABLE session_presence ADD COLUMN presence_status TEXT NOT NULL DEFAULT 'present'"
+                )
+            if "updated_at" not in presence_columns:
+                conn.execute(
+                    "ALTER TABLE session_presence ADD COLUMN updated_at TEXT NOT NULL DEFAULT ''"
+                )
+
+            # Location is the source of truth for presence. Historical rows may
+            # contain a stale status or a defaulted 'present' from the migration.
+            conn.execute(
+                "UPDATE session_presence "
+                "SET presence_status = CASE "
+                "WHEN LOWER(TRIM(location)) = LOWER(TRIM(COALESCE(("
+                "SELECT current_location FROM sessions WHERE sessions.id=session_presence.session_id"
+                "), ''))) THEN 'present' ELSE 'away' END, "
+                "updated_at = CASE WHEN COALESCE(updated_at, '') = '' "
+                "THEN CURRENT_TIMESTAMP ELSE updated_at END "
+                "WHERE session_id IN (SELECT id FROM sessions)"
+            )
+
     @contextmanager
     def connection(self) -> Iterator[sqlite3.Connection]:
         conn = self._connect()
