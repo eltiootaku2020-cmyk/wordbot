@@ -23,7 +23,7 @@ Abre PowerShell en esta carpeta y ejecuta cada comando por separado:
 6. Inicia: uvicorn canon_manager.main:app --app-dir src --host 127.0.0.1 --port 8000
 7. Abre http://127.0.0.1:8000 en Chromium.
 
-La base predeterminada se guarda en data/canon_manager.sqlite3 dentro de esta carpeta. Los datos locales y el archivo .env están excluidos de Git. La interfaz puede crear mundos desde cero o cargar «Isekai sin Destino v1.18» con un solo botón: importa el JSON real del repositorio con 77 entradas, crea el reparto inicial y los cinco objetos, abre una sesión nueva y registra 0 monedas iniciales.
+La base predeterminada se guarda en data/canon_manager.sqlite3 dentro de esta carpeta. Los datos locales y el archivo .env están excluidos de Git. La interfaz puede crear mundos desde cero o cargar «Isekai sin Destino v1.19» con un solo botón: importa el JSON real del repositorio con 77 entradas, crea el reparto inicial y los cinco objetos, abre una sesión nueva y registra 0 monedas iniciales.
 
 ## Primera prueba
 
