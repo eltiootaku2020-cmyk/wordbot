@@ -188,6 +188,10 @@ def build_context(
             (session["id"], *carrier_ids, session["current_location"], MAX_CONTEXT_INVENTORY_ITEMS)
         ).fetchall()
     inventory = [dict(row) for row in inventory_rows]
+    resource_balances = [dict(row) for row in conn.execute(
+        "SELECT resource_key,display_name,quantity,unit FROM resources "
+        "WHERE session_id=? ORDER BY display_name LIMIT 30", (session["id"],)
+    ).fetchall()]
 
 
     # Retrieve a larger candidate set, then keep the ten most recent messages
@@ -381,6 +385,7 @@ def build_context(
         "recipient": recipient or {},
         "relationship_to_recipient": relationship,
         "inventory": inventory,
+        "resources": resource_balances,
         "human_eco_attempts_by_target": eco_uses,
         "recent_messages": recent,
         "recent_events": recent_events,
@@ -498,6 +503,7 @@ def apply_narrator_result(
         }
 
     applied = []
+    purchase_event_refs: set[str] = set()
     for change in result.state_changes:
         source = event_map.get(change.event_ref)
         status = "pending"
@@ -594,11 +600,35 @@ def apply_narrator_result(
 
             if operation.operation == "acquire":
                 source_text = f"{user_text} {source.get('description', '')} {operation.reason}"
-                if paid_acquisition.search(source_text):
-                    reason = "La adquisición parece tener un coste, pero esta versión aún no tiene contabilidad de moneda; queda pendiente."
+                paid = bool(paid_acquisition.search(source_text))
+                currency_key = (operation.currency_key or "monedas").strip().casefold()
+                payment_row = None
+                if paid:
+                    purchase_event_refs.add(operation.event_ref)
+                    if operation.cost <= 0:
+                        reason = "La compra no especifica un coste total positivo."
+                    else:
+                        payment_row = conn.execute(
+                            "SELECT * FROM resources WHERE session_id=? AND resource_key=?",
+                            (session["id"], currency_key)
+                        ).fetchone()
+                        if not payment_row:
+                            reason = f"No existe un saldo registrado para '{currency_key}'; la compra queda pendiente."
+                        elif int(payment_row["quantity"]) < operation.cost:
+                            reason = (
+                                f"Saldo insuficiente de {payment_row['display_name']}: "
+                                f"{payment_row['quantity']} disponible, {operation.cost} requerido."
+                            )
+                        else:
+                            reason = ""
+                elif operation.cost > 0:
+                    reason = "La operación declara un coste pero la escena no confirma una compra/pago."
                 elif not free_acquisition.search(source_text):
                     reason = "No se confirmó que el objeto fuera un hallazgo o regalo gratuito; queda pendiente."
                 else:
+                    reason = ""
+
+                if not reason:
                     carrier = operation.carrier_entity_id or session["protagonist_entity_id"]
                     location = operation.location.strip() or session["current_location"]
                     old_value = (
@@ -607,9 +637,9 @@ def apply_narrator_result(
                         if item else None
                     )
                     if item and not item["carrier_entity_id"]:
-                        # Picking up an already tracked dropped pile changes its holder,
-                        # not its quantity. The whole pile must be picked up at once.
-                        if int(item["quantity"]) != operation.quantity:
+                        if paid:
+                            reason = "Una compra no puede reutilizarse como recogida de un objeto ya registrado en el suelo."
+                        elif int(item["quantity"]) != operation.quantity:
                             reason = "El objeto está en el suelo; esta versión exige recoger la pila completa."
                         else:
                             conn.execute(
@@ -624,32 +654,49 @@ def apply_narrator_result(
                             applied.append(f"Recogido: {item_name} ×{operation.quantity}.")
                     elif item and item["carrier_entity_id"] != carrier and int(item["quantity"]) > 0:
                         reason = "Ya existe una pila de este objeto que lleva otra entidad; requiere una transferencia explícita."
-                    elif item:
-                        conn.execute(
-                            "UPDATE inventory_items SET quantity=quantity+?,condition=?,carrier_entity_id=?,"
-                            "location=?,last_event_id=? WHERE id=?",
-                            (operation.quantity, operation.condition or item["condition"], carrier,
-                             location, source["id"], item["id"])
-                        )
-                        status = "accepted"
-                        accepted_value = {
-                            "operation": operation.operation, "item_name": item_name,
-                            "quantity": operation.quantity, "carrier_entity_id": carrier, "location": location
-                        }
-                        applied.append(f"Hallazgo/regalo confirmado: {item_name} ×{operation.quantity} añadido al estado.")
                     else:
-                        conn.execute(
-                            "INSERT INTO inventory_items(id,session_id,item_key,display_name,quantity,condition,"
-                            "carrier_entity_id,location,last_event_id) VALUES(?,?,?,?,?,?,?,?,?)",
-                            (new_id(), session["id"], item_key, item_name, operation.quantity,
-                             operation.condition or "normal", carrier, location, source["id"])
-                        )
+                        if paid and payment_row:
+                            old_balance = int(payment_row["quantity"])
+                            new_balance = old_balance - operation.cost
+                            conn.execute(
+                                "UPDATE resources SET quantity=?,last_event_id=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                                (new_balance, source["id"], payment_row["id"])
+                            )
+                            save_change(
+                                conn, session["id"], turn_id, f"purchase-debit-{op_index}-{new_id()[:8]}",
+                                session["protagonist_entity_id"], "resource", "spend",
+                                {"resource_key": currency_key, "quantity": old_balance},
+                                {"resource_key": currency_key, "display_name": payment_row["display_name"],
+                                 "quantity": operation.cost, "event_ref": operation.event_ref},
+                                {"resource_key": currency_key, "quantity": new_balance},
+                                "accepted", f"Pago validado por el evento: {source['description']}", source["id"]
+                            )
+                            applied.append(f"Pagado: {operation.cost} {payment_row['display_name']}; quedan {new_balance}.")
+                        if item:
+                            conn.execute(
+                                "UPDATE inventory_items SET quantity=quantity+?,condition=?,carrier_entity_id=?,"
+                                "location=?,last_event_id=? WHERE id=?",
+                                (operation.quantity, operation.condition or item["condition"], carrier,
+                                 location, source["id"], item["id"])
+                            )
+                        else:
+                            conn.execute(
+                                "INSERT INTO inventory_items(id,session_id,item_key,display_name,quantity,condition,"
+                                "carrier_entity_id,location,last_event_id) VALUES(?,?,?,?,?,?,?,?,?)",
+                                (new_id(), session["id"], item_key, item_name, operation.quantity,
+                                 operation.condition or "normal", carrier, location, source["id"])
+                            )
                         status = "accepted"
                         accepted_value = {
                             "operation": operation.operation, "item_name": item_name,
-                            "quantity": operation.quantity, "carrier_entity_id": carrier, "location": location
+                            "quantity": operation.quantity, "carrier_entity_id": carrier, "location": location,
+                            "cost": operation.cost if paid else 0,
+                            "currency_key": currency_key if paid else ""
                         }
-                        applied.append(f"Hallazgo/regalo confirmado: {item_name} ×{operation.quantity} añadido al estado.")
+                        applied.append(
+                            f"Compra confirmada: {item_name} ×{operation.quantity}."
+                            if paid else f"Hallazgo/regalo confirmado: {item_name} ×{operation.quantity} añadido al estado."
+                        )
             elif operation.operation == "consume":
                 expected_carrier = operation.carrier_entity_id or session["protagonist_entity_id"]
                 if not item or int(item["quantity"]) < operation.quantity:
@@ -732,6 +779,93 @@ def apply_narrator_result(
         save_change(
             conn, session["id"], turn_id, f"inventory-{op_index}-{new_id()[:8]}",
             operation.carrier_entity_id, "inventory", operation.operation, old_value,
+            operation.model_dump(), accepted_value, status, reason,
+            source["id"] if source else None
+        )
+
+    # Generic income/costs (wages, rewards, rent, services). Purchases are debited
+    # inside InventoryOperation so the same event cannot charge twice.
+    explicit_gain = re.compile(
+        r"\b(recib\w*|cobr\w*|gan\w*|recompens\w*|salari\w*|premi\w*|"
+        r"vend\w* por|obtu\w* monedas?)\b", re.IGNORECASE
+    )
+    explicit_spend = re.compile(
+        r"\b(pag\w*|gast\w*|alquil\w*|compr\w*|cost\w*|precio|"
+        r"entreg\w* monedas?|pierd\w* monedas?)\b", re.IGNORECASE
+    )
+    for resource_index, operation in enumerate(result.resource_ops):
+        source = event_map.get(operation.event_ref)
+        status = "pending"
+        old_value = None
+        accepted_value = None
+        reason = "El cambio de recurso no superó la validación de bajo riesgo."
+        resource_key = operation.resource_key.strip().casefold()
+        if operation.event_ref in purchase_event_refs and operation.operation == "spend":
+            reason = "El cargo de compra se valida dentro de la operación de inventario; se evita duplicarlo."
+        elif not source:
+            reason = "No existe un evento fuente que justifique el cambio de recurso."
+        elif source["status"] != "recorded":
+            reason = "El evento fuente está pendiente."
+        elif source["kind"] != "resource":
+            reason = "El cambio requiere un evento fuente de tipo resource."
+        elif not resource_key or not operation.display_name.strip():
+            reason = "Falta una clave o nombre de recurso."
+        elif not operation.reason.strip():
+            reason = "Falta el motivo del cambio."
+        elif source["entity_id"] not in {"", session["protagonist_entity_id"]}:
+            reason = "El recurso personal del protagonista no puede cambiar mediante un evento atribuido a otra entidad."
+        else:
+            evidence_text = f"{user_text} {source['description']} {operation.reason}"
+            if operation.operation == "gain" and not explicit_gain.search(evidence_text):
+                reason = "No hay señal explícita de ingreso, recompensa, salario o ganancia."
+            elif operation.operation == "spend" and not explicit_spend.search(evidence_text):
+                reason = "No hay señal explícita de gasto o pago."
+            else:
+                balance = conn.execute(
+                    "SELECT * FROM resources WHERE session_id=? AND resource_key=?",
+                    (session["id"], resource_key)
+                ).fetchone()
+                if operation.operation == "gain":
+                    old_qty = int(balance["quantity"]) if balance else 0
+                    new_qty = old_qty + operation.quantity
+                    if balance:
+                        conn.execute(
+                            "UPDATE resources SET quantity=?,display_name=?,unit=?,last_event_id=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                            (new_qty, operation.display_name.strip(),
+                             operation.unit.strip() or balance["unit"], source["id"], balance["id"])
+                        )
+                    else:
+                        conn.execute(
+                            "INSERT INTO resources(id,session_id,resource_key,display_name,quantity,unit,last_event_id) "
+                            "VALUES(?,?,?,?,?,?,?)",
+                            (new_id(), session["id"], resource_key, operation.display_name.strip(), new_qty,
+                             operation.unit.strip(), source["id"])
+                        )
+                    old_value = {"resource_key": resource_key, "quantity": old_qty}
+                    accepted_value = {"resource_key": resource_key, "display_name": operation.display_name.strip(), "quantity": new_qty}
+                    status = "accepted"
+                    applied.append(f"Recurso ganado: +{operation.quantity} {operation.display_name.strip()} (total {new_qty}).")
+                else:
+                    if not balance:
+                        reason = f"No hay saldo registrado para '{resource_key}'."
+                    elif int(balance["quantity"]) < operation.quantity:
+                        reason = f"Saldo insuficiente: {balance['quantity']} disponible, {operation.quantity} requerido."
+                    else:
+                        old_qty = int(balance["quantity"])
+                        new_qty = old_qty - operation.quantity
+                        conn.execute(
+                            "UPDATE resources SET quantity=?,last_event_id=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                            (new_qty, source["id"], balance["id"])
+                        )
+                        old_value = {"resource_key": resource_key, "quantity": old_qty}
+                        accepted_value = {"resource_key": resource_key, "display_name": balance["display_name"], "quantity": new_qty}
+                        status = "accepted"
+                        applied.append(f"Recurso gastado: -{operation.quantity} {balance['display_name']} (quedan {new_qty}).")
+        if status == "pending":
+            pending_notes.append(f"Recurso: {operation.operation} {operation.display_name} — {reason}")
+        save_change(
+            conn, session["id"], turn_id, f"resource-{resource_index}-{new_id()[:8]}",
+            session["protagonist_entity_id"], "resource", operation.operation, old_value,
             operation.model_dump(), accepted_value, status, reason,
             source["id"] if source else None
         )
@@ -861,6 +995,10 @@ def load_state(conn, session_id: str) -> dict[str, Any]:
         "SELECT from_entity_id,to_entity_id,axis,value,reason FROM relationships WHERE session_id=?",
         (session_id,)
     ).fetchall()]
+    resources = [dict(row) for row in conn.execute(
+        "SELECT resource_key,display_name,quantity,unit FROM resources WHERE session_id=? ORDER BY display_name",
+        (session_id,)
+    ).fetchall())
     pending = [dict(row) for row in conn.execute(
         "SELECT id,entity_id,field,operation,proposed_value_json,reason,created_at FROM state_changes "
         "WHERE session_id=? AND status='pending' ORDER BY created_at DESC LIMIT 100", (session_id,)
@@ -885,7 +1023,7 @@ def load_state(conn, session_id: str) -> dict[str, Any]:
             "time_label": time_label(session["day"], session["minute_of_day"]),
             "location": session["current_location"]
         },
-        "participants": participants, "inventory": inventory,
+        "participants": participants, "inventory": inventory, "resources": resources,
         "relationships": relationships, "eco_uses": eco, "pending_changes": pending,
         "pending_events": pending_events
     }
@@ -913,6 +1051,21 @@ def list_worlds():
 
 @app.post("/api/worlds/start")
 def create_world_and_start(payload: WorldStartCreate):
+def seed_resource(conn, session_id: str, resource) -> None:
+    resource_name = resource.name.strip()
+    resource_key = (resource.key.strip() or resource_name).casefold()
+    if not resource_key or not resource_name:
+        raise HTTPException(status_code=422, detail="Cada recurso necesita nombre y clave válidos.")
+    conn.execute(
+        "INSERT INTO resources(id,session_id,resource_key,display_name,quantity,unit) "
+        "VALUES(?,?,?,?,?,?) ON CONFLICT(session_id,resource_key) DO UPDATE SET "
+        "display_name=excluded.display_name, quantity=excluded.quantity, unit=excluded.unit, "
+        "updated_at=CURRENT_TIMESTAMP",
+        (new_id(), session_id, resource_key, resource_name, resource.quantity, resource.unit.strip())
+    )
+
+
+
     world_id = new_id()
     protagonist_id = new_id()
     session_id = new_id()
@@ -962,6 +1115,8 @@ def create_world_and_start(payload: WorldStartCreate):
                     (new_id(), session_id, item_key, item.name.strip(), item.quantity,
                      item.condition, carrier, location)
                 )
+            for resource in payload.initial_resources:
+                seed_resource(conn, session_id, resource)
     except HTTPException:
         raise
     except Exception as exc:
@@ -1055,6 +1210,8 @@ def create_session(world_id: str, payload: SessionCreate):
                 (new_id(), session_id, item_key, item.name.strip(), item.quantity,
                  item.condition, carrier, location)
             )
+        for resource in payload.initial_resources:
+            seed_resource(conn, session_id, resource)
     return {"id": session_id, "name": payload.name}
 
 
@@ -1191,6 +1348,11 @@ def create_isekai_preset_session():
                 "VALUES(?,?,?,?,?,?,?,?)",
                 (new_id(), session_id, key, name, quantity, condition, protagonist_id, location)
             )
+        conn.execute(
+            "INSERT INTO resources(id,session_id,resource_key,display_name,quantity,unit) "
+            "VALUES(?,?,?,?,?,?) ON CONFLICT(session_id,resource_key) DO NOTHING",
+            (new_id(), session_id, "monedas", "Monedas", 0, "monedas")
+        )
         imported = 0
         for key, entry in lore_entries.items():
             if not isinstance(entry, dict):
