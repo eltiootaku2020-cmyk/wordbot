@@ -1,6 +1,7 @@
 import hashlib
 import hmac
 import json
+import logging
 import os
 import re
 import unicodedata
@@ -33,6 +34,7 @@ class Settings:
 
 
 settings = Settings()
+logger = logging.getLogger(__name__)
 database = Database(settings.db_path)
 database.initialize()
 
@@ -884,17 +886,28 @@ def apply_narrator_result(
     )
     event_map: dict[str, dict[str, Any]] = {}
     pending_notes = list(result.pending)
+    event_ref_counts: dict[str, int] = {}
+    for event in result.events:
+        event_ref_counts[event.ref] = event_ref_counts.get(event.ref, 0) + 1
+    duplicate_event_refs = {ref for ref, count in event_ref_counts.items() if count > 1}
     seen_refs: set[str] = set()
     for event in result.events:
         if event.ref in seen_refs:
-            pending_notes.append(f"Evento duplicado omitido: {event.ref}")
             continue
         seen_refs.add(event.ref)
         ref, event_id, status = write_event(
             conn, session["id"], turn_id, source_message_id, event, valid_ids,
             allowed_witnesses=allowed_witnesses, private_subject_ids=private_subject_ids
         )
-        if status == "pending":
+        if event.ref in duplicate_event_refs:
+            # A repeated external reference makes every dependent proposal ambiguous.
+            # Preserve one audit row, but never allow it to authorize a state change.
+            conn.execute("UPDATE events SET status='pending' WHERE id=?", (event_id,))
+            status = "pending"
+            pending_notes.append(
+                f"Referencia de evento duplicada '{event.ref}': evento y cambios asociados requieren revisión."
+            )
+        elif status == "pending":
             pending_notes.append(
                 f"Evento {event.ref} requiere revisión: entidad o testigo fuera del alcance autorizado."
             )
@@ -905,14 +918,33 @@ def apply_narrator_result(
 
     applied = []
     purchase_event_refs: set[str] = set()
+    change_ref_counts: dict[str, int] = {}
     for change in result.state_changes:
+        change_ref_counts[change.ref] = change_ref_counts.get(change.ref, 0) + 1
+    duplicate_change_refs = {ref for ref, count in change_ref_counts.items() if count > 1}
+    relation_key_counts: dict[tuple[str, str], int] = {}
+    for change in result.state_changes:
+        if change.field in RELATION_AXES:
+            key = (change.entity_id, change.field)
+            relation_key_counts[key] = relation_key_counts.get(key, 0) + 1
+    duplicate_relation_keys = {key for key, count in relation_key_counts.items() if count > 1}
+    seen_change_refs: set[str] = set()
+    for change in result.state_changes:
+        if change.ref in seen_change_refs:
+            continue
+        seen_change_refs.add(change.ref)
         source = event_map.get(change.event_ref)
         status = "pending"
         old_value = None
         accepted_value = None
         reason = change.reason
         proposed = change.model_dump()
-        if source is None:
+        relation_key = (change.entity_id, change.field)
+        if change.ref in duplicate_change_refs:
+            reason = f"La referencia '{change.ref}' se repite en la respuesta; la propuesta ambigua no se aplicó."
+        elif change.field in RELATION_AXES and relation_key in duplicate_relation_keys:
+            reason = "Hay varias propuestas para el mismo eje de relación en un turno; todas quedan pendientes para evitar aplicar un cambio duplicado o contradictorio."
+        elif source is None:
             reason = "La propuesta no referencia un evento de este turno."
         elif source["status"] != "recorded":
             reason = "El evento fuente requiere revisión."
@@ -971,6 +1003,11 @@ def apply_narrator_result(
         re.IGNORECASE
     )
 
+    inventory_signature_counts: dict[tuple[str, str, str], int] = {}
+    for operation in result.inventory_ops:
+        signature = (operation.event_ref, operation.operation, operation.item_name.strip().casefold())
+        inventory_signature_counts[signature] = inventory_signature_counts.get(signature, 0) + 1
+
     for op_index, operation in enumerate(result.inventory_ops):
         source = event_map.get(operation.event_ref)
         status = "pending"
@@ -980,8 +1017,11 @@ def apply_narrator_result(
         item_name = operation.item_name.strip()
         item_key = item_name.casefold()
         item = None
+        signature = (operation.event_ref, operation.operation, item_key)
 
-        if not source:
+        if inventory_signature_counts.get(signature, 0) > 1:
+            reason = "La misma operación sobre este objeto aparece varias veces para el mismo evento; se dejan todas las copias pendientes para evitar duplicar cantidades."
+        elif not source:
             reason = "No existe el evento que justifica la operación."
         elif source["status"] != "recorded":
             reason = "El evento de origen está pendiente."
@@ -1194,6 +1234,11 @@ def apply_narrator_result(
         r"\b(pag\w*|gast\w*|alquil\w*|compr\w*|cost\w*|precio|"
         r"entreg\w* monedas?|pierd\w* monedas?)\b", re.IGNORECASE
     )
+    resource_signature_counts: dict[tuple[str, str, str], int] = {}
+    for operation in result.resource_ops:
+        signature = (operation.event_ref, operation.operation, operation.resource_key.strip().casefold())
+        resource_signature_counts[signature] = resource_signature_counts.get(signature, 0) + 1
+
     for resource_index, operation in enumerate(result.resource_ops):
         source = event_map.get(operation.event_ref)
         status = "pending"
@@ -1201,7 +1246,10 @@ def apply_narrator_result(
         accepted_value = None
         reason = "El cambio de recurso no superó la validación de bajo riesgo."
         resource_key = operation.resource_key.strip().casefold()
-        if operation.event_ref in purchase_event_refs and operation.operation == "spend":
+        signature = (operation.event_ref, operation.operation, resource_key)
+        if resource_signature_counts.get(signature, 0) > 1:
+            reason = "El mismo cambio de recurso aparece varias veces para el mismo evento; se dejan las copias pendientes para no duplicar ingresos o gastos."
+        elif operation.event_ref in purchase_event_refs and operation.operation == "spend":
             reason = "El cargo de compra se valida dentro de la operación de inventario; se evita duplicarlo."
         elif not source:
             reason = "No existe un evento fuente que justifique el cambio de recurso."
@@ -1271,6 +1319,11 @@ def apply_narrator_result(
             source["id"] if source else None
         )
 
+    movement_signature_counts: dict[tuple[str, str], int] = {}
+    for movement in result.movements:
+        signature = (movement.event_ref, movement.entity_id)
+        movement_signature_counts[signature] = movement_signature_counts.get(signature, 0) + 1
+
     for move_index, movement in enumerate(result.movements):
         source = event_map.get(movement.event_ref)
         status = "pending"
@@ -1278,7 +1331,10 @@ def apply_narrator_result(
         accepted_value = None
         reason = "El movimiento requiere revisión."
         destination = movement.destination.strip()
-        if not source:
+        signature = (movement.event_ref, movement.entity_id)
+        if movement_signature_counts.get(signature, 0) > 1:
+            reason = "Hay varios destinos propuestos para la misma entidad y evento; todos los movimientos quedan pendientes."
+        elif not source:
             reason = "No existe el evento que justifica el movimiento."
         elif source["status"] != "recorded":
             reason = "El evento de origen está pendiente."
@@ -1323,12 +1379,24 @@ def apply_narrator_result(
         )
 
     explicit_power = bool(re.search(r"/psiquico|/hechizo|uso\s+eco|usar\s+eco|intento\s+usar\s+eco", user_text, re.IGNORECASE))
+    power_signature_counts: dict[tuple[str, str], int] = {}
+    for power in result.power_uses:
+        signature = (power.ability_key.strip().lower(), power.target_entity_id)
+        power_signature_counts[signature] = power_signature_counts.get(signature, 0) + 1
+
     for use_index, power in enumerate(result.power_uses):
         source = event_map.get(power.event_ref)
         ability = power.ability_key.strip().lower()
-        can_apply = bool(explicit_power and source and source["status"] == "recorded" and power.target_entity_id in valid_ids)
+        signature = (ability, power.target_entity_id)
+        duplicated_power = power_signature_counts.get(signature, 0) > 1
+        can_apply = bool(
+            not duplicated_power and explicit_power and source
+            and source["status"] == "recorded" and power.target_entity_id in valid_ids
+        )
         reason = ""
-        if not can_apply:
+        if duplicated_power:
+            reason = "El mismo poder contra el mismo objetivo aparece varias veces en un turno; se requiere revisión para no duplicar usos."
+        elif not can_apply:
             reason = "El uso no coincide con una acción explícita y un objetivo válido."
         if can_apply and ability in {"eco", "eco_humano", "hipnosis"}:
             count = conn.execute(
@@ -2197,27 +2265,47 @@ async def submit_turn(session_id: str, payload: TurnRequest):
         raise HTTPException(status_code=502, detail=f"Fallo del proveedor: {exc}") from exc
 
     assistant_message_id = new_id()
-    with database.transaction() as conn:
-        session = session_row(conn, session_id)
-        conn.execute(
-            "INSERT INTO messages(id,session_id,turn_id,client_request_id,turn_index,role,recipient_entity_id,content,provider,generation_status,metadata_json) "
-            "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
-            (assistant_message_id, session_id, turn_id, client_request_id, turn_index, "assistant",
-             payload.recipient_id, result.narration, provider_name, "complete",
-             json.dumps({
-                 "pending": result.pending,
-                 "visibility": payload.visibility,
-                 "audience_ids": audience_ids
-             }, ensure_ascii=False))
+    try:
+        with database.transaction() as conn:
+            session = session_row(conn, session_id)
+            conn.execute(
+                "INSERT INTO messages(id,session_id,turn_id,client_request_id,turn_index,role,recipient_entity_id,content,provider,generation_status,metadata_json) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                (assistant_message_id, session_id, turn_id, client_request_id, turn_index, "assistant",
+                 payload.recipient_id, result.narration, provider_name, "complete",
+                 json.dumps({
+                     "pending": result.pending,
+                     "visibility": payload.visibility,
+                     "audience_ids": audience_ids
+                 }, ensure_ascii=False))
+            )
+            conn.execute(
+                "UPDATE messages SET generation_status='complete' WHERE id=?",
+                (user_message_id,)
+            )
+            applied, pending = apply_narrator_result(
+                conn, session, turn_id, user_message_id, payload.text, result, authorized_skip,
+                visibility=payload.visibility, audience_ids=audience_ids, recipient_id=payload.recipient_id
+            )
+    except Exception as exc:
+        # The transaction above rolls back both narration and state. Mark the
+        # request failed in a separate transaction so one malformed proposal
+        # cannot leave a permanent "processing" turn that blocks the session.
+        logger.exception(
+            "No se pudo aplicar la respuesta del narrador de forma atómica",
+            extra={"session_id": session_id, "turn_id": turn_id, "provider": provider_name}
         )
-        conn.execute(
-            "UPDATE messages SET generation_status='complete' WHERE id=?",
-            (user_message_id,)
-        )
-        applied, pending = apply_narrator_result(
-            conn, session, turn_id, user_message_id, payload.text, result, authorized_skip,
-            visibility=payload.visibility, audience_ids=audience_ids, recipient_id=payload.recipient_id
-        )
+        with database.transaction() as conn:
+            conn.execute(
+                "UPDATE messages SET generation_status='failed' WHERE id=? AND generation_status='processing'",
+                (user_message_id,)
+            )
+        if isinstance(exc, HTTPException):
+            raise
+        raise HTTPException(
+            status_code=502,
+            detail="La respuesta se generó, pero no pudo guardarse de forma segura. No se aplicaron cambios; corrige la respuesta o vuelve a intentarlo."
+        ) from exc
     with database.connection() as conn:
         state = load_state(conn, session_id)
         events = [dict(row) for row in conn.execute(
