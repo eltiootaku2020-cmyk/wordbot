@@ -1,6 +1,6 @@
 # Pruebas de aceptación del gestor local
 
-La aplicación no se considerará fiable por una demostración breve. La CI actual pasa 12 pruebas automatizadas con datos simulados: persistencia/backups, esquema estricto, comportamiento del narrador, turno de extremo a extremo, reintentos idempotentes, revisión de eventos y creación atómica de mundos con reparto/inventario inicial. Eso no valida las llamadas reales a OpenAI/Gemini, el uso manual en Windows ni los casos de aceptación pendientes. Las pruebas de estado deben poder repetirse sin llamadas pagas.
+La aplicación no se considerará fiable por una demostración breve. La CI actual pasa 13 pruebas automatizadas con datos simulados: persistencia/backups, esquema estricto, comportamiento del narrador, turno de extremo a extremo, reintentos idempotentes, revisión de eventos y creación atómica de mundos con reparto/inventario inicial. Eso no valida las llamadas reales a OpenAI/Gemini, el uso manual en Windows ni los casos de aceptación pendientes. Las pruebas de estado deben poder repetirse sin llamadas pagas.
 
 ## A. Persistencia y recuperación
 
@@ -150,3 +150,12 @@ Se considera apto para una primera partida cuando A, C, D, E, F, G, H e I pasan 
 3. Intentar crear un mundo con dos entidades de nombre duplicado.
 
 **Criterio:** la creación válida guarda mundo y sesión completos; un error de unicidad hace rollback y no deja un mundo incompleto. Está cubierto por pruebas de integración simuladas, pero falta el ensayo manual en Windows.
+
+
+## P. Cargar el preset de Isekai sin Destino
+
+1. Pulsar «Cargar Isekai sin Destino v1.16».
+2. Verificar 76 entradas de Lorebook, protagonista y cinco aventureros, cinco objetos iniciales, lugar inicial y Día 1 a las 08:00.
+3. Pulsar de nuevo y comprobar que se crea una segunda sesión en el mismo mundo sin mezclar mensajes/inventario de partidas anteriores.
+
+**Criterio:** canon y Lorebook compartidos, estado de cada partida aislado. La prueba de CI usa el Lorebook versionado en el repositorio y el narrador simulado; aún falta una prueba manual en Windows y una llamada real al proveedor.
