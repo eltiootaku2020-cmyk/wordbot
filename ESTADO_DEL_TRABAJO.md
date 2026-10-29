@@ -15,8 +15,8 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 - Stack: Python/FastAPI, HTML/CSS/JavaScript para Chromium, SQLite, narrador simulado y adaptadores iniciales OpenAI/Gemini.
 - Flujo de ejemplo: «Hola, linda» dirigido a Maelis produce narración + evento + propuesta de cambio; la confianza queda pendiente si no existe valor inicial confirmado.
 - Preset Isekai v1.16: botón dedicado carga las 76 entradas del JSON de Lorebook, los cinco aventureros, protagonista, cinco objetos iniciales y una nueva sesión cada vez, sin mezclar estado entre partidas.
-- CI: 28 pruebas aprobadas el 29-10-2026, más comprobación sintáctica de JavaScript: [ejecución](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40873768030). Incluye privacidad por audiencia, inspector Lorebook, operaciones ordinarias de inventario y libro de recursos/compras. No valida proveedor real ni Windows.
-- Pendiente: prueba manual en Windows; llamadas API reales; validación completa de movimiento/inventario; exportación/restauración visual; prueba de 50–100 intercambios.
+- CI: 32 pruebas aprobadas el 29-10-2026, más comprobación sintáctica de JavaScript: [ejecución](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40877808136). Incluye privacidad por audiencia, inspector Lorebook, operaciones ordinarias de inventario y libro de recursos/compras. No valida proveedor real ni Windows.
+- Pendiente: prueba manual en Windows; llamadas API reales; medición real de tokens por proveedor; compatibilidad de datos históricos/cambios de presencia; exportación/restauración visual; campaña de 50–100 intercambios.
 - Documentos: `INVESTIGACION_REFERENCIAS.md`, `DECISIONES_TECNICAS.md`, `ROADMAP_IMPLEMENTACION.md`, `ARQUITECTURA.md`, `CONTRATO_RESPUESTA_IA.md`, `ESQUEMA_LOCAL.md`, `PRUEBAS_DE_ACEPTACION.md`.
 - Ubicación de trabajo: rama `docs/historias-organizadas`. La rama literal `main` aún no contiene las carpetas organizadas de mundos.
 
@@ -48,17 +48,17 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 
 ### 3. Gestor local de canon, Lorebooks y continuidad
 - Carpeta: `proyecto/`; aplicación prototipo: `proyecto/app/`.
-- Estado: v0.1 con código inicial real; la documentación anterior que decía «solo documentación» quedó obsoleta. La última CI enlazada por el README del prototipo indica 28 pruebas automáticas aprobadas, no una validación completa en Windows.
+- Estado: v0.1 con código inicial real; la documentación anterior que decía «solo documentación» quedó obsoleta. La última CI enlazada por el README del prototipo indica 32 pruebas automáticas aprobadas, no una validación completa en Windows.
 - Stack: Python + FastAPI, HTML/CSS/JavaScript ligero en Chromium, SQLite y proveedores simulados/OpenAI/Gemini.
 - Ya existe: base local, interfaz, importación del JSON real de Isekai v1.16 (76 entradas), creación de mundos/partidas, reparto/inventario, mensajes/eventos, audiencia scene/private, filtrado por destinatario/testigos, inspector de contexto Lorebook y libro de recursos con compras validadas.
 - Referencias: `INVESTIGACION_REFERENCIAS.md`; decisiones ADR-001 a ADR-014 en `DECISIONES_TECNICAS.md`; prioridades P0–P4 en `ROADMAP_IMPLEMENTACION.md`.
-- **Privacidad por audiencia implementada:** selector escena/grupo o privado, metadatos de audiencia y filtro de mensajes/eventos por destinatario/testigos. CI actual: 28 pruebas Python y sintaxis JavaScript aprobadas. Sigue pendiente explicar en inspector cada mensaje/evento incluido/excluido, cambios de presencia históricos y pruebas manuales de API/Windows.
+- **Privacidad por audiencia implementada:** selector escena/grupo o privado, metadatos de audiencia y filtro de mensajes/eventos por destinatario/testigos. CI actual: 32 pruebas Python y sintaxis JavaScript aprobadas. Sigue pendiente explicar en inspector cada mensaje/evento incluido/excluido, cambios de presencia históricos y pruebas manuales de API/Windows.
 - Otros pendientes prioritarios: política para autoaplicar operaciones cotidianas de bajo riesgo y retener las ambiguas/de alto impacto; inspector de activación Lorebook; rollback al editar/regenerar; prueba manual Windows; llamadas reales de OpenAI/Gemini; prueba de 50–100 intercambios y restauración.
 - No hay que enviar el Lorebook completo cada turno ni extraer las respuestas de la página de ChatGPT de consumo. La IA debe recibir contexto mínimo a través de API oficial y proponer cambios que el programa valida y guarda.
 - Rama de trabajo: `docs/historias-organizadas`. La rama literal `main` de este repositorio sigue sin las carpetas organizadas de mundos/Lorebooks; no mezclar ni mover ramas sin una tarea explícita.
 
 ### Actualización del gestor local — 29-10-2026
-- CI validada: 28 pruebas Python y sintaxis de JavaScript aprobadas: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40873768030.
+- CI validada: 32 pruebas Python y sintaxis de JavaScript aprobadas: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40877808136.
 - Referencias web actuales: Chronicler (ACL de conocimiento por personaje + inspector), Open Dungeon (app local SQLite con edición/reintento y lanzador Windows), Gamentic (FastAPI/SQLite con herramientas validadas pero requisitos de hardware superiores), Openovel (narrador en primer plano y memoria en segundo plano) y documentación World Info de SillyTavern.
 - Código: privacidad scene/private; Lorebook de ocho entradas máximo y 4.500 caracteres con inspector de disparadores; inventario de bajo riesgo validado; libro de recursos por partida; snapshots preturno y undo del último turno completado con auditoría.
 - Monedas de Isekai empiezan en cero; compra con coste positivo y saldo suficiente descuenta dinero y añade objeto en la misma transacción; saldo insuficiente no cambia ninguno. Los cambios ambiguos siguen pendientes.
@@ -82,4 +82,4 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 
 ## Próximo paso recomendado
 
-Continuar el gestor local en este orden: (1) corregir y probar visibilidad de conocimientos por destinatario/testigos; (2) decidir qué cambios de bajo riesgo se aplican automáticamente y cuáles quedan pendientes; (3) añadir reversión de turnos editados/regenerados; (4) ejecutar la app en Windows y probar una llamada API real; (5) realizar una campaña de 50–100 turnos y reiniciar/restaurar la base para comprobar continuidad. Mantener en paralelo las pruebas de SpicyChat documentadas en la carpeta de Isekai. No declarar «Done» un hito que solo tenga documentación o una prueba simulada.
+Continuar el gestor local en este orden: (1) probar manualmente la interfaz y undo en Windows; (2) probar una llamada real de bajo riesgo a OpenAI y Gemini; (3) medir tokens/coste y probar registros históricos/cambios de presencia; (4) realizar una campaña de 50–100 turnos y reiniciar/restaurar la base para comprobar continuidad. Mantener en paralelo las pruebas de SpicyChat documentadas en la carpeta de Isekai. No declarar «Done» un hito que solo tenga documentación o una prueba simulada.
