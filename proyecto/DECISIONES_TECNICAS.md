@@ -117,3 +117,15 @@ Cada turno debe poder mostrar una vista de diagnóstico: reglas base, entidades 
 Todo elemento de memoria tendrá una clase y procedencia: canon aprobado, hecho confirmado de la partida, observación, rumor, hipótesis/propuesta, o inferencia revisable. Las inferencias no se promueven automáticamente a canon. Se registra quién conoce cada hecho o la fuente de transmisión.
 
 **Motivo:** adapta la separación de memoria efímera, revisable y canónica que muestran proyectos como Chronicler sin importar su motor de memoria adicional.
+
+### Implementación inicial ADR-010 — alcance de conocimiento
+
+Implementación inicial en la rama organizada y prueba aislada en commit `456ac5a1bc2694fb74725bcd13df4573677fe697`.
+
+- Campo de turno `visibility`: `scene` o `private`.
+- `audience_ids` se guarda en metadatos; un turno privado exige destinatario.
+- Recuperación limita participantes privados y filtra mensajes/eventos por audiencia, destinatario y testigos; eventos pendientes no se proporcionan como hechos.
+- Testigos fuera de audiencia no se guardan como testigos confirmados; el narrador simulado respeta el alcance privado.
+- CI: 15 pruebas aprobadas y JavaScript validado: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40867432602
+
+**Pendiente para completar ADR-010:** inspector de por qué un recuerdo es visible, pruebas con personajes que entran/salen de escena y pruebas manuales con OpenAI/Gemini. Los registros previos sin metadatos requieren tratamiento conservador.
