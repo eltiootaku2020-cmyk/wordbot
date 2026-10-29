@@ -1,0 +1,35 @@
+name: Isekai Lorebook audit
+
+on:
+  push:
+    branches:
+      - docs/historias-organizadas
+    paths:
+      - "proyectos/isekai-sin-destino/**"
+      - "ESTADO_DEL_TRABAJO.md"
+      - ".github/workflows/isekai-lorebook-audit.yml"
+  pull_request:
+    branches:
+      - docs/historias-organizadas
+    paths:
+      - "proyectos/isekai-sin-destino/**"
+      - "ESTADO_DEL_TRABAJO.md"
+      - ".github/workflows/isekai-lorebook-audit.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    name: Validate Isekai v1.19
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Audit Lorebook, fields and state rules
+        run: python proyectos/isekai-sin-destino/tools/audit_lorebook.py
