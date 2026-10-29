@@ -383,7 +383,7 @@ def test_low_risk_inventory_consumption_is_applied_automatically():
         assert not any("Inventario:" in note for note in pending)
 
 
-def test_free_found_object_is_added_but_paid_purchase_stays_pending():
+def test_free_found_object_is_added_but_purchase_without_cost_stays_pending():
     with TestClient(app) as client:
         started, entities = _create_state_ops_world(client)
         protagonist_id = entities["Protagonista"]["id"]
@@ -461,7 +461,7 @@ def test_free_found_object_is_added_but_paid_purchase_stays_pending():
             ).fetchone()
         assert item["quantity"] == 3
         assert change["status"] == "pending"
-        assert "contabilidad de moneda" in change["reason"]
+        assert "coste total positivo" in change["reason"]
         assert any("Inventario:" in note for note in paid_pending)
 
 
