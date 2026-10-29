@@ -15,7 +15,7 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 - Stack: Python/FastAPI, HTML/CSS/JavaScript para Chromium, SQLite, narrador simulado y adaptadores iniciales OpenAI/Gemini.
 - Flujo de ejemplo: «Hola, linda» dirigido a Maelis produce narración + evento + propuesta de cambio; la confianza queda pendiente si no existe valor inicial confirmado.
 - Preset Isekai v1.16: botón dedicado carga las 76 entradas del JSON de Lorebook, los cinco aventureros, protagonista, cinco objetos iniciales y una nueva sesión cada vez, sin mezclar estado entre partidas.
-- CI: 32 pruebas aprobadas el 29-10-2026, más comprobación sintáctica de JavaScript: [ejecución](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40877808136). Incluye privacidad por audiencia, inspector Lorebook, operaciones ordinarias de inventario y libro de recursos/compras. No valida proveedor real ni Windows.
+- CI: 32 pruebas aprobadas el 29-10-2026, más comprobación sintáctica de JavaScript: [ejecución](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40877808136). Incluye privacidad por audiencia, inspector de mensajes/eventos, presupuesto Lorebook configurable/persistente, inventario/recursos/compras y undo con snapshots. No valida proveedor real ni Windows.
 - Pendiente: prueba manual en Windows; llamadas API reales; medición real de tokens por proveedor; compatibilidad de datos históricos/cambios de presencia; exportación/restauración visual; campaña de 50–100 intercambios.
 - Documentos: `INVESTIGACION_REFERENCIAS.md`, `DECISIONES_TECNICAS.md`, `ROADMAP_IMPLEMENTACION.md`, `ARQUITECTURA.md`, `CONTRATO_RESPUESTA_IA.md`, `ESQUEMA_LOCAL.md`, `PRUEBAS_DE_ACEPTACION.md`.
 - Ubicación de trabajo: rama `docs/historias-organizadas`. La rama literal `main` aún no contiene las carpetas organizadas de mundos.
@@ -60,9 +60,9 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 ### Actualización del gestor local — 29-10-2026
 - CI validada: 32 pruebas Python y sintaxis de JavaScript aprobadas: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40877808136.
 - Referencias web actuales: Chronicler (ACL de conocimiento por personaje + inspector), Open Dungeon (app local SQLite con edición/reintento y lanzador Windows), Gamentic (FastAPI/SQLite con herramientas validadas pero requisitos de hardware superiores), Openovel (narrador en primer plano y memoria en segundo plano) y documentación World Info de SillyTavern.
-- Código: privacidad scene/private; Lorebook de ocho entradas máximo y 4.500 caracteres con inspector de disparadores; inventario de bajo riesgo validado; libro de recursos por partida; snapshots preturno y undo del último turno completado con auditoría.
+- Código: privacidad scene/private; Lorebook de ocho entradas máximo y presupuesto configurable de 500–12.000 caracteres (4.500 por defecto), ocho entradas máximas e inspector de disparadores/inclusión/exclusión; inventario y libro de recursos por partida; compras con saldo transaccional; snapshots preturno y undo del último turno completado con auditoría.
 - Monedas de Isekai empiezan en cero; compra con coste positivo y saldo suficiente descuenta dinero y añade objeto en la misma transacción; saldo insuficiente no cambia ninguno. Los cambios ambiguos siguen pendientes.
-- Pendiente siguiente: prueba de idempotencia de compra en un turno API reintentado, rollback al editar/regenerar, inspector de mensajes/eventos, presupuesto configurable/tokenización y prueba manual Windows + APIs reales.
+- Pendiente siguiente: tokenización real por proveedor; ensayo manual en Windows y llamada API real; compatibilidad de datos antiguos y entradas/salidas de escena; campaña de 50–100 turnos y restauración de backup.
 - No se considera terminado hasta que las pruebas de campaña larga y restauración pasen.
 
 ## Separación de ramas
