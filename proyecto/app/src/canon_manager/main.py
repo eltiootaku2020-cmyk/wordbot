@@ -1,3 +1,4 @@
+import asyncio
 import hashlib
 import hmac
 import json
@@ -2619,6 +2620,21 @@ async def submit_turn(session_id: str, payload: TurnRequest):
             "authorized_skip": authorized_skip or {},
             "external_response": payload.external_response
         })
+    except asyncio.CancelledError:
+        # Task cancellation is not an ordinary Exception on supported Python
+        # versions. Clear the durable in-progress marker before propagating it,
+        # otherwise the current session stays locked until the app restarts.
+        with database.transaction() as conn:
+            conn.execute(
+                "UPDATE messages SET generation_status='failed' "
+                "WHERE id=? AND generation_status='processing'",
+                (user_message_id,)
+            )
+        logger.warning(
+            "Se canceló la generación del narrador; el turno quedó disponible para reintento.",
+            extra={"session_id": session_id, "turn_id": turn_id, "provider": provider_name}
+        )
+        raise
     except ProviderError as exc:
         with database.transaction() as conn:
             conn.execute(
