@@ -155,3 +155,15 @@ El usuario eligió combinar cuatro formas de presencia dentro del Bosque de las 
 - Un lugar diseñado no equivale a un lugar descubierto; la narración no revelará automáticamente su existencia, ocupantes o propósito.
 
 La decisión aprueba las cuatro categorías y su coexistencia posible. No aprueba todavía nombres, número de aldeas, población, facciones, coordenadas, edificios ni historias concretas.
+
+
+## Decisión aprobada: densidad equilibrada de presencia civilizada
+
+El usuario eligió una densidad **equilibrada** para las aldeas, campamentos, ruinas y escondites del Bosque de las Bestias.
+
+- Habrá varias comunidades pequeñas, pero no una población continua ni asentamientos en cada subzona.
+- Los campamentos serán relativamente habituales en rutas transitadas, zonas de expedición y puntos con recursos, pero su presencia será temporal y variable.
+- Ruinas y escondites estarán repartidos, aunque muchos permanecerán ocultos, inaccesibles o sin descubrir.
+- Se conservarán extensiones amplias de bosque salvaje entre los lugares habitados.
+- La densidad global no fija cantidades exactas ni garantiza encuentros; la distribución dependerá de geografía, recursos, seguridad, historia, accesibilidad y presión ecológica.
+- Los nombres, cifras, poblaciones, facciones y ubicaciones concretas siguen pendientes de diseño y aprobación.
