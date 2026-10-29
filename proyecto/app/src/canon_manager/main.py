@@ -393,7 +393,7 @@ def load_state(conn, session_id: str) -> dict[str, Any]:
         (session_id,)
     ).fetchall()]
     return {
-        "session": {"id": session["id"], "name": session["name"], "world_id": session["world_id"]},
+        "session": {"id": session["id"], "name": session["name"], "world_id": session["world_id"], "protagonist_entity_id": session["protagonist_entity_id"]},
         "state": {
             "day": session["day"], "minute_of_day": session["minute_of_day"],
             "time_label": time_label(session["day"], session["minute_of_day"]),
