@@ -262,7 +262,7 @@ def test_load_actual_isekai_preset_imports_lorebook_and_starts_fresh_session():
         first = client.post("/api/presets/isekai-sin-destino", json={})
         assert first.status_code == 200, first.text
         first_data = first.json()
-        assert first_data["lore_entries"] == 76
+        assert first_data["lore_entries"] == 77
         assert first_data["participants"] == 6
         assert first_data["inventory_items"] == 5
 
