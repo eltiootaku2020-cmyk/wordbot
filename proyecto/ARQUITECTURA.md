@@ -162,7 +162,7 @@ La aplicación no reutilizará fragmentos de esos proyectos sin revisar licencia
 
 ### Integración permitida y coste
 
-No se debe automatizar la extracción de respuestas desde el DOM de la página de ChatGPT de consumo. La documentación de términos consultada prohíbe esa extracción programática; el diseño utilizará una API oficial u otra integración expresamente admitida. ChatGPT y su API tienen facturación separada, por lo que cada proveedor tendrá configuración propia y avisos de coste cuando estén disponibles.
+Se distinguen dos vías. **Modo manual (previsto para el uso normal):** Wordbot prepara el prompt y el usuario lo copia a ChatGPT/Gemini web; después pega la respuesta para validarla. No se automatizan el inicio de sesión, el envío a una pestaña autenticada ni la extracción del DOM. **Modo API (opcional):** el adaptador oficial hace la solicitud con su clave propia. La suscripción del chat web y la facturación/cuota de API son sistemas distintos. El modo manual no tiene contador de mensajes ni límite artificial impuesto por Wordbot: los límites del chat web siguen perteneciendo al proveedor. Solo se registra un turno cuando la respuesta pegada pasa el contrato y las validaciones locales.
 
 ### Decisiones de fiabilidad
 
@@ -185,4 +185,4 @@ El código actual incluye:
 - Tabla `resources` por partida y adquisición de objeto con coste: saldo y artículo se actualizan en la transacción del turno.
 - En el preset Isekai, monedas iniciales = 0.
 
-CI aprobada: 32 pruebas Python y sintaxis JavaScript, https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40877808136. La prueba usa el narrador simulado. El undo del último turno restaura estado y deja auditoría; falta ampliar pruebas de rollback para relaciones/poderes, verificar el navegador en Windows, probar APIs reales y realizar campaña larga.
+CI aprobada: 38 pruebas Python y sintaxis JavaScript, https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40890138277. La prueba usa el narrador simulado. El undo del último turno restaura estado y deja auditoría; falta ampliar pruebas de rollback para relaciones/poderes, verificar el navegador en Windows, probar APIs reales y realizar campaña larga.

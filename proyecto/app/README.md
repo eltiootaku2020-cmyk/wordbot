@@ -1,6 +1,6 @@
 # Gestor local de canon — prototipo v0.1
 
-**Estado de validación:** CI aprobó 36 pruebas Python y comprobación sintáctica JavaScript el 29-10-2026: [ver resultados](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40881062754). El modo manual de ChatGPT/Gemini web está cubierto por pruebas automatizadas; falta probar el intercambio real en Windows.
+**Estado de validación:** CI aprobó 38 pruebas Python y comprobación sintáctica JavaScript el 29-10-2026: [ver resultados](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40890138277). El modo manual de ChatGPT/Gemini web está cubierto por pruebas automatizadas; falta probar el intercambio real en Windows.
 
 Esta carpeta contiene un primer prototipo ejecutable del flujo local: interfaz de chat en Chromium, base SQLite y narrador simulado por defecto. El proveedor simulado permite probar la persistencia sin clave ni coste. OpenAI y Gemini son opciones externas configurables.
 
@@ -45,7 +45,7 @@ Si el chat agrega explicaciones o devuelve un JSON incompleto, pídele que respo
 
 **Privacidad:** el prompt puede incluir estado, mensajes recientes, personajes y entradas Lorebook. Revísalo antes de copiarlo. La aplicación no inicia sesión por ti, no lee tu pestaña ni extrae la respuesta automáticamente. No pegues contraseñas ni claves API en el chat.
 
-Este modo no realiza llamadas de red a OpenAI/Gemini desde el programa, por lo que no necesita claves API ni tiene contador propio de los tokens/cupos del chat web.
+Este modo no realiza llamadas de red a OpenAI/Gemini desde el programa, por lo que no necesita claves API ni tiene contador propio de tokens o cupos del chat web. Puedes seguir conversando en esa misma sesión para pedir aclaraciones o corregir el JSON; Wordbot no cuenta esos mensajes ni impone un máximo artificial de intercambios. El proveedor web conserva sus límites propios. Wordbot solo valida y guarda la respuesta que pegues como turno.
 
 ## Proveedor API
 
@@ -70,7 +70,7 @@ Este es un prototipo de desarrollo, no una aplicación final endurecida para pro
 
 ## Validación automática
 
-Nota histórica: una ejecución temprana informó 15 pruebas; no es la CI actual. La ejecución vigente con 36 pruebas Python y sintaxis JavaScript es https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40881062754. Ninguna sustituye la prueba manual en Windows.
+Nota histórica: una ejecución temprana informó 15 pruebas; no es la CI actual. La ejecución vigente con 38 pruebas Python y sintaxis JavaScript es https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40890138277. Ninguna sustituye la prueba manual en Windows.
 
 ## Hallazgos importantes antes de una campaña larga
 
@@ -83,7 +83,7 @@ No expongas el servidor a Internet: el prototipo está pensado para ejecutarse s
 
 ## Qué valida la CI actual
 
-La ejecución actual con 36 pruebas cubre el preset real, privacidad por destinatario, inclusión/exclusión de mensajes/eventos, presupuesto Lorebook editable/persistente, operaciones de objetos y recursos, undo/regeneración, construcción del prompt para ChatGPT/Gemini web, validación/rechazo del JSON pegado y rechazo del contexto desactualizado. La CI no utiliza ni extrae respuestas reales de los chats web y no demuestra el intercambio manual en Windows. Tampoco mide tokens/coste de la API.
+La ejecución actual con 38 pruebas cubre el preset real, privacidad por destinatario, inclusión/exclusión de mensajes/eventos, presupuesto Lorebook editable/persistente, operaciones de objetos y recursos, undo/regeneración, construcción del prompt para ChatGPT/Gemini web, validación/rechazo del JSON pegado y rechazo del contexto desactualizado. La CI no utiliza ni extrae respuestas reales de los chats web y no demuestra el intercambio manual en Windows. Tampoco mide tokens/coste de la API.
 
 Limitaciones conocidas:
 - Las compras se cobran dentro de `InventoryOperation acquire`; no debe emitirse además un `ResourceOperation spend` duplicado para ese evento.

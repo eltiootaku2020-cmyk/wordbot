@@ -1,6 +1,6 @@
 # Proyecto: gestor local de canon, Lorebooks y continuidad
 
-**Estado:** prototipo local v0.1. CI aprobó 36 pruebas Python y sintaxis JavaScript el 29-10-2026. Incluye privacidad por audiencia, inspector de mensajes/eventos, presupuesto Lorebook editable y persistente, inventario/recursos/compras validados, undo seguro y puente manual para el chat web normal de ChatGPT/Gemini. Falta el ensayo manual en Windows y la campaña larga. Las pruebas reales de API son opcionales.  
+**Estado:** prototipo local v0.1. CI aprobó 38 pruebas Python y sintaxis JavaScript el 29-10-2026. Incluye privacidad por audiencia, inspector de mensajes/eventos, presupuesto Lorebook editable y persistente, inventario/recursos/compras validados, undo seguro y puente manual para el chat web normal de ChatGPT/Gemini. Falta el ensayo manual en Windows y la campaña larga. Las pruebas reales de API son opcionales.  
 **Ubicación de trabajo:** rama `docs/historias-organizadas`, carpeta `proyecto/`.
 
 ## Objetivo
@@ -17,7 +17,7 @@ No se debe enviar el Lorebook entero en cada mensaje. La aplicación recupera so
 
 1. El usuario escribe un mensaje y, si hace falta, selecciona el destinatario.
 2. La aplicación recupera el estado actual y un contexto reducido: lugar, hora, personajes presentes, sus fichas, relaciones relevantes, reglas activas y últimos intercambios.
-3. El conector envía ese contexto y el mensaje a la IA.
+3. Según el modo elegido: en el modo manual, la aplicación prepara un prompt que tú copias al chat web normal de ChatGPT o Gemini; en el modo API opcional, el adaptador oficial envía la solicitud.
 4. La IA devuelve la narración para mostrar al usuario, los acontecimientos que afirma que sucedieron y una lista separada de cambios propuestos.
 5. Un validador local comprueba el formato, los permisos narrativos y las reglas del mundo.
 6. Los cambios válidos se aplican en una transacción de SQLite y quedan en el registro de eventos. Los ambiguos o de alto impacto pueden quedar pendientes de aprobación.
@@ -34,7 +34,7 @@ No se debe enviar el Lorebook entero en cada mensaje. La aplicación recupera so
 - **Cambios verificables:** una afirmación de la IA no se convierte automáticamente en canon solo porque aparezca en una respuesta.
 - **Sin memoria ficticia:** si falta información, se marca como desconocida o se pregunta; no se inventa para completar un formulario.
 - **Privacidad local:** Lorebook, registros e inventario se almacenan en el PC. Solo se envía al proveedor el contexto necesario para generar la respuesta.
-- **Sin extracción de páginas web:** priorizar conectores oficiales por API en lugar de depender de leer o controlar automáticamente las páginas web de chat.
+- **Chat web manual como vía de uso:** puedes copiar el prompt a tu conversación normal y pegar de vuelta la respuesta. La aplicación no automatiza el inicio de sesión ni lee la página; los adaptadores API son una modalidad separada y optativa.
 
 ## Investigación, decisiones y plan de implementación
 
@@ -42,7 +42,7 @@ No se debe enviar el Lorebook entero en cada mensaje. La aplicación recupera so
 - [Decisiones técnicas provisionales](DECISIONES_TECNICAS.md) — ADR-001 a ADR-015.
 - [Roadmap de implementación](ROADMAP_IMPLEMENTACION.md) — prioridades P0–P4 y pruebas pendientes.
 
-La investigación recomienda una interfaz web local en Chromium, backend Python/FastAPI, SQLite y adaptadores para APIs oficiales. No se leerá automáticamente la pestaña de ChatGPT de consumo. La decisión podrá reconsiderarse tras una prueba técnica de un solo turno.
+Para el uso previsto, la interfaz local en Chromium + FastAPI + SQLite incluye un puente manual de copia/pega para el chat web normal. Las API oficiales siguen disponibles como modalidad separada y optativa. No se leerá automáticamente la pestaña de ChatGPT/Gemini.
 
 ## Código del prototipo
 
@@ -52,7 +52,7 @@ La investigación recomienda una interfaz web local en Chromium, backend Python/
 - [Base de datos y esquema SQLite](app/src/canon_manager/db.py)
 - [Narrador simulado y adaptadores OpenAI/Gemini](app/src/canon_manager/providers.py)
 - [Pruebas automáticas](app/tests/)
-- [Ejecución CI vigente: 36 pruebas aprobadas](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40881062754)
+- [Ejecución CI vigente: 38 pruebas aprobadas](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40890138277)
 
 Las pruebas de integración cubren «Hola, linda» con Maelis, eventos y cambios pendientes, creación atómica de mundos, el preset de Isekai (76 entradas), privacidad por audiencia, presupuesto Lorebook, undo/recursos y el puente manual ChatGPT/Gemini. La CI valida el modo simulado, la preparación del prompt y el JSON pegado; no sustituye la prueba manual en Windows. Las llamadas API reales son opcionales.
 
@@ -102,7 +102,7 @@ La decisión se basa en la investigación enlazada y puede revisarse después de
 
 ## Estado y siguientes pasos
 
-**Estado actual:** el código incluye interfaz Chromium, SQLite, narrador simulado, adaptadores API opcionales, modo manual para chat web normal de ChatGPT/Gemini, preset real de Isekai (76 entradas), privacidad por audiencia, inspector de contexto, presupuesto Lorebook configurable, inventario/recursos/compras validados y undo seguro. CI aprueba 36 pruebas Python y sintaxis JavaScript, incluida la protección ante contexto desactualizado. Falta uso manual real en Windows.
+**Estado actual:** el código incluye interfaz Chromium, SQLite, narrador simulado, adaptadores API opcionales, modo manual para chat web normal de ChatGPT/Gemini, preset real de Isekai (76 entradas), privacidad por audiencia, inspector de contexto, presupuesto Lorebook configurable, inventario/recursos/compras validados y undo seguro. CI aprueba 38 pruebas Python y sintaxis JavaScript, incluida la protección ante contexto desactualizado. Falta uso manual real en Windows.
 
 **Prioridades actuales:** probar el puente manual con ChatGPT web y Gemini web en Windows; verificar registros históricos/cambios de presencia; realizar una campaña de 50–100 turnos con reinicio/restauración. Las llamadas y la medición de coste de las APIs quedan como validación opcional.
 
@@ -111,4 +111,4 @@ La decisión se basa en la investigación enlazada y puede revisarse después de
 
 El usuario puede elegir ahora **ChatGPT web** o **Gemini web** y continuar en el chat normal de su cuenta, sin clave API. La aplicación prepara el prompt con el estado local y el esquema JSON; el usuario copia el prompt al sitio oficial y después pega la respuesta para que el programa la valide y aplique sus reglas. No se automatiza ni se lee la sesión de navegador.
 
-Implementado en `docs/historias-organizadas` y cubierto por CI: 36 pruebas Python y comprobación sintáctica JS, resultado https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40881062754. La huella SHA-256 impide aplicar una respuesta si el contexto cambió desde la preparación. Pendiente de prueba manual real en Windows con ambos chats, seguido por campaña de 50–100 turnos y restauración.
+Implementado en `docs/historias-organizadas` y cubierto por CI: 38 pruebas Python y comprobación sintáctica JS, resultado https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40890138277. La huella SHA-256 impide aplicar una respuesta si el contexto cambió desde la preparación. Pendiente de prueba manual real en Windows con ambos chats, seguido por campaña de 50–100 turnos y restauración.

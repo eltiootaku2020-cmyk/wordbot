@@ -344,7 +344,7 @@ El README sigue advirtiendo que es experimental y documenta snapshots, rollback 
 ### F. SillyTavern: claves de Lorebook y presupuesto
 Documentación: https://docs.sillytavern.app/usage/core-concepts/worldinfo/
 
-La documentación oficial actual describe coincidencia de palabras completas, profundidad de escaneo, activación recursiva, orden/prioridad y presupuesto de contexto. También advierte que Lorebook orienta al modelo, pero no garantiza que siga el contenido. La coincidencia por palabra completa y el presupuesto ya están en nuestro prototipo. Falta hacer el presupuesto configurable y añadir un registro visible de por qué cada mensaje/evento se incluyó o excluyó, además de las fichas del Lorebook.
+La documentación oficial actual describe coincidencia de palabras completas, profundidad de escaneo, activación recursiva, orden/prioridad y presupuesto de contexto. También advierte que Lorebook orienta al modelo, pero no garantiza que siga el contenido. El prototipo ya incorpora coincidencia por palabra completa, presupuesto configurable y persistente, e inspector de inclusión/exclusión. Lo que falta es tokenización exacta por proveedor: el límite local actual se expresa en caracteres, no en tokens.
 
 ### G. Salidas estructuradas de OpenAI y Gemini
 - OpenAI: https://developers.openai.com/api/docs/guides/structured-outputs
@@ -354,7 +354,7 @@ OpenAI documenta que Structured Outputs valida contra un subconjunto de JSON Sch
 
 ### Qué está implementado en el prototipo después de esta ronda
 
-CI de la rama organizada: **32 pruebas Python aprobadas**, más comprobación sintáctica del JavaScript, en https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40877808136
+CI de esa etapa inicial: **32 pruebas Python aprobadas**, más comprobación sintáctica del JavaScript, en https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40877808136. La actualización posterior del puente manual amplió la cobertura y actualmente tiene 38 pruebas; ver el bloque de verificación al final de este documento.
 
 - Visibilidad explícita `scene/private`, audiencia por mensaje y filtrado de contexto por destinatario/testigos.
 - Inspector de contexto que no llama al modelo y explica disparadores de las entradas Lorebook seleccionadas, límites y caracteres aproximados.
@@ -428,3 +428,25 @@ Este modo no necesita una clave API ni realiza una llamada de red al proveedor d
 La CI del commit `21d23aa981a9b3fc4e557eb3cfcb864526d8397c` aprobó **36 pruebas Python** y la comprobación sintáctica de JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40881062754. Los tests cubren la construcción del prompt, el procesamiento de una respuesta JSON pegada, el rechazo de texto no JSON y el rechazo de respuestas basadas en un contexto desactualizado.
 
 El puente manual incluye una huella SHA-256 del contexto preparado; si el mundo cambia antes de pegar la respuesta, el turno se rechaza y debe generarse un prompt nuevo. Esto está probado en CI. No demuestra aún el uso real del navegador ni una campaña larga: falta probar manualmente en Windows la copia/pegado entre la aplicación, ChatGPT y Gemini. Los adaptadores de API siguen disponibles como modalidad distinta y su validación real es opcional para comprobar el modo de chat web.
+
+
+
+## Nueva referencia: AI Adventure / Local Adventure Engine
+
+Repositorio: https://github.com/CaoRuiming/ai-adventure
+
+El README del proyecto describe un motor de ficción interactiva local donde el modelo propone narración y eventos tipados, pero el motor valida, reduce y persiste el estado. Mantiene el historial de turnos en SQLite y ofrece recuperación, replay, exportación, undo sin borrar la historia, ramas divergentes y checkpoints nombrados. Sus pruebas también separan la lógica de estado del proveedor de generación.
+
+**Qué adoptar como patrón:** historial auditable; deshacer moviendo el punto activo en lugar de destruir la evidencia; ramas para explorar decisiones alternativas; checkpoints y restauración; eventos tipados validados antes de modificar el mundo; pruebas offline con respuestas simuladas.
+
+**Qué no copiar automáticamente:** su dependencia de un servidor local LM Studio para generar texto ni su estructura completa de motor. Wordbot debe conservar la vía de copia/pega para el chat web normal de ChatGPT/Gemini y mantener cualquier adaptador API como opción separada. La referencia sirve para contrastar invariantes de estado y recuperación, no obliga a añadir otro modelo, agentes de fondo ni servicios pesados.
+
+## Distinción de producto: chat web y API de desarrollador
+
+La documentación de OpenAI distingue los GPTs usados dentro de ChatGPT de los asistentes integrados mediante API; la documentación de Gemini describe la API de desarrollador como una interfaz separada que requiere una clave API. Fuentes: https://help.openai.com/en/articles/8554407-chatgpt-search-faq y https://ai.google.dev/api.
+
+Para el flujo manual de Wordbot, los mensajes de refinamiento que el usuario intercambia dentro de ChatGPT/Gemini no son llamadas de API emitidas por Wordbot. La aplicación no cuenta esos mensajes externos ni les impone una cuota propia. El único paso local que cambia el mundo es la respuesta final pegada y validada con el contexto preparado. El proveedor web puede aplicar sus propios límites de uso, que Wordbot no controla ni mide automáticamente.
+
+## Estado de CI después de ampliar las pruebas manuales
+
+La ejecución de https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40890138277 recopiló 38 pruebas, todas aprobadas, y verificó la sintaxis JavaScript. Incluye una prueba de recuperación tras pegar texto no JSON y otra que completa tres turnos manuales consecutivos con respuestas simuladas. Esto demuestra el comportamiento de los endpoints bajo pruebas, pero no sustituye la interacción real con ChatGPT/Gemini en Windows/Chromium.

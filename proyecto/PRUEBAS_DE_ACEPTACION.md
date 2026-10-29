@@ -1,6 +1,6 @@
 # Pruebas de aceptación del gestor local
 
-La aplicación no se considerará fiable por una demostración breve. La última CI pasa 32 pruebas automatizadas con datos simulados: persistencia/backups, esquema estricto, privacidad por audiencia, inspector Lorebook, turno de extremo a extremo, reintentos idempotentes, inventario, movimientos de PNJ, libro de recursos, compras y creación atómica de mundos. Eso no valida las llamadas reales a OpenAI/Gemini, el uso manual en Windows ni los casos de aceptación pendientes. Las pruebas de estado deben poder repetirse sin llamadas pagas.
+La aplicación no se considerará fiable por una demostración breve. La CI más reciente validó 38 pruebas automatizadas con datos simulados, además de la sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40890138277. Cubre persistencia, privacidad por audiencia, Lorebook, inventario/recursos, undo y el puente manual ChatGPT/Gemini, incluida la recuperación de una respuesta inválida y varios turnos consecutivos. Esto no valida aún el uso real en Windows, la interacción real con ambos chats web ni la campaña larga. Las pruebas del estado deben poder repetirse sin llamadas pagas.
 
 ## A. Persistencia y recuperación
 
@@ -194,3 +194,18 @@ Se considera apto para una primera partida cuando A, C, D, E, F, G, H e I pasan 
 5. Confirmar que el mismo presupuesto afecta el contexto de los turnos narrativos.
 
 **Cobertura actual:** CI valida persistencia, rango mínimo, selección de entradas y motivo de omisión. Pendiente ensayo manual de la interfaz en Windows y conteo exacto de tokens por proveedor.
+
+
+
+## T. Uso manual de ChatGPT/Gemini web, recuperación y continuidad
+
+1. Seleccionar ChatGPT web o Gemini web en modo manual y preparar un prompt sin configurar ninguna clave API.
+2. Copiar el prompt a la conversación web normal, traer la respuesta y pegar su JSON en Wordbot.
+3. Pegar primero una respuesta no válida; comprobar que no se guarda una narración ni se modifica el estado. Pegar luego un JSON corregido con el mismo `request_id` y la misma huella de contexto; el turno debe recuperarse sin duplicar el mensaje ni aplicar efectos dos veces.
+4. Completar al menos tres intercambios manuales consecutivos, preparando cada contexto desde el estado vigente, y verificar que todos quedan guardados en la misma partida.
+5. Preparar un prompt, avanzar la partida por otra vía y después pegar la respuesta antigua; debe responder 409 sin guardar el turno. Preparar un prompt nuevo y repetirlo correctamente.
+6. Reiniciar Wordbot y comprobar que el estado y los turnos aceptados se conservan.
+
+**Criterio de aceptación:** Wordbot no impone una cuota local de mensajes ni corta los intercambios manuales por haber alcanzado un número fijo. Los límites propios de ChatGPT/Gemini quedan fuera del programa. Una respuesta incorrecta puede corregirse; solo se conserva una vez el turno que supera las validaciones y una respuesta basada en un contexto antiguo se rechaza.
+
+**Cobertura automatizada actual:** las pruebas de recuperación y de tres turnos consecutivos pasan en CI. Pendiente ejecutar estas acciones con las interfaces reales de ChatGPT y Gemini en Windows/Chromium y realizar la campaña completa de 50–100 intercambios con reinicio y restauración.
