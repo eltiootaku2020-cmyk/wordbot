@@ -148,7 +148,9 @@ def _process_is_alive(pid_value: Any, expected_start_token: Any = None) -> bool:
 database = Database(settings.db_path)
 database.initialize()
 
-def _recover_interrupted_turns(conn, session_id: str | None = None) -> int:
+def _recover_interrupted_turns(
+    conn, session_id: str | None = None, *, recovery_source: str = "startup"
+) -> int:
     """Recover orphaned processing markers inside the caller's SQLite transaction."""
     recovered = 0
     query = (
@@ -174,7 +176,9 @@ def _recover_interrupted_turns(conn, session_id: str | None = None) -> int:
             continue
         metadata.pop("processing_owner_pid", None)
         metadata.pop("processing_owner_start_token", None)
-        metadata["recovered_after_restart"] = True
+        metadata.pop("recovered_after_restart", None)
+        metadata.pop("recovered_during_runtime", None)
+        metadata["recovered_after_restart" if recovery_source == "startup" else "recovered_during_runtime"] = True
         metadata["recovery_note"] = (
             "El turno se interrumpió antes de terminar. No se aplicaron "
             "cambios; revisa el mensaje y reintenta."
@@ -2562,7 +2566,7 @@ async def submit_turn(session_id: str, payload: TurnRequest):
         # Recheck the session's owner on every turn request. If an instance died
         # after startup recovery observed it alive, the next request can release
         # the orphan without requiring another application restart.
-        _recover_interrupted_turns(conn, session_id=session_id)
+        _recover_interrupted_turns(conn, session_id=session_id, recovery_source="runtime")
         if payload.recipient_id:
             if conn.execute(
                 "SELECT 1 FROM entities WHERE id=? AND world_id=?",
