@@ -150,3 +150,8 @@ class ContextPreviewRequest(StrictModel):
 
 class ApprovalRequest(StrictModel):
     initial_value: float | None = Field(default=None, ge=0, le=100)
+
+
+
+class LocalSettingsUpdate(StrictModel):
+    lore_budget_chars: int = Field(ge=500, le=12000)
