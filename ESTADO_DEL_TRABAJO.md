@@ -15,8 +15,8 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 - Stack: Python/FastAPI, HTML/CSS/JavaScript para Chromium, SQLite, narrador simulado y adaptadores iniciales OpenAI/Gemini.
 - Flujo de ejemplo: «Hola, linda» dirigido a Maelis produce narración + evento + propuesta de cambio; la confianza queda pendiente si no existe valor inicial confirmado.
 - Preset Isekai v1.16: botón dedicado carga las 76 entradas del JSON de Lorebook, los cinco aventureros, protagonista, cinco objetos iniciales y una nueva sesión cada vez, sin mezclar estado entre partidas.
-- CI: 32 pruebas aprobadas el 29-10-2026, más comprobación sintáctica de JavaScript: [ejecución](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40877808136). Incluye privacidad por audiencia, inspector de mensajes/eventos, presupuesto Lorebook configurable/persistente, inventario/recursos/compras y undo con snapshots. No valida proveedor real ni Windows.
-- Pendiente: prueba manual en Windows; llamadas API reales; medición real de tokens por proveedor; compatibilidad de datos históricos/cambios de presencia; exportación/restauración visual; campaña de 50–100 intercambios.
+- CI: 36 pruebas aprobadas el 29-10-2026, más comprobación sintáctica de JavaScript: [ejecución](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40881062754). Incluye el puente manual ChatGPT/Gemini web y el rechazo de respuestas con contexto desactualizado. No valida uso manual en Windows ni campaña larga.
+- Pendiente: prueba manual en Windows con ChatGPT/Gemini web; compatibilidad de datos históricos/cambios de presencia; exportación/restauración visual; campaña de 50–100 intercambios. Las llamadas API reales y su medición de tokens/coste son opcionales.
 - Documentos: `INVESTIGACION_REFERENCIAS.md`, `DECISIONES_TECNICAS.md`, `ROADMAP_IMPLEMENTACION.md`, `ARQUITECTURA.md`, `CONTRATO_RESPUESTA_IA.md`, `ESQUEMA_LOCAL.md`, `PRUEBAS_DE_ACEPTACION.md`.
 - Ubicación de trabajo: rama `docs/historias-organizadas`. La rama literal `main` aún no contiene las carpetas organizadas de mundos.
 
@@ -48,21 +48,21 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 
 ### 3. Gestor local de canon, Lorebooks y continuidad
 - Carpeta: `proyecto/`; aplicación prototipo: `proyecto/app/`.
-- Estado: v0.1 con código inicial real; la documentación anterior que decía «solo documentación» quedó obsoleta. La última CI enlazada por el README del prototipo indica 32 pruebas automáticas aprobadas, no una validación completa en Windows.
+- Estado: v0.1 con código real en desarrollo; la documentación anterior que decía «solo documentación» quedó obsoleta. Una sección histórica registró 32 pruebas, pero la CI vigente aprueba 36 pruebas automáticas: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40881062754. No es una validación completa en Windows.
 - Stack: Python + FastAPI, HTML/CSS/JavaScript ligero en Chromium, SQLite y proveedores simulados/OpenAI/Gemini.
 - Ya existe: base local, interfaz, importación del JSON real de Isekai v1.16 (76 entradas), creación de mundos/partidas, reparto/inventario, mensajes/eventos, audiencia scene/private, filtrado por destinatario/testigos, inspector de contexto Lorebook y libro de recursos con compras validadas.
 - Referencias: `INVESTIGACION_REFERENCIAS.md`; decisiones ADR-001 a ADR-014 en `DECISIONES_TECNICAS.md`; prioridades P0–P4 en `ROADMAP_IMPLEMENTACION.md`.
-- **Privacidad por audiencia implementada:** selector escena/grupo o privado, metadatos de audiencia y filtro de mensajes/eventos por destinatario/testigos. CI actual: 32 pruebas Python y sintaxis JavaScript aprobadas. Sigue pendiente explicar en inspector cada mensaje/evento incluido/excluido, cambios de presencia históricos y pruebas manuales de API/Windows.
-- Otros pendientes prioritarios: política para autoaplicar operaciones cotidianas de bajo riesgo y retener las ambiguas/de alto impacto; inspector de activación Lorebook; rollback al editar/regenerar; prueba manual Windows; llamadas reales de OpenAI/Gemini; prueba de 50–100 intercambios y restauración.
+- **Privacidad por audiencia implementada:** selector escena/grupo o privado, metadatos de audiencia y filtro de mensajes/eventos por destinatario/testigos; el inspector explica las inclusiones/exclusiones. CI actual: 36 pruebas Python y sintaxis JavaScript aprobadas. Sigue pendiente probar en Windows y tratar cambios de presencia históricos.
+- Otros pendientes prioritarios: prueba manual Windows del chat web; rollback al editar/regenerar más escenarios; compatibilidad de cambios de presencia antiguos; prueba de 50–100 intercambios y restauración. Llamadas API reales son opcionales.
 - No hay que enviar el Lorebook completo cada turno ni extraer las respuestas de la página de ChatGPT de consumo. La IA debe recibir contexto mínimo a través de API oficial y proponer cambios que el programa valida y guarda.
 - Rama de trabajo: `docs/historias-organizadas`. La rama literal `main` de este repositorio sigue sin las carpetas organizadas de mundos/Lorebooks; no mezclar ni mover ramas sin una tarea explícita.
 
 ### Actualización del gestor local — 29-10-2026
-- CI validada: 32 pruebas Python y sintaxis de JavaScript aprobadas: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40877808136.
+- CI validada inicialmente con 32 pruebas (registro histórico); estado vigente: 36 pruebas Python y sintaxis JS aprobadas: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40881062754.
 - Referencias web actuales: Chronicler (ACL de conocimiento por personaje + inspector), Open Dungeon (app local SQLite con edición/reintento y lanzador Windows), Gamentic (FastAPI/SQLite con herramientas validadas pero requisitos de hardware superiores), Openovel (narrador en primer plano y memoria en segundo plano) y documentación World Info de SillyTavern.
 - Código: privacidad scene/private; Lorebook de ocho entradas máximo y presupuesto configurable de 500–12.000 caracteres (4.500 por defecto), ocho entradas máximas e inspector de disparadores/inclusión/exclusión; inventario y libro de recursos por partida; compras con saldo transaccional; snapshots preturno y undo del último turno completado con auditoría.
 - Monedas de Isekai empiezan en cero; compra con coste positivo y saldo suficiente descuenta dinero y añade objeto en la misma transacción; saldo insuficiente no cambia ninguno. Los cambios ambiguos siguen pendientes.
-- Pendiente siguiente: tokenización real por proveedor; ensayo manual en Windows y llamada API real; compatibilidad de datos antiguos y entradas/salidas de escena; campaña de 50–100 turnos y restauración de backup.
+- Pendiente siguiente: ensayo manual en Windows con el chat web normal; compatibilidad de datos antiguos y entradas/salidas de escena; campaña de 50–100 turnos y restauración de backup. Tokenización/coste API solo si se usa la modalidad API.
 - No se considera terminado hasta que las pruebas de campaña larga y restauración pasen.
 
 ## Separación de ramas
@@ -96,7 +96,7 @@ El usuario aclaró que al decir IA se refiere al chat normal de ChatGPT o Gemini
 - No se automatizan login, envío de mensajes, lectura del DOM ni extracción automática de respuestas. El usuario revisa qué datos del juego pega al proveedor.
 - Los adaptadores API siguen disponibles opcionalmente y no deben confundirse con la suscripción/cupo de chat web.
 
-**Verificación actual:** CI en https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40880074124 — 35 pruebas Python y comprobación de sintaxis de JavaScript aprobadas. No es todavía una prueba real del navegador.
+**Verificación actual:** CI en https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40881062754 — 36 pruebas Python y comprobación de sintaxis de JavaScript aprobadas. No es todavía una prueba real del navegador.
 
 **Pendiente:** prueba manual en Windows con ChatGPT web y Gemini web; comprobar el intercambio JSON en ambos; probar 50–100 turnos, reinicio y restauración. El chat web manual no tiene medida automática de tokens/coste. No revertir este enfoque a automatización del navegador sin nueva investigación y evaluación de políticas.
 
