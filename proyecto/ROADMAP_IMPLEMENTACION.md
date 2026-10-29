@@ -1,6 +1,6 @@
 # Roadmap de implementación — gestor local v0.1
 
-El prototipo v0.1 ya existe. Las casillas marcan código presente, no necesariamente validación manual completa. La CI más reciente aprobó 79 pruebas Python en Linux/Python 3.12 y comprobó sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40932636884. Ya existe un puente manual para el chat web normal de ChatGPT/Gemini; la interfaz e intercambio real deben probarse en Windows. Las APIs son opcionales.
+La CI más reciente aprobó 81 pruebas Python en Linux/Python 3.12 y comprobó sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40935903505.
 
 ## Fase 0 — Investigación y arquitectura
 - [x] Revisar clientes de roleplay (SillyTavern, RisuAI, Agnai).
@@ -91,7 +91,7 @@ La interfaz ya permite crear un mundo y su primera sesión, con protagonista, ca
 
 - [x] Validar sintaxis del JavaScript de la interfaz en CI.
 
-Última CI aprobada (79 pruebas Python + JavaScript): https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40932636884
+Última CI aprobada (81 pruebas Python + JavaScript): https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40935903505
 
 
 ---
@@ -105,9 +105,10 @@ Esta sección distingue implementado de pendiente. No marcar como terminado nada
 - [x] Filtrado de contexto por destinatario, audiencia y testigos; eventos pendientes/rechazados no se presentan como hechos confirmados.
 - [x] Prueba aislada: conversación privada con Maelis no aparece en el contexto de Ivar; un privado sin destinatario se rechaza.
 - [x] Mostrar motivos de inclusión/exclusión de mensajes/eventos con el inspector local: audiencia, destinatario, testigos, estado y límite de historial.
-- [ ] Probar cambios de presencia y registros antiguos sin metadatos de audiencia.
+- [x] Migrar tablas antiguas de presencia que carecían de `presence_status`/`updated_at`, normalizar el estado desde la ubicación y restaurar backups sin el campo derivado.
+- [ ] Revisar mensajes/eventos históricos sin metadatos de audiencia: es una compatibilidad distinta de la migración de presencia.
 
-**Criterio parcial alcanzado:** privacidad e inspector por mensaje/evento cubiertos por CI; quedan cambios de presencia y registros históricos sin metadatos.
+**Criterio parcial alcanzado:** privacidad e inspector por mensaje/evento cubiertos por CI; la migración de presencia histórica está probada, pero aún debe revisarse la compatibilidad de mensajes/eventos sin metadatos de audiencia.
 
 ### Prioridad P1 — Política automática para cambios de bajo riesgo
 - [x] Mantener revisión para cambios ambiguos y de alto impacto.
@@ -117,7 +118,7 @@ Esta sección distingue implementado de pendiente. No marcar como terminado nada
 - [x] Pago e ingreso/objeto se registran en SQLite con valores anterior/propuesto/aceptado y fuente; saldo insuficiente deja inventario y dinero intactos.
 - [x] Mantener objetos de alto impacto, operaciones ambiguas y datos contradictorios pendientes.
 
-**Verificación:** 79 pruebas Python aprobadas en CI, incluidos puente manual, contexto desactualizado, destinos contradictorios y movimientos fuera de escena: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40932636884. La idempotencia de compra está probada con proveedor simulado; falta validación visual manual en Windows.
+**Verificación:** 81 pruebas Python aprobadas en CI,
 
 ### Prioridad P2 — Inspector de contexto y activación de Lorebook
 - [x] Mostrar fichas Lorebook seleccionadas y los disparadores concretos.
@@ -141,7 +142,8 @@ Esta sección distingue implementado de pendiente. No marcar como terminado nada
 **Criterio parcial alcanzado:** restauración de inventario, recursos y reloj, auditoría y orden de undo cubiertos por CI. Quedan escenarios de campaña larga y prueba manual de la interfaz.
 
 ### Prioridad P4 — Pruebas de integración reales y de larga duración
-- [x] CI Linux: 79 pruebas Python y comprobación sintáctica de JavaScript aprobadas el 29-10-2026 (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40932636884; no sustituye las pruebas manuales de Windows).
+- [x] CI Linux: 81 pruebas Python
+- [x] CI de compatibilidad de presencia histórica y restauración de backups sin `presence_status`.
 - [ ] Ejecutar la instalación desde cero en Windows/Chromium.
 - [ ] Probar manualmente en Windows el flujo completo con el chat web normal de ChatGPT y con Gemini.
 - [ ] (Opcional para la modalidad API) Probar una llamada controlada a OpenAI API y otra a Gemini API; no almacenar claves en Git.
@@ -176,13 +178,23 @@ Esta sección distingue implementado de pendiente. No marcar como terminado nada
 - [x] Prueba de continuidad sintética de 100 turnos, reinicio, backup, mutación y restauración exacta.
 - [ ] Completar una campaña narrativa real de 50–100 turnos y comprobar cierre, reinicio y restauración.
 
-**Criterio para la primera entrega sin API:** el usuario puede usar su cuenta normal en el sitio web mediante copiar/pegar; el programa conserva y valida el estado localmente. No se requiere que las APIs estén configuradas ni se automatiza la lectura del chat web. CI aprobada con 79 pruebas Python y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40932636884. La prueba sintética de 100 turnos no sustituye la campaña narrativa real ni el ensayo manual en Windows.
+CI aprobada con 81 pruebas Python y sintaxis JavaScript:
 
 ## Actualización — 29-10-2026, continuidad y restauración
 
 - PR #5 integrado en `docs/historias-organizadas`: https://github.com/eltiootaku2020-cmyk/wordbot/pull/5. Commit de integración: `90e8196331406f999ec42f1a4e5b2eb8f4282937`.
-- CI: 79 pruebas Python aprobadas y sintaxis JavaScript correcta: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40932636884.
+- CI: 81 pruebas Python aprobadas y sintaxis JavaScript correcta:
 - Añadidos controles de JSON truncado/reintento, compra hipotética, cambios de relación contradictorios y restauración que falla por una restricción de datos. En el fallo de restauración, SQLite revierte la transacción y la API devuelve 422 sin alterar la partida.
 - La campaña automatizada de 100 turnos breves ahora compara estado, mensajes y todas las tablas de sesión restaurables antes y después de restaurar una copia tras una mutación posterior.
 - Sigue pendiente la prueba manual en Windows y la campaña narrativa de 50–100 turnos con ChatGPT/Gemini web real; la CI usa un proveedor simulado.
 
+
+
+## Actualización — 29-10-2026, compatibilidad histórica de presencia (PR #6)
+
+- PR #6 integrado en `docs/historias-organizadas`: https://github.com/eltiootaku2020-cmyk/wordbot/pull/6; commit `8a08870b7e3cbba8a107a34a74bd947e919b9c8a`.
+- CI posterior a la integración: 81 pruebas Python aprobadas y sintaxis JavaScript correcta (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40935903505).
+- [x] Actualización in situ de bases cuya tabla `session_presence` carecía de `presence_status` o `updated_at`; los registros se conservan y el estado se recalcula desde la ubicación actual de la partida.
+- [x] Restaurar backup histórico cuya tabla de presencia no contiene `presence_status`; el campo derivado se reconstruye al leer la copia.
+- [ ] Compatibilidad de mensajes/eventos antiguos sin metadatos de audiencia, que no queda cubierta por esta migración.
+- [ ] Prueba manual en Windows/Chromium con ChatGPT web y Gemini web, exportación/restauración visual y campaña de 50–100 turnos reales. Los 100 turnos automatizados siguen siendo breves y usan el proveedor simulado.
