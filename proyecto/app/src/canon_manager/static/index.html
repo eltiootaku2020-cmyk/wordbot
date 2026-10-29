@@ -158,10 +158,7 @@ async function refreshSessions() {
   const sessions = await api("/api/worlds/" + currentWorld + "/sessions");
   sessions.forEach(s => addOption(el("sessionSelect"), s.id, s.name + " — Día " + s.day));
   const entities = await api("/api/worlds/" + currentWorld + "/entities");
-  entities.forEach(e => {
-    entityNames[e.id] = e.name;
-    if (e.kind !== "protagonist") addOption(el("recipientSelect"), e.id, e.name);
-  });
+  entities.forEach(e => { entityNames[e.id] = e.name; });
   if (currentSession && sessions.some(s => s.id === currentSession)) el("sessionSelect").value = currentSession;
   if (el("sessionSelect").value) await loadSession(el("sessionSelect").value);
 }
@@ -185,8 +182,26 @@ function renderState(payload) {
   const state = payload.state;
   el("state").appendChild(makeCard(state.time_label));
   el("state").appendChild(makeCard("Lugar: " + state.location));
+  const presentParticipants = payload.participants.filter(
+    p => p.kind !== "protagonist" && p.presence_status === "present"
+  );
   el("state").appendChild(makeCard("Presentes: " + payload.participants.filter(p => p.presence_status === "present").map(p => p.name).join(", ")));
-  el("state").appendChild(makeCard("Inventario: " + (payload.inventory.length ? payload.inventory.map(i => i.display_name + " ×" + i.quantity + " (" + i.condition + ")").join(", ") : "vacío")));
+  const previousRecipient = el("recipientSelect").value;
+  clearChildren(el("recipientSelect"));
+  addOption(el("recipientSelect"), "", "Escena / grupo");
+  presentParticipants.forEach(p => addOption(el("recipientSelect"), p.id, p.name));
+  if (presentParticipants.some(p => p.id === previousRecipient)) {
+    el("recipientSelect").value = previousRecipient;
+  }
+  const protagonistId = payload.session.protagonist_entity_id;
+  const trackedObjects = payload.inventory.length ? payload.inventory.map(item => {
+    let holder = "";
+    if (!item.carrier_entity_id) holder = "en suelo" + (item.location ? " (" + item.location + ")" : "");
+    else if (item.carrier_entity_id === protagonistId) holder = "contigo";
+    else holder = "con " + (entityNames[item.carrier_entity_id] || "otra entidad");
+    return item.display_name + " ×" + item.quantity + " (" + item.condition + "; " + holder + ")";
+  }).join(", ") : "ninguno registrado";
+  el("state").appendChild(makeCard("Objetos rastreados: " + trackedObjects));
   const rels = payload.relationships.filter(r => r.value !== null);
   el("state").appendChild(makeCard("Relaciones registradas: " + (rels.length ? rels.map(r => (entityNames[r.to_entity_id] || r.to_entity_id) + " · " + r.axis + " " + r.value).join("; ") : "sin puntuaciones iniciales")));
   const eco = payload.eco_uses || [];
