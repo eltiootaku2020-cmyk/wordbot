@@ -66,3 +66,37 @@ SQLite es la fuente de verdad local. El esquema se mantendrá normalizado lo suf
 ## Persistencia y copias de seguridad
 
 La base de datos permanece en el PC. El usuario puede crear copias fechadas y exportar mundos/Lorebooks en formatos abiertos. Restaurar un guardado no debe cambiar el canon ni importar accidentalmente datos de otro mundo.
+
+
+## Procedencia y recuperación
+
+Toda entrada derivada de la narración debe conservar al menos la referencia al mensaje/turno que la originó y su estado de validación. Distinguir:
+- canon aprobado;
+- hecho confirmado de la partida;
+- observación de un personaje concreto;
+- rumor;
+- hipótesis;
+- propuesta no aceptada.
+
+Para el conocimiento de PNJ, guardar quién sabe el hecho y la fuente por la que lo conoció. Un evento observado por un PNJ no se convierte automáticamente en conocimiento compartido por todo el grupo.
+
+Los IDs y claves de idempotencia se generan en la aplicación. La IA puede usar referencias locales (por ejemplo `event_ref: "e1"`) solo para relacionar objetos dentro de una respuesta.
+
+## Operación SQLite y copias
+
+- Aplicar un turno aceptado con `BEGIN` / `COMMIT`; ante error, `ROLLBACK`.
+- Evaluar WAL para lecturas concurrentes y escritura ligera local. WAL admite lectores concurrentes con un escritor activo y requiere que los procesos estén en el mismo equipo; no colocar la base viva en un sistema de archivos de red.
+- No crear una copia consistente de una base activa copiando a ciegas solo el archivo principal si WAL está habilitado. Preferir la SQLite Online Backup API o un mecanismo que respete el estado de la base.
+- Restaurar primero en un archivo temporal, verificar el esquema y la integridad, y permitir que el usuario confirme antes de reemplazar una partida activa.
+
+Referencias oficiales:
+- Transacciones: https://www.sqlite.org/lang_transaction.html
+- WAL: https://www.sqlite.org/wal.html
+- Backup API: https://www.sqlite.org/backup.html
+
+## Claves y superficie local
+
+- No incluir claves de proveedor en el repositorio, en Lorebooks ni en exportaciones de mundos.
+- Preferir el almacén seguro del sistema operativo; como alternativa de desarrollo, archivo local ignorado por Git y con permisos restringidos.
+- El servidor escucha en loopback por defecto, sin abrir la aplicación a la red doméstica/Internet.
+- Las llamadas al proveedor incluyen solo el contexto requerido; las fichas y todo el historial de la partida permanecen en la base local salvo los mensajes seleccionados para generación.
