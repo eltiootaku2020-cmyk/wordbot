@@ -3016,17 +3016,32 @@ def _read_session_backup(backup_path: Path, session_id: str):
         table_rows = {}
         for table in RESTORE_SESSION_TABLES:
             columns = _table_columns(source, table)
-            if not RESTORE_REQUIRED_COLUMNS[table].issubset(columns):
+            required_columns = RESTORE_REQUIRED_COLUMNS[table]
+            # Older backups stored location but not the derived presence_status.
+            # Accept that legacy shape and reconstruct the status below.
+            if table == "session_presence" and "presence_status" not in columns:
+                required_columns = required_columns - {"presence_status"}
+            if not required_columns.issubset(columns):
                 raise HTTPException(
                     status_code=422,
                     detail=f"La copia no contiene los campos esenciales de {table}; no se modificó la partida."
                 )
-            table_rows[table] = [
+            rows = [
                 dict(row) for row in source.execute(
                     f"SELECT * FROM {table} WHERE session_id=? ORDER BY rowid",
                     (session_id,)
                 ).fetchall()
             ]
+            if table == "session_presence":
+                # Location relative to the restored session is authoritative,
+                # even when an older row has a missing or stale status column.
+                current_location = str(source_session_row["current_location"] or "")
+                for presence in rows:
+                    location = str(presence.get("location") or "")
+                    presence["presence_status"] = (
+                        "present" if location.casefold() == current_location.casefold() else "away"
+                    )
+            table_rows[table] = rows
         signature = _restore_world_signature(source, source_session_row["world_id"])
         if signature is None:
             raise HTTPException(status_code=422, detail="La copia no contiene el mundo de esta partida.")

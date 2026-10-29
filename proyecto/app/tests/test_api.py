@@ -3286,3 +3286,73 @@ def test_restore_rejects_backup_when_world_canon_has_changed():
         assert response.status_code == 409
         assert "canon" in response.json()["detail"].lower()
         assert client.get(f"/api/sessions/{session_id}/state").json() == before
+
+
+def test_restore_accepts_legacy_backup_without_presence_status():
+    import sqlite3
+
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seed["world_id"], seed["session_id"]
+        entities = client.get(f"/api/worlds/{world_id}/entities").json()
+        maelis = next(entity for entity in entities if entity["name"] == "Maelis Orven")
+        current_location = client.get(f"/api/sessions/{session_id}/state").json()["state"]["location"]
+
+        # Create the checkpoint while Maelis is outside the active scene.
+        with database.transaction() as conn:
+            conn.execute(
+                "UPDATE session_presence SET location=?,presence_status='away' "
+                "WHERE session_id=? AND entity_id=?",
+                ("Aldea Lejana", session_id, maelis["id"])
+            )
+        backup = client.post(f"/api/sessions/{session_id}/backup", json={})
+        assert backup.status_code == 200, backup.text
+        backup_name = backup.json()["backup_name"]
+        backup_path = database.path.parent / "backups" / backup_name
+
+        # Rewrite only the backup's presence table into the historical shape.
+        with sqlite3.connect(backup_path) as conn:
+            conn.execute("PRAGMA foreign_keys=OFF")
+            conn.execute("ALTER TABLE session_presence RENAME TO session_presence_current")
+            conn.execute("""
+                CREATE TABLE session_presence (
+                    session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+                    entity_id TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+                    location TEXT NOT NULL DEFAULT '',
+                    PRIMARY KEY(session_id, entity_id)
+                )
+            """)
+            conn.execute(
+                "INSERT INTO session_presence(session_id,entity_id,location) "
+                "SELECT session_id,entity_id,location FROM session_presence_current"
+            )
+            conn.execute("DROP TABLE session_presence_current")
+            conn.commit()
+            assert conn.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+            assert conn.execute("PRAGMA foreign_key_check").fetchone() is None
+
+        # Change the active state after the checkpoint, then restore the old format.
+        with database.transaction() as conn:
+            conn.execute(
+                "UPDATE session_presence SET location=?,presence_status='present' "
+                "WHERE session_id=? AND entity_id=?",
+                (current_location, session_id, maelis["id"])
+            )
+        response = client.post(
+            f"/api/sessions/{session_id}/restore",
+            json={"backup_name": backup_name, "confirmation": "RESTAURAR"}
+        )
+        assert response.status_code == 200, response.text
+
+        state = client.get(f"/api/sessions/{session_id}/state").json()
+        restored_maelis = next(item for item in state["participants"] if item["id"] == maelis["id"])
+        assert restored_maelis["location"] == "Aldea Lejana"
+        assert restored_maelis["presence_status"] == "away"
+        with database.connection() as conn:
+            stored = conn.execute(
+                "SELECT location,presence_status FROM session_presence "
+                "WHERE session_id=? AND entity_id=?",
+                (session_id, maelis["id"])
+            ).fetchone()
+        assert stored["location"] == "Aldea Lejana"
+        assert stored["presence_status"] == "away"
