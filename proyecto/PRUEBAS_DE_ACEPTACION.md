@@ -1,6 +1,6 @@
 # Pruebas de aceptación del gestor local
 
-La CI pre-merge del PR #14 validó **89 pruebas Python** y sintaxis JavaScript; queda una advertencia no bloqueante de Starlette/httpx: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40946590907. El cambio ya está integrado en `docs/historias-organizadas`; no equivale a la campaña manual real.
+La CI posterior al merge de PR #14 validó **89 pruebas Python** y sintaxis JavaScript; queda una advertencia no bloqueante de Starlette/httpx: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40947007582. El cambio está integrado en `docs/historias-organizadas`; no equivale a la campaña manual real.
 
 ## A. Persistencia y recuperación
 
