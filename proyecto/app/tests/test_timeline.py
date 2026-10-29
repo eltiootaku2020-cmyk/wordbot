@@ -4,6 +4,8 @@ import pytest
 
 from canon_manager.db import Database
 from canon_manager.timeline import absolute_minute, fire_due_world_events
+from canon_manager.main import apply_narrator_result, session_row
+from canon_manager.models import NarratorResponse
 
 
 def make_world_session(tmp_path: Path):
@@ -88,3 +90,35 @@ def test_each_session_gets_its_own_firing_record(tmp_path):
         assert conn.execute(
             "SELECT COUNT(*) FROM session_timeline_events WHERE world_event_id='event-a'"
         ).fetchone()[0] == 2
+
+
+
+def test_turn_clock_advance_automatically_fires_crossed_world_events(tmp_path):
+    database = make_world_session(tmp_path)
+    with database.transaction() as conn:
+        add_event(conn, "before-midnight", "before-midnight", 1, 900)
+        add_event(conn, "midnight", "midnight", 2, 0)
+        add_event(conn, "after-midnight", "after-midnight", 2, 30)
+        session = session_row(conn, "session-a")
+
+        result = NarratorResponse(
+            narration="El tiempo autorizado transcurre.",
+            elapsed_minutes=0,
+        )
+        applied, pending = apply_narrator_result(
+            conn, session, "turn-a", "message-a", "Avanzo hasta el día siguiente.",
+            result, {"minutes": 990, "destination": ""},
+        )
+
+        assert pending == []
+        assert [row["external_uid"] for row in conn.execute(
+            "SELECT w.external_uid FROM session_timeline_events f "
+            "JOIN world_timeline_events w ON w.id=f.world_event_id "
+            "WHERE f.session_id=? ORDER BY f.scheduled_total_minutes",
+            ("session-a",),
+        ).fetchall()] == ["before-midnight", "midnight", "after-midnight"]
+        assert sum("Suceso mundial activado" in item for item in applied) == 3
+        clock = conn.execute(
+            "SELECT day,minute_of_day FROM sessions WHERE id='session-a'"
+        ).fetchone()
+        assert (clock["day"], clock["minute_of_day"]) == (2, 1070)
