@@ -87,7 +87,8 @@ CREATE TABLE IF NOT EXISTS ability_uses (
 );
 CREATE TABLE IF NOT EXISTS snapshots (
   id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-  event_sequence INTEGER NOT NULL, state_json TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+  turn_id TEXT NOT NULL DEFAULT '', event_sequence INTEGER NOT NULL,
+  state_json TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_messages_session_turn ON messages(session_id, turn_index);
 CREATE INDEX IF NOT EXISTS idx_events_session ON events(session_id, created_at);
@@ -116,6 +117,13 @@ class Database:
             if "client_request_id" not in columns:
                 conn.execute("ALTER TABLE messages ADD COLUMN client_request_id TEXT")
             conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_client_request ON messages(session_id, client_request_id, role) WHERE client_request_id IS NOT NULL")
+            snapshot_columns = {row["name"] for row in conn.execute("PRAGMA table_info(snapshots)").fetchall()}
+            if "turn_id" not in snapshot_columns:
+                conn.execute("ALTER TABLE snapshots ADD COLUMN turn_id TEXT NOT NULL DEFAULT ''")
+            conn.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_snapshots_session_turn "
+                "ON snapshots(session_id,turn_id) WHERE turn_id<>''"
+            )
 
     @contextmanager
     def connection(self) -> Iterator[sqlite3.Connection]:
