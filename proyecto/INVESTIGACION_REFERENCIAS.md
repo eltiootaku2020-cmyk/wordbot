@@ -292,7 +292,7 @@ Después de esta revisión se implementó un primer alcance explícito para cada
 - En una escena privada, el narrador simulado no añade automáticamente reacciones de Ivar y Brina; el alcance de testigos se comprueba al persistir eventos.
 - Prueba de regresión: conversación privada con Maelis no se incluye en el contexto posterior de Ivar; turnos privados sin destinatario se rechazan.
 
-**Verificación:** CI aprobó 15 pruebas Python y la comprobación sintáctica de JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40867432602
+**Verificación:** CI aprobó 26 pruebas Python y la comprobación sintáctica de JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40867432602
 
 **Límites:** CI usa narrador simulado; falta probar Windows y proveedores reales. Los mensajes anteriores a esta función no tienen audiencias guardadas; el filtro trata los mensajes antiguos dirigidos a un personaje de forma conservadora, pero no puede reconstruir testigos que nunca se registraron. El inspector visual de inclusión/exclusión de recuerdos sigue pendiente.
 
@@ -354,7 +354,7 @@ OpenAI documenta que Structured Outputs valida contra un subconjunto de JSON Sch
 
 ### Qué está implementado en el prototipo después de esta ronda
 
-CI de la rama organizada: **24 pruebas Python aprobadas**, más comprobación sintáctica del JavaScript, en https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40870848920
+CI de la rama organizada: **26 pruebas Python aprobadas**, más comprobación sintáctica del JavaScript, en https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40873010055
 
 - Visibilidad explícita `scene/private`, audiencia por mensaje y filtrado de contexto por destinatario/testigos.
 - Inspector de contexto que no llama al modelo y explica disparadores de las entradas Lorebook seleccionadas, límites y caracteres aproximados.
