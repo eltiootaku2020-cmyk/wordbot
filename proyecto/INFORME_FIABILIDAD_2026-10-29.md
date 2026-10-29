@@ -55,7 +55,7 @@ No se realizaron llamadas reales a APIs ni pruebas manuales de las páginas de C
 
 ## Validación
 
-Las correcciones integradas incluyen recuperación tras reinicio, respaldo aislado por sesión, destinos contradictorios, movimientos fuera de escena, evidencia afirmativa y restauración con rollback. La ejecución más reciente completó 79 pruebas Python y sintaxis JavaScript correctamente (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40932636884). No se hicieron llamadas reales a cuentas ChatGPT/Gemini ni a APIs.
+Las correcciones integradas incluyen recuperación tras reinicio, respaldo aislado por sesión, destinos contradictorios, movimientos fuera de escena, evidencia afirmativa, restauración con rollback y compatibilidad de presencia histórica. La CI posterior al PR #6 aprobó 81 pruebas Python y sintaxis JavaScript correctamente (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40935903505). No se hicieron llamadas reales a cuentas ChatGPT/Gemini ni a APIs.
 
 ## Trabajo restante para una primera versión fiable
 
