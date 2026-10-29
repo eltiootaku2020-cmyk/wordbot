@@ -106,8 +106,8 @@ def build_context(
     participant_rows = conn.execute(
         "SELECT e.id,e.name,e.kind,e.profile,p.location,p.presence_status "
         "FROM session_presence p JOIN entities e ON e.id=p.entity_id "
-        "WHERE p.session_id=? AND p.presence_status='present' ORDER BY e.name",
-        (session["id"],)
+        "WHERE p.session_id=? AND LOWER(p.location)=LOWER(?) ORDER BY e.name",
+        (session["id"], session["current_location"])
     ).fetchall()
     scene_participants = [dict(row) for row in participant_rows]
     scene_ids = {item["id"] for item in scene_participants}
@@ -480,13 +480,37 @@ def apply_narrator_result(
                          "carrier_entity_id": item["carrier_entity_id"], "location": item["location"]}
                         if item else None
                     )
-                    if item:
+                    if item and not item["carrier_entity_id"]:
+                        # Picking up an already tracked dropped pile changes its holder,
+                        # not its quantity. The whole pile must be picked up at once.
+                        if int(item["quantity"]) != operation.quantity:
+                            reason = "El objeto está en el suelo; esta versión exige recoger la pila completa."
+                        else:
+                            conn.execute(
+                                "UPDATE inventory_items SET carrier_entity_id=?,location=?,last_event_id=? WHERE id=?",
+                                (carrier, location, source["id"], item["id"])
+                            )
+                            status = "accepted"
+                            accepted_value = {
+                                "operation": "pick_up", "item_name": item_name,
+                                "quantity": operation.quantity, "carrier_entity_id": carrier, "location": location
+                            }
+                            applied.append(f"Recogido: {item_name} ×{operation.quantity}.")
+                    elif item and item["carrier_entity_id"] != carrier and int(item["quantity"]) > 0:
+                        reason = "Ya existe una pila de este objeto que lleva otra entidad; requiere una transferencia explícita."
+                    elif item:
                         conn.execute(
                             "UPDATE inventory_items SET quantity=quantity+?,condition=?,carrier_entity_id=?,"
                             "location=?,last_event_id=? WHERE id=?",
                             (operation.quantity, operation.condition or item["condition"], carrier,
                              location, source["id"], item["id"])
                         )
+                        status = "accepted"
+                        accepted_value = {
+                            "operation": operation.operation, "item_name": item_name,
+                            "quantity": operation.quantity, "carrier_entity_id": carrier, "location": location
+                        }
+                        applied.append(f"Hallazgo/regalo confirmado: {item_name} ×{operation.quantity} añadido al estado.")
                     else:
                         conn.execute(
                             "INSERT INTO inventory_items(id,session_id,item_key,display_name,quantity,condition,"
@@ -494,15 +518,18 @@ def apply_narrator_result(
                             (new_id(), session["id"], item_key, item_name, operation.quantity,
                              operation.condition or "normal", carrier, location, source["id"])
                         )
-                    status = "accepted"
-                    accepted_value = {
-                        "operation": operation.operation, "item_name": item_name,
-                        "quantity": operation.quantity, "carrier_entity_id": carrier, "location": location
-                    }
-                    applied.append(f"Hallazgo/regalo confirmado: {item_name} ×{operation.quantity} añadido al estado.")
+                        status = "accepted"
+                        accepted_value = {
+                            "operation": operation.operation, "item_name": item_name,
+                            "quantity": operation.quantity, "carrier_entity_id": carrier, "location": location
+                        }
+                        applied.append(f"Hallazgo/regalo confirmado: {item_name} ×{operation.quantity} añadido al estado.")
             elif operation.operation == "consume":
+                expected_carrier = operation.carrier_entity_id or session["protagonist_entity_id"]
                 if not item or int(item["quantity"]) < operation.quantity:
                     reason = "No existe cantidad suficiente del objeto en el inventario."
+                elif item["carrier_entity_id"] != expected_carrier:
+                    reason = "El objeto no está en posesión del portador indicado."
                 else:
                     old_value = {
                         "quantity": int(item["quantity"]), "condition": item["condition"],
@@ -518,8 +545,11 @@ def apply_narrator_result(
                                       "quantity": operation.quantity, "quantity_after": new_quantity}
                     applied.append(f"Consumido: {item_name} ×{operation.quantity}; quedan {new_quantity}.")
             elif operation.operation == "condition":
+                expected_carrier = operation.carrier_entity_id or session["protagonist_entity_id"]
                 if not item:
                     reason = "El objeto no existe en el inventario."
+                elif item["carrier_entity_id"] != expected_carrier:
+                    reason = "El objeto no está en posesión del portador indicado."
                 elif not operation.condition.strip():
                     reason = "Falta el estado final del objeto."
                 else:
@@ -536,8 +566,14 @@ def apply_narrator_result(
                                       "condition": operation.condition.strip()}
                     applied.append(f"Estado del objeto actualizado: {item_name} → {operation.condition.strip()}.")
             elif operation.operation in {"drop", "transfer"}:
+                expected_source = (
+                    operation.carrier_entity_id or session["protagonist_entity_id"]
+                    if operation.operation == "drop" else session["protagonist_entity_id"]
+                )
                 if not item:
                     reason = "El objeto no existe en el inventario."
+                elif item["carrier_entity_id"] != expected_source:
+                    reason = "El objeto no está en posesión del portador de origen indicado."
                 elif int(item["quantity"]) != operation.quantity:
                     reason = "Esta versión solo automatiza soltar/transferir una pila completa; dividir pilas queda pendiente."
                 elif operation.operation == "transfer" and not operation.carrier_entity_id:
@@ -686,8 +722,10 @@ def load_state(conn, session_id: str) -> dict[str, Any]:
     if session is None:
         raise HTTPException(status_code=404, detail="Partida no encontrada.")
     participants = [dict(row) for row in conn.execute(
-        "SELECT e.id,e.name,e.kind,p.location,p.presence_status FROM session_presence p "
-        "JOIN entities e ON e.id=p.entity_id WHERE p.session_id=? ORDER BY e.name", (session_id,)
+        "SELECT e.id,e.name,e.kind,p.location,"
+        "CASE WHEN LOWER(p.location)=LOWER(s.current_location) THEN 'present' ELSE 'away' END AS presence_status "
+        "FROM session_presence p JOIN entities e ON e.id=p.entity_id "
+        "JOIN sessions s ON s.id=p.session_id WHERE p.session_id=? ORDER BY e.name", (session_id,)
     ).fetchall()]
     inventory = [dict(row) for row in conn.execute(
         "SELECT display_name,quantity,condition,carrier_entity_id,location FROM inventory_items "
@@ -1167,16 +1205,23 @@ async def submit_turn(session_id: str, payload: TurnRequest):
         session = session_row(conn, session_id)
         if session is None:
             raise HTTPException(status_code=404, detail="Partida no encontrada.")
-        if payload.recipient_id and conn.execute(
-            "SELECT 1 FROM entities WHERE id=? AND world_id=?",
-            (payload.recipient_id, session["world_id"])
-        ).fetchone() is None:
-            raise HTTPException(status_code=422, detail="El destinatario no pertenece a este mundo.")
+        if payload.recipient_id:
+            if conn.execute(
+                "SELECT 1 FROM entities WHERE id=? AND world_id=?",
+                (payload.recipient_id, session["world_id"])
+            ).fetchone() is None:
+                raise HTTPException(status_code=422, detail="El destinatario no pertenece a este mundo.")
+            present_here = conn.execute(
+                "SELECT 1 FROM session_presence WHERE session_id=? AND entity_id=? AND LOWER(location)=LOWER(?)",
+                (session_id, payload.recipient_id, session["current_location"])
+            ).fetchone()
+            if present_here is None:
+                raise HTTPException(status_code=422, detail="El destinatario no está en la ubicación actual; no se puede iniciar un diálogo directo con él.")
 
         current_scene_ids = {
             row["entity_id"] for row in conn.execute(
-                "SELECT entity_id FROM session_presence WHERE session_id=? AND presence_status='present'",
-                (session_id,)
+                "SELECT entity_id FROM session_presence WHERE session_id=? AND LOWER(location)=LOWER(?)",
+                (session_id, session["current_location"])
             ).fetchall()
         }
         if payload.visibility == "private":
