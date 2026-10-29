@@ -61,7 +61,7 @@ Criterio de salida: el programa envía solo el lore necesario y no convierte un 
 - [ ] Restauración con vista previa.
 - [x] Registrar cambios aceptados, pendientes y rechazados.
 - [x] Reintento controlado para JSON inválido/truncado; la respuesta corregida reutiliza el mismo request_id sin duplicar el turno.
-- [x] CI: 79 pruebas Python y sintaxis JavaScript aprobadas en modo simulado/manual-input, sin llamadas API pagas: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40932636884.
+CI: 81 pruebas Python y sintaxis JavaScript aprobadas en modo simulado/manual-input, sin llamadas API pagas: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40935903505.
 - [x] Continuidad automatizada: 100 turnos breves simulados, reinicialización SQLite, copia, mutación posterior, restauración y comparación exacta del estado/tablas.
 - [ ] Campaña narrativa real de 50–100 intercambios con ChatGPT/Gemini web y decisiones variadas.
 
