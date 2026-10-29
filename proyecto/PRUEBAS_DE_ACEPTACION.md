@@ -1,6 +1,6 @@
 # Pruebas de aceptación del gestor local
 
-La aplicación no se considerará fiable por una demostración breve. Las pruebas deben ejecutarse contra la base local y al menos un proveedor de IA; las pruebas de estado deben poder repetirse con respuestas simuladas para evitar gastar llamadas.
+La aplicación no se considerará fiable por una demostración breve. La CI actual pasa 8 pruebas automatizadas con datos simulados: persistencia/backups, esquema estricto, comportamiento del narrador y un turno de extremo a extremo. Eso no valida las llamadas reales a OpenAI/Gemini, el uso manual en Windows ni los casos de aceptación pendientes. Las pruebas de estado deben poder repetirse sin llamadas pagas.
 
 ## A. Persistencia y recuperación
 
