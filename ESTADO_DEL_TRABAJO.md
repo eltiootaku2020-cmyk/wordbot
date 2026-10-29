@@ -15,7 +15,7 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 - Stack: Python/FastAPI, HTML/CSS/JavaScript para Chromium, SQLite, narrador simulado y adaptadores iniciales OpenAI/Gemini.
 - Flujo de ejemplo: «Hola, linda» dirigido a Maelis produce narración + evento + propuesta de cambio; la confianza queda pendiente si no existe valor inicial confirmado.
 - Preset Isekai v1.18: botón dedicado carga las 77 entradas del JSON de Lorebook, el reparto inicial y cinco objetos, y abre una sesión independiente por partida.
-- CI más reciente de fiabilidad: 75 pruebas Python y sintaxis JavaScript aprobadas: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40928659012. Incluye recuperación tras reinicio, reintentos idempotentes, rechazo de destinos contradictorios y bloqueo de movimientos de PNJ fuera de escena. PR #1, #2, #3 y #4 ya están integrados en `docs/historias-organizadas`; no valida Windows manual ni una campaña con modelo externo.
+- CI más reciente de fiabilidad: 79 pruebas Python y sintaxis JavaScript aprobadas: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40932636884. Incluye recuperación tras reinicio, reintentos idempotentes, evidencia afirmativa, JSON truncado, contradicciones narrativas y restauración exacta tras 100 turnos simulados. PR #1–#5 ya están integrados en `docs/historias-organizadas`; no valida Windows manual ni una campaña narrativa con un modelo externo.
 - Pendiente: prueba manual en Windows con ChatGPT/Gemini web; compatibilidad de datos históricos/cambios de presencia; exportación/restauración visual; campaña de 50–100 intercambios. Las llamadas API reales y su medición de tokens/coste son opcionales.
 - Documentos: `INVESTIGACION_REFERENCIAS.md`, `DECISIONES_TECNICAS.md`, `ROADMAP_IMPLEMENTACION.md`, `ARQUITECTURA.md`, `CONTRATO_RESPUESTA_IA.md`, `ESQUEMA_LOCAL.md`, `PRUEBAS_DE_ACEPTACION.md`.
 - Ubicación de trabajo: rama `docs/historias-organizadas`. La rama literal `main` aún no contiene las carpetas organizadas de mundos.
@@ -46,21 +46,21 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 
 ### 3. Gestor local de canon, Lorebooks y continuidad
 - Carpeta: `proyecto/`; aplicación prototipo: `proyecto/app/`.
-- Estado: v0.1 con código real en desarrollo; la documentación anterior que decía «solo documentación» quedó obsoleta. Las cifras 32/38/71 son históricas; la CI más reciente aprobó 75 pruebas Python y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40928659012. No es una validación manual de Windows.
+- Estado: v0.1 con código real en desarrollo; la documentación anterior que decía «solo documentación» quedó obsoleta. Las cifras 32/38/71/75 son históricas; la CI más reciente aprobó 79 pruebas Python y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40932636884. No es una validación manual de Windows.
 - Stack: Python + FastAPI, HTML/CSS/JavaScript ligero en Chromium, SQLite y proveedores simulados/OpenAI/Gemini.
 - Ya existe: base local, interfaz, importación del JSON real de Isekai v1.16 (77 entradas), creación de mundos/partidas, reparto/inventario, mensajes/eventos, audiencia scene/private, filtrado por destinatario/testigos, inspector de contexto Lorebook y libro de recursos con compras validadas.
 - Referencias: `INVESTIGACION_REFERENCIAS.md`; decisiones ADR-001 a ADR-014 en `DECISIONES_TECNICAS.md`; prioridades P0–P4 en `ROADMAP_IMPLEMENTACION.md`.
-- **Privacidad por audiencia implementada:** selector escena/grupo o privado, metadatos de audiencia y filtro de mensajes/eventos por destinatario/testigos; el inspector explica las inclusiones/exclusiones. CI actual de fiabilidad: 75 pruebas Python y sintaxis JavaScript aprobadas (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40928659012). Sigue pendiente validar visualmente Windows y cubrir cambios históricos de presencia.
+- **Privacidad por audiencia implementada:** selector escena/grupo o privado, metadatos de audiencia y filtro de mensajes/eventos por destinatario/testigos; el inspector explica las inclusiones/exclusiones. CI actual de fiabilidad: 79 pruebas Python y sintaxis JavaScript aprobadas (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40932636884). Sigue pendiente validar visualmente Windows y cubrir cambios históricos de presencia.
 - Otros pendientes prioritarios: prueba manual Windows del chat web; rollback al editar/regenerar más escenarios; compatibilidad de cambios de presencia antiguos; prueba de 50–100 intercambios y restauración. Llamadas API reales son opcionales.
 - No hay que enviar el Lorebook completo cada turno ni extraer respuestas automáticamente de la página web. En el modo manual previsto, el usuario copia un prompt compacto a ChatGPT/Gemini y pega la respuesta; el programa la valida y guarda solo los cambios aceptados. Las llamadas API son opcionales y están separadas del chat web.
 - Rama de trabajo: `docs/historias-organizadas`. La rama literal `main` de este repositorio sigue sin las carpetas organizadas de mundos/Lorebooks; no mezclar ni mover ramas sin una tarea explícita.
 
 ### Actualización del gestor local — 29-10-2026
-- Las referencias de 32/38/71 pruebas son históricas; la ejecución más reciente aprobó 75 pruebas Python y sintaxis JS: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40928659012.
+- Las referencias de 32/38/71/75 pruebas son históricas; la ejecución más reciente aprobó 79 pruebas Python y sintaxis JS: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40932636884.
 - Referencias web actuales: Chronicler (ACL de conocimiento por personaje + inspector), Open Dungeon (app local SQLite con edición/reintento), Gamentic (FastAPI/SQLite con herramientas validadas pero requisitos de hardware superiores), Openovel (narración separada del mantenimiento), AI Adventure (historial SQLite, validación de eventos, undo/ramas y checkpoints) y documentación World Info de SillyTavern.
 - Código: privacidad scene/private; Lorebook de ocho entradas máximo y presupuesto configurable de 500–12.000 caracteres (4.500 por defecto), ocho entradas máximas e inspector de disparadores/inclusión/exclusión; inventario y libro de recursos por partida; compras con saldo transaccional; snapshots preturno y undo del último turno completado con auditoría.
 - Monedas de Isekai empiezan en cero; compra con coste positivo y saldo suficiente descuenta dinero y añade objeto en la misma transacción; saldo insuficiente no cambia ninguno. Los cambios ambiguos siguen pendientes.
-- Pendiente siguiente: ensayo manual en Windows con el chat web normal; compatibilidad de datos antiguos y entradas/salidas de escena; campaña de 50–100 turnos y restauración de backup. Tokenización/coste API solo si se usa la modalidad API.
+- Pendiente siguiente: ensayo manual en Windows con el chat web normal; compatibilidad de datos antiguos y entradas/salidas de escena; campaña narrativa de 50–100 turnos con un modelo real. La suite automatizada ya comprueba 100 turnos breves simulados y restauración exacta de la copia. Tokenización/coste API solo si se usa la modalidad API.
 - No se considera terminado hasta que las pruebas de campaña larga y restauración pasen.
 
 ## Separación de ramas
@@ -80,7 +80,7 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 
 ## Próximo paso recomendado
 
-Continuar el gestor local en este orden: (1) probar manualmente en Windows el puente de copiar/pegar con el chat web normal de ChatGPT y Gemini; (2) comprobar la protección contra contexto desactualizado, las conversaciones privadas y el undo; (3) revisar compatibilidad de datos históricos, exportación/restauración y cambios de presencia; (4) realizar una campaña de 50–100 turnos con reinicio y restauración. Las llamadas reales y medición de tokens/coste de las APIs son opcionales, separadas de las cuentas de chat web. Mantener en paralelo las pruebas de SpicyChat documentadas en la carpeta de Isekai. No declarar «Done» un hito que solo tenga documentación o una prueba simulada.
+Continuar el gestor local en este orden: (1) probar manualmente en Windows el puente de copiar/pegar con el chat web normal de ChatGPT y Gemini; (2) revisar compatibilidad de datos históricos, exportación/restauración y cambios de presencia; (3) realizar una campaña narrativa de 50–100 turnos con el chat web real, además de las pruebas de 100 turnos breves simulados y restauración exacta ya cubiertas por CI. Las llamadas reales y medición de tokens/coste de las APIs son opcionales, separadas de las cuentas de chat web. Mantener en paralelo las pruebas de SpicyChat documentadas en la carpeta de Isekai. No declarar «Done» un hito que solo tenga documentación o una prueba simulada.
 
 
 ## Corrección importante: ChatGPT/Gemini web, no necesariamente API
@@ -94,9 +94,9 @@ El usuario aclaró que al decir IA se refiere al chat normal de ChatGPT o Gemini
 - No se automatizan login, envío de mensajes, lectura del DOM ni extracción automática de respuestas. El usuario revisa qué datos del juego pega al proveedor.
 - Los adaptadores API siguen disponibles opcionalmente y no deben confundirse con la suscripción/cupo de chat web.
 
-**Verificación actual de continuidad y movimientos:** CI — 75 pruebas Python y comprobación de sintaxis JavaScript aprobadas: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40928659012. No es una prueba real del navegador ni de una cuenta ChatGPT/Gemini.
+**Verificación actual de continuidad y movimientos:** CI — 79 pruebas Python y comprobación de sintaxis JavaScript aprobadas: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40932636884. No es una prueba real del navegador ni de una cuenta ChatGPT/Gemini.
 
-**Pendiente:** prueba manual en Windows con ChatGPT web y Gemini web; comprobar el intercambio JSON en ambos; probar 50–100 turnos, reinicio y restauración. El chat web manual no tiene medida automática de tokens/coste. No revertir este enfoque a automatización del navegador sin nueva investigación y evaluación de políticas.
+**Pendiente:** prueba manual en Windows con ChatGPT web y Gemini web; comprobar el intercambio JSON en ambos; ejecutar una campaña narrativa real de 50–100 turnos. El reinicio y la restauración exacta ya tienen cobertura automatizada con proveedor simulado. El chat web manual no tiene medida automática de tokens/coste. No revertir este enfoque a automatización del navegador sin nueva investigación y evaluación de políticas.
 
 
 ### Protección adicional del puente manual
@@ -120,3 +120,13 @@ Cada prompt preparado devuelve una huella SHA-256 del contexto exacto. Al pegar 
 - CI verificada: 75 pruebas Python aprobadas y comprobación de sintaxis JavaScript correcta: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40928659012. Hubo una advertencia no bloqueante de compatibilidad httpx/Starlette y otra por la retirada de Node.js 20 en acciones de CI.
 - Alcance no validado: aún faltan pruebas manuales en Windows con ChatGPT/Gemini web y la campaña de 50–100 turnos con reinicio y restauración. No se hicieron llamadas reales a cuentas web ni a APIs.
 - Siguiente prioridad: ampliar pruebas de respuestas truncadas, instrucciones ambiguas, contradicciones del narrador y restauración; comparar el estado exacto antes y después de una secuencia larga.
+
+## Actualización de fiabilidad — 29-10-2026: regresiones de continuidad extendida
+
+- PR #5 integrado en `docs/historias-organizadas`: https://github.com/eltiootaku2020-cmyk/wordbot/pull/5. Commit de integración: `90e8196331406f999ec42f1a4e5b2eb8f4282937`. La rama literal `main` sigue intacta.
+- CI verificada: **79 pruebas Python aprobadas** y sintaxis JavaScript correcta: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40932636884.
+- La prueba manual de reintento utiliza ahora JSON truncado, confirma que no cambia el estado del juego y verifica que la respuesta corregida reutiliza el mismo turno sin duplicarlo.
+- Se añadieron pruebas para una compra formulada como hipótesis/pregunta, dos cambios contradictorios de amistad propuestos por el narrador y un fallo de restricción durante la restauración.
+- La campaña automatizada de 100 turnos breves ahora reinicializa SQLite, crea una copia, introduce una mutación posterior, restaura y compara el estado, los mensajes y todas las tablas de sesión restaurables. Esta prueba usa el proveedor simulado; no equivale a una campaña narrativa con ChatGPT/Gemini reales.
+- Si una fila de copia no cumple las restricciones de la base activa, la transacción se revierte y la API devuelve un error controlado; la prueba comprueba que el estado anterior permanece idéntico.
+- Pendiente: ensayo manual en Windows/Chromium con los chats web reales, compatibilidad histórica de datos y campaña narrativa prolongada. Las llamadas reales a las API siguen siendo opcionales.
