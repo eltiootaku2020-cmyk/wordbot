@@ -1,5 +1,8 @@
 import os
 import tempfile
+import asyncio
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 import uuid
 import json
@@ -3089,6 +3092,95 @@ def test_new_turn_is_rejected_while_another_turn_is_processing():
         assert "otro turno en curso" in response.json()["detail"]
         assert client.get(f"/api/sessions/{session_id}/messages").json() == before
 
+
+
+def test_concurrent_session_requests_stay_serial_across_two_app_clients(monkeypatch):
+    """A second app client must not recover or overlap a generation owned by the first."""
+    entered_provider = threading.Event()
+    release_provider = threading.Event()
+    provider_calls = []
+
+    class SlowProvider:
+        name = "mock"
+
+        async def generate(self, payload):
+            provider_calls.append(payload["user_message"])
+            entered_provider.set()
+            released = await asyncio.to_thread(release_provider.wait, 10)
+            if not released:
+                raise RuntimeError("La prueba no liberó el proveedor lento a tiempo.")
+            return NarratorResponse(
+                narration="La acción se resolvió una sola vez.",
+                elapsed_minutes=1
+            )
+
+    monkeypatch.setattr(main_module, "make_provider", lambda name, settings: SlowProvider())
+
+    with TestClient(app) as first_client:
+        seed = first_client.post("/api/demo/seed", json={})
+        assert seed.status_code == 200, seed.text
+        session_id = seed.json()["session_id"]
+        before = first_client.get(f"/api/sessions/{session_id}/state").json()
+
+        first_payload = {
+            "request_id": "concurrent-request-first-001",
+            "text": "Observo el camino mientras espero.",
+            "provider": "mock"
+        }
+        second_payload = {
+            "request_id": "concurrent-request-second-001",
+            "text": "Intento avanzar antes de que termine.",
+            "provider": "mock"
+        }
+
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            first_future = executor.submit(
+                first_client.post, f"/api/sessions/{session_id}/turns",
+                json=first_payload
+            )
+            assert entered_provider.wait(5), "La primera solicitud no llegó al proveedor."
+
+            # Starting a second app client runs startup recovery while the first
+            # request is still in the provider. It must preserve the live marker.
+            with TestClient(app) as second_client:
+                with database.connection() as conn:
+                    marker = conn.execute(
+                        "SELECT generation_status,metadata_json FROM messages "
+                        "WHERE session_id=? AND role='user' AND client_request_id=?",
+                        (session_id, first_payload["request_id"])
+                    ).fetchone()
+                assert marker is not None
+                assert marker["generation_status"] == "processing"
+                assert json.loads(marker["metadata_json"])["processing_owner_pid"] == os.getpid()
+
+                competing = second_client.post(
+                    f"/api/sessions/{session_id}/turns", json=second_payload
+                )
+                assert competing.status_code == 409, competing.text
+                assert "otro turno en curso" in competing.json()["detail"]
+                assert len(provider_calls) == 1
+
+            release_provider.set()
+            first_response = first_future.result(timeout=10)
+            assert first_response.status_code == 200, first_response.text
+
+        # The rejected overlapping request created no message and can be submitted
+        # after the first turn commits; each turn advances the clock exactly once.
+        second_response = first_client.post(
+            f"/api/sessions/{session_id}/turns", json=second_payload
+        )
+        assert second_response.status_code == 200, second_response.text
+        assert len(provider_calls) == 2
+
+        final_state = first_client.get(f"/api/sessions/{session_id}/state").json()
+        assert final_state["state"]["minute_of_day"] == before["state"]["minute_of_day"] + 2
+        messages = first_client.get(f"/api/sessions/{session_id}/messages").json()
+        users = [m for m in messages if m["role"] == "user"]
+        assistants = [m for m in messages if m["role"] == "assistant" and m["generation_status"] == "complete"]
+        assert len(users) == 2
+        assert len(assistants) == 2
+        assert [m["content"] for m in users].count(first_payload["text"]) == 1
+        assert [m["content"] for m in users].count(second_payload["text"]) == 1
 
 def test_backup_rejects_in_flight_turn_and_keeps_no_partial_file():
     with TestClient(app) as client:
