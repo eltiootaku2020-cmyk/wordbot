@@ -157,9 +157,17 @@ class Database:
         temporary = target.with_name(target.name + ".tmp")
         temporary.unlink(missing_ok=True)
         try:
-            with self._connect() as source:
-                with sqlite3.connect(str(temporary)) as backup:
+            source = self._connect()
+            try:
+                backup = sqlite3.connect(str(temporary))
+                try:
                     source.backup(backup)
+                finally:
+                    # Connection context managers commit/rollback but do not close files.
+                    # Close both handles explicitly before os.replace (required on Windows).
+                    backup.close()
+            finally:
+                source.close()
             os.replace(temporary, target)
         except Exception:
             temporary.unlink(missing_ok=True)

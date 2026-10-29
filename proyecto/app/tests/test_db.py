@@ -37,3 +37,27 @@ def test_database_migrates_legacy_messages_table(tmp_path: Path):
     with db.connection() as conn:
         columns = {row["name"] for row in conn.execute("PRAGMA table_info(messages)").fetchall()}
     assert "client_request_id" in columns
+
+
+
+def test_failed_backup_removes_temporary_archive(tmp_path: Path, monkeypatch):
+    import pytest
+
+    db = Database(str(tmp_path / "source.sqlite3"))
+    db.initialize()
+
+    class BrokenSource:
+        def backup(self, destination):
+            raise RuntimeError("simulated backup failure")
+
+        def close(self):
+            pass
+
+    monkeypatch.setattr(db, "_connect", lambda: BrokenSource())
+    target = tmp_path / "failed.sqlite3"
+
+    with pytest.raises(RuntimeError, match="simulated backup failure"):
+        db.backup_to(str(target))
+
+    assert not target.exists()
+    assert not target.with_name(target.name + ".tmp").exists()
