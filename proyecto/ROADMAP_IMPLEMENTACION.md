@@ -174,4 +174,4 @@ Esta sección distingue implementado de pendiente. No marcar como terminado nada
 - [ ] Hacer la prueba manual en Windows con un chat real de ChatGPT y otro de Gemini.
 - [ ] Completar la campaña de 50–100 turnos y comprobar cierre, reinicio y restauración.
 
-**Criterio para la primera entrega sin API:** el usuario puede usar su cuenta normal en el sitio web mediante copiar/pegar; el programa conserva y valida el estado localmente. No se requiere que las APIs estén configuradas ni se automatiza la lectura del chat web. CI de este modo aprobada: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40880074124.
+**Criterio para la primera entrega sin API:** el usuario puede usar su cuenta normal en el sitio web mediante copiar/pegar; el programa conserva y valida el estado localmente. No se requiere que las APIs estén configuradas ni se automatiza la lectura del chat web. CI de este modo aprobada (36 pruebas, incluida huella de contexto): https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40881062754.
