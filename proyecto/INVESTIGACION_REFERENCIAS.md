@@ -425,6 +425,6 @@ Este modo no necesita una clave API ni realiza una llamada de red al proveedor d
 
 ### Verificación y límites restantes
 
-La CI del commit `6f80b2154952decf38695361dfc187e6157fdc17` aprobó **35 pruebas Python** y la comprobación sintáctica de JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40880074124. Los tests cubren la construcción del prompt, el procesamiento de una respuesta JSON pegada y el rechazo de texto no JSON.
+La CI del commit `21d23aa981a9b3fc4e557eb3cfcb864526d8397c` aprobó **36 pruebas Python** y la comprobación sintáctica de JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40881062754. Los tests cubren la construcción del prompt, el procesamiento de una respuesta JSON pegada, el rechazo de texto no JSON y el rechazo de respuestas basadas en un contexto desactualizado.
 
-Esto no demuestra aún el uso real del navegador ni una campaña larga: falta probar manualmente en Windows la copia/pegado entre la aplicación, ChatGPT y Gemini. Los adaptadores de API siguen disponibles como modalidad distinta y su validación real es opcional para comprobar el modo de chat web.
+El puente manual incluye una huella SHA-256 del contexto preparado; si el mundo cambia antes de pegar la respuesta, el turno se rechaza y debe generarse un prompt nuevo. Esto está probado en CI. No demuestra aún el uso real del navegador ni una campaña larga: falta probar manualmente en Windows la copia/pegado entre la aplicación, ChatGPT y Gemini. Los adaptadores de API siguen disponibles como modalidad distinta y su validación real es opcional para comprobar el modo de chat web.
