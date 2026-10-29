@@ -378,6 +378,12 @@ def capture_turn_state(conn, session_id: str) -> dict[str, Any]:
     }
 
 
+def turn_state_fingerprint(state: dict[str, Any]) -> str:
+    """Compact stable fingerprint of mutable state for safe undo validation."""
+    canonical = json.dumps(state, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
 def create_turn_snapshot(conn, session_id: str, turn_id: str, event_sequence: int) -> None:
     state = capture_turn_state(conn, session_id)
     conn.execute(
@@ -2495,7 +2501,19 @@ async def submit_turn(session_id: str, payload: TurnRequest):
                         status_code=409,
                         detail="La instantánea anterior no se puede validar; no se reintentó el turno."
                     ) from exc
-                if prior_state != capture_turn_state(conn, session_id):
+                if not isinstance(prior_state, dict):
+                    raise HTTPException(
+                        status_code=409,
+                        detail="La instantánea anterior no contiene un estado verificable; no se reintentó el turno."
+                    )
+                # Successful turns store a post-state fingerprint alongside their
+                # pre-turn snapshot. Ignore that metadata when comparing the pre-turn
+                # state to the restored state on an immediate safe regeneration.
+                pre_turn_state = {
+                    key: value for key, value in prior_state.items()
+                    if key != "_post_turn_state_hash"
+                }
+                if pre_turn_state != capture_turn_state(conn, session_id):
                     raise HTTPException(
                         status_code=409,
                         detail=(
@@ -2622,6 +2640,27 @@ async def submit_turn(session_id: str, payload: TurnRequest):
                 conn, session, turn_id, user_message_id, payload.text, result, authorized_skip,
                 visibility=payload.visibility, audience_ids=audience_ids, recipient_id=payload.recipient_id
             )
+
+            # Store the exact authoritative state after this successful turn. Undo
+            # may restore the pre-turn snapshot only if no later approval/restore has
+            # changed mutable state outside this turn.
+            snapshot_row = conn.execute(
+                "SELECT state_json FROM snapshots WHERE session_id=? AND turn_id=?",
+                (session_id, turn_id)
+            ).fetchone()
+            if snapshot_row is None:
+                raise RuntimeError("No existe la instantánea preturno del turno completado.")
+            snapshot_document = json.loads(snapshot_row["state_json"])
+            if not isinstance(snapshot_document, dict):
+                raise RuntimeError("La instantánea preturno no contiene un objeto de estado.")
+            snapshot_document["_post_turn_state_hash"] = turn_state_fingerprint(
+                capture_turn_state(conn, session_id)
+            )
+            conn.execute(
+                "UPDATE snapshots SET state_json=? WHERE session_id=? AND turn_id=?",
+                (json.dumps(snapshot_document, ensure_ascii=False, separators=(",", ":")),
+                 session_id, turn_id)
+            )
     except Exception as exc:
         # The transaction above rolls back both narration and state. Mark the
         # request failed in a separate transaction so one malformed proposal
@@ -2705,6 +2744,30 @@ def undo_latest_turn(session_id: str, turn_id: str):
             prior_state = json.loads(snapshot["state_json"])
         except Exception as exc:
             raise HTTPException(status_code=500, detail="El snapshot del turno no se puede leer; no se cambió el estado.") from exc
+        if not isinstance(prior_state, dict):
+            raise HTTPException(
+                status_code=409,
+                detail="La instantánea no contiene un estado verificable; no se deshizo el turno."
+            )
+        expected_post_hash = prior_state.get("_post_turn_state_hash")
+        if not isinstance(expected_post_hash, str) or len(expected_post_hash) != 64:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "Este turno se guardó con una versión anterior y no tiene una huella del estado posterior. "
+                    "No lo deshice para evitar borrar cambios que no se pueden verificar; continúa desde el "
+                    "estado actual o restaura una copia."
+                )
+            )
+        current_state_hash = turn_state_fingerprint(capture_turn_state(conn, session_id))
+        if not hmac.compare_digest(expected_post_hash, current_state_hash):
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "El estado de la partida cambió después de este turno (por ejemplo, mediante una "
+                    "aprobación posterior). No se puede deshacer sin borrar cambios más recientes; no se modificó nada."
+                )
+            )
 
         audit_turn_id = f"{turn_id}:undone:{new_id()[:10]}"
         restore_turn_state(conn, session_id, prior_state)
