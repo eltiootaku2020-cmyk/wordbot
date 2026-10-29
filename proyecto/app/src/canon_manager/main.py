@@ -500,6 +500,20 @@ def create_session(world_id: str, payload: SessionCreate):
                 "INSERT INTO session_presence(session_id,entity_id,location,presence_status) VALUES(?,?,?,'present')",
                 (session_id, entity_id, payload.location)
             )
+        for item in payload.initial_inventory:
+            carrier = item.carrier_entity_id or payload.protagonist_entity_id
+            if carrier not in valid_ids:
+                raise HTTPException(status_code=422, detail="El portador de un objeto inicial debe pertenecer al mundo.")
+            location = item.location or payload.location
+            item_key = item.name.strip().casefold()
+            conn.execute(
+                "INSERT INTO inventory_items(id,session_id,item_key,display_name,quantity,condition,carrier_entity_id,location) "
+                "VALUES(?,?,?,?,?,?,?,?) ON CONFLICT(session_id,item_key) DO UPDATE SET "
+                "quantity=inventory_items.quantity+excluded.quantity,condition=excluded.condition,"
+                "carrier_entity_id=excluded.carrier_entity_id,location=excluded.location",
+                (new_id(), session_id, item_key, item.name.strip(), item.quantity,
+                 item.condition, carrier, location)
+            )
     return {"id": session_id, "name": payload.name}
 
 
