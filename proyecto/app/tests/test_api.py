@@ -1158,3 +1158,58 @@ def test_undo_rejects_a_turn_that_is_not_the_latest_completed_turn(monkeypatch):
         state = client.get(f"/api/sessions/{session_id}/state").json()
         assert state["state"]["time_label"].endswith("08:02")
         assert next(row for row in state["resources"] if row["resource_key"] == "monedas")["quantity"] == 5
+
+
+
+def test_undo_completed_turn_is_not_blocked_by_a_later_failed_provider_request(monkeypatch):
+    with TestClient(app) as client:
+        started, _entities = _create_state_ops_world(client)
+        session_id = started["session_id"]
+        provider_state = {"calls": 0}
+
+        class FailOnSecondCallProvider:
+            name = "mock"
+
+            async def generate(self, payload):
+                provider_state["calls"] += 1
+                if provider_state["calls"] == 2:
+                    raise main_module.ProviderError("Fallo simulado del proveedor.")
+                return NarratorResponse(
+                    narration="La escena continúa.",
+                    elapsed_minutes=2
+                )
+
+        monkeypatch.setattr(
+            main_module, "make_provider",
+            lambda provider_name, settings: FailOnSecondCallProvider()
+        )
+        first = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json={
+                "request_id": "undo-before-failed-001",
+                "text": "Miro el claro del bosque",
+                "provider": "mock"
+            }
+        )
+        assert first.status_code == 200, first.text
+        assert first.json()["state"]["state"]["time_label"].endswith("08:02")
+
+        failed = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json={
+                "request_id": "provider-fails-after-turn-01",
+                "text": "Pregunto qué ocurre",
+                "provider": "mock"
+            }
+        )
+        assert failed.status_code == 502
+        assert "Fallo simulado del proveedor" in failed.json()["detail"]
+
+        undone = client.post(
+            f"/api/sessions/{session_id}/turns/{first.json()['turn_id']}/undo",
+            json={}
+        )
+        assert undone.status_code == 200, undone.text
+        assert undone.json()["undone"] is True
+        assert undone.json()["state"]["state"]["time_label"].endswith("08:00")
+        assert provider_state["calls"] == 2
