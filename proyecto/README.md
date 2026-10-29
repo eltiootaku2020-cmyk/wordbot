@@ -1,6 +1,6 @@
 # Proyecto: gestor local de canon, Lorebooks y continuidad
 
-**Estado:** prototipo de desarrollo v0.1. Código inicial disponible; CI: 12 pruebas aprobadas el 29-10-2026. Falta instalación/uso real en el PC y validación de APIs con credenciales.  
+**Estado:** prototipo de desarrollo v0.1. Código inicial disponible; CI: 13 pruebas aprobadas el 29-10-2026. Falta instalación/uso real en el PC y validación de APIs con credenciales.  
 **Ubicación de trabajo:** rama `docs/historias-organizadas`, carpeta `proyecto/`.
 
 ## Objetivo
@@ -54,7 +54,7 @@ La investigación recomienda una interfaz web local en Chromium, backend Python/
 - [Pruebas automáticas](app/tests/)
 - [Ejecución CI: 12 pruebas aprobadas](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40863082953)
 
-La prueba de integración ejecuta el flujo «Hola, linda» dirigido a Maelis: guarda mensajes, registra reacciones, deja pendiente el cambio numérico si no existe una base confirmada y conserva hora e inventario. También se prueba crear un mundo personalizado con protagonista, reparto e inventario inicial, y comprobar que si falla por nombres duplicados se revierte toda la operación. Esto valida el modo simulado; no sustituye la prueba manual en Windows ni las llamadas reales a proveedores.
+La prueba de integración ejecuta «Hola, linda» dirigido a Maelis y registra mensajes/eventos; el cambio numérico queda pendiente si no existe una base confirmada. También se prueba crear mundos personalizados de forma atómica y cargar el preset real de Isekai: 76 entradas de Lorebook, cinco aventureros, el protagonista y los objetos iniciales. La CI valida el modo simulado y la sintaxis JavaScript, pero no sustituye la prueba manual en Windows ni las llamadas reales a proveedores.
 
 ## Componentes previstos
 
