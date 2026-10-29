@@ -12,8 +12,8 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .db import Database
-from .models import ApprovalRequest, ContextPreviewRequest, EntityCreate, LocalSettingsUpdate, NarratorResponse, SessionCreate, TurnRequest, WorldCreate, WorldStartCreate
-from .providers import ProviderError, make_provider
+from .models import ApprovalRequest, ContextPreviewRequest, EntityCreate, LocalSettingsUpdate, ManualPromptRequest, NarratorResponse, SessionCreate, TurnRequest, WorldCreate, WorldStartCreate
+from .providers import ProviderError, build_manual_prompt, make_provider
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 load_dotenv(BASE_DIR / ".env")
@@ -1697,6 +1697,56 @@ def preview_context(session_id: str, payload: ContextPreviewRequest):
     return {"context": context, "diagnostics": diagnostics}
 
 
+@app.post("/api/sessions/{session_id}/manual-prompt")
+def create_manual_prompt(session_id: str, payload: ManualPromptRequest):
+    """Create a prompt the user can paste into their own ChatGPT/Gemini web conversation."""
+    authorized_skip = parse_skip(payload.text)
+    with database.connection() as conn:
+        session = session_row(conn, session_id)
+        if session is None:
+            raise HTTPException(status_code=404, detail="Partida no encontrada.")
+        if payload.visibility == "private" and not payload.recipient_id:
+            raise HTTPException(status_code=422, detail="Un contexto privado requiere destinatario.")
+        if payload.recipient_id:
+            target = conn.execute(
+                "SELECT 1 FROM entities WHERE id=? AND world_id=?",
+                (payload.recipient_id, session["world_id"])
+            ).fetchone()
+            if target is None:
+                raise HTTPException(status_code=422, detail="El destinatario no pertenece a este mundo.")
+            present_here = conn.execute(
+                "SELECT 1 FROM session_presence WHERE session_id=? AND entity_id=? AND LOWER(location)=LOWER(?)",
+                (session_id, payload.recipient_id, session["current_location"])
+            ).fetchone()
+            if present_here is None:
+                raise HTTPException(status_code=422, detail="El destinatario no está en la ubicación actual.")
+        audience_ids = (
+            sorted({session["protagonist_entity_id"], payload.recipient_id})
+            if payload.visibility == "private"
+            else [
+                row["entity_id"] for row in conn.execute(
+                    "SELECT entity_id FROM session_presence WHERE session_id=? AND LOWER(location)=LOWER(?)",
+                    (session_id, session["current_location"])
+                ).fetchall()
+            ]
+        )
+        context = build_context(
+            conn, session, payload.text, payload.recipient_id, new_id(),
+            visibility=payload.visibility, audience_ids=audience_ids
+        )
+    input_payload = {
+        "user_message": payload.text,
+        "recipient_id": payload.recipient_id,
+        "context": context,
+        "authorized_skip": authorized_skip or {}
+    }
+    return {
+        "provider": payload.provider,
+        "prompt": build_manual_prompt(input_payload),
+        "context_characters": len(json.dumps(input_payload, ensure_ascii=False))
+    }
+
+
 @app.post("/api/sessions/{session_id}/turns")
 async def submit_turn(session_id: str, payload: TurnRequest):
     authorized_skip = parse_skip(payload.text)
@@ -1804,7 +1854,8 @@ async def submit_turn(session_id: str, payload: TurnRequest):
             "user_message": payload.text,
             "recipient_id": payload.recipient_id,
             "context": context,
-            "authorized_skip": authorized_skip or {}
+            "authorized_skip": authorized_skip or {},
+            "external_response": payload.external_response
         })
     except ProviderError as exc:
         with database.transaction() as conn:
