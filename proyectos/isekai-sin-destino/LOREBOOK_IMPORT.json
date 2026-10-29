@@ -1,6 +1,6 @@
 {
   "name": "Isekai sin Destino",
-  "description": "Fantasía abierta, aventura adulta y continuidad causal. v1.18: Content corto (<1000 caracteres), palabras clave únicas y porcentajes explícitos.",
+  "description": "Fantasía abierta, aventura adulta y continuidad causal. v1.19: Content corto (<1000 caracteres), palabras clave únicas y porcentajes explícitos.",
   "entries": {
     "0": {
       "uid": 0,
@@ -1563,7 +1563,7 @@
       ],
       "keysecondary": [],
       "comment": "Registro interno y esquema cerrado",
-      "content": "Esquema cerrado: estado (día/bloque/lugar/escena, mapa/rutas/lore); objetos/estado/portador/ubicación; recursos/lesiones; órdenes/cumplimiento; hitos persistentes y sucesos recientes; entidad (ID/especie/estado/última ubicación, habilidades demostradas/evidencia, intereses/fuente, sospechas/motivo/evidencia, conocimiento/fuente, vínculos, promesas/deudas/conflictos, encuentros/testigos, Eco por uso). Dato ausente=No registrado; no inventes campos. Porcentajes 0–100 miden intensidad, no probabilidad; 50 no es neutral universal; sin evidencia=No registrado y 0 solo si está establecido. Δ=nuevo−anterior en puntos porcentuales: 20%→30%=+10 puntos, no +10% relativo; Δ0=no cambia por ese hecho, no es estado neutral. Sin historial de comidas, solo inventario. Orden no implica obediencia; conserva hitos con consecuencias activas.",
+      "content": "Esquema cerrado: estado (día/bloque/lugar/escena, mapa/lore); objetos/cantidad/condición/estado/portador/ubicación; recursos/lesiones; órdenes y cumplimiento; entidades (ID/especie/estado/última ubicación); habilidades demostradas, intereses/fuente, sospechas/evidencia, conocimiento por PNJ/fuente, vínculos, promesas/conflictos, encuentros/testigos, encargos, usos de Eco por evento, hitos y sucesos recientes. Porcentajes 0–100 de intensidad, no probabilidad: Δ>0 sube, Δ<0 baja, Δ0 sin cambio por ese hecho; sin cambio no es neutralidad ni 50%. No registrado no equivale a 0 ni 50. Cada cambio exige valor previo, causa/evidencia. No inventes campos ni historial de comidas; actualiza solo provisiones. Orden a criatura no garantiza obediencia; una criatura no es objeto.",
       "constant": false,
       "selective": false,
       "order": 730,
@@ -1589,8 +1589,8 @@
         "intervención espontánea"
       ],
       "keysecondary": [],
-      "comment": "Diálogo proactivo de PNJ cercanos",
-      "content": "En escenas grupales, PNJ clave/cercanos pueden iniciar una intervención natural sin que el jugador los nombre o mire. Cada 1–2 respuestas del bot, uno o más PNJ o elementos del entorno realizan una acción o cambian de posición. Si permanecen quietos, debe haber motivo (sigilo, diálogo, combate, cura o espera). Nunca muevas al protagonista ni fuerces salto de escena. Incluye 1–2 intervenciones con frases completas cuando haya motivo, no todos. Ivar suele ir delante y puede suspirar o ironizar con contexto. Evita frases sueltas. Los compañeros solo reaccionan a hechos presenciados/contados; si se enteran después, reaccionan entonces.",
+      "comment": "Diálogo proactivo, frases completas y conocimiento de PNJ",
+      "content": "En escenas grupales, PNJ clave/cercanos pueden intervenir sin que el jugador los nombre o mire. Cada 1–2 respuestas del bot, alguien con motivo habla o hace una acción contextual; alterna voces, no todos cada turno. Ivar suele ir delante y puede suspirar o comentar la ruta. No dejes palabras sueltas ni frases cortadas: da contexto al suspiro o usa una frase completa. El silencio necesita motivo. Los compañeros reaccionan solo a lo visto/contado; si se enteran después, reaccionan entonces, nunca como testigos. No muevas al protagonista.",
       "constant": false,
       "selective": false,
       "order": 740,
@@ -1615,8 +1615,8 @@
         "árboles y Eco"
       ],
       "keysecondary": [],
-      "comment": "Eco vegetal: recuerdos de los árboles",
-      "content": "Descubrimiento confirmado por el jugador: puede intervenir de algún modo en recuerdos de árboles y lo percibe como sensación interna, no imágenes. Alcance, coste, duración y si lee/modifica siguen sin confirmar. Pauta de prueba, no canon final: un árbol por intento; impresiones parciales de lo que pudo percibir, sin nombres, diálogos exactos, escenas visuales nítidas ni futuro. Registra cada prueba como evento de poder: intención, objetivo/lugar si conocido, sensación real, resultado observado, efecto confirmado, testigos y coste/usos solo si confirmados. No apliques el contador humano a árboles. Una sensación no confirma su interpretación.",
+      "comment": "Eco vegetal: recuerdos de los árboles y límites no confirmados",
+      "content": "Descubrimiento confirmado: el protagonista puede intervenir de algún modo en recuerdos de árboles y lo percibe como sensación interna, no imágenes. La mecánica exacta no está definida: no afirmes si lee, altera o ambas cosas hasta probarlo. Registra intención, árbol/lugar si conocido, sensación descrita, resultado observado, efecto confirmado, testigos y riesgo de que lo descubran. Solo impresiones parciales de lo que ese árbol pudo registrar; no nombres, diálogos exactos, escenas visuales nítidas ni futuro. Alcance, coste, duración y contador son No registrados; no uses el contador humano ni extrapoles control animal. Una sensación no prueba su interpretación.",
       "constant": false,
       "selective": false,
       "order": 740,
@@ -1640,12 +1640,11 @@
         "cuerda",
         "pedernal",
         "cantimplora",
-        "vendas",
         "hallazgo de objeto"
       ],
       "keysecondary": [],
-      "comment": "Objetos cotidianos y hallazgos posibles",
-      "content": "Inventario inicial confirmado: ropa básica de viaje, pañuelo gastado, bolsita de tela vacía y cordel de cáñamo corto (~1,5 m). No hay dinero, comida, agua, armas, mochila ni equipo de aventura. Otros objetos son posibilidades, no regalos automáticos: cuerda, saco, cuenco, cantimplora, aguja/hilo, paño, vendas, yesca/pedernal, vela/antorcha, tiza/carbón, manta, cuchillo utilitario, olla, frasco, estacas y comida conservada. Solo se añaden tras hallazgo/compra/intercambio/regalo confirmado. Registra cantidad, condición, portador/ubicación y estado. Si se deja atrás, quítalo del inventario llevado y conserva última ubicación confirmada; si no se conoce, deja la ubicación No registrada. Objeto dejado atrás ya no está en inventario llevado; no inventes magia o propiedades especiales.",
+      "comment": "Objetos cotidianos, inventario y hallazgos",
+      "content": "Inventario inicial: ropa básica de viaje, pañuelo gastado, bolsita de tela vacía y cordel de cáñamo corto (~1,5 m). Sin dinero, comida, agua, armas, mochila ni equipo de aventura. Posibles objetos futuros: cuerda, saco/bolsa, cuenco, cuchara, cantimplora, aguja/hilo, paño, vendas, yesca/pedernal, vela/antorcha, tiza/carbón, papel/pergamino, pluma, manta, cuchillo utilitario, olla, frasco, estacas, bastón y comida conservada. Son posibilidades, no regalos. Añade solo tras hallazgo/compra/intercambio/regalo confirmado. Registra cantidad, condición, portador, ubicación y estado. Si se deja atrás, quítalo del inventario llevado y conserva última ubicación confirmada. No inventes magia, propiedades o valor.",
       "constant": false,
       "selective": false,
       "order": 740,
@@ -1669,8 +1668,8 @@
         "intención de Eco"
       ],
       "keysecondary": [],
-      "comment": "Registro de poderes por uso: intención, reacción y efecto",
-      "content": "Cada uso de Eco u otro poder es un evento: ID, día/bloque/lugar, poder, objetivo/especie, intención, reacción observable, resultado/evidencia, efectos por eje, valor anterior→nuevo y Δ en puntos si hay base, coste/duración solo si conocidos, testigos/quién se enteró y consecuencias. Intención no es resultado: pedir amistad no confirma confianza u obediencia; gratitud depende de quién vio o supo el acto. En personas, cada intento consume uno aunque falle; máximo 3 por objetivo. Eco vegetal y animal: límites, coste, duración y contador quedan No registrados hasta confirmación; no extrapoles control animal. Ejemplos de porcentajes no son canon.",
+      "comment": "Registro de poderes por uso, resultado y variación porcentual",
+      "content": "Cada uso es un evento: ID, día/bloque/lugar, poder, objetivo/especie, intención, reacción observable, resultado/evidencia, ejes afectados, valor previo→nuevo, Δ pp, tendencia sube/baja/sin cambio y causa. Intención no es resultado: pedir amistad no confirma confianza u obediencia. Coste/duración solo si conocidos. En personas, cada intento cuenta aunque falle; máximo 3 por objetivo, sin recarga. En árboles/animales, alcance, coste, duración y contador son No registrados hasta confirmación; no extrapoles reglas humanas. Ejemplos de % son ilustrativos, no canon.",
       "constant": false,
       "selective": false,
       "order": 780,
