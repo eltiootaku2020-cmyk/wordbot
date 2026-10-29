@@ -85,6 +85,10 @@ CREATE TABLE IF NOT EXISTS ability_uses (
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(session_id, turn_id, ability_key, target_entity_id)
 );
+CREATE TABLE IF NOT EXISTS app_settings (
+  setting_key TEXT PRIMARY KEY, value_json TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
 CREATE TABLE IF NOT EXISTS snapshots (
   id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   turn_id TEXT NOT NULL DEFAULT '', event_sequence INTEGER NOT NULL,
