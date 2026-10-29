@@ -177,6 +177,6 @@ La página actual de Lorebooks publica capacidad de hasta 5.000 entradas y 2.000
 ### Comprobaciones agregadas
 - La Personality permanece bajo 5.000 caracteres.
 - Los bloques de Scenario, Greeting y Example Dialogue deben respetar sus límites y mostrar contadores correctos.
-- El JSON conserva 77 entradas, UID únicos, Content por debajo de 1.000 caracteres y keywords sin duplicados exactos. La GitHub Actions audit de v1.19 pasó 625 comprobaciones: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40934571847.
+- El JSON conserva 77 entradas, UID únicos, Content por debajo de 1.000 caracteres y keywords sin duplicados exactos. La auditoría de GitHub Actions de v1.19 pasó 653 comprobaciones, incluido cotejo exacto entre Lorebook maestra y JSON: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40935111216.
 - No deben quedar ejemplos con horas por minuto (08:03, 08:15) ni el horario antiguo de franjas de tres horas.
 - Importación y roleplay real siguen pendientes de validación manual dentro de la cuenta de SpicyChat.
