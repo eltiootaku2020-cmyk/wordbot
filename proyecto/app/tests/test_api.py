@@ -1,5 +1,10 @@
 import os
 import tempfile
+import asyncio
+import threading
+import subprocess
+import sys
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 import uuid
 import json
@@ -3089,6 +3094,327 @@ def test_new_turn_is_rejected_while_another_turn_is_processing():
         assert "otro turno en curso" in response.json()["detail"]
         assert client.get(f"/api/sessions/{session_id}/messages").json() == before
 
+
+
+def test_multiprocess_owner_death_recovers_turn_without_duplicate_effects(monkeypatch):
+    """A real child process leaves a processing marker, dies, and can be safely retried."""
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+        session_id = seed["session_id"]
+        before = client.get(f"/api/sessions/{session_id}/state").json()
+        request_id = "multiprocess-owner-death-001"
+        text_value = "Reanudo la marcha después de una interrupción."
+        turn_id = "multiprocess-orphan-" + uuid.uuid4().hex
+
+        # A separate OS process owns the durable processing marker. It stays alive
+        # long enough for the parent to observe it, then is forcibly terminated.
+        child_script = r"""
+import json, os, sqlite3, sys, time, uuid
+db_path, session_id, request_id, turn_id, message_text, snapshot_state_json = sys.argv[1:]
+conn = sqlite3.connect(db_path, timeout=10)
+conn.execute("PRAGMA foreign_keys=ON")
+turn_index = conn.execute(
+    "SELECT COALESCE(MAX(turn_index),0)+1 FROM messages WHERE session_id=?",
+    (session_id,)
+).fetchone()[0]
+metadata = json.dumps({
+    "visibility": "scene",
+    "audience_ids": [],
+    "processing_owner_pid": os.getpid()
+})
+conn.execute(
+    "INSERT INTO messages(id,session_id,turn_id,client_request_id,turn_index,role,"
+    "recipient_entity_id,content,provider,generation_status,metadata_json) "
+    "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+    (uuid.uuid4().hex, session_id, turn_id, request_id, turn_index, "user", "",
+     message_text, "mock", "processing", metadata)
+)
+# Mirror the pre-turn snapshot that the application writes before calling a provider.
+conn.execute(
+    "INSERT INTO snapshots(id,session_id,turn_id,event_sequence,state_json) VALUES(?,?,?,?,?)",
+    (uuid.uuid4().hex, session_id, turn_id, turn_index, snapshot_state_json)
+)
+conn.commit()
+print(os.getpid(), flush=True)
+time.sleep(60)
+"""
+        with database.connection() as conn:
+            snapshot_state_json = json.dumps(
+                main_module.capture_turn_state(conn, session_id), ensure_ascii=False
+            )
+        owner = subprocess.Popen(
+            [
+                sys.executable, "-c", child_script, str(database.path), session_id,
+                request_id, turn_id, text_value, snapshot_state_json
+            ],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        try:
+            owner_pid_line = owner.stdout.readline()
+            assert owner_pid_line.strip(), "El proceso hijo no confirmó el marcador processing."
+            assert int(owner_pid_line.strip()) == owner.pid
+            with database.connection() as conn:
+                marker = conn.execute(
+                    "SELECT generation_status,metadata_json FROM messages "
+                    "WHERE session_id=? AND client_request_id=?",
+                    (session_id, request_id)
+                ).fetchone()
+            assert marker is not None
+            assert marker["generation_status"] == "processing"
+            assert json.loads(marker["metadata_json"])["processing_owner_pid"] == owner.pid
+        finally:
+            owner.kill()
+            owner.wait(timeout=10)
+
+        # The owner is now truly dead. Recovery must fail the abandoned turn,
+        # preserve its original user message, and apply no world effects.
+        assert main_module.recover_interrupted_turns() == 1
+        messages = client.get(f"/api/sessions/{session_id}/messages").json()
+        recovered = next(m for m in messages if m["client_request_id"] == request_id)
+        assert recovered["generation_status"] == "failed"
+        recovered_metadata = json.loads(recovered["metadata_json"])
+        assert recovered_metadata["recovered_after_restart"] is True
+        assert client.get(f"/api/sessions/{session_id}/state").json() == before
+
+        provider_calls = []
+
+        class RetryProvider:
+            name = "mock"
+
+            async def generate(self, payload):
+                provider_calls.append(payload["user_message"])
+                return NarratorResponse(
+                    narration="La acción se recuperó una sola vez.",
+                    elapsed_minutes=1
+                )
+
+        monkeypatch.setattr(
+            main_module, "make_provider",
+            lambda provider_name, settings: RetryProvider()
+        )
+        retry = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json={"request_id": request_id, "text": text_value, "provider": "mock"}
+        )
+        assert retry.status_code == 200, retry.text
+        assert retry.json()["turn_id"] == turn_id
+        assert retry.json()["replayed"] is False
+        assert len(provider_calls) == 1
+
+        final_messages = client.get(f"/api/sessions/{session_id}/messages").json()
+        user_rows = [
+            m for m in final_messages
+            if m["role"] == "user" and m["client_request_id"] == request_id
+        ]
+        assistant_rows = [
+            m for m in final_messages
+            if m["role"] == "assistant" and m["turn_id"] == turn_id
+            and m["generation_status"] == "complete"
+        ]
+        assert len(user_rows) == 1
+        assert len(assistant_rows) == 1
+        final_state = client.get(f"/api/sessions/{session_id}/state").json()
+        assert final_state["state"]["minute_of_day"] == before["state"]["minute_of_day"] + 1
+        assert main_module.recover_interrupted_turns() == 0
+
+
+def test_two_os_processes_serialize_turns_for_the_same_session():
+    """A real second Python process must not overlap a turn owned by the first process."""
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={})
+        assert seed.status_code == 200, seed.text
+        session_id = seed.json()["session_id"]
+        before = client.get(f"/api/sessions/{session_id}/state").json()
+
+        child_script = r"""
+import asyncio, json, os, sys, time
+from fastapi.testclient import TestClient
+import canon_manager.main as main_module
+from canon_manager.main import app
+from canon_manager.models import NarratorResponse
+
+session_id = sys.argv[1]
+class SlowProvider:
+    name = "mock"
+    async def generate(self, payload):
+        print("PROVIDER_ENTERED", flush=True)
+        await asyncio.to_thread(time.sleep, 2.0)
+        return NarratorResponse(
+            narration="El proceso propietario resolvió el turno una sola vez.",
+            elapsed_minutes=1
+        )
+main_module.make_provider = lambda provider_name, settings: SlowProvider()
+with TestClient(app) as child_client:
+    response = child_client.post(
+        f"/api/sessions/{session_id}/turns",
+        json={
+            "request_id": "multiprocess-owner-request-001",
+            "text": "Observo el sendero desde el proceso propietario.",
+            "provider": "mock"
+        }
+    )
+    print("CHILD_RESPONSE " + json.dumps({
+        "status_code": response.status_code,
+        "body": response.json()
+    }), flush=True)
+    if response.status_code != 200:
+        raise SystemExit(2)
+"""
+        child_env = os.environ.copy()
+        child_env["APP_DB_PATH"] = str(database.path)
+        child_env["APP_PROVIDER"] = "mock"
+        child = subprocess.Popen(
+            [sys.executable, "-c", child_script, session_id],
+            cwd=str(Path(__file__).resolve().parents[1] / "src"),
+            env=child_env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            bufsize=1
+        )
+        try:
+            # Wait until the real application flow in the child reaches its provider.
+            entered = child.stdout.readline().strip()
+            assert entered == "PROVIDER_ENTERED", (
+                f"El proceso hijo no alcanzó el proveedor: {entered!r}; "
+                f"stderr={child.stderr.read()}"
+            )
+
+            with database.connection() as conn:
+                marker = conn.execute(
+                    "SELECT generation_status,metadata_json FROM messages "
+                    "WHERE session_id=? AND client_request_id=?",
+                    (session_id, "multiprocess-owner-request-001")
+                ).fetchone()
+            assert marker is not None
+            assert marker["generation_status"] == "processing"
+            owner_pid = json.loads(marker["metadata_json"])["processing_owner_pid"]
+            assert owner_pid == child.pid
+
+            competing = client.post(
+                f"/api/sessions/{session_id}/turns",
+                json={
+                    "request_id": "multiprocess-competing-request-001",
+                    "text": "Intento avanzar desde el proceso principal.",
+                    "provider": "mock"
+                }
+            )
+            assert competing.status_code == 409, competing.text
+            assert "otro turno en curso" in competing.json()["detail"]
+
+            child_output = child.stdout.readline().strip()
+            assert child_output.startswith("CHILD_RESPONSE "), child_output
+            child_result = json.loads(child_output[len("CHILD_RESPONSE "):])
+            assert child_result["status_code"] == 200, child_result
+            assert child.wait(timeout=10) == 0
+        finally:
+            if child.poll() is None:
+                child.kill()
+                child.wait(timeout=10)
+
+        final_state = client.get(f"/api/sessions/{session_id}/state").json()
+        assert final_state["state"]["minute_of_day"] == before["state"]["minute_of_day"] + 1
+        messages = client.get(f"/api/sessions/{session_id}/messages").json()
+        users = [m for m in messages if m["role"] == "user"]
+        assistants = [
+            m for m in messages
+            if m["role"] == "assistant" and m["generation_status"] == "complete"
+        ]
+        assert len([m for m in users if m["client_request_id"] == "multiprocess-owner-request-001"]) == 1
+        assert not any(m["client_request_id"] == "multiprocess-competing-request-001" for m in users)
+        assert len(assistants) == 1
+        assert main_module.recover_interrupted_turns() == 0
+
+
+def test_concurrent_session_requests_stay_serial_across_two_app_clients(monkeypatch):
+    """A second app client must not recover or overlap a generation owned by the first."""
+    entered_provider = threading.Event()
+    release_provider = threading.Event()
+    provider_calls = []
+
+    class SlowProvider:
+        name = "mock"
+
+        async def generate(self, payload):
+            provider_calls.append(payload["user_message"])
+            entered_provider.set()
+            released = await asyncio.to_thread(release_provider.wait, 10)
+            if not released:
+                raise RuntimeError("La prueba no liberó el proveedor lento a tiempo.")
+            return NarratorResponse(
+                narration="La acción se resolvió una sola vez.",
+                elapsed_minutes=1
+            )
+
+    monkeypatch.setattr(main_module, "make_provider", lambda name, settings: SlowProvider())
+
+    with TestClient(app) as first_client:
+        seed = first_client.post("/api/demo/seed", json={})
+        assert seed.status_code == 200, seed.text
+        session_id = seed.json()["session_id"]
+        before = first_client.get(f"/api/sessions/{session_id}/state").json()
+
+        first_payload = {
+            "request_id": "concurrent-request-first-001",
+            "text": "Observo el camino mientras espero.",
+            "provider": "mock"
+        }
+        second_payload = {
+            "request_id": "concurrent-request-second-001",
+            "text": "Intento avanzar antes de que termine.",
+            "provider": "mock"
+        }
+
+        with ThreadPoolExecutor(max_workers=1) as executor:
+            first_future = executor.submit(
+                first_client.post, f"/api/sessions/{session_id}/turns",
+                json=first_payload
+            )
+            assert entered_provider.wait(5), "La primera solicitud no llegó al proveedor."
+
+            # Starting a second app client runs startup recovery while the first
+            # request is still in the provider. It must preserve the live marker.
+            with TestClient(app) as second_client:
+                with database.connection() as conn:
+                    marker = conn.execute(
+                        "SELECT generation_status,metadata_json FROM messages "
+                        "WHERE session_id=? AND role='user' AND client_request_id=?",
+                        (session_id, first_payload["request_id"])
+                    ).fetchone()
+                assert marker is not None
+                assert marker["generation_status"] == "processing"
+                assert json.loads(marker["metadata_json"])["processing_owner_pid"] == os.getpid()
+
+                competing = second_client.post(
+                    f"/api/sessions/{session_id}/turns", json=second_payload
+                )
+                assert competing.status_code == 409, competing.text
+                assert "otro turno en curso" in competing.json()["detail"]
+                assert len(provider_calls) == 1
+
+            release_provider.set()
+            first_response = first_future.result(timeout=10)
+            assert first_response.status_code == 200, first_response.text
+
+        # The rejected overlapping request created no message and can be submitted
+        # after the first turn commits; each turn advances the clock exactly once.
+        second_response = first_client.post(
+            f"/api/sessions/{session_id}/turns", json=second_payload
+        )
+        assert second_response.status_code == 200, second_response.text
+        assert len(provider_calls) == 2
+
+        final_state = first_client.get(f"/api/sessions/{session_id}/state").json()
+        assert final_state["state"]["minute_of_day"] == before["state"]["minute_of_day"] + 2
+        messages = first_client.get(f"/api/sessions/{session_id}/messages").json()
+        users = [m for m in messages if m["role"] == "user"]
+        assistants = [m for m in messages if m["role"] == "assistant" and m["generation_status"] == "complete"]
+        assert len(users) == 2
+        assert len(assistants) == 2
+        assert [m["content"] for m in users].count(first_payload["text"]) == 1
+        assert [m["content"] for m in users].count(second_payload["text"]) == 1
 
 def test_backup_rejects_in_flight_turn_and_keeps_no_partial_file():
     with TestClient(app) as client:
