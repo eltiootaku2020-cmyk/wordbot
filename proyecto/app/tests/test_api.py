@@ -3110,7 +3110,7 @@ def test_multiprocess_owner_death_recovers_turn_without_duplicate_effects(monkey
         # long enough for the parent to observe it, then is forcibly terminated.
         child_script = r"""
 import json, os, sqlite3, sys, time, uuid
-db_path, session_id, request_id, turn_id, message_text = sys.argv[1:]
+db_path, session_id, request_id, turn_id, message_text, snapshot_state_json = sys.argv[1:]
 conn = sqlite3.connect(db_path, timeout=10)
 conn.execute("PRAGMA foreign_keys=ON")
 turn_index = conn.execute(
@@ -3128,6 +3128,11 @@ conn.execute(
     "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
     (uuid.uuid4().hex, session_id, turn_id, request_id, turn_index, "user", "",
      message_text, "mock", "processing", metadata)
+)
+# Mirror the pre-turn snapshot that the application writes before calling a provider.
+conn.execute(
+    "INSERT INTO snapshots(id,session_id,turn_id,event_sequence,state_json) VALUES(?,?,?,?,?)",
+    (uuid.uuid4().hex, session_id, turn_id, turn_index, snapshot_state_json)
 )
 conn.commit()
 print(os.getpid(), flush=True)
