@@ -1,6 +1,6 @@
 # Pruebas de aceptación del gestor local
 
-La CI más reciente validó **86 pruebas Python** y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40941934304.
+La CI más reciente validó **87 pruebas Python** y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40943636768.
 
 ## A. Persistencia y recuperación
 
@@ -296,3 +296,17 @@ Se considera apto para una primera partida cuando A, C, D, E, F, G, H e I pasan 
 3. Comprobar que ambas coinciden. Si el JSON sube de versión y la interfaz no se actualiza, la suite debe fallar.
 
 **Cobertura automatizada:** CI PR #11 aprobó 86 pruebas Python y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40941934304. La auditoría separada del Lorebook v1.19 aprobó 659 comprobaciones: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40941934333.
+
+
+## AE. Deshacer después de una aprobación fuera del turno (PR #12)
+
+1. Completar un turno A que deje pendiente una propuesta de relación, inventario, recurso o movimiento.
+2. Completar un turno B posterior que cambie el reloj y cree su snapshot preturno.
+3. Aprobar la propuesta pendiente de A después de B, comprobar que el cambio se aplica y queda `accepted`.
+4. Intentar deshacer B. Debe devolver 409, conservar el reloj posterior a B y mantener el cambio aceptado; no se permite que el snapshot de B borre un cambio posterior.
+5. Repetir con una instantánea antigua que no contenga huella posterior. Si el registro muestra una aprobación aceptada posterior de otro turno, el undo también debe fallar de forma conservadora.
+6. Probar compatibilidad antigua: retirar la huella de un snapshot de turno sin aprobaciones externas posteriores; el undo puede completar, guardar la huella faltante y permitir regeneración segura.
+
+**Criterio:** el estado solo se restaura si coincide con la huella posterior del turno. Si el estado ya cambió, no se debe modificar nada. Snapshots antiguos sin huella pueden migrarse de forma perezosa solo cuando el registro de cambios no señala una aprobación posterior.
+
+**Cobertura automatizada:** PR #12 aprobó 87 pruebas Python y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40943636768. El escenario usa proveedor simulado; la campaña larga con navegador real sigue pendiente.
