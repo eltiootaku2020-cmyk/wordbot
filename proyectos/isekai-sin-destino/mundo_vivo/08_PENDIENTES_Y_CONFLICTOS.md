@@ -14,7 +14,8 @@ Este documento evita que una propuesta nueva sobrescriba silenciosamente datos a
 - El hambre, instintos, biología y otras necesidades pueden prevalecer sobre un recuerdo alterado.
 - Debe haber riesgo real de muerte y bad endings.
 - Se desea una interfaz de tres opciones sugeridas y una opción «Otro».
-- **Decisión nueva aprobada:** el Bosque de las Bestias tendrá diseño interno completo y descubrimiento progresivo para el protagonista. El diseño contempla el ecosistema y sus subzonas, pero el personaje solo conoce lo que descubre; presencia y encuentros dependen de condiciones ecológicas. Esta decisión no canoniza fichas individuales.
+- **Decisión aprobada:** enfoque mixto: diseño interno completo y descubrimiento progresivo para el protagonista. El personaje solo conoce lo que descubre; presencia y encuentros dependen de condiciones ecológicas. No canoniza fichas individuales.
+- **Decisión aprobada:** estructura combinada del bosque: zonas de peligro dinámicas, caminos y territorios ecológicos, y niveles naturales donde la geografía los permita. No es un mapa lineal ni concéntrico. El enfoque general está aprobado, pero los nombres y conexiones concretos de subzonas siguen siendo propuestas.
 
 ## Conflictos con documentos anteriores
 
