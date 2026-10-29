@@ -955,6 +955,18 @@ def user_mentions_label(user_text: str, label: str) -> bool:
     return False
 
 
+def has_positive_user_action_for_label(
+    user_text: str, action_pattern: re.Pattern[str], label: str
+) -> bool:
+    """Require the affirmative action and the relevant item/resource in the same clause."""
+    for clause in re.split(r"(?<=[.!?;])\s*|[,，:]\s*|[\r\n]+", user_text or ""):
+        if not clause.strip() or "¿" in clause or "?" in clause:
+            continue
+        if user_mentions_label(clause, label) and has_positive_user_action(clause, action_pattern):
+            return True
+    return False
+
+
 def has_positive_user_action(user_text: str, action_pattern: re.Pattern[str]) -> bool:
     """Only affirmative actions in the user's message are evidence; narration is never evidence."""
     negation_prefix = re.compile(
@@ -1065,12 +1077,11 @@ def apply_narrator_result(
     for operation in result.inventory_ops:
         if operation.operation != "acquire":
             continue
-        mentions_item = user_mentions_label(user_text, operation.item_name)
-        positive_purchase = (
-            has_positive_user_action(user_text, PURCHASE_ACTION_PATTERN) and mentions_item
+        positive_purchase = has_positive_user_action_for_label(
+            user_text, PURCHASE_ACTION_PATTERN, operation.item_name
         )
-        positive_pickup = (
-            has_positive_user_action(user_text, FREE_ACQUISITION_ACTION_PATTERN) and mentions_item
+        positive_pickup = has_positive_user_action_for_label(
+            user_text, FREE_ACQUISITION_ACTION_PATTERN, operation.item_name
         )
         if (
             (operation.cost > 0 and not positive_purchase)
@@ -1080,21 +1091,47 @@ def apply_narrator_result(
 
     unauthorized_resource_refs = set()
     for operation in result.resource_ops:
-        resource_named = (
-            user_mentions_label(user_text, operation.resource_key)
-            or user_mentions_label(user_text, operation.display_name)
-        )
         action_pattern = (
             RESOURCE_GAIN_ACTION_PATTERN if operation.operation == "gain"
             else RESOURCE_SPEND_ACTION_PATTERN
         )
-        if not resource_named or not has_positive_user_action(user_text, action_pattern):
+        user_authorized_resource = (
+            has_positive_user_action_for_label(user_text, action_pattern, operation.resource_key)
+            or has_positive_user_action_for_label(user_text, action_pattern, operation.display_name)
+        )
+        if not user_authorized_resource:
             unauthorized_resource_refs.add(operation.event_ref)
 
-    unauthorized_power_refs = {
-        event.ref for event in result.events
-        if event.kind == "power" and not explicit_power
-    }
+    def explicitly_used_power_for_target(power: PowerUseProposal) -> bool:
+        target = conn.execute(
+            "SELECT name FROM entities WHERE id=? AND world_id=?",
+            (power.target_entity_id, session["world_id"])
+        ).fetchone()
+        if target and has_positive_user_action_for_label(
+            user_text, POWER_ACTION_PATTERN, target["name"]
+        ):
+            return True
+        # A short command such as /eco is an explicit action when it yields only
+        # one proposed target. Multiple targets still require target-specific evidence.
+        distinct_targets = {item.target_entity_id for item in result.power_uses}
+        return bool(
+            explicit_power and len(distinct_targets) == 1
+            and (not recipient_id or recipient_id == power.target_entity_id)
+        )
+
+    unauthorized_power_refs = set()
+    power_uses_by_event: dict[str, list[PowerUseProposal]] = {}
+    for power in result.power_uses:
+        power_uses_by_event.setdefault(power.event_ref, []).append(power)
+    for event in result.events:
+        if event.kind != "power":
+            continue
+        associated_uses = power_uses_by_event.get(event.ref, [])
+        if associated_uses:
+            if any(not explicitly_used_power_for_target(power) for power in associated_uses):
+                unauthorized_power_refs.add(event.ref)
+        elif not explicit_power:
+            unauthorized_power_refs.add(event.ref)
     unauthorized_effect_refs = (
         unauthorized_acquisition_refs | unauthorized_resource_refs | unauthorized_power_refs
     )
@@ -1214,16 +1251,6 @@ def apply_narrator_result(
         r"[uú]nic\w*|ancestral\w*|relic|unique|cursed|legendary)\b",
         re.IGNORECASE
     )
-    free_acquisition = re.compile(
-        r"\b(encontr\w*|hall\w*|recog\w*|levant\w*|regal\w*|gratis|"
-        r"te entreg\w*|te dio|te da|recib\w* gratis)\b",
-        re.IGNORECASE
-    )
-    paid_acquisition = re.compile(
-        r"\b(compr\w*|pag\w*|precio|cost\w*|monedas? por|oro por|vende por)\b",
-        re.IGNORECASE
-    )
-
     inventory_signature_counts: dict[tuple[str, str, str], int] = {}
     for operation in result.inventory_ops:
         signature = (operation.event_ref, operation.operation, operation.item_name.strip().casefold())
@@ -1261,14 +1288,11 @@ def apply_narrator_result(
             ).fetchone()
 
             if operation.operation == "acquire":
-                mentions_item = user_mentions_label(user_text, item_name)
-                paid = (
-                    has_positive_user_action(user_text, PURCHASE_ACTION_PATTERN)
-                    and mentions_item
+                paid = has_positive_user_action_for_label(
+                    user_text, PURCHASE_ACTION_PATTERN, item_name
                 )
-                free_pickup = (
-                    has_positive_user_action(user_text, FREE_ACQUISITION_ACTION_PATTERN)
-                    and mentions_item
+                free_pickup = has_positive_user_action_for_label(
+                    user_text, FREE_ACQUISITION_ACTION_PATTERN, item_name
                 )
                 currency_key = (operation.currency_key or "monedas").strip().casefold()
                 payment_row = None
@@ -1486,15 +1510,13 @@ def apply_narrator_result(
         elif source["entity_id"] not in {"", session["protagonist_entity_id"]}:
             reason = "El recurso personal del protagonista no puede cambiar mediante un evento atribuido a otra entidad."
         else:
-            resource_named = (
-                user_mentions_label(user_text, resource_key)
-                or user_mentions_label(user_text, operation.display_name)
-            )
             action_pattern = explicit_gain if operation.operation == "gain" else explicit_spend
-            if not resource_named:
-                reason = "El mensaje del usuario no identifica afirmativamente este recurso; la narración no puede autorizar el cambio."
-            elif not has_positive_user_action(user_text, action_pattern):
-                reason = "No hay una acción afirmativa del usuario que autorice este ingreso o gasto."
+            user_authorized_resource = (
+                has_positive_user_action_for_label(user_text, action_pattern, resource_key)
+                or has_positive_user_action_for_label(user_text, action_pattern, operation.display_name)
+            )
+            if not user_authorized_resource:
+                reason = "No hay una acción afirmativa del usuario que nombre este recurso y autorice el ingreso o gasto."
             else:
                 balance = conn.execute(
                     "SELECT * FROM resources WHERE session_id=? AND resource_key=?",
@@ -1629,16 +1651,17 @@ def apply_narrator_result(
             source and source["kind"] == "power"
             and source["entity_id"] == power.target_entity_id
         )
+        power_action_authorized = explicitly_used_power_for_target(power)
         can_apply = bool(
-            not duplicated_power and explicit_power and source
+            not duplicated_power and power_action_authorized and source
             and source["status"] == "recorded" and source_is_power_for_target
             and power.target_entity_id in valid_ids
         )
         reason = ""
         if duplicated_power:
             reason = "El mismo poder contra el mismo objetivo aparece varias veces en un turno; se requiere revisión para no duplicar usos."
-        elif not explicit_power:
-            reason = "El uso no coincide con una orden explícita del usuario."
+        elif not power_action_authorized:
+            reason = "El uso no coincide con una orden afirmativa del usuario dirigida a este objetivo."
         elif not source:
             reason = "No existe el evento que justifica el uso del poder."
         elif source["status"] != "recorded":
