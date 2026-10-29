@@ -2440,12 +2440,13 @@ def test_session_backup_can_be_listed_and_restored_without_touching_other_sessio
         assert first_turn.status_code == 200, first_turn.text
         snapshot_state = client.get(f"/api/sessions/{session_id}/state").json()
         snapshot_messages = client.get(f"/api/sessions/{session_id}/messages").json()
-        snapshot_events = [
-            dict(row) for row in database.connection().__enter__().execute(
-                "SELECT id,turn_id,external_ref,kind,entity_id,description,witnesses_json,status "
-                "FROM events WHERE session_id=? ORDER BY created_at,id", (session_id,)
-            ).fetchall()
-        ]
+        with database.connection() as conn:
+            snapshot_events = [
+                dict(row) for row in conn.execute(
+                    "SELECT id,turn_id,external_ref,kind,entity_id,description,witnesses_json,status "
+                    "FROM events WHERE session_id=? ORDER BY created_at,id", (session_id,)
+                ).fetchall()
+            ]
 
         backup_response = client.post(f"/api/sessions/{session_id}/backup", json={})
         assert backup_response.status_code == 200, backup_response.text
