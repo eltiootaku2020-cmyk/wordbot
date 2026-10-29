@@ -150,7 +150,7 @@ def test_startup_recovery_preserves_turn_owned_by_live_process(monkeypatch):
 
         # Model the OS process check deterministically: 10101 is alive, 20202 is gone.
         monkeypatch.setattr(
-            main_module, "_process_is_alive", lambda pid: pid == 10101
+            main_module, "_process_is_alive", lambda pid, expected_start_token=None: pid == 10101
         )
         recovered = main_module.recover_interrupted_turns()
         assert recovered == 1
@@ -3078,7 +3078,12 @@ def test_new_turn_is_rejected_while_another_turn_is_processing():
                 "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                 (uuid.uuid4().hex, session_id, "active-turn-test", "active-turn-request-001",
                  999, "user", "", "Observa la puerta.", "mock", "processing",
-                 json.dumps({"visibility":"scene","audience_ids":[]}))
+                 json.dumps({
+                     "visibility": "scene",
+                     "audience_ids": [],
+                     "processing_owner_pid": os.getpid(),
+                     "processing_owner_start_token": main_module._process_start_token(os.getpid())
+                 }))
             )
         before = client.get(f"/api/sessions/{session_id}/messages").json()
         response = client.post(
@@ -3089,6 +3094,101 @@ def test_new_turn_is_rejected_while_another_turn_is_processing():
         assert "otro turno en curso" in response.json()["detail"]
         assert client.get(f"/api/sessions/{session_id}/messages").json() == before
 
+
+
+def test_submit_turn_recovers_owner_that_dies_after_startup_recovery(monkeypatch):
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+        session_id = seed["session_id"]
+        owner_pid = 515151
+        turn_id = "late-death-" + uuid.uuid4().hex
+        request_id = "late-death-request-" + uuid.uuid4().hex[:12]
+        with database.transaction() as conn:
+            next_index = int(conn.execute(
+                "SELECT COALESCE(MAX(turn_index),0)+1 AS n FROM messages WHERE session_id=?",
+                (session_id,)
+            ).fetchone()["n"])
+            conn.execute(
+                "INSERT INTO messages(id,session_id,turn_id,client_request_id,turn_index,role,"
+                "recipient_entity_id,content,provider,generation_status,metadata_json) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    uuid.uuid4().hex, session_id, turn_id, request_id, next_index, "user", "",
+                    "Turno cuyo propietario muere tras el arranque", "mock", "processing",
+                    json.dumps({
+                        "visibility": "scene",
+                        "audience_ids": [],
+                        "processing_owner_pid": owner_pid,
+                        "processing_owner_start_token": "old-process-instance"
+                    })
+                )
+            )
+            main_module.create_turn_snapshot(conn, session_id, turn_id, next_index)
+
+        # Startup sees the original owner alive, so it correctly preserves the marker.
+        monkeypatch.setattr(
+            main_module, "_process_is_alive",
+            lambda pid, expected_start_token=None: pid == owner_pid
+        )
+        assert main_module.recover_interrupted_turns() == 0
+
+        # The owner then dies. The request-time recovery must detect this before
+        # querying the existing request/active-turn markers.
+        monkeypatch.setattr(
+            main_module, "_process_is_alive",
+            lambda pid, expected_start_token=None: False
+        )
+        response = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json={
+                "request_id": "new-request-after-owner-death-001",
+                "text": "Sigo después de recuperar el turno huérfano.",
+                "provider": "mock"
+            }
+        )
+        assert response.status_code == 200, response.text
+        with database.connection() as conn:
+            old_marker = conn.execute(
+                "SELECT generation_status,metadata_json FROM messages WHERE turn_id=?",
+                (turn_id,)
+            ).fetchone()
+        assert old_marker["generation_status"] == "failed"
+        old_metadata = json.loads(old_marker["metadata_json"])
+        assert old_metadata["recovered_during_runtime"] is True
+        assert "recovered_after_restart" not in old_metadata
+        assert "processing_owner_pid" not in old_metadata
+        assert "processing_owner_start_token" not in old_metadata
+
+        # Retrying the original request reuses its message/turn, but must clear
+        # annotations that described the failed attempt once a new generation starts.
+        retry = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json={
+                "request_id": request_id,
+                "text": "Turno cuyo propietario muere tras el arranque",
+                "provider": "mock"
+            }
+        )
+        assert retry.status_code == 200, retry.text
+        with database.connection() as conn:
+            retried_marker = conn.execute(
+                "SELECT generation_status,metadata_json FROM messages WHERE turn_id=?",
+                (turn_id,)
+            ).fetchone()
+        assert retried_marker["generation_status"] == "complete"
+        retried_metadata = json.loads(retried_marker["metadata_json"])
+        assert "recovered_after_restart" not in retried_metadata
+        assert "recovered_during_runtime" not in retried_metadata
+        assert "recovery_note" not in retried_metadata
+        assert "processing_owner_pid" not in retried_metadata
+        assert "processing_owner_start_token" not in retried_metadata
+
+
+def test_process_identity_detects_pid_reuse_when_start_token_changes(monkeypatch):
+    current_pid = os.getpid()
+    monkeypatch.setattr(main_module, "_process_start_token", lambda pid: "new-process-instance")
+    assert main_module._process_is_alive(current_pid, "old-process-instance") is False
+    assert main_module._process_is_alive(current_pid, "new-process-instance") is True
 
 def test_backup_rejects_in_flight_turn_and_keeps_no_partial_file():
     with TestClient(app) as client:
