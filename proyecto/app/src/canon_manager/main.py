@@ -387,6 +387,12 @@ def load_state(conn, session_id: str) -> dict[str, Any]:
     ).fetchall()]
     for item in pending:
         item["proposed_value"] = json.loads(item.pop("proposed_value_json"))
+    pending_events = [dict(row) for row in conn.execute(
+        "SELECT id,turn_id,kind,entity_id,description,witnesses_json,created_at FROM events "
+        "WHERE session_id=? AND status='pending' ORDER BY created_at DESC LIMIT 100", (session_id,)
+    ).fetchall()]
+    for event in pending_events:
+        event["witness_ids"] = json.loads(event.pop("witnesses_json"))
     eco = [dict(row) for row in conn.execute(
         "SELECT target_entity_id,COUNT(*) AS attempts FROM ability_uses "
         "WHERE session_id=? AND ability_key IN ('eco','eco_humano','hipnosis') GROUP BY target_entity_id",
@@ -400,7 +406,8 @@ def load_state(conn, session_id: str) -> dict[str, Any]:
             "location": session["current_location"]
         },
         "participants": participants, "inventory": inventory,
-        "relationships": relationships, "eco_uses": eco, "pending_changes": pending
+        "relationships": relationships, "eco_uses": eco, "pending_changes": pending,
+        "pending_events": pending_events
     }
 
 
@@ -905,6 +912,44 @@ def reject_change(session_id: str, change_id: str):
             (datetime.utcnow().isoformat(timespec="seconds"), change_id)
         )
     return {"rejected": True, "change_id": change_id}
+
+
+@app.post("/api/sessions/{session_id}/events/{event_id}/approve")
+def approve_event(session_id: str, event_id: str):
+    with database.transaction() as conn:
+        event = conn.execute(
+            "SELECT * FROM events WHERE id=? AND session_id=? AND status='pending'",
+            (event_id, session_id)
+        ).fetchone()
+        if event is None:
+            raise HTTPException(status_code=404, detail="Evento pendiente no encontrado.")
+        session = session_row(conn, session_id)
+        valid_ids = world_entity_ids(conn, session["world_id"])
+        if event["entity_id"] and event["entity_id"] not in valid_ids:
+            raise HTTPException(status_code=422, detail="La entidad del evento no existe; corrige la ficha o rechaza el evento.")
+        witnesses = json.loads(event["witnesses_json"])
+        if any(witness not in valid_ids for witness in witnesses):
+            raise HTTPException(status_code=422, detail="Hay testigos no registrados; el evento no puede confirmarse.")
+        conn.execute("UPDATE events SET status='recorded' WHERE id=?", (event_id,))
+    return {"approved": True, "event_id": event_id}
+
+
+@app.post("/api/sessions/{session_id}/events/{event_id}/reject")
+def reject_event(session_id: str, event_id: str):
+    with database.transaction() as conn:
+        event = conn.execute(
+            "SELECT id FROM events WHERE id=? AND session_id=? AND status='pending'",
+            (event_id, session_id)
+        ).fetchone()
+        if event is None:
+            raise HTTPException(status_code=404, detail="Evento pendiente no encontrado.")
+        conn.execute("UPDATE events SET status='rejected' WHERE id=?", (event_id,))
+        conn.execute(
+            "UPDATE state_changes SET status='rejected',applied_at=? "
+            "WHERE source_event_id=? AND status='pending'",
+            (datetime.utcnow().isoformat(timespec="seconds"), event_id)
+        )
+    return {"rejected": True, "event_id": event_id}
 
 
 @app.post("/api/sessions/{session_id}/backup")
