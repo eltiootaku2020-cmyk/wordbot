@@ -3481,6 +3481,261 @@ def test_100_short_turns_persist_and_restore_exact_state_after_database_reinitia
         assert restored_tables == before_tables
 
 
+
+def test_mixed_50_turn_continuity_campaign_with_retries_privacy_and_restore(monkeypatch):
+    """Deterministic mixed campaign; real ChatGPT/Gemini web remains a separate manual trial."""
+    import sqlite3
+
+    with TestClient(app) as client:
+        started, entities = _create_state_ops_world(client)
+        session_id = started["session_id"]
+        protagonist_id = entities["Protagonista"]["id"]
+        maelis_id = entities["Maelis Orven"]["id"]
+        ivar_id = entities["Ivar Dalen"]["id"]
+        secret = "SECRETO-CAMPANA-09"
+
+        # Give the deterministic campaign enough currency to exercise several paid buys.
+        with database.transaction() as conn:
+            conn.execute(
+                "UPDATE resources SET quantity=100 WHERE session_id=? AND resource_key='monedas'",
+                (session_id,)
+            )
+
+        class CampaignProvider:
+            name = "mock"
+
+            async def generate(self, payload):
+                text = payload["user_message"]
+                audience = list(payload["context"]["audience_ids"])
+                match = re.search(r"CAMPAIGN (\d+)", text)
+                index = int(match.group(1)) if match else 0
+                if "Compro una manzana" in text:
+                    ref = f"campaign-purchase-{index}"
+                    return NarratorResponse(
+                        narration=f"Compra registrada en el turno {index}.",
+                        events=[EventProposal(
+                            ref=ref, kind="object", entity_id=protagonist_id,
+                            description="El protagonista compra una manzana por dos monedas y la recibe.",
+                            witness_ids=audience
+                        )],
+                        inventory_ops=[InventoryOperation(
+                            operation="acquire", item_name="Manzana", quantity=1,
+                            carrier_entity_id=protagonist_id, location="Claro del bosque",
+                            reason="Compra explícita de la campaña.", event_ref=ref,
+                            cost=2, currency_key="monedas"
+                        )]
+                    )
+                if "Recojo una piedra" in text:
+                    ref = f"campaign-pickup-{index}"
+                    return NarratorResponse(
+                        narration=f"Hallazgo registrado en el turno {index}.",
+                        events=[EventProposal(
+                            ref=ref, kind="object", entity_id=protagonist_id,
+                            description="El protagonista recoge una piedra común del suelo.",
+                            witness_ids=audience
+                        )],
+                        inventory_ops=[InventoryOperation(
+                            operation="acquire", item_name="Piedra", quantity=1,
+                            carrier_entity_id=protagonist_id, location="Claro del bosque",
+                            reason="Recogida explícita de la campaña.", event_ref=ref,
+                            cost=0, currency_key="monedas"
+                        )]
+                    )
+                return NarratorResponse(
+                    narration=f"La escena continúa de forma controlada en el turno {index}.",
+                    elapsed_minutes=1
+                )
+
+        original_factory = main_module.make_provider
+        monkeypatch.setattr(
+            main_module, "make_provider",
+            lambda name, settings: CampaignProvider() if name == "mock" else original_factory(name, settings)
+        )
+
+        def read_session_tables():
+            with database.connection() as conn:
+                return {
+                    table: [
+                        dict(row) for row in conn.execute(
+                            f"SELECT * FROM {table} WHERE session_id=? ORDER BY rowid",
+                            (session_id,)
+                        ).fetchall()
+                    ]
+                    for table in main_module.RESTORE_SESSION_TABLES
+                }
+
+        def submit_campaign_turn(index):
+            request_id = f"mixed-campaign-turn-{index:03d}"
+            if index == 15:
+                text = "/salto 1 minuto -> Posada"
+                visibility, recipient_id = "scene", ""
+            elif index == 16:
+                text = "/salto 1 minuto -> Claro del bosque"
+                visibility, recipient_id = "scene", ""
+            elif index % 10 == 0:
+                text = f"CAMPAIGN {index:02d}: Compro una manzana por dos monedas."
+                visibility, recipient_id = "scene", ""
+            elif index % 7 == 0:
+                text = f"CAMPAIGN {index:02d}: Recojo una piedra."
+                visibility, recipient_id = "scene", ""
+            elif index % 9 == 0:
+                text = f"CAMPAIGN {index:02d}: Esto es confidencial: {secret}."
+                visibility, recipient_id = "private", maelis_id
+            else:
+                text = f"CAMPAIGN {index:02d}: Observo el entorno y continúo."
+                visibility, recipient_id = "scene", ""
+
+            if index == 24:
+                prepared = client.post(
+                    f"/api/sessions/{session_id}/manual-prompt",
+                    json={"text": text, "provider": "gemini_web", "visibility": visibility}
+                )
+                assert prepared.status_code == 200, prepared.text
+                before_state = client.get(f"/api/sessions/{session_id}/state").json()
+                before_effect_tables = {
+                    table: rows for table, rows in read_session_tables().items()
+                    if table not in {"messages", "snapshots"}
+                }
+                common = {
+                    "request_id": request_id, "text": text, "provider": "gemini_web",
+                    "visibility": visibility, "recipient_id": recipient_id,
+                    "manual_context_hash": prepared.json()["context_hash"]
+                }
+                truncated = client.post(
+                    f"/api/sessions/{session_id}/turns",
+                    json={**common, "external_response": '{"narration":"respuesta truncada'}
+                )
+                assert truncated.status_code == 502, truncated.text
+                assert client.get(f"/api/sessions/{session_id}/state").json() == before_state
+                after_effect_tables = {
+                    table: rows for table, rows in read_session_tables().items()
+                    if table not in {"messages", "snapshots"}
+                }
+                assert after_effect_tables == before_effect_tables
+                corrected = json.dumps({
+                    "narration": "Respuesta corregida tras el JSON truncado.",
+                    "events": [], "state_changes": [], "elapsed_minutes": 1,
+                    "movements": [], "inventory_ops": [], "resource_ops": [],
+                    "power_uses": [], "pending": []
+                }, ensure_ascii=False)
+                retried = client.post(
+                    f"/api/sessions/{session_id}/turns",
+                    json={**common, "external_response": corrected}
+                )
+                assert retried.status_code == 200, retried.text
+                return retried.json()
+
+            if index == 25:
+                # Simulate a process that died after persisting the request marker.
+                turn_id = "campaign-interrupted-" + uuid.uuid4().hex
+                before_state = client.get(f"/api/sessions/{session_id}/state").json()
+                with database.transaction() as conn:
+                    turn_index = int(conn.execute(
+                        "SELECT COALESCE(MAX(turn_index),0)+1 AS n FROM messages WHERE session_id=?",
+                        (session_id,)
+                    ).fetchone()["n"])
+                    audience = [
+                        row["entity_id"] for row in conn.execute(
+                            "SELECT entity_id FROM session_presence WHERE session_id=? AND location=("
+                            "SELECT current_location FROM sessions WHERE id=?)",
+                            (session_id, session_id)
+                        ).fetchall()
+                    ]
+                    conn.execute(
+                        "INSERT INTO messages(id,session_id,turn_id,client_request_id,turn_index,role,"
+                        "recipient_entity_id,content,provider,generation_status,metadata_json) "
+                        "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                        (
+                            uuid.uuid4().hex, session_id, turn_id, request_id, turn_index,
+                            "user", "", text, "mock", "processing",
+                            json.dumps({
+                                "visibility": "scene", "audience_ids": audience,
+                                "processing_owner_pid": 2**31 - 1
+                            })
+                        )
+                    )
+                    main_module.create_turn_snapshot(conn, session_id, turn_id, turn_index)
+                assert main_module.recover_interrupted_turns() == 1
+                assert client.get(f"/api/sessions/{session_id}/state").json() == before_state
+                retried = client.post(
+                    f"/api/sessions/{session_id}/turns",
+                    json={"request_id": request_id, "text": text, "provider": "mock", "visibility": visibility}
+                )
+                assert retried.status_code == 200, retried.text
+                return retried.json()
+
+            response = client.post(
+                f"/api/sessions/{session_id}/turns",
+                json={
+                    "request_id": request_id, "text": text, "provider": "mock",
+                    "visibility": visibility, "recipient_id": recipient_id
+                }
+            )
+            assert response.status_code == 200, f"Turno {index}: {response.text}"
+
+            if index == 9:
+                # The private fact must be visible to Maelis but not to Ivar in the same scene.
+                with database.connection() as conn:
+                    session = session_row(conn, session_id)
+                    scene_ids = [
+                        row["entity_id"] for row in conn.execute(
+                            "SELECT entity_id FROM session_presence WHERE session_id=? AND location=?",
+                            (session_id, session["current_location"])
+                        ).fetchall()
+                    ]
+                    ivar_context = build_context(
+                        conn, session, "¿Qué secreto conoce Ivar?", ivar_id,
+                        "campaign-privacy-ivar", visibility="scene", audience_ids=scene_ids
+                    )
+                    maelis_context = build_context(
+                        conn, session, "¿Qué secreto conoce Maelis?", maelis_id,
+                        "campaign-privacy-maelis", visibility="private",
+                        audience_ids=[protagonist_id, maelis_id]
+                    )
+                assert secret not in json.dumps(ivar_context, ensure_ascii=False)
+                assert secret in json.dumps(maelis_context, ensure_ascii=False)
+            return response.json()
+
+        for index in range(1, 26):
+            submit_campaign_turn(index)
+
+        # Save the full persisted state at the midpoint.
+        before_restore_state = client.get(f"/api/sessions/{session_id}/state").json()
+        before_restore_messages = client.get(f"/api/sessions/{session_id}/messages").json()
+        before_restore_tables = read_session_tables()
+        backup = client.post(f"/api/sessions/{session_id}/backup", json={})
+        assert backup.status_code == 200, backup.text
+        backup_path = Path(backup.json()["path"])
+        with sqlite3.connect(backup_path) as conn:
+            assert conn.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+
+        # Add mutations after the backup, then prove restore returns byte-for-byte-equivalent rows.
+        for index in (26, 27, 28):
+            submit_campaign_turn(index)
+        restored = client.post(
+            f"/api/sessions/{session_id}/restore",
+            json={"backup_name": backup.json()["backup_name"], "confirmation": "RESTAURAR"}
+        )
+        assert restored.status_code == 200, restored.text
+        assert client.get(f"/api/sessions/{session_id}/state").json() == before_restore_state
+        assert client.get(f"/api/sessions/{session_id}/messages").json() == before_restore_messages
+        assert read_session_tables() == before_restore_tables
+
+        for index in range(26, 51):
+            submit_campaign_turn(index)
+
+        final_state = client.get(f"/api/sessions/{session_id}/state").json()
+        final_messages = client.get(f"/api/sessions/{session_id}/messages").json()
+        assert len([m for m in final_messages if m["role"] == "user"]) == 50
+        assert len([
+            m for m in final_messages
+            if m["role"] == "assistant" and m["generation_status"] == "complete"
+        ]) == 50
+        assert final_state["state"]["minute_of_day"] == 530
+        assert any(item["display_name"] == "Piedra" and item["quantity"] >= 1 for item in final_state["inventory"])
+        assert any(item["display_name"] == "Manzana" and item["quantity"] >= 3 for item in final_state["inventory"])
+        assert next(r["quantity"] for r in final_state["resources"] if r["resource_key"] == "monedas") == 90
+
 def test_short_eco_command_authorizes_one_valid_power_attempt():
     with TestClient(app) as client:
         seed = client.post("/api/demo/seed", json={}).json()
