@@ -126,7 +126,7 @@ Implementación inicial en la rama organizada y prueba aislada en commit `456ac5
 - `audience_ids` se guarda en metadatos; un turno privado exige destinatario.
 - Recuperación limita participantes privados y filtra mensajes/eventos por audiencia, destinatario y testigos; eventos pendientes no se proporcionan como hechos.
 - Testigos fuera de audiencia no se guardan como testigos confirmados; el narrador simulado respeta el alcance privado.
-- CI: 15 pruebas aprobadas y JavaScript validado: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40867432602
+- CI: 26 pruebas aprobadas y JavaScript validado: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40867432602
 
 **Pendiente para completar ADR-010:** inspector de por qué un recuerdo es visible, pruebas con personajes que entran/salen de escena y pruebas manuales con OpenAI/Gemini. Los registros previos sin metadatos requieren tratamiento conservador.
 
@@ -144,6 +144,6 @@ Implementación inicial en la rama organizada y prueba aislada en commit `456ac5
 - El recurso y objeto se actualizan en el mismo turno/transacción; si la validación de compra falla, no se cambia ninguno.
 - La operación y su valor anterior/propuesto/aceptado quedan en `state_changes`.
 
-**Verificación:** CI con 24 pruebas Python y sintaxis de JavaScript aprobadas el 29-10-2026: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40870848920. Incluye compra con saldo suficiente, saldo insuficiente sin mutación e ingreso de recompensa explícito.
+**Verificación:** CI con 26 pruebas Python y sintaxis de JavaScript aprobadas el 29-10-2026: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40873010055. Incluye compra con saldo suficiente, saldo insuficiente sin mutación, ingreso y gasto explícitos, y reintento de API sin cobro duplicado.
 
 **Pendiente:** registrar y probar repetición idempotente de la misma compra en un turno real de API, realizar prueba manual en Windows y probar el contrato con un proveedor real. La CI usa narrador simulado.
