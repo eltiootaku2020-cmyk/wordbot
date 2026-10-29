@@ -10,6 +10,18 @@ Construir un mundo fantástico abierto en el que criaturas, PNJ, objetos, recurs
 
 Este módulo evita convertir la aventura en una secuencia de escenas prefijadas. Un encuentro puede producir amistad, comercio, huida, combate, descubrimiento, lesión o muerte, según causas y circunstancias.
 
+## Decisión del usuario: mundo mixto
+
+El usuario eligió un enfoque **mixto** para el Bosque de las Bestias:
+
+- El diseño interno contempla el bosque como un ecosistema completo: regiones, subzonas, especies, plantas, recursos, peligros, secretos y reglas ecológicas.
+- El protagonista descubre el contenido gradualmente mediante exploración, pistas, encuentros y consecuencias.
+- El conocimiento del jugador/personaje se mantiene separado del catálogo interno del mundo: que algo esté diseñado no significa que el protagonista lo conozca.
+- La presencia de especies y recursos depende de hábitat, subzona, hora, clima, población y estado ecológico; no aparecen todos simultáneamente ni están garantizados.
+- La información no descubierta no se revela automáticamente en la narración ni en la interfaz del personaje.
+
+Esta decisión establece el enfoque de diseño, pero no aprueba nombres o fichas individuales del catálogo como canon.
+
 ## Mapa de documentos
 
 1. [Reglas del mundo vivo](01_REGLAS_MUNDO_VIVO.md) — principios de simulación, causalidad, aleatoriedad y justicia.
