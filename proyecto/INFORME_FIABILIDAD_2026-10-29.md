@@ -8,7 +8,7 @@ Mejorar continuidad y recuperación del gestor local sin convertir ChatGPT/Gemin
 
 - Rama organizada de desarrollo: `docs/historias-organizadas`.
 - La rama `main` conserva únicamente `.gitignore`; el prototipo y la documentación están en `docs/historias-organizadas`.
-- El historial de CI consultado muestra una ejecución completada correctamente con 38 pruebas Python y comprobación sintáctica de JavaScript. Esto verifica esa ejecución, no una instalación manual en Windows.
+- La CI de la rama base más reciente aprobó 69 pruebas Python; esta rama de corrección aprobó 71 pruebas Python y la comprobación sintáctica de JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40906597871. Esto no sustituye la validación manual en Windows.
 - La suite existente incluye un escenario automatizado de 100 turnos breves con reinicialización de la base y copia/restauración; eso es una prueba de regresión local, no una simulación de todos los errores de una historia real.
 - El modo ChatGPT/Gemini web es manual: preparar prompt, abrir el sitio, copiar y pegar una respuesta JSON. No automatiza el navegador, no lee la cuenta y no requiere clave API.
 
@@ -37,11 +37,11 @@ Para ChatGPT/Gemini web se prepara un prompt nuevo y se pide pegar una respuesta
 
 ## Validación
 
-Esta rama incorpora pruebas automatizadas para los dos defectos descritos. La ejecución de CI de esta rama debe confirmarse después de abrir la solicitud de cambios. No se han hecho llamadas reales a cuentas de ChatGPT/Gemini ni a APIs, porque no son requisito para estos arreglos.
+Esta rama incorpora pruebas automatizadas para los dos defectos descritos. CI completada correctamente: 71 pruebas Python aprobadas y sintaxis JavaScript correcta (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40906597871). No se han hecho llamadas reales a cuentas de ChatGPT/Gemini ni a APIs, porque no son requisito para estos arreglos.
 
 ## Trabajo restante para una primera versión fiable
 
-1. Revisar la ejecución de CI de los cambios de esta rama.
+1. [x] CI de esta rama aprobada: 71 pruebas Python y sintaxis JavaScript.
 2. Ampliar los tests automatizados de respuestas truncadas, JSON mal formado, mensajes cortos, typos de comandos, fallos de restauración y cambios concurrentes.
 3. Confirmar de manera automatizada el escenario de 50–100 turnos tras reiniciar y restaurar, incluyendo la igualdad de estado antes y después.
 4. Dejar Windows/Chromium y la prueba de intercambio manual real como validación de interfaz opcional para el usuario, no como bloqueo para continuar la ingeniería.
