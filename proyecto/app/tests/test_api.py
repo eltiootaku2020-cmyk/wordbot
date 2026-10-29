@@ -700,6 +700,84 @@ def test_conflicting_npc_destinations_in_one_turn_are_all_pending():
         assert sum("varios movimientos" in note for note in pending) == 2
 
 
+def test_offscreen_npc_cannot_be_teleported_by_narrator_proposal():
+    with TestClient(app) as client:
+        started, entities = _create_state_ops_world(client)
+        session_id = started["session_id"]
+        protagonist_id = entities["Protagonista"]["id"]
+        ivar_id = entities["Ivar Dalen"]["id"]
+        present_witnesses = [protagonist_id, ivar_id]
+
+        leave_result = NarratorResponse(
+            narration="Ivar se despide y se marcha hacia Brumaclara.",
+            events=[
+                EventProposal(
+                    ref="ivar-leaves-scene",
+                    kind="location",
+                    entity_id=ivar_id,
+                    description="Ivar deja el claro y se marcha hacia Brumaclara.",
+                    witness_ids=present_witnesses
+                )
+            ],
+            movements=[
+                MovementProposal(
+                    entity_id=ivar_id,
+                    destination="Brumaclara",
+                    reason="Ivar se marcha por el sendero.",
+                    event_ref="ivar-leaves-scene"
+                )
+            ]
+        )
+        _, applied_leave, pending_leave = _apply_synthetic_result(
+            session_id, "Ivar se marcha hacia Brumaclara", leave_result
+        )
+        assert any("Movimiento de PNJ guardado" in note for note in applied_leave)
+        assert not any("Movimiento de Ivar" in note for note in pending_leave)
+
+        return_result = NarratorResponse(
+            narration="La respuesta afirma que Ivar, aunque sigue fuera de escena, regresa instantáneamente al claro.",
+            events=[
+                EventProposal(
+                    ref="ivar-teleport-back",
+                    kind="location",
+                    entity_id=ivar_id,
+                    description="Ivar vuelve al claro sin que se describa su regreso.",
+                    witness_ids=[protagonist_id]
+                )
+            ],
+            movements=[
+                MovementProposal(
+                    entity_id=ivar_id,
+                    destination="Claro del bosque",
+                    reason="El narrador propone devolver a Ivar al lugar del protagonista sin una escena de regreso.",
+                    event_ref="ivar-teleport-back"
+                )
+            ]
+        )
+        turn_id, applied_return, pending_return = _apply_synthetic_result(
+            session_id, "Me quedo en el claro y espero", return_result
+        )
+
+        with database.connection() as conn:
+            presence = conn.execute(
+                "SELECT location,presence_status FROM session_presence "
+                "WHERE session_id=? AND entity_id=?",
+                (session_id, ivar_id)
+            ).fetchone()
+            movement = conn.execute(
+                "SELECT status,reason FROM state_changes "
+                "WHERE session_id=? AND turn_id=? AND field='movement' AND entity_id=?",
+                (session_id, turn_id, ivar_id)
+            ).fetchone()
+
+        assert presence["location"] == "Brumaclara"
+        assert presence["presence_status"] == "away"
+        assert movement["status"] == "pending"
+        assert "fuera de escena" in movement["reason"]
+        assert not any("Movimiento de PNJ guardado" in note for note in applied_return)
+        assert any("fuera de escena" in note for note in pending_return)
+
+
 def test_routine_drop_transfer_and_condition_are_applied_with_source_events():
     with TestClient(app) as client:
         started, entities = _create_state_ops_world(client)
