@@ -29,7 +29,7 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 - Porcentajes: intensidad 0–100, no probabilidad; No registrado ≠ 0%; Δ en puntos porcentuales; Δ0 = sin cambio por ese hecho.
 - Inventario inicial unificado: ropa corriente, pañuelo gastado, bolsita vacía y cordel corto; sin dinero, comida, agua, armas ni mochila. Los objetos del catálogo son posibilidades, no posesiones.
 - Guardado: cada 5–7 intercambios y tras cambios importantes; Free requiere partes por el máximo de 180 tokens por respuesta. SpicyChat no guarda estado externo mediante instrucciones de texto.
-- Prototipo local: el preset importa el JSON real y debe devolver 77 entradas. Se añade prueba de tamaño y unicidad de keywords; CI posterior a esta revisión pendiente.
+- Prototipo local: el preset importa el JSON y debe devolver 77 entradas. La prueba de conteo, tamaño y unicidad de keywords pasó en [CI](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40930336007); los cambios posteriores han sido documentales.
 - Pendiente: importación en SpicyChat y prueba manual del roleplay; prueba manual de la app en Windows.
 
 ### 2. DanMachi
