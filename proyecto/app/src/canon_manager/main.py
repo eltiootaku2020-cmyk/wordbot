@@ -2,7 +2,7 @@ import json
 import os
 import re
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -215,7 +215,7 @@ def save_change(conn, session_id, turn_id, ref, entity_id, field, operation,
          json.dumps(proposed_value, ensure_ascii=False),
          None if accepted_value is None else json.dumps(accepted_value, ensure_ascii=False),
          status, reason, event_id,
-         datetime.utcnow().isoformat(timespec="seconds") if status == "accepted" else None)
+         datetime.now(timezone.utc).isoformat(timespec="seconds") if status == "accepted" else None)
     )
 
 
@@ -968,7 +968,7 @@ def approve_change(session_id: str, change_id: str, payload: ApprovalRequest):
             raise HTTPException(status_code=422, detail=f"No se puede aprobar automáticamente el campo {field}.")
         conn.execute(
             "UPDATE state_changes SET status='accepted',accepted_value_json=?,applied_at=? WHERE id=?",
-            (json.dumps(accepted, ensure_ascii=False), datetime.utcnow().isoformat(timespec="seconds"), change_id)
+            (json.dumps(accepted, ensure_ascii=False), datetime.now(timezone.utc).isoformat(timespec="seconds"), change_id)
         )
     return {"approved": True, "change_id": change_id, "accepted_value": accepted}
 
@@ -984,7 +984,7 @@ def reject_change(session_id: str, change_id: str):
             raise HTTPException(status_code=404, detail="Propuesta pendiente no encontrada.")
         conn.execute(
             "UPDATE state_changes SET status='rejected',applied_at=? WHERE id=?",
-            (datetime.utcnow().isoformat(timespec="seconds"), change_id)
+            (datetime.now(timezone.utc).isoformat(timespec="seconds"), change_id)
         )
     return {"rejected": True, "change_id": change_id}
 
@@ -1022,7 +1022,7 @@ def reject_event(session_id: str, event_id: str):
         conn.execute(
             "UPDATE state_changes SET status='rejected',applied_at=? "
             "WHERE source_event_id=? AND status='pending'",
-            (datetime.utcnow().isoformat(timespec="seconds"), event_id)
+            (datetime.now(timezone.utc).isoformat(timespec="seconds"), event_id)
         )
     return {"rejected": True, "event_id": event_id}
 
@@ -1032,6 +1032,6 @@ def backup_session_database(session_id: str):
     with database.connection() as conn:
         if conn.execute("SELECT 1 FROM sessions WHERE id=?", (session_id,)).fetchone() is None:
             raise HTTPException(status_code=404, detail="Partida no encontrada.")
-    backup_path = database.path.parent / "backups" / f"backup-{session_id}-{datetime.utcnow().strftime('%Y%m%d-%H%M%S')}.sqlite3"
+    backup_path = database.path.parent / "backups" / f"backup-{session_id}-{datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S')}.sqlite3"
     database.backup_to(str(backup_path))
     return {"backup_created": True, "path": str(backup_path)}
