@@ -1,6 +1,6 @@
 # Gestor local de canon — prototipo v0.1
 
-**Estado de validación:** CI aprobó 32 pruebas Python y comprobación sintáctica JavaScript el 29-10-2026: [ver resultados](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40877808136). Sigue pendiente probar manualmente Windows y realizar llamadas reales a los proveedores.
+**Estado de validación:** CI aprobó 35 pruebas Python y comprobación sintáctica JavaScript el 29-10-2026: [ver resultados](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40880074124). El modo manual de ChatGPT/Gemini web está cubierto por pruebas automatizadas; falta probar el intercambio real en Windows.
 
 Esta carpeta contiene un primer prototipo ejecutable del flujo local: interfaz de chat en Chromium, base SQLite y narrador simulado por defecto. El proveedor simulado permite probar la persistencia sin clave ni coste. OpenAI y Gemini son opciones externas configurables.
 
@@ -8,7 +8,8 @@ Esta carpeta contiene un primer prototipo ejecutable del flujo local: interfaz d
 
 - Python 3.11 o posterior.
 - Chromium o cualquier navegador moderno.
-- Una clave API solo si eliges un proveedor remoto.
+- No necesitas una clave API si usas ChatGPT/Gemini web en modo manual.
+- Las claves API solo son necesarias para seleccionar explícitamente un proveedor API.
 
 ## Ejecutar en Windows
 
@@ -30,10 +31,29 @@ Pulsa «Cargar mundo de prueba» y selecciona Maelis como destinataria. Envía �
 
 Después de reiniciar el servidor, carga el mismo mundo de prueba: los mensajes y el estado deben seguir presentes. El panel también permite importar un Lorebook JSON de formato SpicyChat, inspeccionar el contexto seleccionado sin llamar al modelo, consultar objetos por portador y ver los recursos locales. En mundos personalizados pueden definirse recursos iniciales. Para Isekai, la moneda comienza en 0: las compras solo se aplican si el evento lo confirma, el coste es positivo y el saldo alcanza.
 
-## Proveedor remoto
+## Usar ChatGPT o Gemini desde el chat web normal
 
-- OpenAI: configura APP_PROVIDER=openai, OPENAI_API_KEY y OPENAI_MODEL en .env.
-- Gemini: configura APP_PROVIDER=gemini, GEMINI_API_KEY y GEMINI_MODEL en .env.
+No necesitas activar una API para utilizar el chat web normal de tu cuenta. En el selector superior elige **ChatGPT web (mi cuenta, manual)** o **Gemini web (mi cuenta, manual)**.
+
+1. Escribe la acción o diálogo en la aplicación y pulsa **Preparar prompt**.
+2. Pulsa **Copiar prompt** y abre el enlace del sitio elegido.
+3. Pega el prompt en tu conversación normal de ChatGPT o Gemini y envíalo.
+4. Copia la respuesta completa que devolvió el chat y pégala en **Respuesta completa del chat (JSON)**.
+5. Pulsa **Validar y guardar turno**. El programa valida el contrato y las reglas de la partida antes de aplicar cambios.
+
+Si el chat agrega explicaciones o devuelve un JSON incompleto, pídele que responda solo con el objeto JSON completo. El parser admite un bloque JSON entre triple comilla invertida, pero no acepta texto externo al objeto.
+
+**Privacidad:** el prompt puede incluir estado, mensajes recientes, personajes y entradas Lorebook. Revísalo antes de copiarlo. La aplicación no inicia sesión por ti, no lee tu pestaña ni extrae la respuesta automáticamente. No pegues contraseñas ni claves API en el chat.
+
+Este modo no realiza llamadas de red a OpenAI/Gemini desde el programa, por lo que no necesita claves API ni tiene contador propio de los tokens/cupos del chat web.
+
+## Proveedor API
+
+
+- OpenAI API: configura APP_PROVIDER=openai, OPENAI_API_KEY y OPENAI_MODEL en .env.
+- Gemini API: configura APP_PROVIDER=gemini, GEMINI_API_KEY y GEMINI_MODEL en .env.
+
+Estas opciones son distintas de ChatGPT/Gemini web. La suscripción de chat no equivale a crédito API; usa estas opciones solo si quieres usar sus endpoints API.
 
 Ambos adaptadores usan APIs oficiales y una respuesta estructurada. La aplicación valida la estructura y después verifica los cambios con su propio estado. El uso de API puede facturarse por separado de la suscripción de chat.
 
