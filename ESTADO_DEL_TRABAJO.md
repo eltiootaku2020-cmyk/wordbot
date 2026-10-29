@@ -27,7 +27,7 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 - Objects and creatures are distinct; orders retain last location and remain pending/unknown until confirmed.
 - Eco on trees stays a sensory discovery; mechanism, reach, cost, duration and counter remain unconfirmed.
 - Master Lorebook's outdated 08:03/08:15 examples were replaced with four-hour blocks.
-- Automated audit passed on v1.19 with 653 checks, including exact master-Lorebook/JSON synchronization: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40935111216. Manual SpicyChat import and real roleplay tests remain pending.
+- Automated audit passed on v1.19 with 659 checks, including exact master-Lorebook/JSON and Personality synchronization: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40935499563. Manual SpicyChat import and real roleplay tests remain pending.
 
 ### 1. Isekai sin Destino
 - Carpeta: `proyectos/isekai-sin-destino/`
