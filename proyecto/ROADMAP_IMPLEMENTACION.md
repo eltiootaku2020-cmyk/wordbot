@@ -1,6 +1,6 @@
 # Roadmap de implementación — gestor local v0.1
 
-La CI más reciente aprobó 83 pruebas Python en Linux/Python 3.12 y comprobó sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40939319271.
+La CI más reciente aprobó 86 pruebas Python en Linux/Python 3.12 y comprobó sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40940906581.
 
 ## Fase 0 — Investigación y arquitectura
 - [x] Revisar clientes de roleplay (SillyTavern, RisuAI, Agnai).
@@ -220,3 +220,13 @@ CI aprobada con 83 pruebas Python y sintaxis JavaScript: https://github.com/elti
 - [x] Verificar que un personaje ajeno no reciba la narración ni el evento confidencial antes del undo, después del undo o después de regenerar.
 - [x] Verificar que el destinatario original conserva acceso al diálogo privado regenerado y que el evento anulado queda en auditoría.
 - [ ] Prueba manual Windows/Chromium con ChatGPT/Gemini web; restauración visual con vista previa; campaña narrativa real de 50–100 turnos con reinicio/restauración.
+
+
+## Actualización — 29-10-2026, reintentos con snapshots obsoletos (PR #9 y PR #10)
+
+- [x] Rechazar la regeneración de un turno anulado cuando existe un turno de usuario posterior (PR #9): https://github.com/eltiootaku2020-cmyk/wordbot/pull/9.
+- [x] Extender la protección a turnos fallidos y comparar la instantánea preturno con el estado mutable exacto antes de reintentar (PR #10): https://github.com/eltiootaku2020-cmyk/wordbot/pull/10.
+- [x] CI PR #10: 86 pruebas Python aprobadas, una advertencia no bloqueante y sintaxis JavaScript correcta: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40940906581.
+- [ ] Prueba manual Windows/Chromium con ChatGPT/Gemini web.
+- [ ] Campaña narrativa real de 50–100 turnos con checkpoints de backup/restart/restore.
+- [ ] Seguir revisando variantes históricas y casos de concurrencia no cubiertos.
