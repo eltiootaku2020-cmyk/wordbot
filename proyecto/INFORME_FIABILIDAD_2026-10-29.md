@@ -104,3 +104,14 @@ PR #8 quedó integrado en `docs/historias-organizadas` con commit `312c10ab4e2cd
 La regresión nueva realiza una conversación privada con Maelis que contiene un código distinguible, deshace el turno y lo regenera con el mismo identificador de solicitud. El contexto compartido de Ivar no revela ni el código de la narración ni el del evento antes de deshacer, después de deshacer o después de regenerar. El contexto privado de Maelis sí recupera el diálogo tras la regeneración. El evento anulado queda en el turno de auditoría con estado rechazado.
 
 La prueba fortalece la interacción entre privacidad, testigos, undo y reintento idempotente, pero sigue usando un proveedor simulado. No sustituye la prueba manual de Windows/Chromium ni la campaña real de 50–100 turnos con ChatGPT/Gemini web.
+
+
+## Última actualización — PR #9 y PR #10: rechazo de reintentos obsoletos
+
+- PR #9 integrado en `docs/historias-organizadas`: https://github.com/eltiootaku2020-cmyk/wordbot/pull/9. La CI aprobó 84 pruebas Python y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40940376539.
+- PR #10 integrado en `docs/historias-organizadas`: https://github.com/eltiootaku2020-cmyk/wordbot/pull/10; commit de integración `945a098aaaf65230fa5ff7b1618db7b1d70b322e`.
+- La CI de PR #10 aprobó **86 pruebas Python**, una advertencia no bloqueante y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40940906581.
+- Error detectado: un turno anulado o fallido podía reintentarse después de que hubiese cambiado el estado del juego. El snapshot anterior podía aplicar un cambio cronológicamente obsoleto y hacer que un undo posterior revirtiese hechos más recientes.
+- Corrección: la aplicación rechaza el reintento si hay turnos de usuario posteriores y compara el snapshot preturno con el estado mutable actual. Los snapshots ausentes, ilegibles o diferentes fallan de forma conservadora. Un reintento sigue siendo válido cuando no ocurrió ningún cambio y la instantánea sigue coincidiendo.
+- Nuevas regresiones: reintento de turno anulado tras un turno nuevo; reintento de turno fallido tras turno nuevo; reintento fallido después de mutación del estado sin un turno narrativo posterior.
+- Pendiente: Windows/Chromium y campaña manual real de 50–100 intercambios. La CI usa proveedor simulado y no comprueba una cuenta web real.
