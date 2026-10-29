@@ -2218,11 +2218,11 @@ Madrugada (00:00–03:59), Amanecer (04:00–07:59), Mañana (08:00–11:59), Me
 
 ## 39. Límites prácticos de SpicyChat y estrategia para partidas largas
 
-### 38.1. La plataforma no es una base de datos de RPG
+### 39.1. La plataforma no es una base de datos de RPG
 
 Cada respuesta se genera usando la definición del personaje, el historial que continúa dentro de la ventana de contexto y las memorias que la plataforma pone a disposición. Cuando el contexto se llena, los mensajes antiguos pueden dejar de estar disponibles. Personality y Lorebook orientan al narrador, pero no convierten el chat en una partida con persistencia garantizada ni almacenan un inventario individual en una base de datos externa.
 
-### 38.2. Cinco capas recomendadas
+### 39.2. Cinco capas recomendadas
 
 1. **Personality breve:** reglas permanentes, agencia del jugador, causalidad, reloj dinámico y respuesta ante lagunas.
 2. **Scenario y Greeting:** premisa y escena inicial; el saludo ocurre una sola vez.
@@ -2230,11 +2230,11 @@ Cada respuesta se genera usando la definición del personaje, el historial que c
 4. **Registro interno de esquema cerrado:** campos permitidos para habilidades, intereses, sospechas, conocimientos, vínculos y estado; no añadir categorías no autorizadas.
 5. **Punto de guardado de partida:** reloj, lugar, inventario, heridas, habilidades, relaciones, hechos, rumores y asuntos pendientes; copiarlo fuera del chat para conservarlo de forma fiable.
 
-### 38.3. Protocolo de guardado
+### 39.3. Protocolo de guardado
 
 Genera un punto de guardado detallado cada 5–7 intercambios y tras cambios importantes. En Free, entrégalo en partes consecutivas; el usuario debe unirlas y guardar una copia fuera de SpicyChat. Al retomar, usa la última copia. Si no existe copia ni queda historial disponible, reconoce la pérdida en vez de presentar una reconstrucción como cierta.
 
-### 38.4. Objetivo realista
+### 39.4. Objetivo realista
 
 El propósito no es prometer memoria infinita; es reducir pérdidas y hacer posible una recuperación precisa. SpicyChat puede sostener roleplay largo, pero la continuidad de una aventura persistente depende del contexto activo, las memorias disponibles y un registro de estado que se conserve fuera del chat.
 
