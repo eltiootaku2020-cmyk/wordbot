@@ -1,8 +1,13 @@
+import os
+import tempfile
 from pathlib import Path
 
 import pytest
 
 from canon_manager.db import Database
+_TEST_MAIN_DB_DIR = tempfile.TemporaryDirectory(prefix="timeline-main-")
+os.environ.setdefault("APP_DB_PATH", str(Path(_TEST_MAIN_DB_DIR.name) / "main.sqlite3"))
+
 from canon_manager.timeline import absolute_minute, fire_due_world_events
 from canon_manager.main import apply_narrator_result, session_row
 from canon_manager.models import NarratorResponse
