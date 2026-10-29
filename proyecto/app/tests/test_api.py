@@ -1008,7 +1008,7 @@ def test_paid_inventory_purchase_with_insufficient_currency_remains_pending_with
             ]
         )
         turn_id, applied, pending = _apply_synthetic_result(
-            session_id, "Intento comprar una manzana por seis monedas", result
+            session_id, "Compro una manzana por seis monedas", result
         )
         with database.connection() as conn:
             apple = conn.execute(
@@ -1384,7 +1384,7 @@ def test_explicit_resource_expense_applies_only_when_balance_is_sufficient():
             ]
         )
         turn_b, applied_b, pending_b = _apply_synthetic_result(
-            session_id, "Intento pagar cuatro monedas por el alojamiento", unaffordable
+            session_id, "Pago cuatro monedas por el alojamiento", unaffordable
         )
         with database.connection() as conn:
             balance_after = conn.execute(
