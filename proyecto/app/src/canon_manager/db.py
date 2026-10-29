@@ -36,7 +36,7 @@ CREATE TABLE IF NOT EXISTS lore_entries (
 );
 CREATE TABLE IF NOT EXISTS messages (
   id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
-  turn_id TEXT NOT NULL, turn_index INTEGER NOT NULL,
+  turn_id TEXT NOT NULL, client_request_id TEXT, turn_index INTEGER NOT NULL,
   role TEXT NOT NULL CHECK(role IN ('user','assistant','system')),
   recipient_entity_id TEXT NOT NULL DEFAULT '', content TEXT NOT NULL, provider TEXT NOT NULL DEFAULT 'mock',
   generation_status TEXT NOT NULL DEFAULT 'complete', metadata_json TEXT NOT NULL DEFAULT '{}',
@@ -83,6 +83,7 @@ CREATE TABLE IF NOT EXISTS snapshots (
   event_sequence INTEGER NOT NULL, state_json TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_messages_session_turn ON messages(session_id, turn_index);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_client_request ON messages(session_id, client_request_id, role) WHERE client_request_id IS NOT NULL;
 CREATE INDEX IF NOT EXISTS idx_events_session ON events(session_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_changes_pending ON state_changes(session_id, status);
 CREATE INDEX IF NOT EXISTS idx_lore_world_priority ON lore_entries(world_id, priority);
@@ -105,6 +106,10 @@ class Database:
         with self._connect() as conn:
             conn.execute("PRAGMA journal_mode = WAL")
             conn.executescript(SCHEMA)
+            columns = {row["name"] for row in conn.execute("PRAGMA table_info(messages)").fetchall()}
+            if "client_request_id" not in columns:
+                conn.execute("ALTER TABLE messages ADD COLUMN client_request_id TEXT")
+            conn.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_messages_client_request ON messages(session_id, client_request_id, role) WHERE client_request_id IS NOT NULL")
 
     @contextmanager
     def connection(self) -> Iterator[sqlite3.Connection]:
