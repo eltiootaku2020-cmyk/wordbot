@@ -2461,6 +2461,24 @@ async def submit_turn(session_id: str, payload: TurnRequest):
                     or existing_user["provider"] != payload.provider
                     or old_visibility != payload.visibility):
                 raise HTTPException(status_code=409, detail="request_id ya usado con otro contenido, destinatario, proveedor o alcance.")
+            if existing_user["generation_status"] == "undone":
+                # Reusing an undone request is safe only while it remains the latest
+                # attempted user turn. Otherwise its old snapshot could overwrite state
+                # produced by later turns, creating a chronology/state divergence.
+                later_user_turn = conn.execute(
+                    "SELECT 1 FROM messages WHERE session_id=? AND role='user' "
+                    "AND turn_id<>? AND turn_index>? LIMIT 1",
+                    (session_id, existing_user["turn_id"], int(existing_user["turn_index"]))
+                ).fetchone()
+                if later_user_turn:
+                    raise HTTPException(
+                        status_code=409,
+                        detail=(
+                            "No se puede regenerar un turno anulado después de avanzar "
+                            "a turnos posteriores. Continúa desde el estado actual o "
+                            "restaura una copia."
+                        )
+                    )
             saved_audience = old_metadata.get("audience_ids")
             if isinstance(saved_audience, list) and saved_audience:
                 audience_ids = [str(item) for item in saved_audience]
