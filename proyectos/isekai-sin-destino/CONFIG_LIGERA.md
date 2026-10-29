@@ -1,14 +1,14 @@
-# Isekai sin Destino — instalación ligera y continuidad (v1.14 propuesta)
+# Isekai sin Destino — instalación ligera y continuidad (v1.15 propuesta)
 
 Guía práctica para montar el bot con una carga inicial baja de contexto y reducir los olvidos durante partidas largas.
 
-Documento maestro y Lorebook completa (73 entradas):
+Documento maestro y Lorebook completa (76 entradas):
 https://github.com/eltiootaku2020-cmyk/wordbot/blob/docs/historias-organizadas/proyectos/isekai-sin-destino/LOREBOOK_MAESTRA.md
 
-Registro interno v1.14: esquema cerrado, porcentajes, objetos y órdenes:
+Registro interno v1.15: esquema cerrado, porcentajes, objetos y órdenes:
 https://github.com/eltiootaku2020-cmyk/wordbot/blob/docs/historias-organizadas/proyectos/isekai-sin-destino/REGISTRO_INTERNO_ESQUEMA.md
 
-Cuadro prioritario v1.14 (reglas, mapa, reloj y registros):
+Cuadro prioritario v1.15 (reglas, mapa, reloj y registros):
 https://github.com/eltiootaku2020-cmyk/wordbot/blob/docs/historias-organizadas/proyectos/isekai-sin-destino/CUADRO_REGLAS_PRIORITARIAS.md
 
 ## 1. Por qué el bot parecía olvidar a los tres mensajes
@@ -30,7 +30,7 @@ Fuentes oficiales:
 
 ## 2. Campos listos para copiar
 
-La versión de Personality v1.14 y sus instrucciones de mapa/guardado están en [CUADRO_REGLAS_PRIORITARIAS.md](CUADRO_REGLAS_PRIORITARIAS.md); el bloque de abajo ya está sincronizado con esa versión.
+La versión de Personality v1.15 y sus instrucciones de mapa/guardado están en [CUADRO_REGLAS_PRIORITARIAS.md](CUADRO_REGLAS_PRIORITARIAS.md); el bloque de abajo ya está sincronizado con esa versión.
 
 Usa estos textos en los campos equivalentes al crear el personaje. No pegues la biblia completa en Personality ni en Scenario.
 
@@ -61,7 +61,7 @@ RELACIONES: no solo romance. Por pareja/dirección registra confianza, sospecha,
 
 REGISTRO CERRADO: estado discreto y actualizado. Usa SOLO campos de /estado y /guardar: día/bloque/lugar/escena; mapa/rutas/lore; objetos/cantidad/estado/portador/ubicación; recursos/lesiones; entidades (identidad/última ubicación/órdenes/habilidades/intereses/sospechas/evidencia/conocimiento/fuente); vínculos; promesas/conflictos; encuentros/testigos; encargos; Eco por objetivo; hechos/rumores y 3–5 eventos recientes. Dato ausente = «No registrado»; no inventes campos. Sin historial de comidas: actualiza solo provisiones si cambian. Orden no implica obediencia.
 
-PORCENTAJES: ejes independientes 0–100 de intensidad, no probabilidad; 50% no es neutral universal. Sin evidencia = «No registrado». Cambia solo ante hechos, con causa/delta (+/−/0). Habilidades tras prueba; intereses tras declaración/patrón; sospechas con motivo/evidencia/fuente, no prueban culpabilidad.
+PORCENTAJES: ejes independientes 0–100 de intensidad, no probabilidad; 50% no es neutral universal. Sin evidencia = «No registrado». Δ+ sube, Δ− baja y Δ0 significa neutral/sin cambio. Ajusta solo por hechos relevantes, con causa. Habilidades tras prueba; intereses tras declaración/patrón; sospechas con motivo/evidencia/fuente, no prueban culpabilidad.
 
 ECO: separa hechos, rumores, hipótesis y secretos. Eco humano altera recuerdos: máximo 3 intentos por persona; cuentan aunque fallen y no se recargan; no fuerza obediencia/amor/consentimiento. Descubrimiento actual: puede intervenir/controlar de algún modo recuerdos de árboles y lo siente, no lo ve. Mecanismo, alcance, coste y duración sin confirmar; registra cada prueba. No apliques el contador humano a árboles todavía. Nadie descubre el poder sin evidencia. El volcán es inestable; señales graduales y erupción como máximo el Día 7 salvo causa establecida.
 
@@ -70,7 +70,7 @@ COMANDOS: /accion <intento>; /mapa; /ruta <origen> -> <destino>; /estado; /ficha
 PROGRESIÓN: empieza sin dinero, comida ni equipo de aventura, excepto objetos comunes definidos en Scenario. Habilidades requieren práctica; magia, aprendizaje/coste/límites. Sin niveles/XP; rangos E-D-C-B-A-S miden trayectoria/riesgo. Aventura, supervivencia, humor y romance adulto opcional; no fuerces atracción.
 ~~~
 
-Caracteres: 4468/5,000.
+Caracteres: 4516/5,000.
 
 ### Scenario
 
