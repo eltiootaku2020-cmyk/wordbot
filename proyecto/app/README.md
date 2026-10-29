@@ -1,6 +1,6 @@
 # Gestor local de canon — prototipo v0.1
 
-**Estado de validación:** la última ejecución de CI enlazada al proyecto informa 13 pruebas automáticas aprobadas; ver [resultados](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40863341616). Esto no valida la instalación manual en Windows ni las llamadas reales a proveedores; ambas siguen pendientes.
+**Estado de validación:** CI aprobó 24 pruebas Python y comprobación sintáctica JavaScript el 29-10-2026: [ver resultados](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40870848920). Sigue pendiente probar manualmente Windows y realizar llamadas reales a los proveedores.
 
 Esta carpeta contiene un primer prototipo ejecutable del flujo local: interfaz de chat en Chromium, base SQLite y narrador simulado por defecto. El proveedor simulado permite probar la persistencia sin clave ni coste. OpenAI y Gemini son opciones externas configurables.
 
@@ -22,13 +22,13 @@ Abre PowerShell en esta carpeta y ejecuta cada comando por separado:
 6. Inicia: uvicorn canon_manager.main:app --app-dir src --host 127.0.0.1 --port 8000
 7. Abre http://127.0.0.1:8000 en Chromium.
 
-La base predeterminada se guarda en data/canon_manager.sqlite3 dentro de esta carpeta. Los datos locales y el archivo .env están excluidos de Git. La interfaz puede crear mundos desde cero o cargar «Isekai sin Destino v1.16» con un solo botón: importa el JSON real del repositorio, crea el reparto inicial y los cinco objetos, y abre una sesión nueva cada vez.
+La base predeterminada se guarda en data/canon_manager.sqlite3 dentro de esta carpeta. Los datos locales y el archivo .env están excluidos de Git. La interfaz puede crear mundos desde cero o cargar «Isekai sin Destino v1.16» con un solo botón: importa el JSON real del repositorio, crea el reparto inicial y los cinco objetos, abre una sesión nueva y registra 0 monedas iniciales.
 
 ## Primera prueba
 
 Pulsa «Cargar mundo de prueba» y selecciona Maelis como destinataria. Envía «Hola, linda». La respuesta simulada muestra una reacción posible de Maelis y una reacción del grupo. El programa guarda ambos mensajes y sus eventos. La confianza propuesta queda pendiente si no hay una puntuación inicial conocida; no inventa la base. Esta reacción de ejemplo no es canon obligatorio.
 
-Después de reiniciar el servidor, carga el mismo mundo de prueba: los mensajes y el estado deben seguir presentes. El panel también permite importar un Lorebook JSON de formato SpicyChat y crear una copia de seguridad de la base.
+Después de reiniciar el servidor, carga el mismo mundo de prueba: los mensajes y el estado deben seguir presentes. El panel también permite importar un Lorebook JSON de formato SpicyChat, inspeccionar el contexto seleccionado sin llamar al modelo, consultar objetos por portador y ver los recursos locales. En mundos personalizados pueden definirse recursos iniciales. Para Isekai, la moneda comienza en 0: las compras solo se aplican si el evento lo confirma, el coste es positivo y el saldo alcanza.
 
 ## Proveedor remoto
 
@@ -59,3 +59,14 @@ La última ejecución de CI enlazada en esta guía informa 15 pruebas de Python 
 - Falta probar edición/regeneración con reversión de efectos, llamadas API reales y una partida de 50–100 turnos.
 
 No expongas el servidor a Internet: el prototipo está pensado para ejecutarse solo en el PC.
+
+
+## Qué valida la CI actual
+
+La ejecución con 24 pruebas cubre el preset real, privacidad del contexto por destinatario, inspector Lorebook y presupuesto de caracteres, consumo y estado de objetos, movimientos de PNJ, compra con saldo suficiente, rechazo de compra por saldo insuficiente e ingreso de recompensa. La CI usa el proveedor simulado; no mide coste real ni valida API/Windows.
+
+Limitaciones conocidas:
+- Las compras se cobran dentro de `InventoryOperation acquire`; no debe emitirse además un `ResourceOperation spend` duplicado para ese evento.
+- La idempotencia general del request ya existe, pero falta prueba explícita de reintento de una compra confirmada bajo una respuesta perdida.
+- El inspector muestra los disparadores de Lorebook; falta explicar la inclusión/exclusión de cada mensaje/evento y ofrecer presupuesto configurable/tokens reales.
+- Editar/regenerar una respuesta no tiene todavía rollback completo de todas las operaciones de estado.
