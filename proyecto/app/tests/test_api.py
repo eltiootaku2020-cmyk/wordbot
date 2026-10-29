@@ -2446,7 +2446,7 @@ def test_context_recovers_relevant_old_event_beyond_the_recent_window():
                     "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,witnesses_json,status,created_at) "
                     "VALUES(?,?,?,?,?,?,?,?,?,?)",
                     (uuid.uuid4().hex, session_id, f"noise-turn-{index}", f"noise-{index}", "observation", protagonist_id,
-                     f"Un detalle cotidiano irrelevante número {index} ocurrió en la plaza.", "[]", "recorded",
+                     f"Un detalle cotidiano irrelevante número {index} ocurrió en la plaza.", json.dumps([protagonist_id]), "recorded",
                      f"2026-10-{(index % 20) + 1:02d} 12:00:00")
                 )
             context = build_context(
