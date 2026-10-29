@@ -1709,6 +1709,81 @@ def test_undo_latest_turn_restores_state_and_allows_safe_regeneration(monkeypatc
 
 
 
+def test_undone_turn_cannot_be_regenerated_after_a_later_turn(monkeypatch):
+    with TestClient(app) as client:
+        started, _entities = _create_state_ops_world(client)
+        session_id = started["session_id"]
+        provider_state = {"calls": 0}
+
+        class ClockProvider:
+            name = "mock"
+
+            async def generate(self, payload):
+                provider_state["calls"] += 1
+                is_first = "primer turno" in payload["user_message"].casefold()
+                elapsed = 5 if is_first else 7
+                return NarratorResponse(
+                    narration=f"El tiempo avanza {elapsed} minutos.",
+                    elapsed_minutes=elapsed
+                )
+
+        monkeypatch.setattr(
+            main_module, "make_provider",
+            lambda provider_name, settings: ClockProvider()
+        )
+        first_payload = {
+            "request_id": "ghost-retry-turn-001",
+            "text": "Avanzo cinco minutos en el primer turno",
+            "provider": "mock"
+        }
+        first = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json=first_payload
+        )
+        assert first.status_code == 200, first.text
+        turn_id = first.json()["turn_id"]
+        assert first.json()["state"]["state"]["time_label"].endswith("08:05")
+
+        undone = client.post(
+            f"/api/sessions/{session_id}/turns/{turn_id}/undo",
+            json={}
+        )
+        assert undone.status_code == 200, undone.text
+        assert undone.json()["state"]["state"]["time_label"].endswith("08:00")
+
+        second = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json={
+                "request_id": "ghost-retry-turn-002",
+                "text": "Avanzo siete minutos en el segundo turno",
+                "provider": "mock"
+            }
+        )
+        assert second.status_code == 200, second.text
+        assert second.json()["state"]["state"]["time_label"].endswith("08:07")
+        assert provider_state["calls"] == 2
+
+        # The original request must be refused without calling the provider or
+        # applying its stale pre-turn snapshot after a newer turn has happened.
+        stale_retry = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json=first_payload
+        )
+        assert stale_retry.status_code == 409, stale_retry.text
+        assert "turnos posteriores" in stale_retry.json()["detail"]
+        assert provider_state["calls"] == 2
+
+        current = client.get(f"/api/sessions/{session_id}/state").json()
+        assert current["state"]["time_label"].endswith("08:07")
+        with database.connection() as conn:
+            original_user = conn.execute(
+                "SELECT generation_status FROM messages "
+                "WHERE session_id=? AND client_request_id=? AND role='user'",
+                (session_id, first_payload["request_id"])
+            ).fetchone()
+        assert original_user["generation_status"] == "undone"
+
+
 def test_undo_rejects_a_turn_that_is_not_the_latest_completed_turn(monkeypatch):
     with TestClient(app) as client:
         started, _entities = _create_state_ops_world(client)
