@@ -24,6 +24,7 @@
 - Inventario inicial: ropa corriente, pañuelo gastado, bolsita vacía y cordel corto. Catálogo común = posibilidades, no regalos. Sin historial de comidas.
 - Guardado recomendado cada 5–7 intercambios y tras cambios importantes; varias partes en Free no equivalen a almacenamiento externo.
 - JSON: 77 entradas, contenido bajo 1.000 caracteres, UID únicos y keywords sin duplicados.
+- Auditoría automática aprobada: 625 comprobaciones, incluido el recuento de campos y el reloj. [Ver ejecución de GitHub Actions](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40934571847).
 
 ## Límites reales
 El contexto gratuito comparte 4.096 tokens entre definición, instrucciones y conversación; cada respuesta tiene hasta 180 tokens según la documentación consultada. El registro «interno» no es una base de datos oculta. Los datos pueden perderse al salir del contexto; guarda una copia de /guardar fuera de SpicyChat. Fuentes: [contexto](https://support.spicychat.ai/support/solutions/articles/153000260636-why-characters-forget-things-tokens-and-context-) · [Lorebook](https://support.spicychat.ai/support/solutions/articles/153000260673-lorebooks).
