@@ -2439,14 +2439,14 @@ def test_context_recovers_relevant_old_event_beyond_the_recent_window():
                 "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,witnesses_json,status,created_at) "
                 "VALUES(?,?,?,?,?,?,?,?,?,?)",
                 (uuid.uuid4().hex, session_id, "old-relevant-turn", "old-medallion", "object", protagonist_id,
-                 "El medallón de obsidiana quedó enterrado bajo la torre del norte.", "[]", "recorded", "2020-01-01 00:00:00")
+                 "El medallón de obsidiana quedó enterrado bajo la torre del norte.", json.dumps([protagonist_id]), "recorded", "2020-01-01 00:00:00")
             )
             for index in range(18):
                 conn.execute(
                     "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,witnesses_json,status,created_at) "
                     "VALUES(?,?,?,?,?,?,?,?,?,?)",
                     (uuid.uuid4().hex, session_id, f"noise-turn-{index}", f"noise-{index}", "observation", protagonist_id,
-                     f"Un detalle cotidiano irrelevante número {index} ocurrió en la plaza.", "[]", "recorded",
+                     f"Un detalle cotidiano irrelevante número {index} ocurrió en la plaza.", json.dumps([protagonist_id]), "recorded",
                      f"2026-10-{(index % 20) + 1:02d} 12:00:00")
                 )
             context = build_context(
@@ -3356,3 +3356,80 @@ def test_restore_accepts_legacy_backup_without_presence_status():
             ).fetchone()
         assert stored["location"] == "Aldea Lejana"
         assert stored["presence_status"] == "away"
+
+
+def test_legacy_audience_metadata_fails_closed_without_source_or_witnesses():
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+        session_id = seed["session_id"]
+        world_id = seed["world_id"]
+        entities = client.get(f"/api/worlds/{world_id}/entities").json()
+        maelis = next(entity for entity in entities if entity["name"] == "Maelis Orven")
+        ivar = next(entity for entity in entities if entity["name"] == "Ivar Dalen")
+
+        old_turn_id = uuid.uuid4().hex
+        old_user_id = uuid.uuid4().hex
+        old_assistant_id = uuid.uuid4().hex
+        private_event_id = uuid.uuid4().hex
+        unknown_event_id = uuid.uuid4().hex
+        with database.transaction() as conn:
+            # These are historical rows from before audience_ids/visibility existed.
+            conn.execute(
+                "INSERT INTO messages(id,session_id,turn_id,turn_index,role,recipient_entity_id,"
+                "content,provider,generation_status,metadata_json) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (old_user_id, session_id, old_turn_id, 1, "user", maelis["id"],
+                 "Frase heredada confidencial para Maelis", "mock", "complete", "{}")
+            )
+            conn.execute(
+                "INSERT INTO messages(id,session_id,turn_id,turn_index,role,recipient_entity_id,"
+                "content,provider,generation_status,metadata_json) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (old_assistant_id, session_id, old_turn_id, 1, "assistant", maelis["id"],
+                 "Respuesta heredada solo para Maelis", "mock", "complete", "{}")
+            )
+            conn.execute(
+                "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,"
+                "witnesses_json,status,source_message_id) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (private_event_id, session_id, old_turn_id, "legacy-private-event", "dialogue",
+                 maelis["id"], "Hecho heredado de conversación dirigida a Maelis", "[]",
+                 "recorded", old_user_id)
+            )
+            # This older event has neither a resolvable source message nor witnesses.
+            conn.execute(
+                "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,"
+                "witnesses_json,status,source_message_id) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (unknown_event_id, session_id, uuid.uuid4().hex, "legacy-unscoped-event", "world",
+                 "", "Hecho antiguo sin fuente ni testigos", "[]", "recorded", "")
+            )
+
+        with database.connection() as conn:
+            session = session_row(conn, session_id)
+            maelis_context = build_context(
+                conn, session, "¿Qué conversamos?", maelis["id"],
+                "future-maelis-turn", visibility="scene", include_diagnostics=True
+            )
+            ivar_context = build_context(
+                conn, session, "¿Qué conversamos?", ivar["id"],
+                "future-ivar-turn", visibility="scene", include_diagnostics=True
+            )
+
+        maelis_messages = [item["content"] for item in maelis_context["recent_messages"]]
+        ivar_messages = [item["content"] for item in ivar_context["recent_messages"]]
+        assert any("Frase heredada confidencial" in item for item in maelis_messages)
+        assert any("Respuesta heredada solo para Maelis" in item for item in maelis_messages)
+        assert not any("Frase heredada confidencial" in item for item in ivar_messages)
+        assert not any("Respuesta heredada solo para Maelis" in item for item in ivar_messages)
+
+        maelis_events = [item["description"] for item in maelis_context["recent_events"]]
+        ivar_events = [item["description"] for item in ivar_context["recent_events"]]
+        assert any("dirigida a Maelis" in item for item in maelis_events)
+        assert not any("dirigida a Maelis" in item for item in ivar_events)
+        assert not any("sin fuente ni testigos" in item for item in maelis_events)
+        assert not any("sin fuente ni testigos" in item for item in ivar_events)
+
+        for context in (maelis_context, ivar_context):
+            diagnostics = context["_diagnostics"]
+            excluded = next(
+                item for item in diagnostics["excluded_events"]
+                if item["event_id"] == unknown_event_id
+            )
+            assert "sin mensaje fuente ni testigos" in excluded["reason"]

@@ -699,7 +699,8 @@ def build_context(
     # conversation was visible to them. Pending/rejected proposals are not facts.
     event_rows = conn.execute(
         "SELECT e.id,e.turn_id,e.kind,e.entity_id,e.description,e.status,e.witnesses_json,e.created_at,"
-        "m.recipient_entity_id AS source_recipient_id,m.metadata_json AS source_metadata_json "
+        "m.id AS matched_source_message_id,m.recipient_entity_id AS source_recipient_id,"
+        "m.metadata_json AS source_metadata_json "
         "FROM events e LEFT JOIN messages m ON m.id=e.source_message_id "
         "WHERE e.session_id=? ORDER BY e.created_at DESC,e.rowid DESC LIMIT ?",
         (session["id"], MAX_HISTORY_CANDIDATES)
@@ -737,7 +738,13 @@ def build_context(
         source_audience = set(raw_source_audience)
         reason = ""
 
-        if row["status"] != "recorded":
+        # Legacy events without audience metadata can still be scoped when the
+        # linked source message retains its recipient or witnesses identify who
+        # observed it. With neither provenance nor witnesses, do not disclose an
+        # unscoped fact to a model; leave the record available in the audit UI.
+        if not row["matched_source_message_id"] and not witnesses:
+            reason = "evento histórico sin mensaje fuente ni testigos; se excluye por seguridad"
+        elif row["status"] != "recorded":
             reason = f"evento en estado {row['status']}; solo los eventos registrados se recuperan como hechos"
         elif source_visibility == "private":
             if not source_audience and row["source_recipient_id"]:
