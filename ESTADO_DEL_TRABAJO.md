@@ -14,16 +14,24 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 - Estado: prototipo v0.1 implementado parcialmente; no es todavía una aplicación final.
 - Stack: Python/FastAPI, HTML/CSS/JavaScript para Chromium, SQLite, narrador simulado y adaptadores iniciales OpenAI/Gemini.
 - Flujo de ejemplo: «Hola, linda» dirigido a Maelis produce narración + evento + propuesta de cambio; la confianza queda pendiente si no existe valor inicial confirmado.
-- Preset Isekai v1.18: botón dedicado carga las 77 entradas del JSON de Lorebook, el reparto inicial y cinco objetos, y abre una sesión independiente por partida.
+- Preset Isekai v1.19: botón dedicado carga las 77 entradas del JSON de Lorebook, el reparto inicial y cinco objetos, y abre una sesión independiente por partida.
 - CI más reciente de fiabilidad: 79 pruebas Python y sintaxis JavaScript aprobadas: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40932636884. Incluye recuperación tras reinicio, reintentos idempotentes, evidencia afirmativa, JSON truncado, contradicciones narrativas y restauración exacta tras 100 turnos simulados. PR #1–#5 ya están integrados en `docs/historias-organizadas`; no valida Windows manual ni una campaña narrativa con un modelo externo.
 - Pendiente: prueba manual en Windows con ChatGPT/Gemini web; compatibilidad de datos históricos/cambios de presencia; exportación/restauración visual; campaña de 50–100 intercambios. Las llamadas API reales y su medición de tokens/coste son opcionales.
 - Documentos: `INVESTIGACION_REFERENCIAS.md`, `DECISIONES_TECNICAS.md`, `ROADMAP_IMPLEMENTACION.md`, `ARQUITECTURA.md`, `CONTRATO_RESPUESTA_IA.md`, `ESQUEMA_LOCAL.md`, `PRUEBAS_DE_ACEPTACION.md`.
 - Ubicación de trabajo: rama `docs/historias-organizadas`. La rama literal `main` aún no contiene las carpetas organizadas de mundos.
 
 
+### Actualización Isekai v1.19 (2026-10-29)
+- Percentages include previous/current value, Δ in percentage points, SUBE/BAJA/SIN CAMBIO and cause. No registrado is not 0%, 50% or neutral.
+- Natural proactive NPC dialogue: complete, contextual lines every 1–2 replies when someone has a reason; no fragments. Ivar can comment or sigh while ahead of the group.
+- Objects and creatures are distinct; orders retain last location and remain pending/unknown until confirmed.
+- Eco on trees stays a sensory discovery; mechanism, reach, cost, duration and counter remain unconfirmed.
+- Master Lorebook's outdated 08:03/08:15 examples were replaced with four-hour blocks.
+- Automated audit script/workflow added in GitHub; pending actual Actions result and manual SpicyChat import/roleplay test.
+
 ### 1. Isekai sin Destino
 - Carpeta: `proyectos/isekai-sin-destino/`
-- Revisión: v1.18; Personality y continuidad sincronizadas; Lorebook/JSON con 77 entradas.
+- Revisión: v1.19; porcentajes con tendencia y causa, iniciativa de diálogo reforzada, esquema de objetos/órdenes/Eco actualizado y Lorebook/JSON sincronizados con 77 entradas.
 - Lorebook: Content <1.000 caracteres como margen conservador; keywords únicas tras normalizar mayúsculas/espacios.
 - Cambios: bloques de 4 horas; mapa progresivo; encuentros sociales abiertos; PNJ conocen solo hechos presenciados/contados; diálogo proactivo; vínculos multidimensionales; porcentajes/delta precisos; esquema cerrado para habilidades, intereses, sospechas, conocimientos, órdenes, objetos y usos de Eco.
 - Porcentajes: intensidad 0–100, no probabilidad; No registrado ≠ 0%; Δ en puntos porcentuales; Δ0 = sin cambio por ese hecho.
