@@ -3078,7 +3078,12 @@ def test_new_turn_is_rejected_while_another_turn_is_processing():
                 "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                 (uuid.uuid4().hex, session_id, "active-turn-test", "active-turn-request-001",
                  999, "user", "", "Observa la puerta.", "mock", "processing",
-                 json.dumps({"visibility":"scene","audience_ids":[]}))
+                 json.dumps({
+                     "visibility": "scene",
+                     "audience_ids": [],
+                     "processing_owner_pid": os.getpid(),
+                     "processing_owner_start_token": main_module._process_start_token(os.getpid())
+                 }))
             )
         before = client.get(f"/api/sessions/{session_id}/messages").json()
         response = client.post(
