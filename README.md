@@ -4,7 +4,7 @@ Este repositorio organiza mundos, bots e historias con sus propias carpetas, con
 
 ## Herramienta en desarrollo
 
-- [Gestor local de canon, Lorebooks y continuidad](proyecto/README.md) — prototipo v0.1 con código en [proyecto/app](proyecto/app/README.md). CI: 13 pruebas aprobadas; incluye preset real de Isekai v1.16, creación de mundos personalizados, reintentos idempotentes y revisión de eventos. Falta validación manual en Windows y pruebas de proveedores reales. Incluye [investigación](proyecto/INVESTIGACION_REFERENCIAS.md), [decisiones](proyecto/DECISIONES_TECNICAS.md), [roadmap](proyecto/ROADMAP_IMPLEMENTACION.md) y [arquitectura](proyecto/ARQUITECTURA.md).
+- [Gestor local de canon, Lorebooks y continuidad](proyecto/README.md) — prototipo v0.1 con código en [proyecto/app](proyecto/app/README.md). CI más reciente: **79 pruebas Python aprobadas y sintaxis JavaScript correcta** ([resultados](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40932636884)). Incluye el preset Isekai v1.18 de 77 entradas, creación de mundos, reintentos idempotentes, validación de acciones, JSON truncado y restauración exacta tras 100 turnos breves simulados. Faltan validación manual en Windows y una campaña narrativa con chats web reales. Incluye [investigación](proyecto/INVESTIGACION_REFERENCIAS.md), [decisiones](proyecto/DECISIONES_TECNICAS.md), [roadmap](proyecto/ROADMAP_IMPLEMENTACION.md) y [arquitectura](proyecto/ARQUITECTURA.md).
 
 ## Historias
 
