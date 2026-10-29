@@ -120,16 +120,49 @@ HISTORY_STOPWORDS = {
 }
 
 
+def _relevance_token_variants(token: str) -> set[str]:
+    """Return conservative Spanish inflection variants without NLP dependencies."""
+    variants = {token}
+    if len(token) < 5:
+        return variants
+
+    # Keep the original and common plural reductions; lexical retrieval may use
+    # either variant, but never changes the stored facts or applies game actions.
+    if token.endswith("ces") and len(token) > 5:
+        variants.add(token[:-3] + "z")
+    if token.endswith("s"):
+        variants.add(token[:-1])
+    if token.endswith("es") and len(token) > 5:
+        variants.add(token[:-2])
+
+    # A compact suffix set covers common verb forms (e.g. recoger/recogí,
+    # hablar/hablando) and participles. The minimum stem length avoids very
+    # broad matches; this is retrieval assistance, not a linguistic validator.
+    suffixes = (
+        "ariamos", "eriamos", "iriamos", "aremos", "eremos", "iremos",
+        "asteis", "isteis", "abamos", "ieron", "aron", "iendo", "ando",
+        "ados", "adas", "idos", "idas", "aste", "iste", "aban", "abas",
+        "aria", "eria", "iria", "aria", "aron", "amos", "emos", "imos",
+        "ado", "ido", "aba", "ian", "ias", "era", "ara", "ira",
+        "ian", "ias", "io", "ia", "an", "en", "as", "es", "os",
+        "ar", "er", "ir", "a", "e", "o", "i"
+    )
+    for suffix in suffixes:
+        if token.endswith(suffix) and len(token) - len(suffix) >= 4:
+            variants.add(token[:-len(suffix)])
+            break
+    return {variant for variant in variants if len(variant) >= 4}
+
+
 def relevance_terms(*texts: str) -> set[str]:
-    """Build a small deterministic Spanish keyword set for continuity retrieval."""
+    """Build a bounded Spanish keyword set with conservative inflection matching."""
     words: set[str] = set()
     for text in texts:
         normalized = unicodedata.normalize("NFD", str(text or "").casefold())
         normalized = "".join(char for char in normalized if not unicodedata.combining(char))
-        words.update(
-            token for token in re.findall(r"[a-z0-9]{4,}", normalized)
-            if token not in HISTORY_STOPWORDS
-        )
+        for token in re.findall(r"[a-z0-9]{4,}", normalized):
+            if token not in HISTORY_STOPWORDS:
+                words.update(_relevance_token_variants(token))
     return words
 
 
