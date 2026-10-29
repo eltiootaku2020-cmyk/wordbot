@@ -2695,7 +2695,7 @@ def backup_session_database(session_id: str):
                 detail="No se puede crear una copia coherente mientras hay un turno en curso. Espera a que termine y vuelve a guardar."
             )
         database.backup_to(str(backup_path))
-    return {"backup_created": True, "path": str(backup_path)}
+    return {"backup_created": True, "backup_name": backup_path.name, "path": str(backup_path)}
 
 
 RESTORE_SESSION_TABLES = (
@@ -2764,7 +2764,7 @@ def _read_session_backup(backup_path: Path, session_id: str):
         if source.execute("PRAGMA foreign_key_check").fetchone():
             raise HTTPException(status_code=422, detail="La copia contiene referencias internas incoherentes.")
         source_session_row = source.execute(
-            "SELECT id,world_id,protagonist_entity_id,day,minute_of_day,current_location "
+            "SELECT id,world_id,protagonist_entity_id,day,minute_of_day,current_location,updated_at "
             "FROM sessions WHERE id=?", (session_id,)
         ).fetchone()
         if source_session_row is None:
@@ -2848,11 +2848,12 @@ def restore_session_from_backup(session_id: str, backup_path: Path) -> dict[str,
             )
 
         conn.execute(
-            "UPDATE sessions SET day=?,minute_of_day=?,current_location=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
+            "UPDATE sessions SET day=?,minute_of_day=?,current_location=?,updated_at=? WHERE id=?",
             (
                 int(backup_session["day"]),
                 int(backup_session["minute_of_day"]),
                 backup_session["current_location"],
+                backup_session["updated_at"],
                 session_id,
             )
         )
