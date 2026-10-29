@@ -14,7 +14,8 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 - Estado: prototipo v0.1 implementado parcialmente; no es todavía una aplicación final.
 - Stack: Python/FastAPI, HTML/CSS/JavaScript para Chromium, SQLite, narrador simulado y adaptadores iniciales OpenAI/Gemini.
 - Flujo de ejemplo: «Hola, linda» dirigido a Maelis produce narración + evento + propuesta de cambio; la confianza queda pendiente si no existe valor inicial confirmado.
-- CI: 12 pruebas aprobadas el 29-10-2026: persistencia/backup, contrato de respuesta, narrador simulado, flujo API de extremo a extremo, reintento idempotente, revisión de eventos y creación atómica de mundo con reparto/inventario. [Ejecución](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40863082953).
+- Preset Isekai v1.16: botón dedicado carga las 76 entradas del JSON de Lorebook, los cinco aventureros, protagonista, cinco objetos iniciales y una nueva sesión cada vez, sin mezclar estado entre partidas.
+- CI: 13 pruebas aprobadas el 29-10-2026: persistencia/backup, contrato de respuesta, narrador simulado, flujo API, reintento idempotente, revisión de eventos, creación atómica y preset real de Isekai v1.16; también se comprueba la sintaxis JavaScript. [Ejecución](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40863341616).
 - Pendiente: prueba manual en Windows; llamadas API reales; validación completa de movimiento/inventario; exportación/restauración visual; prueba de 50–100 intercambios.
 - Documentos: `INVESTIGACION_REFERENCIAS.md`, `DECISIONES_TECNICAS.md`, `ROADMAP_IMPLEMENTACION.md`, `ARQUITECTURA.md`, `CONTRATO_RESPUESTA_IA.md`, `ESQUEMA_LOCAL.md`, `PRUEBAS_DE_ACEPTACION.md`.
 - Ubicación de trabajo: rama `docs/historias-organizadas`. La rama literal `main` aún no contiene las carpetas organizadas de mundos.
