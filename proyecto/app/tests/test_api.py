@@ -1838,6 +1838,30 @@ def test_undo_refuses_to_overwrite_a_later_approved_state_change(monkeypatch):
         assert "estado de la partida cambió" in undo.json()["detail"].casefold()
         assert provider_state["calls"] == 2
 
+        # Simulate a pre-upgrade backup that has the old pre-turn snapshot but no
+        # post-state hash. Legacy undo must still detect the later accepted approval
+        # from the audit log and fail closed.
+        with database.transaction() as conn:
+            snapshot_row = conn.execute(
+                "SELECT state_json FROM snapshots WHERE session_id=? AND turn_id=?",
+                (session_id, second_turn_id)
+            ).fetchone()
+            legacy_snapshot = json.loads(snapshot_row["state_json"])
+            legacy_snapshot.pop("_post_turn_state_hash", None)
+            conn.execute(
+                "UPDATE snapshots SET state_json=? WHERE session_id=? AND turn_id=?",
+                (json.dumps(legacy_snapshot, ensure_ascii=False, separators=(",", ":")),
+                 session_id, second_turn_id)
+            )
+
+        legacy_undo = client.post(
+            f"/api/sessions/{session_id}/turns/{second_turn_id}/undo",
+            json={}
+        )
+        assert legacy_undo.status_code == 409, legacy_undo.text
+        assert "instantánea antigua" in legacy_undo.json()["detail"].casefold()
+        assert provider_state["calls"] == 2
+
         current = client.get(f"/api/sessions/{session_id}/state").json()
         assert current["state"]["time_label"].endswith("08:12")
         with database.connection() as conn:
