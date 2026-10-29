@@ -46,8 +46,7 @@ def fire_due_world_events(
             "fired_day,fired_minute) VALUES(?,?,?,?,?,?,?)",
             (
                 f"{session_id}:{row['id']}", session_id, row["id"], scheduled,
-                current_total_minutes, current_total_minutes // 1440 + 1,
-                current_total_minutes % 1440,
+                scheduled, int(row["scheduled_day"]), int(row["scheduled_minute"]),
             ),
         )
         if cursor.rowcount:
