@@ -1318,3 +1318,72 @@ def test_undo_restores_relationship_value_and_eco_use(monkeypatch):
         assert restored_uses == 0
         assert undone.json()["state"]["state"]["time_label"].endswith("08:00")
         assert provider_state["calls"] == 1
+
+
+
+def test_context_inspector_explains_private_messages_and_events_excluded_for_another_npc():
+    with TestClient(app) as client:
+        started = client.post(
+            "/api/worlds/start",
+            json={
+                "name": "Prueba inspector privacidad " + uuid.uuid4().hex,
+                "canon_text": "Las conversaciones privadas solo las conocen el protagonista y su destinatario.",
+                "protagonist_name": "Protagonista",
+                "session_name": "Inspector privado",
+                "location": "Claro del bosque",
+                "cast": [
+                    {"name": "Maelis Orven", "kind": "character", "profile": "Maga curiosa."},
+                    {"name": "Ivar Dalen", "kind": "character", "profile": "Lancero sarcástico."}
+                ],
+                "initial_inventory": []
+            }
+        )
+        assert started.status_code == 200, started.text
+        world_id, session_id = started.json()["world_id"], started.json()["session_id"]
+        entities = client.get(f"/api/worlds/{world_id}/entities").json()
+        by_name = {entity["name"]: entity for entity in entities}
+        maelis_id = by_name["Maelis Orven"]["id"]
+        ivar_id = by_name["Ivar Dalen"]["id"]
+
+        private = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json={
+                "request_id": "context-private-maelis-001",
+                "text": "Esto es confidencial: la llave está bajo la piedra azul.",
+                "recipient_id": maelis_id,
+                "provider": "mock",
+                "visibility": "private"
+            }
+        )
+        assert private.status_code == 200, private.text
+        stored_messages = client.get(f"/api/sessions/{session_id}/messages").json()
+        private_message = next(
+            message for message in stored_messages
+            if message["role"] == "user" and "confidencial" in message["content"]
+        )
+
+        preview = client.post(
+            f"/api/sessions/{session_id}/context-preview",
+            json={
+                "text": "¿Qué sabe Ivar?",
+                "recipient_id": ivar_id,
+                "visibility": "scene"
+            }
+        )
+        assert preview.status_code == 200, preview.text
+        context = preview.json()["context"]
+        diagnostics = preview.json()["diagnostics"]
+        excluded_message = next(
+            item for item in diagnostics["excluded_messages"]
+            if item["message_id"] == private_message["id"]
+        )
+        assert "audiencia privada" in excluded_message["reason"]
+        assert not any("la llave está bajo la piedra azul" in item["content"] for item in context["recent_messages"])
+
+        excluded_private_events = [
+            item for item in diagnostics["excluded_events"]
+            if item["turn_id"] == private.json()["turn_id"]
+        ]
+        assert excluded_private_events
+        assert any("audiencia privada" in item["reason"] for item in excluded_private_events)
+        assert not any("confidencial" in item.get("description", "") for item in context["recent_events"])
