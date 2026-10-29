@@ -71,6 +71,20 @@ Una aldea puede existir sin ser conocida; un campamento puede haber sido abandon
 
 Siguen pendientes las cantidades exactas, ubicaciones, población, pueblos, razas, gremios, facciones y accesibilidad inicial. No poblar cada nodo solo para llenar el mapa.
 
+
+
+## 6.1. Patrón espacial de trabajo (propuesta, no canon)
+
+Para convertir la densidad equilibrada en un mapa coherente, se propone distribuir la presencia de forma desigual según accesibilidad y riesgo, sin fijar todavía localizaciones:
+
+- **Límites y accesos:** candidatos preferentes para aldeas pequeñas o puestos estables, porque facilitan intercambio, abastecimiento y contacto con el exterior. No todos los accesos tienen que estar habitados.
+- **Rutas conocidas y cruces:** lugares adecuados para campamentos temporales, refugios de viajeros y puntos de intercambio. La actividad atrae tanto oportunidades como depredadores y conflictos.
+- **Subzonas intermedias:** pueden contener asentamientos aislados, puestos abandonados, ruinas accesibles y escondites cuya ubicación dependa de recursos o rutas secundarias.
+- **Zonas profundas o peligrosas:** menor presencia estable; pueden existir campamentos de expedición, ruinas remotas y escondites difíciles de alcanzar, pero no se presupone que estén presentes ni que sean accesibles.
+- **Áreas ecológicas sensibles:** la presencia civilizada debe ser escasa o estar condicionada por la dificultad de obtener recursos y por el riesgo de alterar hábitats.
+
+Este patrón es una hipótesis de distribución para orientar el diseño posterior. No determina que haya una aldea en el borde, una ruina en el centro ni un campamento en una ruta concreta. Se revisará al definir el mapa de nodos y subzonas.
+
 ## 7. Plantilla conceptual
 
 ```yaml
