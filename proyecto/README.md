@@ -52,7 +52,7 @@ Para el uso previsto, la interfaz local en Chromium + FastAPI + SQLite incluye u
 - [Base de datos y esquema SQLite](app/src/canon_manager/db.py)
 - [Narrador simulado y adaptadores OpenAI/Gemini](app/src/canon_manager/providers.py)
 - [Pruebas automáticas](app/tests/)
-Ejecución CI más reciente: 81 pruebas aprobadas
+- [Ejecución CI más reciente: 81 pruebas aprobadas](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40935903505)
 
 Las pruebas de integración cubren «Hola, linda» con Maelis, eventos y cambios pendientes, creación atómica de mundos, el preset de Isekai (77 entradas), privacidad por audiencia, presupuesto Lorebook, undo/recursos y el puente manual ChatGPT/Gemini. La CI valida el modo simulado, la preparación del prompt y el JSON pegado; no sustituye la prueba manual en Windows. Las llamadas API reales son opcionales.
 
