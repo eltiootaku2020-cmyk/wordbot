@@ -52,7 +52,7 @@ La investigación recomienda una interfaz web local en Chromium, backend Python/
 - [Base de datos y esquema SQLite](app/src/canon_manager/db.py)
 - [Narrador simulado y adaptadores OpenAI/Gemini](app/src/canon_manager/providers.py)
 - [Pruebas automáticas](app/tests/)
-- [Ejecución CI: 12 pruebas aprobadas](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40862639924)
+- [Ejecución CI: 12 pruebas aprobadas](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40863082953)
 
 La prueba de integración ejecuta el flujo «Hola, linda» dirigido a Maelis: guarda mensajes, registra reacciones, deja pendiente el cambio numérico si no existe una base confirmada y conserva hora e inventario. También se prueba crear un mundo personalizado con protagonista, reparto e inventario inicial, y comprobar que si falla por nombres duplicados se revierte toda la operación. Esto valida el modo simulado; no sustituye la prueba manual en Windows ni las llamadas reales a proveedores.
 
