@@ -9,6 +9,7 @@ os.environ["APP_DB_PATH"] = str(Path(tempfile.mkdtemp(prefix="canon-test-")) / "
 
 from fastapi.testclient import TestClient
 
+import canon_manager.main as main_module
 from canon_manager.main import app, database, build_context, session_row, apply_narrator_result
 from canon_manager.models import NarratorResponse, EventProposal, InventoryOperation, MovementProposal, ResourceOperation
 
@@ -840,3 +841,85 @@ def test_explicit_work_reward_increases_local_currency_balance():
         assert json.loads(change["accepted_value_json"])["quantity"] == 10
         assert any("Recurso ganado: +5 Monedas" in note for note in applied)
         assert not pending
+
+
+
+def test_paid_purchase_api_retry_is_idempotent(monkeypatch):
+    with TestClient(app) as client:
+        started, entities = _create_state_ops_world(client)
+        session_id = started["session_id"]
+        protagonist_id = entities["Protagonista"]["id"]
+        provider_state = {"calls": 0}
+
+        class PurchaseProvider:
+            name = "mock"
+
+            async def generate(self, payload):
+                provider_state["calls"] += 1
+                audience = list(payload["context"]["audience_ids"])
+                return NarratorResponse(
+                    narration="Pagas dos monedas y recibes una manzana.",
+                    events=[
+                        EventProposal(
+                            ref="api-purchase-apple",
+                            kind="object",
+                            entity_id=protagonist_id,
+                            description="El protagonista compra una manzana por dos monedas y la recibe.",
+                            witness_ids=audience
+                        )
+                    ],
+                    inventory_ops=[
+                        InventoryOperation(
+                            operation="acquire",
+                            item_name="Manzana",
+                            quantity=1,
+                            carrier_entity_id=protagonist_id,
+                            location="Claro del bosque",
+                            reason="Compra explícita por dos monedas.",
+                            event_ref="api-purchase-apple",
+                            cost=2,
+                            currency_key="monedas"
+                        )
+                    ]
+                )
+
+        monkeypatch.setattr(main_module, "make_provider", lambda provider_name, settings: PurchaseProvider())
+        payload = {
+            "request_id": "purchase-api-idempotency-001",
+            "text": "Compro una manzana por dos monedas",
+            "provider": "mock",
+            "visibility": "scene"
+        }
+        first = client.post(f"/api/sessions/{session_id}/turns", json=payload)
+        assert first.status_code == 200, first.text
+        assert first.json()["replayed"] is False
+        assert provider_state["calls"] == 1
+
+        retry = client.post(f"/api/sessions/{session_id}/turns", json=payload)
+        assert retry.status_code == 200, retry.text
+        assert retry.json()["replayed"] is True
+        assert retry.json()["turn_id"] == first.json()["turn_id"]
+        assert provider_state["calls"] == 1
+
+        with database.connection() as conn:
+            coins = conn.execute(
+                "SELECT quantity FROM resources WHERE session_id=? AND resource_key='monedas'",
+                (session_id,)
+            ).fetchone()
+            apple = conn.execute(
+                "SELECT quantity FROM inventory_items WHERE session_id=? AND item_key='manzana'",
+                (session_id,)
+            ).fetchone()
+            changes = conn.execute(
+                "SELECT field,status FROM state_changes WHERE session_id=? AND turn_id=?",
+                (session_id, first.json()["turn_id"])
+            ).fetchall()
+            messages = conn.execute(
+                "SELECT COUNT(*) AS n FROM messages WHERE session_id=? AND turn_id=?",
+                (session_id, first.json()["turn_id"])
+            ).fetchone()
+        assert coins["quantity"] == 3
+        assert apple["quantity"] == 3
+        assert messages["n"] == 2
+        assert len(changes) == 2
+        assert all(change["status"] == "accepted" for change in changes)
