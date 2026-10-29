@@ -32,6 +32,7 @@ Esta decisión establece el enfoque de diseño, pero no aprueba nombres o fichas
 6. [Rutas y cinco finales](06_RUTAS_Y_FINALES.md) — estructura abierta, rutas cruzadas y erupción del Día 12.
 7. [Acciones y comandos](07_ACCIONES_Y_COMANDOS.md) — lenguaje de acciones y decisiones encadenadas.
 8. [Pendientes y conflictos de canon](08_PENDIENTES_Y_CONFLICTOS.md) — decisiones que no deben inventarse ni aprobarse automáticamente.
+9. [Estructura y mapa ecológico](09_ESTRUCTURA_Y_MAPA_ECOLOGICO.md) — organización combinada por zonas de peligro, rutas, territorios y niveles naturales.
 
 ## Regla de autoridad y canon
 
