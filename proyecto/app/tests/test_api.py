@@ -2343,3 +2343,66 @@ def test_eco_aliases_are_one_shared_power_and_cannot_double_count_in_a_turn():
             ).fetchone()[0]
         assert count == 0
         assert sum("mismo poder" in note for note in response.json()["pending_notes"]) == 2
+
+
+def test_power_use_is_rejected_when_source_event_type_or_target_does_not_match():
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seed["world_id"], seed["session_id"]
+        entities = client.get(f"/api/worlds/{world_id}/entities").json()
+        protagonist = next(entity for entity in entities if entity["kind"] == "protagonist")
+        maelis = next(entity for entity in entities if entity["name"] == "Maelis Orven")
+        prepared = client.post(
+            f"/api/sessions/{session_id}/manual-prompt",
+            json={"text": "/eco", "provider": "chatgpt_web", "visibility": "scene"}
+        )
+        assert prepared.status_code == 200, prepared.text
+        external = json.dumps({
+            "narration": "La respuesta describe eventos que no justifican los usos de poder propuestos.",
+            "events": [
+                {
+                    "ref": "not-a-power-event", "kind": "object",
+                    "entity_id": maelis["id"],
+                    "description": "Maelis mira un objeto que está sobre la mesa.",
+                    "witness_ids": [protagonist["id"], maelis["id"]]
+                },
+                {
+                    "ref": "wrong-power-target", "kind": "power",
+                    "entity_id": maelis["id"],
+                    "description": "Un intento de poder sobre Maelis.",
+                    "witness_ids": [protagonist["id"], maelis["id"]]
+                }
+            ],
+            "state_changes": [], "elapsed_minutes": 1, "movements": [],
+            "inventory_ops": [], "resource_ops": [],
+            "power_uses": [
+                {
+                    "ability_key": "eco", "target_entity_id": maelis["id"],
+                    "event_ref": "not-a-power-event", "result": "Propuesta sin evento de poder.",
+                    "cost": 1
+                },
+                {
+                    "ability_key": "eco", "target_entity_id": protagonist["id"],
+                    "event_ref": "wrong-power-target", "result": "El objetivo no coincide con el evento.",
+                    "cost": 1
+                }
+            ],
+            "pending": []
+        }, ensure_ascii=False)
+        response = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json={
+                "request_id": "eco-source-validation-001",
+                "text": "/eco", "provider": "chatgpt_web", "visibility": "scene",
+                "external_response": external,
+                "manual_context_hash": prepared.json()["context_hash"]
+            }
+        )
+        assert response.status_code == 200, response.text
+        assert any("tipo power" in note for note in response.json()["pending_notes"])
+        assert any("no coincide" in note for note in response.json()["pending_notes"])
+        with database.connection() as conn:
+            uses = conn.execute(
+                "SELECT COUNT(*) FROM ability_uses WHERE session_id=?", (session_id,)
+            ).fetchone()[0]
+        assert uses == 0
