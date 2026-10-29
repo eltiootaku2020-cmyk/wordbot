@@ -4584,13 +4584,6 @@ def test_durable_continuity_events_survive_recent_history_window_and_respect_wit
                 and relation["axis"] == "respect"
                 for relation in context["relationships_in_scene"]
             )
-            state_response = client.get(f"/api/sessions/{session_id}/state")
-            assert state_response.status_code == 200
-            assert any(
-                item["kind"] == "promise"
-                for item in state_response.json()["continuity_records"]
-            )
-
             private_context = build_context(
                 conn, session, "hablo con Maelis", maelis_id, "preview-private-continuity",
                 visibility="private", audience_ids=[protagonist_id, maelis_id]
@@ -4603,6 +4596,13 @@ def test_durable_continuity_events_survive_recent_history_window_and_respect_wit
                 relation["from_entity_id"] == maelis_id and relation["to_entity_id"] == ivar_id
                 for relation in private_context["relationships_in_scene"]
             )
+
+        state_response = client.get(f"/api/sessions/{session_id}/state")
+        assert state_response.status_code == 200
+        assert any(
+            item["kind"] == "promise"
+            for item in state_response.json()["continuity_records"]
+        )
 
 
 def test_narrative_variation_cue_is_stable_per_turn_and_avoids_recent_repeats():
