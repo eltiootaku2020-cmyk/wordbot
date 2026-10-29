@@ -4539,6 +4539,16 @@ def test_durable_continuity_events_survive_recent_history_window_and_respect_wit
                 "SELECT id FROM entities WHERE world_id=? AND name='Maelis Orven'",
                 (session["world_id"],)
             ).fetchone()["id"]
+            ivar_id = conn.execute(
+                "SELECT id FROM entities WHERE world_id=? AND name='Ivar Dalen'",
+                (session["world_id"],)
+            ).fetchone()["id"]
+            conn.execute(
+                "INSERT INTO relationships(id,session_id,from_entity_id,to_entity_id,axis,value,reason) "
+                "VALUES(?,?,?,?,?,?,?)",
+                (uuid.uuid4().hex, session_id, maelis_id, ivar_id, "respect", 72,
+                 "Respeto demostrado durante una guardia compartida.")
+            )
             # Insert the important promise first so it is older than the ordinary
             # scene events and would normally fall outside the six-event window.
             conn.execute(
@@ -4568,6 +4578,18 @@ def test_durable_continuity_events_survive_recent_history_window_and_respect_wit
                 for item in context["continuity_records"]
             )
             assert len(context["continuity_records"]) <= 12
+            assert any(
+                relation["from_entity_id"] == maelis_id
+                and relation["to_entity_id"] == ivar_id
+                and relation["axis"] == "respect"
+                for relation in context["relationships_in_scene"]
+            )
+            state_response = client.get(f"/api/sessions/{session_id}/state")
+            assert state_response.status_code == 200
+            assert any(
+                item["kind"] == "promise"
+                for item in state_response.json()["continuity_records"]
+            )
 
             private_context = build_context(
                 conn, session, "hablo con Maelis", maelis_id, "preview-private-continuity",
@@ -4576,6 +4598,10 @@ def test_durable_continuity_events_survive_recent_history_window_and_respect_wit
             assert not any(
                 item["kind"] == "promise"
                 for item in private_context["continuity_records"]
+            )
+            assert not any(
+                relation["from_entity_id"] == maelis_id and relation["to_entity_id"] == ivar_id
+                for relation in private_context["relationships_in_scene"]
             )
 
 
