@@ -2233,3 +2233,113 @@ def test_100_short_turns_persist_across_database_reinitialization_and_backup():
             assert conn.execute(
                 "SELECT COUNT(*) FROM events WHERE session_id=?", (session_id,)
             ).fetchone()[0] == 100
+
+
+def test_short_eco_command_authorizes_one_valid_power_attempt():
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seed["world_id"], seed["session_id"]
+        entities = client.get(f"/api/worlds/{world_id}/entities").json()
+        protagonist = next(entity for entity in entities if entity["kind"] == "protagonist")
+        maelis = next(entity for entity in entities if entity["name"] == "Maelis Orven")
+
+        prepared = client.post(
+            f"/api/sessions/{session_id}/manual-prompt",
+            json={"text": "/eco", "provider": "chatgpt_web", "visibility": "scene"}
+        )
+        assert prepared.status_code == 200, prepared.text
+
+        external = json.dumps({
+            "narration": "Intentas activar Eco sobre Maelis. El resultado aún no permite confirmar ningún cambio de memoria.",
+            "events": [{
+                "ref": "eco-event-1", "kind": "power", "entity_id": maelis["id"],
+                "description": "El protagonista inicia un intento de Eco dirigido a Maelis.",
+                "witness_ids": [protagonist["id"], maelis["id"]]
+            }],
+            "state_changes": [], "elapsed_minutes": 1, "movements": [],
+            "inventory_ops": [], "resource_ops": [],
+            "power_uses": [{
+                "ability_key": "eco", "target_entity_id": maelis["id"],
+                "event_ref": "eco-event-1", "result": "Intento registrado.",
+                "cost": 1
+            }],
+            "pending": []
+        }, ensure_ascii=False)
+        response = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json={
+                "request_id": "short-eco-command-0001", "text": "/eco",
+                "provider": "chatgpt_web", "visibility": "scene",
+                "external_response": external,
+                "manual_context_hash": prepared.json()["context_hash"]
+            }
+        )
+        assert response.status_code == 200, response.text
+        with database.connection() as conn:
+            uses = conn.execute(
+                "SELECT ability_key,target_entity_id FROM ability_uses WHERE session_id=? AND target_entity_id=?",
+                (session_id, maelis["id"])
+            ).fetchall()
+        assert len(uses) == 1
+        state = client.get(f"/api/sessions/{session_id}/state").json()
+        attempts = next(item["attempts"] for item in state["eco_uses"] if item["target_entity_id"] == maelis["id"])
+        assert attempts == 1
+
+
+def test_eco_aliases_are_one_shared_power_and_cannot_double_count_in_a_turn():
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seed["world_id"], seed["session_id"]
+        entities = client.get(f"/api/worlds/{world_id}/entities").json()
+        protagonist = next(entity for entity in entities if entity["kind"] == "protagonist")
+        maelis = next(entity for entity in entities if entity["name"] == "Maelis Orven")
+
+        user_text = "Intento usar Eco sobre Maelis."
+        prepared = client.post(
+            f"/api/sessions/{session_id}/manual-prompt",
+            json={"text": user_text, "provider": "gemini_web", "visibility": "scene"}
+        )
+        assert prepared.status_code == 200, prepared.text
+        events = []
+        for ref in ("eco-event-a", "eco-event-b"):
+            events.append({
+                "ref": ref, "kind": "power", "entity_id": maelis["id"],
+                "description": "Se propone un intento de Eco sobre Maelis.",
+                "witness_ids": [protagonist["id"], maelis["id"]]
+            })
+        external = json.dumps({
+            "narration": "El mismo intento aparece descrito de dos formas; no se duplica el efecto.",
+            "events": events, "state_changes": [], "elapsed_minutes": 1,
+            "movements": [], "inventory_ops": [], "resource_ops": [],
+            "power_uses": [
+                {
+                    "ability_key": "eco", "target_entity_id": maelis["id"],
+                    "event_ref": "eco-event-a", "result": "Intento A.",
+                    "cost": 1
+                },
+                {
+                    "ability_key": "hipnosis", "target_entity_id": maelis["id"],
+                    "event_ref": "eco-event-b", "result": "Intento B.",
+                    "cost": 1
+                }
+            ],
+            "pending": []
+        }, ensure_ascii=False)
+        response = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json={
+                "request_id": "eco-alias-duplicate-0001", "text": user_text,
+                "provider": "gemini_web", "visibility": "scene",
+                "external_response": external,
+                "manual_context_hash": prepared.json()["context_hash"]
+            }
+        )
+        assert response.status_code == 200, response.text
+        with database.connection() as conn:
+            count = conn.execute(
+                "SELECT COUNT(*) FROM ability_uses WHERE session_id=? AND target_entity_id=? "
+                "AND ability_key IN ('eco','eco_humano','hipnosis')",
+                (session_id, maelis["id"])
+            ).fetchone()[0]
+        assert count == 0
+        assert sum("mismo poder" in note for note in response.json()["pending_notes"]) == 2
