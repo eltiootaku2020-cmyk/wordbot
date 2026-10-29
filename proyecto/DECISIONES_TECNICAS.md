@@ -78,3 +78,42 @@ El proveedor debe producir la narración y los cambios en campos separados. Se u
 ## Criterio para reconsiderar decisiones
 
 Reevaluar tras el primer slice funcional: un mensaje, contexto recuperado, respuesta JSON, validación, guardado y reinicio. Si la interfaz propia retrasa excesivamente la validación de canon, hacer una prueba comparativa con una extensión de SillyTavern sin cambiar el modelo de datos.
+
+
+## ADR-009 — Una llamada principal por turno; mantenimiento de fondo solo como ayuda
+
+**Decisión:** el turno interactivo devuelve narración, eventos y cambios propuestos en un único contrato estructurado. Tareas secundarias (resumen histórico, indexación de conversación o sugerencias de organización) pueden ejecutarse después y nunca escribir el estado oficial sin validación.
+
+**Motivo:** los proyectos como Openovel muestran el valor de separar narración y mantenimiento, pero varios agentes autónomos en cada turno aumentan latencia, coste y riesgo de conflicto. Primero necesitamos determinismo y recuperación fiables.
+
+## ADR-010 — Alcance de conocimiento por mensaje y acontecimiento
+
+**Decisión:** cada evento conserva testigos/fuente y cada mensaje debe poder indicar destinatario, audiencia o alcance (público, grupo, privado). El constructor de contexto filtra los recuerdos por lo que el PNJ seleccionado vio, escuchó o recibió de una fuente conocida.
+
+**Motivo:** una conversación privada con Maelis no puede aparecer en el contexto de Ivar solo porque ambos estén en la misma partida. La ficha global de un personaje no es equivalente a lo que ese personaje sabe. Esta corrección tiene prioridad crítica antes de ampliar el uso con grupos.
+
+## ADR-011 — Política de riesgo para aplicar cambios
+
+**Decisión provisional:**
+
+- **Automático si la evidencia es clara:** registrar mensajes/eventos confirmados; tiempo corto propuesto dentro del límite configurado; cambios pequeños de relación cuando existe valor inicial; acciones de inventario ordinario cuando la narración contiene un evento fuente válido, cantidad y objeto existente/registrable; movimiento de PNJ si destino, entidad y causa están confirmados.
+- **Pendiente de aprobación:** cambio permanente de canon; muerte/revelación importante; poder nuevo; objeto único/mágico; gasto irreversible ambiguo; cambio de relación grande o sin valor inicial; cualquier operación en conflicto con el estado; movimiento o decisión del protagonista no indicado por el usuario.
+- El programa nunca acepta un cambio solo porque el JSON sea válido; comprueba la causa, IDs, límites, conocimientos y estado anterior.
+
+Los umbrales concretos son configurables por mundo y se ajustan tras las pruebas. No eliminar la opción de aprobación manual.
+
+## ADR-012 — Revertir regeneraciones sin duplicar efectos
+
+Antes de permitir editar, borrar o regenerar una respuesta, conservar un snapshot o registro de todas las operaciones aplicadas por el turno. Si el turno se reemplaza, revertir solo sus efectos y volver a calcular el estado desde la última secuencia confirmada. Cada operación debe tener clave idempotente; un reintento de red no puede descontar recursos dos veces.
+
+## ADR-013 — Inspección del contexto y recuperación de Lorebook
+
+Cada turno debe poder mostrar una vista de diagnóstico: reglas base, entidades incluidas, fichas activadas y motivo, mensajes/eventos considerados visibles, presupuesto estimado y entradas descartadas por límite. Usar activación por nombres/frases con fronteras de palabra cuando convenga y prioridades/presupuesto explícitos; los activadores tipo fragmento deben ser declarados deliberadamente.
+
+**Motivo:** clientes como SillyTavern usan claves, profundidad de búsqueda y presupuesto, y su documentación recuerda que una Lorebook solo orienta la respuesta. La inspección es necesaria para detectar por qué un dato no se incluyó o se filtró.
+
+## ADR-014 — Clasificar memoria en lugar de confundir inferencia con canon
+
+Todo elemento de memoria tendrá una clase y procedencia: canon aprobado, hecho confirmado de la partida, observación, rumor, hipótesis/propuesta, o inferencia revisable. Las inferencias no se promueven automáticamente a canon. Se registra quién conoce cada hecho o la fuente de transmisión.
+
+**Motivo:** adapta la separación de memoria efímera, revisable y canónica que muestran proyectos como Chronicler sin importar su motor de memoria adicional.
