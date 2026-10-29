@@ -1,6 +1,6 @@
 # Contrato de respuesta de la IA
 
-Este es el contrato lógico v0.1 entre el narrador y la aplicación local. Es una especificación; todavía no se ha conectado ni probado con un proveedor.
+Este es el contrato lógico v0.1 entre el narrador y la aplicación local. El prototipo ya implementa una versión Pydantic del contrato para el narrador simulado y adaptadores iniciales OpenAI/Gemini; la CI prueba el contrato con proveedor simulado, no las APIs reales. El JSON del ejemplo es ilustrativo y usa nombres en español; la implementación Python usa nombres de campos definidos en `models.py`.
 
 ## Forma general
 
@@ -11,7 +11,8 @@ Cada turno debe devolver un objeto con estos apartados:
 - `cambios_propuestos`: operaciones sugeridas para el estado.
 - `tiempo`: duración narrativa propuesta y motivo.
 - `movimientos`: cambios de ubicación propuestos para entidades distintas del protagonista.
-- `operaciones_inventario`: añadir, retirar, usar, transferir o cambiar el estado de un objeto, siempre ligado a un evento.
+- `operaciones_inventario`: añadir, retirar, usar, transferir o cambiar el estado de un objeto, siempre ligado a un evento; una compra incluye `cost` (coste total) y `currency_key`.
+- `operaciones_recursos`: ingresos/gastos de recursos como salarios o recompensas que no estén ya contabilizados dentro de la compra de un objeto. Cada operación requiere evento de tipo `resource`, clave, cantidad, nombre y causa.
 - `usos_de_poder`: intento, objetivo, resultado y coste de cada poder utilizado.
 - `pendientes`: ambigüedades, propuestas de alto impacto o información que falta.
 
@@ -128,3 +129,17 @@ Los IDs legibles del ejemplo (`ev-0001`, `chg-0001`) son referencias locales al 
 - Operación inválida: no se aplica a la base de datos.
 - Narración que afirma una compra, muerte, movimiento o uso de poder mientras los datos correspondientes no pasan la validación: marcar discrepancia y solicitar reparación o revisión; no fingir que el estado fue actualizado.
 - Respuesta no analizable: mantener el estado anterior y reintentar una sola vez con una instrucción de reparación, si el límite de gasto y seguridad lo permite.
+
+
+## Extensión implementada: recursos y compras
+
+En la implementación Python real, `NarratorResponse` dispone de `resource_ops`; `EventProposal.kind` incluye `resource`; y cada `InventoryOperation` de tipo `acquire` puede declarar `cost` y `currency_key`.
+
+Reglas semánticas:
+1. Compra: evento fuente `object`, adquisición explícita, coste total positivo, clave de moneda existente y saldo suficiente.
+2. El validador descuenta la moneda y añade el objeto en la misma transacción. Si falta el coste, la moneda o el saldo, la propuesta queda pendiente y no modifica ninguno de los dos.
+3. No se debe emitir un `resource_ops spend` para el mismo evento de compra porque duplicaría el cargo; el validador también protege ese caso.
+4. Ingresos de monedas y otros gastos requieren un evento fuente `resource` y texto que indique explícitamente el ingreso/gasto. Las cantidades se validan en SQLite.
+5. Isekai sin Destino comienza con 0 monedas, en coherencia con el canon inicial sin dinero.
+
+El proveedor simulado y las pruebas automáticas verifican compra suficiente, insuficiente y recompensa. Falta probar estos casos con un proveedor API real.
