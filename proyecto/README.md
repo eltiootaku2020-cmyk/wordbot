@@ -1,6 +1,6 @@
 # Proyecto: gestor local de canon, Lorebooks y continuidad
 
-**Estado:** propuesta de producto v0.1. Documentación inicial; la aplicación aún no está implementada.  
+**Estado:** prototipo de desarrollo v0.1. Código inicial disponible; CI: 8 pruebas aprobadas el 29-10-2026. Falta instalación/uso real en el PC y validación de APIs con credenciales.  
 **Ubicación de trabajo:** rama `docs/historias-organizadas`, carpeta `proyecto/`.
 
 ## Objetivo
@@ -44,6 +44,18 @@ No se debe enviar el Lorebook entero en cada mensaje. La aplicación recupera so
 
 La investigación recomienda una interfaz web local en Chromium, backend Python/FastAPI, SQLite y adaptadores para APIs oficiales. No se leerá automáticamente la pestaña de ChatGPT de consumo. La decisión podrá reconsiderarse tras una prueba técnica de un solo turno.
 
+## Código del prototipo
+
+- [Guía de ejecución](app/README.md)
+- [Fuente principal y API local](app/src/canon_manager/main.py)
+- [Interfaz de chat para Chromium](app/src/canon_manager/static/index.html)
+- [Base de datos y esquema SQLite](app/src/canon_manager/db.py)
+- [Narrador simulado y adaptadores OpenAI/Gemini](app/src/canon_manager/providers.py)
+- [Pruebas automáticas](app/tests/)
+- [Ejecución CI: 8 pruebas aprobadas](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40861306798)
+
+La prueba de integración ejecuta el flujo «Hola, linda» dirigido a Maelis: guarda mensajes, registra reacciones, deja pendiente el cambio numérico si no existe una base confirmada y conserva hora e inventario. Esto valida el modo simulado; no sustituye la prueba manual en Windows ni las llamadas reales a proveedores.
+
 ## Componentes previstos
 
 - Interfaz local de chat y panel de estado.
@@ -57,14 +69,15 @@ La investigación recomienda una interfaz web local en Chromium, backend Python/
 - Copias de seguridad, exportación y restauración.
 - Pruebas: [PRUEBAS_DE_ACEPTACION.md](PRUEBAS_DE_ACEPTACION.md).
 
-## Propuesta de tecnología inicial
+## Tecnología provisional elegida
 
-- Aplicación local para Windows con interfaz web local o escritorio liviano.
-- SQLite para persistencia; sin servidor remoto necesario para la base de datos personal.
-- Conectores independientes para proveedores de IA que permitan enviar contexto y recibir una respuesta estructurada.
-- Archivos Markdown/JSON para importar y exportar mundos, Lorebooks y guardados.
+- Python + FastAPI para backend local.
+- HTML/CSS/JavaScript ligero para la interfaz en Chromium.
+- SQLite con transacciones y WAL para persistencia local.
+- Proveedor simulado sin coste, más adaptadores iniciales para APIs oficiales de OpenAI y Gemini.
+- Importación de Lorebook JSON compatible con SpicyChat y recuperación de entradas por palabras clave.
 
-La selección final de framework y proveedor se hará antes de comenzar la implementación. El uso de API puede tener facturación separada de una suscripción de chat; debe verificarse el proveedor y el plan elegidos.
+La decisión se basa en la investigación enlazada y puede revisarse después de probar el prototipo en Windows. El uso de API puede facturarse por separado de una suscripción de chat.
 
 ## Alcance del primer prototipo
 
@@ -89,4 +102,4 @@ La selección final de framework y proveedor se hará antes de comenzar la imple
 
 ## Estado y siguientes pasos
 
-**Todavía no se ha escrito la aplicación.** Este directorio registra el diseño y el contrato esperado para guiar la implementación. La próxima etapa es convertir el modelo de datos y el flujo de un turno en un prototipo pequeño; luego ejecutar las pruebas de aceptación antes de añadir funciones avanzadas.
+**Estado actual:** el prototipo tiene interfaz y backend, guarda mensajes y estado en SQLite, ofrece un narrador simulado y permite importar una Lorebook JSON. Las 8 pruebas de CI pasan. Pendiente: prueba manual en Windows, llamadas API reales, idempotencia de reintentos, aprobación de eventos importantes, validación completa de movimientos e inventario, exportación/restauración visual y prueba de 50–100 intercambios.
