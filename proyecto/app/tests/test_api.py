@@ -3173,7 +3173,7 @@ def test_concurrent_session_requests_stay_serial_across_two_app_clients(monkeypa
         assert len(provider_calls) == 2
 
         final_state = first_client.get(f"/api/sessions/{session_id}/state").json()
-        assert final_state["minute_of_day"] == before["minute_of_day"] + 2
+        assert final_state["state"]["minute_of_day"] == before["state"]["minute_of_day"] + 2
         messages = first_client.get(f"/api/sessions/{session_id}/messages").json()
         users = [m for m in messages if m["role"] == "user"]
         assistants = [m for m in messages if m["role"] == "assistant" and m["generation_status"] == "complete"]
