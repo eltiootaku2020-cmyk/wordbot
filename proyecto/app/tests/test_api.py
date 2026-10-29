@@ -2,13 +2,14 @@ import os
 import tempfile
 from pathlib import Path
 import uuid
+import json
 
 os.environ["APP_PROVIDER"] = "mock"
 os.environ["APP_DB_PATH"] = str(Path(tempfile.mkdtemp(prefix="canon-test-")) / "test.sqlite3")
 
 from fastapi.testclient import TestClient
 
-from canon_manager.main import app, database
+from canon_manager.main import app, database, build_context, session_row
 
 
 def test_seeded_chat_turn_is_saved_and_changes_are_validated():
@@ -196,3 +197,66 @@ def test_load_actual_isekai_preset_imports_lorebook_and_starts_fresh_session():
         second_data = second.json()
         assert second_data["world_id"] == first_data["world_id"]
         assert second_data["session_id"] != first_data["session_id"]
+
+
+
+def test_private_turn_is_not_visible_to_other_npcs():
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seed["world_id"], seed["session_id"]
+        entities = client.get(f"/api/worlds/{world_id}/entities").json()
+        by_name = {entity["name"]: entity for entity in entities}
+        maelis = by_name["Maelis Orven"]
+        ivar = by_name["Ivar Dalen"]
+
+        private_reply = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json={
+                "request_id": "private-maelis-0001",
+                "text": "Hola, linda",
+                "recipient_id": maelis["id"],
+                "provider": "mock",
+                "visibility": "private"
+            }
+        )
+        assert private_reply.status_code == 200, private_reply.text
+        narration = private_reply.json()["narration"]
+        assert "Maelis" in narration
+        assert "Ivar" not in narration
+        assert "Brina" not in narration
+
+        # The stored event must not list bystanders as witnesses.
+        with database.connection() as conn:
+            private_event = conn.execute(
+                "SELECT witnesses_json,status FROM events WHERE session_id=? AND turn_id=?",
+                (session_id, private_reply.json()["turn_id"])
+            ).fetchone()
+            assert private_event is not None
+            assert ivar["id"] not in json.loads(private_event["witnesses_json"])
+            assert private_event["status"] == "recorded"
+
+            session = session_row(conn, session_id)
+            context_for_ivar = build_context(
+                conn, session, "¿Qué dijo Maelis?", ivar["id"],
+                "future-turn-not-yet-created", visibility="scene"
+            )
+
+        # A private exchange and its events are omitted from Ivar's context.
+        assert not any("Hola, linda" in msg["content"] for msg in context_for_ivar["recent_messages"])
+        assert not any("incomodidad ante un saludo" in event["description"] for event in context_for_ivar["recent_events"])
+        assert all(person["id"] != maelis["id"] or person["id"] == ivar["id"] for person in context_for_ivar["participants"])
+
+
+def test_private_turn_requires_recipient():
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+        response = client.post(
+            f"/api/sessions/{seed['session_id']}/turns",
+            json={
+                "request_id": "private-no-recipient",
+                "text": "Hola",
+                "provider": "mock",
+                "visibility": "private"
+            }
+        )
+        assert response.status_code == 422
