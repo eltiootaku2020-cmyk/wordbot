@@ -61,7 +61,7 @@ Criterio de salida: el programa envía solo el lore necesario y no convierte un 
 - [ ] Restauración con vista previa.
 - [x] Registrar cambios aceptados, pendientes y rechazados.
 - [ ] Reintento controlado para JSON inválido o timeout.
-- [x] CI: 32 pruebas aprobadas en modo simulado, sin llamadas pagas.
+- [x] CI: 35 pruebas Python y sintaxis JavaScript aprobadas en modo simulado/manual-input, sin llamadas API pagas.
 - [ ] Prueba de 50–100 intercambios y reinicio completo.
 
 Criterio de salida: el estado, mensajes y recursos sobreviven al cierre; se pueden detectar y corregir errores de la IA.
@@ -77,7 +77,7 @@ Criterio de salida: el estado, mensajes y recursos sobreviven al cierre; se pued
 ## Estado de los hitos
 
 - **Comprobado por CI:** SQLite, backup, validación Pydantic, normalización del esquema, narrador simulado, turno API de extremo a extremo, reintentos idempotentes, aprobación/rechazo de eventos y creación atómica de mundos con reparto e inventario inicial.
-- **No comprobado todavía:** ejecución manual en Windows, llamadas reales a OpenAI/Gemini, medición de tokens/coste, cambios de presencia y datos históricos sin metadatos de audiencia, comportamiento de 50–100 turnos y restauración visual del backup.
+- **No comprobado todavía:** ejecución manual en Windows con chats web reales, compatibilidad de cambios de presencia/datos históricos, campaña de 50–100 turnos y restauración visual del backup. Las llamadas reales API y sus tokens/costes son una validación opcional distinta.
 
 ## Prioridad práctica
 
@@ -90,7 +90,7 @@ La interfaz ya permite crear un mundo y su primera sesión, con protagonista, ca
 
 - [x] Validar sintaxis del JavaScript de la interfaz en CI.
 
-Última CI aprobada (32 pruebas Python + JavaScript): https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40877808136
+Última CI aprobada (35 pruebas Python + JavaScript): https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40880074124
 
 
 ---
@@ -116,7 +116,7 @@ Esta sección distingue implementado de pendiente. No marcar como terminado nada
 - [x] Pago e ingreso/objeto se registran en SQLite con valores anterior/propuesto/aceptado y fuente; saldo insuficiente deja inventario y dinero intactos.
 - [x] Mantener objetos de alto impacto, operaciones ambiguas y datos contradictorios pendientes.
 
-**Verificación:** 32 pruebas Python aprobadas en CI; proveedor simulado. La idempotencia de compra está probada en la API con proveedor simulado; faltan proveedor real y Windows.
+**Verificación:** 35 pruebas Python aprobadas en CI, incluidos los tests del puente manual. La idempotencia de compra está probada con proveedor simulado; falta Windows y uso manual real de ChatGPT/Gemini.
 
 ### Prioridad P2 — Inspector de contexto y activación de Lorebook
 - [x] Mostrar fichas Lorebook seleccionadas y los disparadores concretos.
