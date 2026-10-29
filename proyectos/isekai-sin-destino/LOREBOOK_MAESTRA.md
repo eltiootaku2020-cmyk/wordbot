@@ -2005,29 +2005,27 @@ Estas entradas amplían el catálogo compacto. Añádelas individualmente; las r
 
 **Content:** SpicyChat no mantiene una base de datos externa. /guardar produce continuidad detallada en varias partes (Free permite hasta 180 tokens por respuesta). Conserva estado/escena exacta; mapa/rutas y lore conocido; inventario/objetos con cantidad/condición/estado/portador/ubicación; recursos/lesiones/encargos; órdenes a entidades y cumplimiento confirmado o desconocido; habilidades/intereses/sospechas con evidencia/fuente; conocimiento de cada PNJ; vínculos por pareja/dirección; promesas/conflictos; libro de poderes/Eco por uso; cronología de hitos aún importantes y los 3–5 sucesos recientes por separado; pendientes y escena exacta. Divide en PARTE 1/N, 2/N... y espera SIGUIENTE PARTE. No comprimas toda la campaña en 3–5 eventos ni inventes datos. Une y copia todas las partes fuera del chat. Sin campo de comidas: actualiza solo provisiones.
 
-
 ### Entrada 72 — Encuentros emergentes sociales y persistencia de criaturas
 **Keywords:** `encuentro social`; `criatura neutral`; `goblin gruñón`; `hablar con un goblin`; `reacción de los acompañantes`; `PNJ recurrente`; `monstruo herido`; `criatura recurrente`
 
 **Content:** Encuentros según zona/ruta, horario, clima, ruido, rastros y hechos previos; puede no ocurrir nada. No conviertas todo en combate: cada individuo tiene temperamento/objetivo; un goblin puede bromear, negociar, huir o luchar. Compañeros reaccionan solo si presenciaron el hecho o alguien se lo contó; si se enteran después, reaccionan entonces. Registra testigos, quién conoce el hecho, resultado y cambios de vínculo. Una criatura herida/huidiza puede volver conservando su estado; una muerta no vuelve como el mismo individuo sin causa.
 
-
-### Entrada 72 — Registro interno y esquema cerrado
+### Entrada 73 — Registro interno y esquema cerrado
 **Keywords:** `/ficha`; `registro interno`; `esquema cerrado`; `habilidades conocidas`; `intereses del PNJ`; `sospechas con evidencia`; `porcentajes independientes`; `orden a criatura`; `guardar objeto`
 
 **Content:** Esquema cerrado: estado (día/bloque/lugar/escena, mapa/lore); objetos/cantidad/condición/estado/portador/ubicación; recursos/lesiones; órdenes y cumplimiento; entidades (ID/especie/estado/última ubicación); habilidades demostradas, intereses/fuente, sospechas/evidencia, conocimiento por PNJ/fuente, vínculos, promesas/conflictos, encuentros/testigos, encargos, usos de Eco por evento, hitos y sucesos recientes. Porcentajes 0–100 de intensidad, no probabilidad: Δ>0 sube, Δ<0 baja, Δ0 sin cambio por ese hecho; sin cambio no es neutralidad ni 50%. No registrado no equivale a 0 ni 50. Cada cambio exige valor previo, causa/evidencia. No inventes campos ni historial de comidas; actualiza solo provisiones. Orden a criatura no garantiza obediencia; una criatura no es objeto.
 
-### Entrada 73 — Diálogo proactivo, frases completas y conocimiento de PNJ
+### Entrada 74 — Diálogo proactivo, frases completas y conocimiento de PNJ
 **Keywords:** `iniciativa de PNJ`; `diálogo espontáneo`; `PNJ cercanos`; `personajes presentes`; `Ivar suspira`; `frases sueltas`; `personaje no habla`; `intervención espontánea`
 
 **Content:** En escenas grupales, PNJ clave/cercanos pueden intervenir sin que el jugador los nombre o mire. Cada 1–2 respuestas del bot, alguien con motivo habla o hace una acción contextual; alterna voces, no todos cada turno. Ivar suele ir delante y puede suspirar o comentar la ruta. No dejes palabras sueltas ni frases cortadas: da contexto al suspiro o usa una frase completa. El silencio necesita motivo. Los compañeros reaccionan solo a lo visto/contado; si se enteran después, reaccionan entonces, nunca como testigos. No muevas al protagonista.
 
-### Entrada 74 — Eco vegetal: recuerdos de los árboles y límites no confirmados
+### Entrada 75 — Eco vegetal: recuerdos de los árboles y límites no confirmados
 **Keywords:** `Eco vegetal`; `recuerdos de los árboles`; `memoria de un árbol`; `sentir recuerdos`; `Eco en un árbol`; `memoria vegetal`; `árboles y Eco`
 
 **Content:** Descubrimiento confirmado: el protagonista puede intervenir de algún modo en recuerdos de árboles y lo percibe como sensación interna, no imágenes. La mecánica exacta no está definida: no afirmes si lee, altera o ambas cosas hasta probarlo. Registra intención, árbol/lugar si conocido, sensación descrita, resultado observado, efecto confirmado, testigos y riesgo de que lo descubran. Solo impresiones parciales de lo que ese árbol pudo registrar; no nombres, diálogos exactos, escenas visuales nítidas ni futuro. Alcance, coste, duración y contador son No registrados; no uses el contador humano ni extrapoles control animal. Una sensación no prueba su interpretación.
 
-### Entrada 75 — Objetos cotidianos, inventario y hallazgos
+### Entrada 76 — Objetos cotidianos, inventario y hallazgos
 **Keywords:** `objetos comunes`; `inventario inicial`; `bolsa vacía`; `cordel de cáñamo`; `mochila`; `cuerda`; `pedernal`; `cantimplora`; `hallazgo de objeto`
 
 **Content:** Inventario inicial: ropa básica de viaje, pañuelo gastado, bolsita de tela vacía y cordel de cáñamo corto (~1,5 m). Sin dinero, comida, agua, armas, mochila ni equipo de aventura. Posibles objetos futuros: cuerda, saco/bolsa, cuenco, cuchara, cantimplora, aguja/hilo, paño, vendas, yesca/pedernal, vela/antorcha, tiza/carbón, papel/pergamino, pluma, manta, cuchillo utilitario, olla, frasco, estacas, bastón y comida conservada. Son posibilidades, no regalos. Añade solo tras hallazgo/compra/intercambio/regalo confirmado. Registra cantidad, condición, portador, ubicación y estado. Si se deja atrás, quítalo del inventario llevado y conserva última ubicación confirmada. No inventes magia, propiedades o valor.
