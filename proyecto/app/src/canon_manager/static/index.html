@@ -493,8 +493,20 @@ async function sendTurn(request) {
     await loadMessages().catch(() => {});
     addMessage("assistant", "No se pudo confirmar la respuesta: " + err.message, true);
     setStatus(err.message, false);
-    failedRequest = request;
-    el("retryButton").hidden = false;
+    if (["chatgpt_web", "gemini_web"].includes(request.payload.provider)) {
+      // Pasted web responses should be corrected in the handoff panel, not replayed blindly.
+      failedRequest = null;
+      el("retryButton").hidden = true;
+      if (err.message.includes("La partida cambió desde que se preparó el prompt")) {
+        preparedManualRequest = null;
+        el("manualPromptText").value = "";
+        el("manualResponseText").value = "";
+        setStatus("La partida cambió. Prepara un prompt nuevo antes de pegar otra respuesta.", false);
+      }
+    } else {
+      failedRequest = request;
+      el("retryButton").hidden = false;
+    }
     return false;
   } finally { button.disabled = false; }
 }
