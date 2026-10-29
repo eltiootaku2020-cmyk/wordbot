@@ -87,3 +87,66 @@ La interfaz ya permite crear un mundo y su primera sesión, con protagonista, ca
 - [x] Validar sintaxis del JavaScript de la interfaz en CI.
 
 Última CI aprobada (13 pruebas Python + JavaScript): https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40863341616
+
+
+---
+
+## Segunda ronda de prioridades tras investigación y revisión del código
+
+Esta sección distingue implementado de pendiente. No marcar como terminado nada que no haya pasado CI y prueba manual.
+
+### Prioridad P0 — Evitar fugas de conocimiento entre personajes
+- [ ] Añadir alcance/audiencia a mensajes: privado, destinatario, grupo o público.
+- [ ] Filtrar contexto reciente por destinatario, testigos y transmisión de información.
+- [ ] Añadir pruebas: una conversación privada con Maelis no aparece al hablar después con Ivar; Ivar solo lo sabe si alguien se lo cuenta y queda registrado.
+- [ ] Mostrar en el inspector la razón por la que cada recuerdo es visible al PNJ.
+
+**Criterio de salida:** ningún secreto se envía a un narrador de PNJ sin una fuente de conocimiento válida.
+
+### Prioridad P1 — Política automática para cambios de bajo riesgo
+- [ ] Mantener revisión para cambios ambiguos y de alto impacto.
+- [ ] Implementar autoaceptación de movimientos cotidianos de PNJ solo con evento fuente válido, entidad registrada, destino plausible y causa.
+- [ ] Implementar operaciones de inventario normal (compra, consumo, soltar, entregar) con objeto, cantidad, saldo/coste cuando corresponda y evento fuente verificables.
+- [ ] Exigir aprobación para objetos únicos/mágicos, muertes, giros de canon, nuevos poderes y decisiones del protagonista no explícitas.
+- [ ] Registrar valor anterior/propuesto/aceptado, motivo y fuente.
+
+**Criterio de salida:** un intercambio cotidiano se guarda automáticamente; una propuesta incierta no cambia el estado oficial silenciosamente.
+
+### Prioridad P2 — Inspector de contexto y activación de Lorebook
+- [ ] Mostrar las fichas activadas y su disparador.
+- [ ] Sustituir búsquedas accidentales por subcadena por un modo de coincidencia configurable (frase/palabra completa/regex limitada).
+- [ ] Añadir presupuesto de contexto por tokens aproximados o caracteres, además del máximo de entradas.
+- [ ] Ordenar por prioridad y pertinencia de entidades/escena.
+- [ ] Probar que una ficha con una palabra corta (por ejemplo un nombre de corriente mágica) no se active en texto ajeno por accidente.
+
+**Criterio de salida:** el usuario puede inspeccionar el contexto enviado y entender por qué entró o no entró una ficha.
+
+### Prioridad P3 — Undo, editar y regenerar de forma segura
+- [ ] Crear snapshot o conjunto reversible de cambios por turno.
+- [ ] Al editar/regenerar, revertir los cambios de ese turno antes de reaplicarlos.
+- [ ] Conservar mensajes/respuestas reemplazados en historial de versiones, no borrarlos sin rastro.
+- [ ] Asegurar idempotencia para no duplicar gasto de Eco, compra, cambio de relación o avance de reloj.
+- [ ] Añadir pruebas de rollback de eventos, inventario, relaciones, tiempo y poderes.
+
+**Criterio de salida:** regenerar una respuesta no duplica ni conserva efectos de la versión que ya no se muestra.
+
+### Prioridad P4 — Pruebas de integración reales y de larga duración
+- [ ] Ejecutar la instalación desde cero en Windows/Chromium.
+- [ ] Probar una llamada controlada a OpenAI y otra a Gemini usando claves del usuario en su PC; no almacenar claves en Git.
+- [ ] Ejecutar 50–100 turnos con conversación grupal, mensajes privados, compras/consumos, viajes y Eco.
+- [ ] Reiniciar aplicación, restaurar backup y verificar que el estado sea idéntico.
+- [ ] Medir uso del contexto y coste por turno en cada proveedor cuando esos datos estén disponibles.
+
+**Criterio de salida:** la partida sobrevive a reinicios y no hay fugas de conocimiento ni efectos duplicados en el conjunto de pruebas.
+
+### Referencias nuevas para la segunda ronda
+
+- Openovel: https://github.com/Feed-Scription/openovel
+- Chronicler: https://github.com/yantrikos/chronicler
+- RPG Tracker para SillyTavern: https://github.com/Soyo5800/rpg-tracker-for-sillytavern
+- Open Dungeon: https://github.com/newideas99/open-dungeon
+- Gamentic: https://github.com/hec-ovi/gamentic
+- World Info/Lorebook de SillyTavern: https://docs.sillytavern.app/usage/worldinfo/
+- Structured Outputs de OpenAI: https://developers.openai.com/api/docs/guides/structured-outputs
+- Structured Output de Gemini: https://ai.google.dev/gemini-api/docs/structured-output
+- Transacciones SQLite: https://www.sqlite.org/transactional.html
