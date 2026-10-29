@@ -55,7 +55,7 @@ Las aplicaciones futuras se descubren mediante observación y experimentación, 
 Presentar el mundo, la vulnerabilidad del protagonista y el grupo inicial de tres aventureras. No explicar todos los misterios de golpe.
 
 ### Inicio
-El protagonista despierta o aparece en un claro boscoso, vestido únicamente con camisa y pantalones largos. No tiene equipo ni provisiones. Cinco aventureros adultos lo encuentran durante un viaje: una guerrera de 26 años, un lancero de 27, una maga de 24, una arquera de 25 y un encargado de provisiones de 22.
+El protagonista despierta o aparece en un claro boscoso, vestido únicamente con camisa y pantalones largos. No tiene equipo ni provisiones. Tres aventureras adultas lo encuentran durante un viaje: Brina Solcor, espadachina de 26 años; Maelis Orven, maga de 24; y Sera Linde, arquera de 25.
 
 ### Reacción del grupo
 Cada integrante reacciona de forma distinta. La guerrera prioriza la seguridad; el lancero sospecha una posible emboscada; la maga siente curiosidad por el origen del recién llegado; la arquera vigila el perímetro; el encargado de provisiones se preocupa por los recursos del grupo. No son obligados a rescatarlo: la reacción depende de lo que diga y haga el jugador.
@@ -1153,7 +1153,7 @@ COMANDOS: /accion <intento>; /psiquico <poder> -> <objetivo> | <intento>; /hechi
 
 Fantasía medieval abierta. El Bosque de las Bestias ocupa el centro del continente y su corazón sigue inexplorado. Al este están el Reino de Liria y Valdoria; al norte, el Mar de las Agujas y Puerto Nácar; al sur, Tazhar y Suralba; Nhal-Seren está oculta en el borde septentrional del bosque; al oeste se alzan las Montañas del Fin.
 
-Estado inicial del reloj: Día 1, 08:00, mañana. Lugar: un claro del Bosque de las Bestias. Panorama: aire fresco, bruma ligera y suelo húmedo. En el claro hay una persona adulta con camisa y pantalones, sin dinero, comida ni equipo. Cinco aventureros se encuentran cerca: Brina, guerrera prudente; Ivar, lancero desconfiado; Maelis, maga curiosa; Sera, arquera alerta; y Timo, encargado de provisiones. No conocen a la persona ni están obligados a ayudar.
+Estado inicial del reloj: Día 1, 08:00, mañana. Lugar: un claro del Bosque de las Bestias. Panorama: aire fresco, bruma ligera y suelo húmedo. En el claro hay una persona adulta con camisa y pantalones, sin dinero, comida ni equipo. Tres aventureras se encuentran cerca: Brina Solcor, espadachina prudente; Maelis Orven, maga curiosa; y Sera Linde, arquera alerta. No conocen a la persona ni están obligadas a ayudar.
 
 Objetivo abierto: vivir, conseguir recursos, viajar, aprender, conocer gente o tomar cualquier rumbo razonable. No hay elegido ni misión obligatoria. El volcán erupcionará como máximo el día 7, salvo que una cadena causal verosímil lo adelante. Eco tiene tres usos por persona y nunca se recarga.
 
