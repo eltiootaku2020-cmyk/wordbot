@@ -27,7 +27,7 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 - Objects and creatures are distinct; orders retain last location and remain pending/unknown until confirmed.
 - Eco on trees stays a sensory discovery; mechanism, reach, cost, duration and counter remain unconfirmed.
 - Master Lorebook's outdated 08:03/08:15 examples were replaced with four-hour blocks.
-- Automated audit script/workflow added in GitHub; pending actual Actions result and manual SpicyChat import/roleplay test.
+- Automated audit passed on v1.19 with 625 checks: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40934571847. Manual SpicyChat import and real roleplay tests remain pending.
 
 ### 1. Isekai sin Destino
 - Carpeta: `proyectos/isekai-sin-destino/`
@@ -77,12 +77,12 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 - Rama previa de Isekai: `docs/isekai-spicychat-lorebook` — respaldo de la línea de trabajo anterior, sin borrar.
 - Rama previa de DanMachi: `docs/danmachi-spicychat` — respaldo de la línea de trabajo anterior, sin borrar.
 
-### Histórico: Isekai v1.15 (superado por v1.18)
+### Histórico: Isekai v1.15 (superado por v1.19)
 - Añadido el descubrimiento de Eco en árboles como sensación interna, no visual, con límites de prueba y parámetros desconocidos explícitos.
 - Añadido inventario inicial limitado (pañuelo gastado, bolsita vacía, cordel corto); el resto del catálogo sigue siendo posibilidades, no regalos automáticos.
 - Añadidas pautas para diálogo espontáneo completo de PNJ cercanos y metodología de identidad/estado/conocimiento/objetivos.
 - Añadido documento de investigación con fuentes de SpicyChat, SillyTavern y diseño de PNJ.
-- En la revisión histórica v1.15 se registró una Lorebook de 76 entradas; la revisión v1.18 actual tiene 77, con contadores de campos verificados.
+- En la revisión histórica v1.15 se registró una Lorebook de 76 entradas; la revisión v1.18 incorporó 77 entradas y contadores de campos; v1.19 añade la auditoría automática y la corrección de coherencia del reloj.
 - Añadidas instrucciones completas para `/estado` y `/guardar` al esquema cerrado.
 - Pendiente de importar y probar en SpicyChat; no se declara validado.
 
@@ -112,7 +112,7 @@ El usuario aclaró que al decir IA se refiere al chat normal de ChatGPT o Gemini
 Cada prompt preparado devuelve una huella SHA-256 del contexto exacto. Al pegar la respuesta, el servidor reconstruye el contexto actual y lo compara antes de aceptar el turno; si la partida cambió entre ambas acciones, rechaza la respuesta y pide volver a preparar el prompt. Esta comprobación evita aplicar una escena basada en un estado antiguo. Está cubierta por una prueba de CI.
 
 
-## Histórico: Isekai v1.16 / Lorebook v1.17 (superado por v1.18)
+## Histórico: Isekai v1.16 / Lorebook v1.17 (superado por v1.19)
 - Personality incorpora foco narrativo y movimiento/acción de PNJ o entorno cada 1–2 respuestas, sin controlar al protagonista.
 - Guardado completo en varias partes para respetar el límite de 180 tokens por respuesta en Free. Mantiene cronología causal de hitos aún relevantes y los 3–5 sucesos recientes por separado.
 - Nuevo segmento de registro de Eco por uso: intención/objetivo/reacción/resultado/efectos por eje/Δ en puntos/testigos/coste y duración si se conocen.
