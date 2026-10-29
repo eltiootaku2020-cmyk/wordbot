@@ -2239,8 +2239,20 @@ def create_world_timeline_event(world_id: str, payload: WorldTimelineEventCreate
             )
         except sqlite3.IntegrityError as exc:
             raise HTTPException(status_code=409, detail="Ya existe un acontecimiento con ese identificador en este mundo.") from exc
+        # If this date is already in the past for an existing session, record
+        # the event immediately as historical world state rather than waiting
+        # for that session's next turn.
+        sessions = conn.execute(
+            "SELECT id,day,minute_of_day FROM sessions WHERE world_id=?", (world_id,)
+        ).fetchall()
+        caught_up = 0
+        for session_item in sessions:
+            current_total = (int(session_item["day"]) - 1) * 1440 + int(session_item["minute_of_day"])
+            caught_up += len(fire_due_world_events(
+                conn, session_item["id"], current_total, current_total
+            ))
     return {"id": event_id, "world_id": world_id, "external_uid": payload.external_uid,
-            "title": payload.title, "status": "confirmed"}
+            "title": payload.title, "status": "confirmed", "sessions_caught_up": caught_up}
 
 
 @app.get("/api/worlds/{world_id}/timeline")
@@ -2312,6 +2324,8 @@ def create_session(world_id: str, payload: SessionCreate):
                 "INSERT INTO session_presence(session_id,entity_id,location,presence_status) VALUES(?,?,?,'present')",
                 (session_id, entity_id, payload.location)
             )
+        starting_total = (int(payload.day) - 1) * 1440 + int(payload.minute_of_day)
+        fire_due_world_events(conn, session_id, starting_total, starting_total)
         for item in payload.initial_inventory:
             carrier = item.carrier_entity_id or payload.protagonist_entity_id
             if carrier not in valid_ids:
