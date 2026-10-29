@@ -1,0 +1,137 @@
+# Arquitectura del gestor local
+
+## 1. Autoridad de datos
+
+El programa local es la fuente de verdad para el estado de la partida. La IA no mantiene ni sustituye esa base de datos: recibe el contexto mínimo, devuelve una narración y propone acontecimientos/cambios. El validador decide qué propuestas se aceptan.
+
+Orden de autoridad:
+
+1. Reglas y canon aprobado del mundo.
+2. Acciones explícitas del usuario y hechos de partida previamente aceptados.
+3. Último estado persistido y registro de eventos.
+4. Lorebook aplicable a la escena.
+5. Propuestas nuevas de la IA, pendientes de validación.
+6. Improvisación narrativa que no contradiga las capas anteriores.
+
+Un rumor no se promueve a hecho confirmado sin evidencia. Una posibilidad en la Lorebook no significa que haya sucedido. La IA no puede reescribir el canon fijo mediante una respuesta de diálogo.
+
+## 2. Ciclo de turno
+
+### A. Entrada
+
+La interfaz guarda el texto original del usuario y los metadatos que conozca: mundo, partida, protagonista, destinatario opcional y momento actual. El programa no debe cambiar el texto original.
+
+### B. Recuperación de contexto
+
+El constructor de contexto selecciona solo:
+
+- Reglas generales prioritarias.
+- Ubicación, hora, clima/panorama y escena actuales.
+- Personajes presentes y sus fichas relevantes.
+- Relación entre interlocutores y eventos recientes de esa relación.
+- Reglas/poderes relevantes para la acción actual.
+- Entradas de Lorebook activadas por palabras clave o por las entidades/lugares presentes.
+- Inventario o recursos si la acción los afecta.
+- Últimos mensajes necesarios para mantener tono y continuidad.
+- Acontecimientos ancla cercanos, sin revelar al protagonista información que desconoce.
+
+Debe existir un límite de contexto configurable. Si el contenido excede el presupuesto, se priorizan reglas, estado actual y fichas de participantes; las entradas menos relevantes se omiten. No se concatena toda la Lorebook por defecto.
+
+### C. Generación
+
+El proveedor recibe instrucciones concisas y el mensaje actual. Se pide una respuesta con dos zonas separadas:
+
+- `narracion`: texto natural que se muestra al usuario.
+- `cambios_propuestos`: acontecimientos y modificaciones estructuradas para validar.
+
+La IA no debe incluir bloques de guardado extensos en el diálogo narrativo. El contrato está documentado en [CONTRATO_RESPUESTA_IA.md](CONTRATO_RESPUESTA_IA.md).
+
+### D. Validación
+
+Antes de escribir el estado:
+
+- Validar el JSON, campos obligatorios, tipos e identificadores.
+- Confirmar que los personajes/lugares/objetos existan o que la creación local esté permitida.
+- Verificar que la IA no decida acciones, palabras, pensamientos ni emociones del protagonista.
+- Verificar cronología, desplazamientos, distancias, objetos, recursos, poderes y límites de uso.
+- Confirmar que cada cambio incluye motivo y referencia al acontecimiento que lo justifica.
+- Rechazar o marcar como pendiente cualquier cambio que contradiga canon, no tenga evidencia o exceda los permisos.
+- No aceptar cambios numéricos de relación sin motivo narrativo suficiente.
+- No aceptar recargas de Eco ni objetos/recursos aparecidos sin causa establecida.
+- Las muertes, cambios permanentes de canon, nuevos poderes, giros irreversibles y cambios de alta repercusión pueden requerir aprobación del usuario según configuración.
+
+### E. Aplicación atómica
+
+Los cambios aceptados se escriben en una transacción de SQLite. Si falla la validación de una operación obligatoria, no se deja la mitad del estado aplicado. El registro conserva valores anteriores/nuevos para permitir auditoría y reversión.
+
+El registro distingue:
+- `accepted`: cambio aceptado y aplicado.
+- `pending`: falta aprobación o evidencia.
+- `rejected`: contradice una regla o no está permitido.
+- `superseded`: una propuesta posterior sustituyó a otra pendiente.
+
+### F. Presentación
+
+La aplicación muestra la narración normal. Puede mostrar una notificación discreta y un panel de cambios, por ejemplo «Hora +1 min; Maelis: confianza −1; objetos: sin cambios». El mensaje técnico completo queda en el registro local, no en la conversación de rol.
+
+## 3. Qué puede proponer la IA
+
+- Diálogos y reacciones de PNJ según carácter y conocimientos.
+- Acontecimientos observables de la escena.
+- Duración aproximada de la acción.
+- Movimiento de los PNJ y del entorno; no el movimiento elegido por el protagonista si el usuario no lo indicó.
+- Cambios de relación con motivo narrativo explícito.
+- Adquisición, uso, pérdida o transferencia de objetos cuando ocurra en la escena.
+- Activaciones y efectos de poderes, con el coste correspondiente.
+- Nuevas observaciones, rumores o hipótesis etiquetados como tales.
+
+La IA no puede por sí sola:
+- Cambiar una regla aprobada del mundo.
+- inventar que el protagonista aceptó, compró, dijo o hizo algo.
+- convertir una sospecha en culpabilidad confirmada.
+- cambiar la cantidad de un objeto sin un acontecimiento que lo explique.
+- restablecer usos de un poder limitado.
+- revelar al protagonista un hecho que ningún personaje conoce sin una fuente narrativa.
+
+## 4. Ejemplo de interacción
+
+Entrada del usuario: «Hola, linda», dirigida a Maelis.
+
+Contexto mínimo enviado: Maelis está presente; ficha de personalidad; relación actual; conversación anterior relevante; reloj y lugar; reglas de diálogo y relaciones. No se envían fichas de todos los personajes del mundo ni el Lorebook completo.
+
+La IA podría narrar que Maelis se sorprende y responde que apenas conoce al protagonista. Puede proponer incomodidad o una impresión temporal. No debería decidir que existe atracción o rechazo permanente sin fundamento.
+
+Si la escena justifica confianza −1, la propuesta debe incluir:
+- ID de Maelis.
+- campo exacto y valor anterior.
+- delta propuesto.
+- motivo.
+- ID del evento narrativo que lo justifica.
+- evidencia textual o descripción breve.
+
+El validador comprueba si esa consecuencia encaja con la regla del mundo. Si la causa es ambigua, registra la reacción como hecho narrativo, pero deja el cambio numérico pendiente o sin modificar.
+
+## 5. Modelo de relación
+
+No existe una sola puntuación que defina toda relación. Las dimensiones son independientes: confianza, sospecha, amistad, respeto, rivalidad, resentimiento, miedo, gratitud/deuda, cooperación y atracción, si corresponde.
+
+Los valores representan intensidad y deben tener causa e historial. La etiqueta «me considera atrevido» no es equivalente a una baja permanente de confianza. Una emoción o impresión puntual puede quedar como evento separado.
+
+El valor `50` no se interpreta automáticamente como neutral universal. Cuando no hay evidencia suficiente, se usa `No registrado` y no un número inventado.
+
+## 6. Tiempo y movimiento
+
+La IA propone una duración estimada y los acontecimientos ocurridos. El programa aplica el reloj según reglas deterministas configuradas por el mundo. La duración explícita indicada por el usuario prevalece. Conversaciones breves no provocan saltos arbitrarios de horas.
+
+El movimiento de un PNJ puede aceptarse si la acción es coherente con la escena. El protagonista solo se mueve conforme a la acción explícita del usuario o a un salto que este haya autorizado.
+
+## 7. Errores y recuperación
+
+Si la IA responde con JSON inválido, falta un ID o el resultado contradice el canon:
+1. No aplicar cambios.
+2. Guardar la respuesta fallida para diagnóstico.
+3. Reintentar una sola vez con una corrección breve si es seguro.
+4. Si sigue fallando, mostrar la narración solo si se puede separar sin ambigüedad; en caso contrario, mostrar un error y conservar el estado anterior.
+5. Permitir al usuario editar o aprobar las propuestas pendientes.
+
+El estado no se reconstruye a partir de la memoria del modelo si la base de datos contiene un registro válido.
