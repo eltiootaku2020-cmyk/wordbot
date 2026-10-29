@@ -278,7 +278,7 @@ async function loadMessages() {
     const failedLabel = message.role === "user" && message.generation_status === "failed" ? " [INTERRUMPIDO / ERROR]" : "";
     addMessage(
       message.role === "user" ? "user" : "assistant",
-      label + undoLabel + failedLabel + recipient + scopeLabel + ":\\n" + message.content,
+      label + undoLabel + failedLabel + recipient + scopeLabel + ":\n" + message.content,
       message.generation_status === "failed"
     );
     if (message.role === "user" && message.generation_status === "failed" && messageMeta.recovery_note) {
