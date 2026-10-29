@@ -154,7 +154,7 @@ Las operaciones de aprobar/rechazar propuestas de estado y eventos ahora se bloq
 Se detectó que `asyncio.CancelledError` puede escapar de los manejadores `except Exception`, dejando un turno persistido en `processing` si la tarea se cancela pero la aplicación continúa viva. El cambio captura esa cancelación alrededor de `provider.generate`, marca la solicitud como `failed` de forma transaccional, registra el incidente y vuelve a propagar la cancelación. La prueba conserva el texto original, verifica que el estado de juego no cambie y vuelve a intentar el mismo `request_id` una sola vez.
 
 - PR #14: https://github.com/eltiootaku2020-cmyk/wordbot/pull/14.
-- CI del HEAD de PR #14: **89 pruebas Python aprobadas** y sintaxis JavaScript correcta; queda una advertencia no bloqueante de Starlette/httpx: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40946590907.
+- CI del HEAD de PR #14 aprobó **89 pruebas Python** y sintaxis JavaScript correcta; la CI posterior al merge también pasó con el mismo resultado: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40947007582. Queda una advertencia no bloqueante de Starlette/httpx.
 - Nota de alcance: CI usa proveedor simulado. No constituye validación de Windows, Chromium ni de la cuenta real ChatGPT/Gemini. La campaña real de 50–100 turnos aún no se ejecutó.
 
 ### Comparación externa incorporada
