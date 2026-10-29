@@ -101,12 +101,12 @@ by_uid = {
 }
 
 required_content = {
-    70: ["/guardar", "No inventes", "180 tokens"],
-    71: ["goblin", "se enteran después", "última ubicación"],
+    70: ["/guardar", "No inventes datos", "180 tokens"],
+    71: ["goblin", "se enteran después", "última ubicación confirmada"],
     72: ["No registrado", "No inventes campos", "objeto"],
     73: ["frases cortadas", "Ivar", "si se enteran después"],
     74: ["sensación interna", "alcance", "coste", "duración"],
-    75: ["pañuelo gastado", "cordel de cáñamo", "No hay dinero", "no son regalos"],
+    75: ["pañuelo gastado", "cordel de cáñamo", "Sin dinero", "Son posibilidades, no regalos"],
     77: ["Δ pp", "sube/baja/sin cambio", "intención no es resultado"],
 }
 for uid, fragments in required_content.items():
