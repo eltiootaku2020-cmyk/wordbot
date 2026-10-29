@@ -58,7 +58,7 @@ def keyword_matches(text: str, keyword: str) -> bool:
     normalized_keyword = " ".join((keyword or "").casefold().split())
     if not normalized_keyword:
         return False
-    return re.search(rf"(?<!\\w){re.escape(normalized_keyword)}(?!\\w)", normalized_text) is not None
+    return re.search(rf"(?<!\w){re.escape(normalized_keyword)}(?!\w)", normalized_text) is not None
 
 
 def new_id() -> str:
@@ -368,7 +368,7 @@ def build_context(
         "world": {
             "name": session["world_name"],
             "canon_core": canon_text[:MAX_CANON_CORE_CHARS] +
-                          ("\\n[Canon largo recortado; recuperar fichas específicas desde Lorebook.]"
+                          ("\n[Canon largo recortado; recuperar fichas específicas desde Lorebook.]"
                            if len(canon_text) > MAX_CANON_CORE_CHARS else "")
         },
         "state": {
