@@ -1,8 +1,8 @@
-# Isekai sin Destino — instalación ligera y continuidad (v1.15 propuesta)
+# Isekai sin Destino — instalación ligera y continuidad (Personality v1.15; Lorebook v1.16 propuesta)
 
 Guía práctica para montar el bot con una carga inicial baja de contexto y reducir los olvidos durante partidas largas.
 
-Documento maestro y Lorebook completa (76 entradas):
+Documento maestro y Lorebook completa (76 entradas, revisión v1.16):
 https://github.com/eltiootaku2020-cmyk/wordbot/blob/docs/historias-organizadas/proyectos/isekai-sin-destino/LOREBOOK_MAESTRA.md
 
 Registro interno v1.15: esquema cerrado, porcentajes, objetos y órdenes:
