@@ -57,6 +57,8 @@ def normalized_schema(model: type[NarratorResponse], resolve_refs: bool = False)
         return out
 
     schema = visit(raw)
+    if resolve_refs:
+        schema.pop("$defs", None)
     schema.pop("title", None)
     return schema
 
