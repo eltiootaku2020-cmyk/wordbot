@@ -2008,3 +2008,171 @@ def test_multi_day_skip_updates_clock_and_location_without_applying_model_side_e
             ).fetchone()
         assert presence["location"] == "Aldea"
         assert presence["presence_status"] == "present"
+
+
+def test_duplicate_state_change_refs_are_quarantined_and_do_not_block_the_session():
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seed["world_id"], seed["session_id"]
+        entities = client.get(f"/api/worlds/{world_id}/entities").json()
+        protagonist = next(entity for entity in entities if entity["kind"] == "protagonist")
+        maelis = next(entity for entity in entities if entity["name"] == "Maelis Orven")
+        text = "Le pregunto a Maelis cómo se encuentra."
+        prepared = client.post(
+            f"/api/sessions/{session_id}/manual-prompt",
+            json={
+                "text": text, "recipient_id": maelis["id"],
+                "provider": "chatgpt_web", "visibility": "private"
+            }
+        )
+        assert prepared.status_code == 200, prepared.text
+        duplicate_change = {
+            "ref": "change-duplicate-1",
+            "entity_id": maelis["id"],
+            "field": "friendship",
+            "operation": "delta",
+            "numeric_value": 2,
+            "text_value": "",
+            "reason": "Maelis responde de manera cordial.",
+            "event_ref": "event-dialogue-1",
+            "requires_approval": False
+        }
+        external = json.dumps({
+            "narration": "Maelis te escucha y responde con cautela.",
+            "events": [{
+                "ref": "event-dialogue-1", "kind": "dialogue",
+                "entity_id": maelis["id"],
+                "description": "Maelis escucha la pregunta del protagonista.",
+                "witness_ids": [protagonist["id"], maelis["id"]]
+            }],
+            "state_changes": [duplicate_change, {**duplicate_change, "numeric_value": 3}],
+            "elapsed_minutes": 1,
+            "movements": [], "inventory_ops": [], "resource_ops": [],
+            "power_uses": [], "pending": []
+        }, ensure_ascii=False)
+        request = {
+            "request_id": "duplicate-state-ref-0001",
+            "text": text, "recipient_id": maelis["id"],
+            "provider": "chatgpt_web", "visibility": "private",
+            "external_response": external,
+            "manual_context_hash": prepared.json()["context_hash"]
+        }
+        response = client.post(f"/api/sessions/{session_id}/turns", json=request)
+        assert response.status_code == 200, response.text
+        assert any("se repite en la respuesta" in note for note in response.json()["pending_notes"])
+
+        changes = client.get(f"/api/sessions/{session_id}/state").json()["pending_changes"]
+        duplicate_audits = [change for change in changes if change["field"] == "friendship"]
+        assert len(duplicate_audits) == 1
+        assert "referencia" in duplicate_audits[0]["reason"].lower()
+
+        # The invalid proposal must not leave a stale processing row that locks the session.
+        follow_up = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json={
+                "request_id": "after-duplicate-ref-0001",
+                "text": "Observo el camino.",
+                "provider": "mock",
+                "visibility": "scene"
+            }
+        )
+        assert follow_up.status_code == 200, follow_up.text
+
+
+def test_duplicate_inventory_and_resource_operations_never_apply_twice():
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seed["world_id"], seed["session_id"]
+        entities = client.get(f"/api/worlds/{world_id}/entities").json()
+        protagonist = next(entity for entity in entities if entity["kind"] == "protagonist")
+        text = "Recibo una recompensa y encuentro pan en una cesta."
+        prepared = client.post(
+            f"/api/sessions/{session_id}/manual-prompt",
+            json={"text": text, "provider": "gemini_web", "visibility": "scene"}
+        )
+        assert prepared.status_code == 200, prepared.text
+        duplicate_resource = {
+            "operation": "gain", "resource_key": "monedas",
+            "display_name": "Monedas", "quantity": 5, "unit": "monedas",
+            "reason": "Recompensa recibida.", "event_ref": "resource-event-1"
+        }
+        duplicate_item = {
+            "operation": "acquire", "item_name": "pan", "quantity": 2,
+            "condition": "normal", "carrier_entity_id": protagonist["id"],
+            "location": "Claro en el Bosque de las Bestias",
+            "reason": "Hallazgo recogido.", "event_ref": "object-event-1",
+            "cost": 0, "currency_key": "monedas"
+        }
+        external = json.dumps({
+            "narration": "Encuentras pan en una cesta y alguien anuncia una recompensa.",
+            "events": [
+                {
+                    "ref": "resource-event-1", "kind": "resource",
+                    "entity_id": protagonist["id"],
+                    "description": "El protagonista recibe monedas como recompensa.",
+                    "witness_ids": [protagonist["id"]]
+                },
+                {
+                    "ref": "object-event-1", "kind": "object",
+                    "entity_id": protagonist["id"],
+                    "description": "El protagonista encuentra pan en una cesta.",
+                    "witness_ids": [protagonist["id"]]
+                }
+            ],
+            "state_changes": [], "elapsed_minutes": 1, "movements": [],
+            "inventory_ops": [duplicate_item, duplicate_item],
+            "resource_ops": [duplicate_resource, duplicate_resource],
+            "power_uses": [], "pending": []
+        }, ensure_ascii=False)
+        response = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json={
+                "request_id": "duplicate-operations-0001",
+                "text": text, "provider": "gemini_web", "visibility": "scene",
+                "external_response": external,
+                "manual_context_hash": prepared.json()["context_hash"]
+            }
+        )
+        assert response.status_code == 200, response.text
+        state = client.get(f"/api/sessions/{session_id}/state").json()
+        assert not any(item["display_name"].casefold() == "pan" for item in state["inventory"])
+        assert not any(resource["resource_key"] == "monedas" for resource in state["resources"])
+        assert any("varias veces" in note for note in response.json()["pending_notes"])
+        assert any("varias veces" in note for note in response.json()["pending_notes"])
+
+
+def test_unexpected_state_application_failure_marks_turn_failed_and_allows_same_request_retry(monkeypatch):
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+        session_id = seed["session_id"]
+        payload = {
+            "request_id": "apply-failure-recovery-001",
+            "text": "Observo el sendero.",
+            "provider": "mock",
+            "visibility": "scene"
+        }
+        original_apply = main_module.apply_narrator_result
+
+        def fail_once(*args, **kwargs):
+            raise RuntimeError("injected test failure during atomic application")
+
+        monkeypatch.setattr(main_module, "apply_narrator_result", fail_once)
+        failed = client.post(f"/api/sessions/{session_id}/turns", json=payload)
+        assert failed.status_code == 502
+        assert "No se aplicaron cambios" in failed.json()["detail"]
+
+        messages = client.get(f"/api/sessions/{session_id}/messages").json()
+        failed_user = next(
+            message for message in messages
+            if message["role"] == "user" and message["content"] == payload["text"]
+        )
+        assert failed_user["generation_status"] == "failed"
+
+        monkeypatch.setattr(main_module, "apply_narrator_result", original_apply)
+        recovered = client.post(f"/api/sessions/{session_id}/turns", json=payload)
+        assert recovered.status_code == 200, recovered.text
+        assert recovered.json()["turn_id"] == failed_user["turn_id"]
+
+        messages_after = client.get(f"/api/sessions/{session_id}/messages").json()
+        assert len([m for m in messages_after if m["role"] == "user" and m["content"] == payload["text"]]) == 1
+        assert len([m for m in messages_after if m["role"] == "assistant" and m["turn_id"] == failed_user["turn_id"]]) == 1
