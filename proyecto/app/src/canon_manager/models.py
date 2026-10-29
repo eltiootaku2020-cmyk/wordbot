@@ -166,6 +166,10 @@ class ApprovalRequest(StrictModel):
     initial_value: float | None = Field(default=None, ge=0, le=100)
 
 
+class SessionRestoreRequest(StrictModel):
+    backup_name: str = Field(min_length=1, max_length=200)
+    confirmation: Literal["RESTAURAR"]
+
 
 class LocalSettingsUpdate(StrictModel):
     lore_budget_chars: int = Field(ge=500, le=12000)
