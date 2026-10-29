@@ -624,3 +624,53 @@ def test_routine_drop_transfer_and_condition_are_applied_with_source_events():
         assert all(row["status"] == "accepted" for row in changes)
         assert len([note for note in applied if "Objeto actualizado" in note or "Estado del objeto actualizado" in note]) == 3
         assert not any("Inventario:" in note for note in pending)
+
+
+
+def test_context_preview_reports_lore_triggers_and_budget_without_calling_provider():
+    with TestClient(app) as client:
+        started = client.post("/api/presets/isekai-sin-destino", json={})
+        assert started.status_code == 200, started.text
+        session_id = started.json()["session_id"]
+
+        specific = client.post(
+            f"/api/sessions/{session_id}/context-preview",
+            json={
+                "text": "Quiero aprender sobre la corriente Brasa.",
+                "visibility": "scene"
+            }
+        )
+        assert specific.status_code == 200, specific.text
+        preview = specific.json()
+        diagnostics = preview["diagnostics"]
+        lore_titles = {entry["title"] for entry in preview["context"]["relevant_lore"]}
+        assert "Seis corrientes mágicas" in lore_titles
+        matching = next(item for item in diagnostics["selected_lore"] if item["title"] == "Seis corrientes mágicas")
+        assert any(hit["source"] == "mensaje actual" and hit["keyword"] == "corriente Brasa" for hit in matching["triggered_by"])
+        assert diagnostics["lore_chars_used"] <= diagnostics["lore_chars_budget"]
+        assert diagnostics["lore_entries_selected"] <= diagnostics["lore_entries_max"]
+        assert len(preview["context"]["world"]["canon_core"]) <= 3050
+
+        accidental = client.post(
+            f"/api/sessions/{session_id}/context-preview",
+            json={"text": "Entramos en una brasería cercana.", "visibility": "scene"}
+        )
+        assert accidental.status_code == 200, accidental.text
+        accidental_titles = {entry["title"] for entry in accidental.json()["context"]["relevant_lore"]}
+        assert "Seis corrientes mágicas" not in accidental_titles
+        assert accidental.json()["diagnostics"]["context_characters"] > 0
+
+
+def test_private_context_preview_requires_present_recipient():
+    with TestClient(app) as client:
+        started, entities = _create_state_ops_world(client)
+        preview = client.post(
+            f"/api/sessions/{started['session_id']}/context-preview",
+            json={
+                "text": "Hola",
+                "recipient_id": "",
+                "visibility": "private"
+            }
+        )
+        assert preview.status_code == 422
+        assert "requiere destinatario" in preview.json()["detail"]
