@@ -76,6 +76,76 @@ def test_backup_endpoint_creates_a_copy():
         assert Path(data["path"]).exists()
 
 
+def test_interrupted_turn_is_recovered_without_losing_user_message():
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+        session_id = seed["session_id"]
+        turn_id = "interrupted-" + uuid.uuid4().hex
+        request_id = "interrupted-request-" + uuid.uuid4().hex[:16]
+        with database.transaction() as conn:
+            turn_index = conn.execute(
+                "SELECT COALESCE(MAX(turn_index),0)+1 AS n FROM messages WHERE session_id=?",
+                (session_id,)
+            ).fetchone()["n"]
+            conn.execute(
+                "INSERT INTO messages(id,session_id,turn_id,client_request_id,turn_index,role,"
+                "recipient_entity_id,content,provider,generation_status,metadata_json) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    uuid.uuid4().hex, session_id, turn_id, request_id, turn_index, "user", "",
+                    "Sí, sigo por el sendero.", "mock", "processing",
+                    json.dumps({"visibility": "scene", "audience_ids": []})
+                )
+            )
+
+        assert main_module.recover_interrupted_turns() == 1
+        messages = client.get(f"/api/sessions/{session_id}/messages").json()
+        recovered = next(message for message in messages if message["turn_id"] == turn_id)
+        assert recovered["generation_status"] == "failed"
+        assert recovered["content"] == "Sí, sigo por el sendero."
+        assert recovered["client_request_id"] == request_id
+        metadata = json.loads(recovered["metadata_json"])
+        assert metadata["recovered_after_restart"] is True
+        assert "No se aplicaron cambios" in metadata["recovery_note"]
+        assert main_module.recover_interrupted_turns() == 0
+
+
+def test_backup_for_one_session_is_not_blocked_by_another_session_turn():
+    with TestClient(app) as client:
+        first = client.post("/api/demo/seed", json={}).json()
+        second_response = client.post(
+            "/api/worlds/start",
+            json={
+                "name": "Otra partida para respaldo " + uuid.uuid4().hex,
+                "protagonist_name": "Protagonista",
+                "session_name": "Partida independiente",
+                "location": "Otra ubicación",
+                "cast": [],
+                "initial_inventory": []
+            }
+        )
+        assert second_response.status_code == 200, second_response.text
+        second = second_response.json()
+        assert first["session_id"] != second["session_id"]
+
+        with database.transaction() as conn:
+            conn.execute(
+                "INSERT INTO messages(id,session_id,turn_id,client_request_id,turn_index,role,"
+                "recipient_entity_id,content,provider,generation_status,metadata_json) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    uuid.uuid4().hex, second["session_id"], "other-session-processing",
+                    "processing-request-" + uuid.uuid4().hex[:12], 999, "user", "",
+                    "Un turno de otra partida sigue en curso.", "mock", "processing",
+                    json.dumps({"visibility": "scene", "audience_ids": []})
+                )
+            )
+
+        response = client.post(f"/api/sessions/{first['session_id']}/backup", json={})
+        assert response.status_code == 200, response.text
+        assert response.json()["backup_created"] is True
+
+
 def test_pending_major_event_can_be_approved_or_rejected():
     with TestClient(app) as client:
         seed = client.post("/api/demo/seed", json={}).json()

@@ -7,6 +7,7 @@ import re
 import sqlite3
 import unicodedata
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -39,7 +40,52 @@ logger = logging.getLogger(__name__)
 database = Database(settings.db_path)
 database.initialize()
 
-app = FastAPI(title="Gestor local de canon", version="0.1.0")
+def recover_interrupted_turns() -> int:
+    """Mark unfinished user turns as failed after an application restart.
+
+    The original user text and audience metadata remain available so the UI can
+    offer a safe retry. No narrator output or state change is fabricated.
+    """
+    recovered = 0
+    with database.transaction() as conn:
+        rows = conn.execute(
+            "SELECT id,metadata_json FROM messages "
+            "WHERE role='user' AND generation_status='processing'"
+        ).fetchall()
+        for row in rows:
+            try:
+                metadata = json.loads(row["metadata_json"] or "{}")
+                if not isinstance(metadata, dict):
+                    metadata = {}
+            except (TypeError, ValueError, json.JSONDecodeError):
+                metadata = {}
+            metadata["recovered_after_restart"] = True
+            metadata["recovery_note"] = (
+                "El turno se interrumpió antes de terminar. No se aplicaron "
+                "cambios; revisa el mensaje y reintenta."
+            )
+            cursor = conn.execute(
+                "UPDATE messages SET generation_status='failed',metadata_json=? "
+                "WHERE id=? AND role='user' AND generation_status='processing'",
+                (json.dumps(metadata, ensure_ascii=False), row["id"])
+            )
+            recovered += max(0, cursor.rowcount)
+    return recovered
+
+
+@asynccontextmanager
+async def app_lifespan(_: FastAPI):
+    """Recover stale in-progress markers before the local UI accepts new turns."""
+    recovered = recover_interrupted_turns()
+    if recovered:
+        logger.warning(
+            "Se recuperaron %s turno(s) interrumpido(s) tras reiniciar la aplicación.",
+            recovered
+        )
+    yield
+
+
+app = FastAPI(title="Gestor local de canon", version="0.1.0", lifespan=app_lifespan)
 STATIC_DIR = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
@@ -2065,7 +2111,7 @@ def get_messages(session_id: str):
         if conn.execute("SELECT 1 FROM sessions WHERE id=?", (session_id,)).fetchone() is None:
             raise HTTPException(status_code=404, detail="Partida no encontrada.")
         return [dict(row) for row in conn.execute(
-            "SELECT id,turn_id,turn_index,role,recipient_entity_id,content,provider,generation_status,metadata_json,created_at "
+            "SELECT id,turn_id,client_request_id,turn_index,role,recipient_entity_id,content,provider,generation_status,metadata_json,created_at "
             "FROM messages WHERE session_id=? ORDER BY turn_index ASC, CASE role WHEN 'user' THEN 0 ELSE 1 END ASC, created_at ASC", (session_id,)
         ).fetchall()]
 
@@ -2687,7 +2733,9 @@ def backup_session_database(session_id: str):
         if conn.execute("SELECT 1 FROM sessions WHERE id=?", (session_id,)).fetchone() is None:
             raise HTTPException(status_code=404, detail="Partida no encontrada.")
         in_progress = conn.execute(
-            "SELECT 1 FROM messages WHERE role='user' AND generation_status='processing' LIMIT 1"
+            "SELECT 1 FROM messages WHERE session_id=? AND role='user' "
+            "AND generation_status='processing' LIMIT 1",
+            (session_id,)
         ).fetchone()
         if in_progress:
             raise HTTPException(

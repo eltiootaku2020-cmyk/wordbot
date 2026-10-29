@@ -158,6 +158,7 @@ let lastState = null;
 let failedRequest = null;
 let latestCompletedTurnId = "";
 let preparedManualRequest = null;
+let recoverableFailure = null;
 
 async function api(path, options) {
   const init = Object.assign({headers:{"Content-Type":"application/json"}}, options || {});
@@ -246,22 +247,43 @@ async function loadMessages() {
   const messages = await api("/api/sessions/" + currentSession + "/messages");
   clearChildren(el("chat"));
   latestCompletedTurnId = "";
+  let latestCompletedIndex = -1;
   for (const message of messages) {
-    if (!["complete", "undone"].includes(message.generation_status) && message.role === "user") continue;
     if (message.role === "assistant" && message.generation_status === "complete") {
       latestCompletedTurnId = message.turn_id;
+      latestCompletedIndex = Math.max(latestCompletedIndex, Number(message.turn_index) || 0);
     }
+  }
+  const failedUsers = messages
+    .filter(message => message.role === "user" && message.generation_status === "failed"
+      && (Number(message.turn_index) || 0) > latestCompletedIndex)
+    .sort((a, b) => (Number(b.turn_index) || 0) - (Number(a.turn_index) || 0));
+  recoverableFailure = failedUsers.length ? failedUsers[0] : null;
+  if (recoverableFailure) {
+    const manual = ["chatgpt_web", "gemini_web"].includes(recoverableFailure.provider);
+    el("retryButton").hidden = false;
+    el("retryButton").textContent = manual ? "Recuperar turno interrumpido" : "Reintentar último envío";
+  } else if (!failedRequest) {
+    el("retryButton").hidden = true;
+    el("retryButton").textContent = "Reintentar último envío";
+  }
+  for (const message of messages) {
+    if (![ "complete", "undone", "failed" ].includes(message.generation_status) && message.role === "user") continue;
     const label = message.role === "user" ? "Tú" : message.role === "assistant" ? "Narrador" : "Sistema";
     const recipient = message.recipient_entity_id ? " → " + (entityNames[message.recipient_entity_id] || "destinatario") : "";
     let messageMeta = {};
     try { messageMeta = JSON.parse(message.metadata_json || "{}"); } catch (_) {}
     const scopeLabel = messageMeta.visibility === "private" ? " [PRIVADO]" : "";
     const undoLabel = message.generation_status === "undone" ? " [ANULADO]" : "";
+    const failedLabel = message.role === "user" && message.generation_status === "failed" ? " [INTERRUMPIDO / ERROR]" : "";
     addMessage(
       message.role === "user" ? "user" : "assistant",
-      label + undoLabel + recipient + scopeLabel + ":\n" + message.content,
+      label + undoLabel + failedLabel + recipient + scopeLabel + ":\n" + message.content,
       message.generation_status === "failed"
     );
+    if (message.role === "user" && message.generation_status === "failed" && messageMeta.recovery_note) {
+      addMessage("assistant", "[Recuperación]\n" + messageMeta.recovery_note, true);
+    }
   }
 }
 function renderState(payload) {
@@ -705,7 +727,43 @@ el("applyManualResponse").onclick = async () => {
   }
 };
 el("retryButton").onclick = async () => {
-  if (failedRequest) await sendTurn(failedRequest);
+  try {
+    if (!recoverableFailure) {
+      if (failedRequest) await sendTurn(failedRequest);
+      return;
+    }
+    const message = recoverableFailure;
+    let metadata = {};
+    try { metadata = JSON.parse(message.metadata_json || "{}"); } catch (_) {}
+    const provider = message.provider || "mock";
+    const request = {
+      sessionId: currentSession,
+      payload: {
+        request_id: message.client_request_id || ("recovery-" + Date.now() + "-" + Math.random().toString(16).slice(2)),
+        text: message.content,
+        recipient_id: message.recipient_entity_id || "",
+        provider,
+        visibility: metadata.visibility === "private" ? "private" : "scene"
+      }
+    };
+    if (["chatgpt_web", "gemini_web"].includes(provider)) {
+      // The response from a consumer web chat is not stored. Prepare a fresh prompt
+      // and ask the user to paste a new answer instead of inventing or reusing one.
+      el("messageInput").value = message.content;
+      el("providerSelect").value = provider;
+      el("providerSelect").onchange();
+      el("visibilitySelect").value = request.payload.visibility;
+      el("recipientSelect").value = request.payload.recipient_id;
+      preparedManualRequest = null;
+      await prepareManualTurn(request);
+      setStatus("Turno interrumpido recuperado: revisa el prompt nuevo y pega la respuesta de ChatGPT/Gemini.", true);
+      return;
+    }
+    failedRequest = request;
+    await sendTurn(request);
+  } catch (err) {
+    setStatus(err.message, false);
+  }
 };
 el("undoTurnButton").onclick = async () => {
   try {
