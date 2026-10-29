@@ -7,6 +7,7 @@ import re
 import sqlite3
 import unicodedata
 import uuid
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -38,9 +39,6 @@ settings = Settings()
 logger = logging.getLogger(__name__)
 database = Database(settings.db_path)
 database.initialize()
-
-app = FastAPI(title="Gestor local de canon", version="0.1.0")
-
 
 def recover_interrupted_turns() -> int:
     """Mark unfinished user turns as failed after an application restart.
@@ -75,8 +73,8 @@ def recover_interrupted_turns() -> int:
     return recovered
 
 
-@app.on_event("startup")
-def recover_interrupted_turns_on_startup() -> None:
+@asynccontextmanager
+async def app_lifespan(_: FastAPI):
     """Recover stale in-progress markers before the local UI accepts new turns."""
     recovered = recover_interrupted_turns()
     if recovered:
@@ -84,8 +82,10 @@ def recover_interrupted_turns_on_startup() -> None:
             "Se recuperaron %s turno(s) interrumpido(s) tras reiniciar la aplicación.",
             recovered
         )
+    yield
 
 
+app = FastAPI(title="Gestor local de canon", version="0.1.0", lifespan=app_lifespan)
 STATIC_DIR = Path(__file__).parent / "static"
 app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
