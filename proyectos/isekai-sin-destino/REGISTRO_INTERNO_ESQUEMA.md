@@ -1,4 +1,4 @@
-# Registro interno y esquema cerrado — Isekai sin Destino v1.18
+# Registro interno y esquema cerrado — Isekai sin Destino v1.19
 
 **Propósito:** mantener continuidad dentro del contexto activo de SpicyChat y producir guardados detallados, portables y divididos en partes. Complementa Personality y Lorebook; no las reemplaza.
 
@@ -44,26 +44,28 @@ Solo registra entidades importantes para la continuidad; no a cada transeúnte a
 
 ## 4. Sistema de porcentajes
 
-Los porcentajes son indicadores de intensidad, no probabilidades objetivas. Cada eje se mide por separado; no se calcula una relación total combinando todos los ejes.
+Los porcentajes expresan intensidad de un eje, no probabilidades de que ocurra un evento ni una puntuación total de una persona. La IA crea las reacciones y emociones del momento según personalidad y contexto; solo persiste un cambio cuando hay evidencia.
 
 ### 4.1 Relaciones
 
-Escala de 0–100 por dirección y eje. Ejes: confianza, sospecha, amistad/cercanía, respeto, rivalidad/hostilidad, resentimiento, miedo, gratitud/deuda, cooperación y atracción si surge naturalmente.
+Escala 0–100, por pareja y dirección: confianza, sospecha, amistad/cercanía, respeto, rivalidad/hostilidad, resentimiento, miedo, gratitud/deuda, cooperación y atracción si surge naturalmente. Los ejes son independientes y pueden coexistir.
 
-- **0–100%:** intensidad del eje, no probabilidad ni puntuación global; 50% no es neutral universal.
-- **No registrado:** falta evidencia; no equivale a 0% ni a 50%.
-- **0%:** solo es válido si hay evidencia de intensidad nula; no significa desconocimiento.
-- **Delta (Δ):** valor nuevo menos valor anterior, medido en puntos porcentuales. Ej.: 20%→30% = Δ +10 puntos porcentuales, no +10% relativo. Δ0 significa que ese hecho no cambia el eje; no significa neutralidad ni valor 50%. Registra la causa y no cambies valores sin evidencia.
-- Los ejes pueden coexistir: confianza alta y sospecha alta pueden tener motivos diferentes.
+- No registrado: no hay base suficiente; no equivale a 0%, 50% ni neutralidad.
+- 0%: solo si hay evidencia de intensidad nula en ese eje; no significa desconocido.
+- Tendencia: valor nuevo > anterior = SUBE; nuevo < anterior = BAJA; nuevo = anterior = SIN CAMBIO (Δ0). Sin cambio no significa relación neutral ni 50%.
+- Δ = nuevo−anterior en puntos porcentuales. 20%→30% = Δ +10 puntos, no +10% relativo. Δ−4 es un descenso de cuatro puntos.
+- No calcules Δ si el valor previo era No registrado; fija una base solo con evidencia. Anota el hecho que justifica el cambio. No subas confianza porque el protagonista diga «confía en mí» ni bajes sospecha sin causa. La sospecha no demuestra culpa.
+- Si una actitud resulta neutral, descríbela como tal solo cuando la conducta observable lo respalde. No uses una cifra estándar para neutralidad.
 
 ### 4.2 Habilidades, intereses y sospechas
 
-- **Habilidad:** porcentaje de dominio solo después de una demostración o enseñanza confirmada, con prueba descrita. `No registrado` significa que no se evaluó; 0% no significa “desconocido”.
-- **Interés:** intensidad de un objetivo/tema solo si se declaró o hay patrón observable. Anota cuál y la fuente.
-- **Sospecha:** intensidad dirigida hacia una entidad o hipótesis, con motivo, evidencia y fuente. 100% indica sospecha muy fuerte, no culpabilidad objetiva. Sin evidencia, `No registrado`.
-- **Variación en puntos:** Δ0 = sin cambio por este hecho; ±1–3 = leve; ±4–8 = relevante; ±9–15 = fuerte; ±16 o más = excepcional y requiere un hecho extraordinario. Son puntos porcentuales, no cambios relativos. No apliques delta a valor previo No registrado; fija base solo con evidencia y fuente.
+- Habilidad: porcentaje de dominio solo tras demostración o enseñanza confirmada, con prueba descrita. No registrado significa no evaluada; 0% no es desconocimiento. No otorgues destrezas por oficio, especie o conveniencia narrativa.
+- Interés/objetivo: intensidad porcentual solo si se declara o se observa un patrón; registra tema y fuente. Una acción aislada no demuestra un objetivo permanente.
+- Sospecha/creencia: intensidad hacia una entidad o hipótesis, con motivo, evidencia, fuente y clasificación. 100% indica sospecha muy fuerte, no culpabilidad objetiva.
+- Variación orientativa: Δ0 = sin cambio; ±1–3 puntos = leve; ±4–8 = relevante; ±9–15 = fuerte; ±16 o más = excepcional y requiere evidencia extraordinaria. Son puntos porcentuales, no cambio relativo.
+- Ejemplo: Sospecha de X: 28%→34%, Δ+6 pp, tendencia SUBE; causa: huellas vistas; fuente: observación directa. Si no hay base: No registrado; tendencia no evaluable.
 
-No puntúes ejes no establecidos. Si no existe evidencia, deja `No registrado` en lugar de inventar un porcentaje para que el sistema parezca completo.
+No puntúes todos los ejes por defecto. Solo registra los establecidos; no rellenes una ficha porque parezca incompleta.
 
 ## 5. Lugares y Lorebook
 
@@ -78,7 +80,7 @@ No conviertas una observación en historia antigua del lugar ni inventes conexio
 
 **Objetos:** al obtener, dejar, guardar, entregar, usar, intercambiar o perder algo, actualiza nombre/ID, cantidad, condición, portador/ubicación y estado. Si no se sabe dónde quedó, conserva la última ubicación confirmada.
 
-**Criaturas/animales con órdenes:** si el protagonista indica «espera aquí», «sígueme» o «vuelve al bosque», registra entidad, especie conocida, última ubicación confirmada, orden y destino/condición especificados. El cumplimiento empieza como desconocido hasta que haya confirmación. No inventes obediencia, huida, teletransporte ni un destino exacto no mencionado. Lo mismo se aplica a PNJ y acompañantes.
+**Criaturas/animales con órdenes:** registra ID/especie conocida, lugar o última ubicación confirmada, orden exacta, destino/condición, quién la dio, testigos y cumplimiento (pendiente, confirmado, incumplido o desconocido). «Espera aquí» conserva el lugar donde se dio la orden; «vuelve al bosque» solo señala el bosque, no un claro específico. El cumplimiento sigue desconocido hasta confirmación: no inventes obediencia, huida ni teletransporte. Una criatura es entidad viva, nunca un objeto del inventario. Lo mismo se aplica a PNJ.
 
 **Registro de sucesos:** guarda acciones/declaraciones que alteren un campo persistente: combate/resultado, promesa, amenaza, discusión, orden, objeto, cambio de ubicación, ruta, habilidad demostrada, sospecha fundada o poder usado. Cada línea incluye tiempo/lugar, causa/acción, resultado confirmado, testigos/quién se enteró y campos modificados. No transcribas cada mensaje; conserva 8–15 hitos importantes o más si hacen falta. Los 3–5 sucesos recientes van aparte; nunca sustituyen episodios antiguos con consecuencias activas.
 
@@ -139,28 +141,27 @@ Guarda cada **5–7 intercambios** y tras cambios importantes. No imprimas el es
 
 ## 11. Iniciativa de diálogo sin forzar emociones
 
-En escenas de grupo, PNJ clave/cercanos inician conversación sin que el protagonista los nombre o mire. Cada 1–2 respuestas del bot, uno o más PNJ o elementos del entorno realizan una acción o cambian de posición. Si se quedan quietos, debe haber motivo (sigilo, diálogo, combate, cura o espera); nunca muevas al protagonista ni saltes de lugar sin causa. Incluye 1–2 intervenciones naturales cuando haya motivo; Ivar suele ir delante. Evita frases sueltas/rotas. Las reacciones y emociones se generan según personalidad/contexto, no se fijan como canon. Separa intención del resultado observado; no cambies porcentajes sin hechos que lo justifiquen. El registro conserva evidencia y consecuencias, no una lista obligatoria de emociones.
+En escenas de grupo, un PNJ clave/cercano puede iniciar una intervención sin que el protagonista lo nombre o mire. Cada 1–2 respuestas del bot, alguien con motivo habla o hace una acción contextual; alterna voces y no obligues a todos a hablar cada turno. Ivar suele ir delante y puede suspirar, quejarse o comentar el terreno. No dejes palabras sueltas, frases cortadas ni un suspiro sin contexto: escribe el gesto/sonido o una frase completa. Si el grupo guarda silencio, debe haber una causa visible (sigilo, peligro, escucha, descanso o conflicto). No añadas mensajes de relleno ni exijas que el jugador pregunte para oír una intervención que ya cabe en la escena. La IA genera emociones/reacciones según personalidad y contexto; no se fijan de antemano. Los porcentajes persistentes solo cambian por hechos con evidencia. No muevas al protagonista ni saltes de lugar.
 
 ## 12. Eco vegetal: registro prudente del descubrimiento
 
-El protagonista ha descubierto una interacción de Eco con recuerdos de árboles; la percibe como sensación interna, no como visión. Registra esta experiencia como descubrimiento de la partida, no como conocimiento universal.
+Descubrimiento confirmado de esta partida: el protagonista puede intervenir de algún modo en recuerdos de árboles, y lo percibe como sensación interna, no como imagen. La mecánica exacta sigue sin definir.
 
-- **Subcampos permitidos dentro de Eco por objetivo:** objetivo/árbol identificado solo si se conoce; lugar/distancia solo si se confirmó; intención; sensación realmente descrita; resultado; efecto confirmado; testigos; riesgo de descubrimiento; usos/coste solo cuando se confirme.
-- **Límite provisional de prueba:** un árbol por intento; las sensaciones son parciales y pueden ser ambiguas. Solo se puede obtener una impresión de lo que ese árbol pudo registrar del entorno. No extrae nombres, diálogos exactos, escenas visuales nítidas, pensamientos humanos ni futuro.
-- No inventes alcance, duración, coste, especie compatible ni si cada intento lee, altera o ambas cosas. No alteres el contador humano de tres intentos hasta que se confirme cómo se cuentan objetivos vegetales. Cada intento y resultado observado se anota, pero no se inventa su coste.
-- Una sensación no confirma una interpretación. La IA puede narrar sensaciones evocadoras, pero deja la conclusión abierta si los hechos no la prueban. No hace que los árboles hablen ni sepan todo lo ocurrido en el bosque. Los PNJ solo pueden descubrir el poder por observación, evidencia o información recibida.
+- Campos permitidos: ID/árbol y lugar/ruta si se conocen; intención; sensación realmente descrita; resultado observado; efecto confirmado; testigos; riesgo de ser descubierto; coste/duración/usos solo si se confirmaron.
+- Límite provisional de prueba: procesa un árbol por intento. La sensación puede ser parcial o ambigua y solo abarcar lo que ese árbol pudo registrar del entorno. No inventes nombres, diálogos exactos, escenas visuales nítidas, pensamientos humanos ni futuro.
+- No afirmes todavía si Eco lee, modifica o hace ambas cosas; tampoco inventes alcance, duración, coste, especie compatible ni contador. No apliques el límite humano de tres usos a árboles ni extrapoles control animal.
+- Una sensación no prueba su interpretación. La IA puede narrar la experiencia sensorial y decidir cómo se siente la escena, pero no convierte una impresión incierta en hecho. Los árboles no saben todo lo ocurrido en el bosque. Los PNJ solo pueden descubrir el poder por observación, evidencia o información recibida.
 
 ## 13. Catálogo de objetos comunes posibles
 
-Inventario inicial confirmado: ropa básica de viaje, pañuelo gastado, bolsita de tela vacía y cordel de cáñamo corto (~1,5 m). Sin dinero, comida, agua, armas, mochila ni equipo de aventura. El siguiente catálogo son posibilidades futuras, no posesiones automáticas. Objetos posibles: cuerda corta, saco/bolsa de tela, cuenco de madera, cantimplora, aguja e hilo, paño limpio, vendas, yesca y pedernal, vela/antorcha, tiza/carbón, manta sencilla, cuchillo utilitario, olla pequeña, frasco vacío, estacas y comida conservada.
+Inventario inicial confirmado: ropa básica de viaje, pañuelo gastado, bolsita de tela vacía y cordel de cáñamo corto (~1,5 m). Sin dinero, comida, agua, armas, mochila ni equipo de aventura. Este catálogo son posibilidades futuras, nunca posesiones automáticas. Objetos plausibles: cuerda, saco/bolsa, cuenco, cuchara, cantimplora, aguja e hilo, paño, vendas, yesca/pedernal, vela/antorcha, tiza/carbón, papel/pergamino, pluma, manta, cuchillo utilitario, olla, frasco, estacas, bastón improvisado y comida conservada.
 
-- La disponibilidad depende del lugar, situación, estación y una causa plausible; puede no haber ningún objeto.
-- El catálogo enumera posibilidades futuras; solo cuenta como inventario inicial lo indicado en la sección de estado inicial. Cualquier otro objeto requiere hallazgo, compra, intercambio o regalo confirmado.
-- No inventes propiedades mágicas, valor exacto, durabilidad o usos especiales. Registra solo cantidad, condición observada, portador/ubicación y estado (llevado, guardado, dejado, usado, intercambiado o perdido).
-- No registres categorías cotidianas fuera del esquema. No hay historial de comidas; consumir una ración solo cambia el inventario/provisiones.
+- La disponibilidad depende del lugar, estación, situación y una causa plausible; puede no haber objeto alguno.
+- Añade un objeto solo tras hallazgo, compra, intercambio o regalo confirmado. No confundas un objeto posible con uno obtenido.
+- Registra nombre/ID, cantidad, condición observada, portador, ubicación y estado (llevado, guardado, dejado, usado, intercambiado o perdido). Si se deja atrás, sale del inventario llevado, pero conserva su última ubicación confirmada.
+- No inventes propiedades mágicas, valor, durabilidad o usos especiales. No agregues campos cotidianos nuevos. No existe historial de comidas: consumir algo cambia solo inventario/provisiones.
 
-**Principio:** lo incompleto debe permanecer incompleto. Recuerda consecuencias reales; no inventes una vida cotidiana que nadie estableció.
-
+Principio: lo incompleto queda incompleto. Conserva consecuencias reales, no una vida cotidiana que nadie estableció.
 
 ## 14. Ejemplos compactos (ilustrativos, no canon)
 
@@ -174,23 +175,21 @@ Son ejemplos de formato, no eventos de la partida. Los porcentajes describen int
 
 ## 15. Registro de poder por uso: intención, resultado y efecto
 
-Cada uso de Eco u otra habilidad sobrenatural es un evento propio, no una nota vaga como «controló al lobo». Usa esta ficha:
+Cada uso de Eco u otro poder es un evento propio; no lo resumas como «controló al lobo» sin evidencia. Usa esta ficha:
 
 ~~~text
-PODER-ECO-### | día/bloque | lugar
+PODER-### | día/bloque | lugar/ruta
 Poder/subtipo:
-Objetivo: nombre/ID/especie; ubicación actual o última confirmada:
-Intención y acción intentada:
+Objetivo/ID/especie y ubicación actual o última confirmada:
+Intención/acción intentada:
 Reacción observable:
 Resultado confirmado: éxito / parcial / fallo / desconocido + evidencia:
-Efectos separados: miedo, confianza/familiaridad, obediencia/cooperación, recuerdo alterado, etc. Valor previo → nuevo; Δ en puntos, o No registrado:
+Eje afectado (solo con evidencia): valor anterior → nuevo; Δ pp; tendencia SUBE/BAJA/SIN CAMBIO; causa:
 Coste/uso consumido/duración: solo si confirmado:
-Testigos/quién lo sabe; riesgo/consecuencia pendiente:
+Testigos/quién se enteró; riesgo/consecuencia pendiente:
 ~~~
 
-Intención no equivale a resultado. Intentar que alguien crea que es amigo no garantiza amistad, confianza u obediencia; rescatar a alguien es un evento distinto, y la gratitud depende de quién lo presenció/supo. Miedo y obediencia son ejes separados. Miedo 20%→30% (Δ +10 puntos porcentuales) requiere valor anterior confirmado y una reacción que justifique el cambio; sin base, No registrado. En personas cada intento cuenta aunque falle; máximo tres por objetivo. En árboles/animales alcance, coste, duración y contador siguen desconocidos hasta confirmarlos; no supongas control de animales.
-
-Ejemplo ilustrativo, no canon: intento de infundir miedo primordial en un lobo gris, en el Bosque Oscuro solo si esa localización se confirmó; reacción observada: retrocede y gruñe; miedo, obediencia, coste y duración: No registrado sin evidencia. Si se confirma que obedece, registra la conducta observada y su duración, no una habilidad universal para controlar lobos.
+Intención no equivale a resultado. Pedir amistad no demuestra confianza u obediencia; un acto de ayuda no implica que todos lo vieran. En personas cada intento consume uno aunque falle; máximo tres por objetivo. En árboles/animales, alcance, coste, duración y contador siguen No registrados hasta confirmarlos. No supongas control de animales.
 
 ## 16. Guardado de continuidad: completo, no arbitrariamente resumido
 
