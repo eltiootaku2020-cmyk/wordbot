@@ -1,6 +1,6 @@
 # Proyecto: gestor local de canon, Lorebooks y continuidad
 
-**Estado:** prototipo local v0.1. CI aprobó 32 pruebas Python y sintaxis JavaScript el 29-10-2026. Incluye privacidad por audiencia, inspector de mensajes/eventos, presupuesto Lorebook editable y persistente, inventario/recursos/compras validados y undo del último turno con snapshot. Faltan prueba manual en Windows, APIs reales y campaña larga.  
+**Estado:** prototipo local v0.1. CI aprobó 35 pruebas Python y sintaxis JavaScript el 29-10-2026. Incluye privacidad por audiencia, inspector de mensajes/eventos, presupuesto Lorebook editable y persistente, inventario/recursos/compras validados, undo seguro y puente manual para el chat web normal de ChatGPT/Gemini. Falta el ensayo manual en Windows y la campaña larga. Las pruebas reales de API son opcionales.  
 **Ubicación de trabajo:** rama `docs/historias-organizadas`, carpeta `proyecto/`.
 
 ## Objetivo
@@ -104,4 +104,11 @@ La decisión se basa en la investigación enlazada y puede revisarse después de
 
 **Estado actual:** el código incluye interfaz Chromium, SQLite, narrador simulado, adaptadores iniciales OpenAI/Gemini, preset real de Isekai (76 entradas), privacidad por audiencia, inspector que explica inclusión/exclusión de mensajes/eventos, presupuesto Lorebook configurable (500–12.000 caracteres), inventario/recursos/compras validados y undo seguro del último turno. CI aprueba 32 pruebas Python y sintaxis JavaScript. No valida llamadas reales ni uso manual en Windows.
 
-**Prioridades actuales:** contar tokens reales por proveedor; probar la interfaz y undo manualmente en Windows; probar llamadas API reales; verificar datos históricos/cambios de presencia; realizar campaña de 50–100 turnos con reinicio/restauración.
+**Prioridades actuales:** probar el puente manual con ChatGPT web y Gemini web en Windows; verificar registros históricos/cambios de presencia; realizar una campaña de 50–100 turnos con reinicio/restauración. Las llamadas y la medición de coste de las APIs quedan como validación opcional.
+
+
+### Corrección del modo de IA: chat web normal
+
+El usuario puede elegir ahora **ChatGPT web** o **Gemini web** y continuar en el chat normal de su cuenta, sin clave API. La aplicación prepara el prompt con el estado local y el esquema JSON; el usuario copia el prompt al sitio oficial y después pega la respuesta para que el programa la valide y aplique sus reglas. No se automatiza ni se lee la sesión de navegador.
+
+Implementado en `docs/historias-organizadas` y cubierto por CI: 35 pruebas Python y comprobación sintáctica JS, resultado https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40880074124. Pendiente de prueba manual real en Windows con ambos chats, seguido por campaña de 50–100 turnos y restauración.
