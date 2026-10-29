@@ -1,6 +1,6 @@
 {
   "name": "Isekai sin Destino",
-  "description": "Fantasía abierta, aventura adulta, cronología y continuidad causal. v1.15: esquema cerrado, porcentajes con delta, objetos, órdenes y Eco vegetal.",
+  "description": "Fantasía abierta, aventura adulta, cronología y continuidad causal. v1.16: activadores depurados, contenido corregido y límites provisionales claros.",
   "entries": {
     "0": {
       "uid": 0,
@@ -55,7 +55,7 @@
       ],
       "keysecondary": [],
       "comment": "Bosque de los Siete Ecos",
-      "content": "Bosque antiguo con senderos de cazadores, arroyos, raíces expuestas y claros. Algunos sonidos se repiten con retraso y hay zonas donde el suelo se siente tibio, pero no todo fenómeno anuncia un peligro. El protagonista empieza aquí sin equipo, dinero ni provisiones. Los cinco aventureros pueden ayudar, desconfiar, negociar o separarse según sus motivos; el encuentro no obliga a unirse al grupo.",
+      "content": "El Bosque de los Siete Ecos es una franja exterior del Bosque de las Bestias, no un bosque independiente: allí hay senderos de cazadores, arroyos, raíces expuestas y claros. Algunos sonidos se repiten con retraso y hay zonas donde el suelo se siente tibio, pero no todo fenómeno anuncia un peligro. El protagonista comienza aquí sin equipo, dinero ni provisiones. Los cinco aventureros pueden ayudar, desconfiar, negociar o separarse según sus motivos; el encuentro no obliga a unirse al grupo.",
       "constant": false,
       "selective": false,
       "order": 30,
@@ -827,9 +827,8 @@
         "porcentaje de confianza",
         "porcentaje de sospecha",
         "relación actual",
-        "discusión",
-        "amistad",
-        "deuda"
+        "vínculos por persona",
+        "promesas y deudas"
       ],
       "keysecondary": [],
       "comment": "Continuidad de relaciones",
@@ -856,7 +855,7 @@
       ],
       "keysecondary": [],
       "comment": "Escenas ecchi suaves variadas",
-      "content": "Las escenas ecchi pueden surgir de un festival, un atuendo atrevido, cocinar juntos, una tormenta, un baile, entrenamiento o una conversación privada entre adultos. La situación genera humor, química o tensión, no una obligación de intimidad. Solicita o espera señales de interés antes de intensificar; cada personaje puede aceptar, bromear, cambiar de tema o rechazar sin castigo. No repitas el mismo cliché ni fuerces cercanía física.\n\n\n### 23.1. Reglas de activación y mantenimiento\n\n- Crear cada entrada por separado. El campo Content debe tener solo su texto; Keywords deben ser frases que aparezcan naturalmente en la conversación.\n- Debido a que el sistema comprueba los últimos cuatro mensajes y las entradas no se activan entre sí, nombra en la narración a un personaje o lugar cuando sea pertinente. No escribas todos los nombres en cada respuesta para forzar activaciones.\n- Las reglas permanentes —agencia del jugador, mayores de 18 años, consentimiento, ritmo, comandos y acontecimiento ancla— están también resumidas en Personality para que no dependan de que se active una entrada.\n- Si una respuesta olvida un personaje, primero menciona su nombre o el lugar pertinente y deja que la entrada active su información. Si el problema persiste, revisa el prompt base o el resumen de estado.\n- La biblia maestra puede crecer todo lo necesario para el escritor; las entradas de la Lorebook deben mantenerse compactas, específicas y comprobables.",
+      "content": "Las escenas ecchi pueden surgir de un festival, un atuendo atrevido, cocinar juntos, una tormenta, un baile, entrenamiento o una conversación privada entre adultos. La situación genera humor, química o tensión, no una obligación de intimidad. Espera señales de interés antes de intensificar; cada personaje puede aceptar, bromear, cambiar de tema o rechazar sin castigo. No repitas el mismo cliché ni fuerces cercanía física.",
       "constant": false,
       "selective": false,
       "order": 410,
@@ -873,6 +872,7 @@
       "uid": 41,
       "key": [
         "/mapa",
+        "/ruta",
         "minimapa",
         "cuatro ciudades",
         "mapa del continente"
@@ -1041,8 +1041,11 @@
     "49": {
       "uid": 49,
       "key": [
-        "encuentro inesperado",
-        "contrato mal redactado"
+        "cliché de aventura",
+        "contrato mal redactado",
+        "vendedor de reliquias",
+        "identidad equivocada",
+        "profecía de artista"
       ],
       "keysecondary": [],
       "comment": "Encuentros cliché",
@@ -1256,7 +1259,7 @@
       ],
       "keysecondary": [],
       "comment": "Revisión de contratos, día 28",
-      "content": "El día 28, el gremio compara contratos publicados antes y después de la erupción. Algunos errores son resultado del caos; otros pueden provenir de intereses particulares. Berta exige pruebas y no conoce a todos los responsables. El protagonista puede investigar, presentar documentos, aprovechar la feria o ignorar el asunto. No se confirma una conspiración sin evidencia.\n\n\n---",
+      "content": "El día 28, el gremio compara contratos publicados antes y después de la erupción. Algunos errores son resultado del caos; otros pueden provenir de intereses particulares. Berta exige pruebas y no conoce a todos los responsables. El protagonista puede investigar, presentar documentos, aprovechar la feria o ignorar el asunto. No se confirma una conspiración sin evidencia.",
       "constant": false,
       "selective": false,
       "order": 600,
@@ -1363,8 +1366,8 @@
       "key": [
         "corrientes mágicas",
         "escuela de magia",
-        "Brasa",
-        "Vínculo"
+        "corriente Brasa",
+        "corriente Vínculo"
       ],
       "keysecondary": [],
       "comment": "Seis corrientes mágicas",
@@ -1434,7 +1437,7 @@
       ],
       "keysecondary": [],
       "comment": "Eco, poder psíquico limitado",
-      "content": "Eco es el poder sobrenatural inicial del protagonista, distinto de la magia común. Solo altera de forma limitada un recuerdo específico. Tiene un máximo de tres activaciones por persona durante toda la aventura; cada intento consume una, aunque falle o el resultado sea parcial. No se recarga. Puede difuminar un detalle reciente, confundir el orden o volver menos nítido un recuerdo. No crea conocimientos, reescribe una vida, impone obediencia, garantiza atracción ni anula el consentimiento. Descubrimiento emergente de esta partida: el protagonista ha interactuado con recuerdos de árboles y los percibe como sensaciones, no imágenes; los límites exactos siguen en prueba. No lo conviertas en conocimiento público ni le atribuyas información precisa sin evidencia.",
+      "content": "Eco es el poder sobrenatural inicial del protagonista, distinto de la magia común. En personas, altera de forma limitada un recuerdo específico. Máximo de tres activaciones por persona durante toda la aventura; cada intento consume una, aunque falle o el resultado sea parcial. No se recarga. Puede difuminar un detalle reciente, confundir el orden o volver menos nítido un recuerdo. No crea conocimientos, reescribe una vida, impone obediencia, garantiza atracción ni anula el consentimiento. Eco vegetal tiene una ficha separada y no hereda automáticamente este contador humano.",
       "constant": false,
       "selective": false,
       "order": 680,
@@ -1498,9 +1501,7 @@
       "uid": 70,
       "key": [
         "/guardar",
-        "/estado",
         "/continuar",
-        "/ruta",
         "punto de guardado",
         "registro de continuidad",
         "reanudar partida"
@@ -1523,7 +1524,6 @@
     "71": {
       "uid": 71,
       "key": [
-        "encuentro inesperado",
         "encuentro social",
         "criatura neutral",
         "goblin gruñón",
@@ -1551,16 +1551,13 @@
     "72": {
       "uid": 72,
       "key": [
-        "/estado",
-        "/guardar",
         "/ficha",
-        "/vinculos",
         "registro interno",
         "esquema cerrado",
         "habilidades conocidas",
         "intereses del PNJ",
         "sospechas con evidencia",
-        "porcentajes",
+        "porcentajes independientes",
         "orden a criatura",
         "guardar objeto"
       ],
@@ -1619,7 +1616,7 @@
       ],
       "keysecondary": [],
       "comment": "Eco vegetal: recuerdos de los árboles",
-      "content": "Descubrimiento confirmado por el jugador: puede intervenir/controlar recuerdos de árboles y lo percibe como sensación interna, no como imágenes. No conviertas la sensación en visión nítida ni definas un mecanismo exacto. Alcance, coste, duración y si puede leer, modificar o ambas cosas siguen sin confirmar. Pauta prudente: un árbol por intento, impresiones parciales de lo que pudo percibir, sin nombres, diálogos exactos, recuerdos visuales perfectos ni futuro. Registra objetivo/lugar, intención, sensación, resultado y efecto confirmado. No apliques automáticamente el límite humano de tres intentos a árboles. Árboles no son omniscientes ni hablan. No reveles el poder a PNJ sin testigos/evidencia.",
+      "content": "Descubrimiento confirmado por el jugador: puede intervenir/controlar recuerdos de árboles y lo percibe como sensación interna, no como imágenes. No conviertas la sensación en visión nítida ni definas un mecanismo exacto. Alcance, coste, duración y si puede leer, modificar o ambas cosas siguen sin confirmar. Pauta de prueba, no canon definitivo: limita cada experimento a un árbol por vez y describe impresiones parciales de lo que pudo percibir, sin nombres, diálogos exactos, recuerdos visuales perfectos ni futuro. Registra objetivo/lugar, intención, sensación, resultado y efecto confirmado. No apliques automáticamente el límite humano de tres intentos a árboles. Árboles no son omniscientes ni hablan. No reveles el poder a PNJ sin testigos/evidencia.",
       "constant": false,
       "selective": false,
       "order": 740,
@@ -1636,15 +1633,15 @@
       "uid": 75,
       "key": [
         "objetos comunes",
-        "hallazgo",
-        "inventario",
-        "mochila",
+        "inventario inicial",
         "bolsa vacía",
+        "cordel de cáñamo",
+        "mochila",
         "cuerda",
         "pedernal",
         "cantimplora",
         "vendas",
-        "objetos del camino"
+        "hallazgo de objeto"
       ],
       "keysecondary": [],
       "comment": "Objetos cotidianos y hallazgos posibles",
