@@ -70,11 +70,11 @@ Este es un prototipo de desarrollo, no una aplicación final endurecida para pro
 
 ## Validación automática
 
-Nota histórica: una ejecución temprana informó 15 pruebas; no es la CI actual. La ejecución vigente con 38 pruebas Python y sintaxis JavaScript es https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40890138277. Ninguna sustituye la prueba manual en Windows.
+Nota histórica: las ejecuciones de 15 y 38 pruebas pertenecen a revisiones anteriores. La ejecución más reciente de la revisión v1.18 aprobó la suite Python y la comprobación sintáctica JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40930336007. Ninguna sustituye la prueba manual en Windows.
 
 ## Hallazgos importantes antes de una campaña larga
 
-- **Privacidad básica implementada y probada en CI:** el selector de alcance permite escena/grupo o privado con destinatario; mensajes y eventos se filtran por audiencia/testigos. Faltan el inspector y los casos de cambio de presencia.
+- **Privacidad básica implementada y probada en CI:** el selector permite escena/grupo o privado con destinatario; mensajes y eventos se filtran por audiencia/testigos. La comprobación actual aún necesita una prueba manual en Windows para los flujos visuales.
 - Las operaciones de inventario y movimiento se registran como propuestas pendientes en esta versión; falta una política segura para autoaplicar cambios cotidianos de baja ambigüedad.
 - Faltan la prueba manual de edición/undo en Windows y una campaña de 50–100 turnos. La llamada real a una API es opcional para la modalidad de chat web manual.
 
@@ -83,7 +83,7 @@ No expongas el servidor a Internet: el prototipo está pensado para ejecutarse s
 
 ## Qué valida la CI actual
 
-La ejecución actual con 38 pruebas cubre el preset real, privacidad por destinatario, inclusión/exclusión de mensajes/eventos, presupuesto Lorebook editable/persistente, operaciones de objetos y recursos, undo/regeneración, construcción del prompt para ChatGPT/Gemini web, validación/rechazo del JSON pegado y rechazo del contexto desactualizado. La CI no utiliza ni extrae respuestas reales de los chats web y no demuestra el intercambio manual en Windows. Tampoco mide tokens/coste de la API.
+La ejecución más reciente del workflow cubre la suite Python completa y la comprobación sintáctica JavaScript, incluida la prueba de 77 entradas, tamaño de Content y unicidad de keywords. Revisa el resumen de la ejecución aquí: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40930336007. La CI no utiliza respuestas reales de chats web ni demuestra el intercambio manual en Windows; tampoco mide tokens/coste de API. La CI no utiliza ni extrae respuestas reales de los chats web y no demuestra el intercambio manual en Windows. Tampoco mide tokens/coste de la API.
 
 Limitaciones conocidas:
 - Las compras se cobran dentro de `InventoryOperation acquire`; no debe emitirse además un `ResourceOperation spend` duplicado para ese evento.
