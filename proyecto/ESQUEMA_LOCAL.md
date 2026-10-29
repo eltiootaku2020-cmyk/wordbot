@@ -43,6 +43,12 @@ SQLite es la fuente de verdad local. El esquema se mantendrá normalizado lo suf
 - `id`, `session_id`, `from_entity_id`, `to_entity_id`, `axis`, `value`, `last_change_event_id`, `reason`, `updated_at`.
 - Relación dirigida y por ejes independientes. No usar una única puntuación para definir todas las relaciones.
 
+### `resources` (implementado en el prototipo)
+- `id`, `session_id`, `resource_key`, `display_name`, `quantity`, `unit`, `last_event_id`, `updated_at`.
+- Registra saldos por partida (monedas, cargas u otros recursos contables), separado del inventario físico.
+- Restricción de cantidad no negativa y clave única por partida. Los ingresos/gastos deben asociarse a un evento fuente válido.
+- Una compra se modela como adquisición de un objeto con coste total y clave de moneda; saldo, objeto y cambios de estado se actualizan en la misma transacción o no cambia ninguno.
+
 ### `ability_uses`
 - `id`, `session_id`, `ability_key`, `user_entity_id`, `target_entity_id`, `attempt_number`, `result`, `cost_applied`, `event_id`, `created_at`.
 - El programa valida los límites de usos por objetivo y evita duplicar un gasto al reintentar el mismo turno.
