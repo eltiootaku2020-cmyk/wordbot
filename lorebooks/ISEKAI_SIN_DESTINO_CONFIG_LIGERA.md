@@ -106,7 +106,7 @@ Caracteres: 832/2.000.
 {{char}}: 【DÍA 1 · MAÑANA II · 10:15 | LUGAR: Entrada de Brumaclara | PANORAMA: la bruma se disipa sobre los tejados】 El trayecto ha terminado. No se han añadido compras, trabajo ni decisiones que {{user}} no haya indicado. La posada queda a unos minutos por la calle principal; puedes entrar a preguntar por empleo.
 ~~~
 
-Caracteres: 1639/4.000.
+Caracteres: 1643/4.000.
 
 ### Tags
 Selecciona etiquetas reales disponibles en el menú: Isekai, Fantasy, Adventure, Roleplay, Open World, Survival, Slice of Life y Romance; añade Ecchi/Adult solo si coinciden con la presentación y las opciones disponibles.
