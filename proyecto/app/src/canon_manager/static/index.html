@@ -74,6 +74,11 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}label{font-size:13px;
     <div class="toolbar">
       <label for="recipientSelect">Hablar con</label>
       <select id="recipientSelect"><option value="">Escena / grupo</option></select>
+      <label for="visibilitySelect">Alcance</label>
+      <select id="visibilitySelect" title="En privado, solo el protagonista y el destinatario conocen el intercambio.">
+        <option value="scene">Escena / grupo</option>
+        <option value="private">Privado con destinatario</option>
+      </select>
       <label for="loreFile">Importar Lorebook JSON</label>
       <input id="loreFile" type="file" accept=".json,application/json" style="max-width:230px">
       <button id="importLore">Importar</button>
@@ -168,7 +173,10 @@ async function loadMessages() {
     if (message.generation_status !== "complete" && message.role === "user") continue;
     const label = message.role === "user" ? "Tú" : message.role === "assistant" ? "Narrador" : "Sistema";
     const recipient = message.recipient_entity_id ? " → " + (entityNames[message.recipient_entity_id] || "destinatario") : "";
-    addMessage(message.role === "user" ? "user" : "assistant", label + recipient + ":\n" + message.content, message.generation_status === "failed");
+    let messageMeta = {};
+    try { messageMeta = JSON.parse(message.metadata_json || "{}"); } catch (_) {}
+    const scopeLabel = messageMeta.visibility === "private" ? " [PRIVADO]" : "";
+    addMessage(message.role === "user" ? "user" : "assistant", label + recipient + scopeLabel + ":\n" + message.content, message.generation_status === "failed");
   }
 }
 function renderState(payload) {
@@ -384,6 +392,12 @@ el("sendForm").onsubmit = async event => {
   if (!currentSession) { setStatus("Carga primero el mundo de prueba.", false); return; }
   const message = el("messageInput").value.trim();
   if (!message) return;
+  const visibility = el("visibilitySelect").value;
+  const recipient = el("recipientSelect").value;
+  if (visibility === "private" && !recipient) {
+    setStatus("Para hablar en privado, selecciona primero un destinatario.", false);
+    return;
+  }
   const requestId = (window.crypto && typeof window.crypto.randomUUID === "function")
     ? window.crypto.randomUUID()
     : ("req-" + Date.now() + "-" + Math.random().toString(16).slice(2));
@@ -392,8 +406,9 @@ el("sendForm").onsubmit = async event => {
     payload: {
       request_id: requestId,
       text: message,
-      recipient_id: el("recipientSelect").value,
-      provider: el("providerSelect").value
+      recipient_id: recipient,
+      provider: el("providerSelect").value,
+      visibility
     }
   };
   el("messageInput").value = "";
