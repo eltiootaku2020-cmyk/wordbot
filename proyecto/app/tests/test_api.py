@@ -1920,3 +1920,91 @@ def test_backup_is_a_complete_readable_sqlite_database():
         with sqlite3.connect(str(backup_path)) as conn:
             assert conn.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
             assert conn.execute("SELECT 1 FROM sessions WHERE id=?", (session_id,)).fetchone() is not None
+
+
+
+def test_multi_day_skip_updates_clock_and_location_without_applying_model_side_effects():
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+        session_id = seed["session_id"]
+        before_state = client.get(f"/api/sessions/{session_id}/state").json()
+        before_inventory = before_state["inventory"]
+        with database.connection() as conn:
+            session = session_row(conn, session_id)
+            protagonist_id = session["protagonist_entity_id"]
+            before_events = [dict(row) for row in conn.execute(
+                "SELECT id,turn_id,external_ref,kind,entity_id,description,status "
+                "FROM events WHERE session_id=? ORDER BY id", (session_id,)
+            ).fetchall()]
+        prompt = client.post(
+            f"/api/sessions/{session_id}/manual-prompt",
+            json={
+                "text": "/salto 2 días -> Aldea",
+                "provider": "chatgpt_web",
+                "visibility": "scene"
+            }
+        )
+        assert prompt.status_code == 200, prompt.text
+
+        external = json.dumps({
+            "narration": "Transcurren dos días y llegas a la Aldea indicada.",
+            "events": [{
+                "ref": "e1", "kind": "object", "entity_id": protagonist_id,
+                "description": "Encuentra una espada legendaria durante el viaje.",
+                "witness_ids": [protagonist_id]
+            }],
+            "state_changes": [{
+                "ref": "c1", "entity_id": protagonist_id, "field": "friendship",
+                "operation": "delta", "numeric_value": 3, "text_value": "",
+                "reason": "La amistad aumentó durante el viaje.", "event_ref": "e1",
+                "requires_approval": False
+            }],
+            "elapsed_minutes": 2880,
+            "movements": [{
+                "entity_id": protagonist_id, "destination": "Torre",
+                "reason": "Viaja a otra ubicación.", "event_ref": "e1"
+            }],
+            "inventory_ops": [{
+                "operation": "acquire", "item_name": "Espada legendaria",
+                "quantity": 1, "condition": "normal",
+                "carrier_entity_id": protagonist_id, "location": "Aldea",
+                "reason": "Hallazgo durante el salto.", "event_ref": "e1",
+                "cost": 0, "currency_key": "monedas"
+            }],
+            "resource_ops": [],
+            "power_uses": [],
+            "pending": []
+        }, ensure_ascii=False)
+        response = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json={
+                "request_id": "manual-day-skip-test-001",
+                "text": "/salto 2 días -> Aldea",
+                "provider": "chatgpt_web",
+                "visibility": "scene",
+                "external_response": external,
+                "manual_context_hash": prompt.json()["context_hash"]
+            }
+        )
+        assert response.status_code == 200, response.text
+        after_state = client.get(f"/api/sessions/{session_id}/state").json()
+
+        assert after_state["state"]["day"] == before_state["state"]["day"] + 2
+        assert after_state["state"]["minute_of_day"] == before_state["state"]["minute_of_day"]
+        assert after_state["state"]["location"] == "Aldea"
+        assert after_state["inventory"] == before_inventory
+        with database.connection() as conn:
+            after_events = [dict(row) for row in conn.execute(
+                "SELECT id,turn_id,external_ref,kind,entity_id,description,status "
+                "FROM events WHERE session_id=? ORDER BY id", (session_id,)
+            ).fetchall()]
+        assert after_events == before_events
+        assert any("no aplicó" in note for note in response.json()["pending_notes"])
+
+        with database.connection() as conn:
+            presence = conn.execute(
+                "SELECT location,presence_status FROM session_presence WHERE session_id=? AND entity_id=?",
+                (session_id, protagonist_id)
+            ).fetchone()
+        assert presence["location"] == "Aldea"
+        assert presence["presence_status"] == "present"

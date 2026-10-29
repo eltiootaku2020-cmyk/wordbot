@@ -236,7 +236,10 @@ def parse_skip(text: str) -> dict[str, Any] | None:
         minutes = amount
     if minutes < 1 or minutes > 7 * 24 * 60:
         raise HTTPException(status_code=422, detail="El salto debe estar entre 1 minuto y 7 días.")
-    return {"minutes": minutes, "destination": (match.group(3) or "").strip()}
+    destination = (match.group(3) or "").strip()
+    if len(destination) > 180:
+        raise HTTPException(status_code=422, detail="El destino del salto no puede superar 180 caracteres.")
+    return {"minutes": minutes, "destination": destination}
 
 
 def time_label(day: int, minute_of_day: int) -> str:
@@ -856,6 +859,24 @@ def apply_narrator_result(
     result: NarratorResponse, authorized_skip, visibility: str = "scene",
     audience_ids: list[str] | None = None, recipient_id: str = "",
 ):
+    if authorized_skip:
+        # A time skip is a direct user command, not permission to invent loot,
+        # relationships, powers or NPC movements while the protagonist is absent.
+        side_effect_fields = ("events", "state_changes", "movements", "inventory_ops", "resource_ops", "power_uses")
+        ignored = sum(len(getattr(result, field)) for field in side_effect_fields)
+        pending = list(result.pending)
+        if ignored:
+            note = f"El salto temporal no aplicó {ignored} propuestas de estado del narrador; registra los hechos concretos en otro turno."
+            if len(pending) >= 30:
+                pending[-1] = note
+            else:
+                pending.append(note)
+        result = result.model_copy(update={
+            "events": [], "state_changes": [], "movements": [],
+            "inventory_ops": [], "resource_ops": [], "power_uses": [],
+            "elapsed_minutes": int(authorized_skip["minutes"]),
+            "pending": pending
+        })
     valid_ids = world_entity_ids(conn, session["world_id"])
     allowed_witnesses = set(audience_ids or [])
     private_subject_ids = (
@@ -1350,10 +1371,24 @@ def apply_narrator_result(
         total_minutes = (int(session["day"]) - 1) * 1440 + int(session["minute_of_day"]) + elapsed
         new_day = total_minutes // 1440 + 1
         new_minute = total_minutes % 1440
-        conn.execute(
-            "UPDATE sessions SET day=?,minute_of_day=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
-            (new_day, new_minute, session["id"])
-        )
+        destination = (authorized_skip.get("destination") or "").strip() if authorized_skip else ""
+        if destination:
+            conn.execute(
+                "UPDATE sessions SET day=?,minute_of_day=?,current_location=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                (new_day, new_minute, destination, session["id"])
+            )
+            # Keep the protagonist's presence record aligned with the authoritative session location.
+            conn.execute(
+                "INSERT INTO session_presence(session_id,entity_id,location,presence_status) VALUES(?,?,?,'present') "
+                "ON CONFLICT(session_id,entity_id) DO UPDATE SET location=excluded.location,"
+                "presence_status='present',updated_at=CURRENT_TIMESTAMP",
+                (session["id"], session["protagonist_entity_id"], destination)
+            )
+        else:
+            conn.execute(
+                "UPDATE sessions SET day=?,minute_of_day=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                (new_day, new_minute, session["id"])
+            )
     return applied, pending_notes
 
 
@@ -2395,9 +2430,25 @@ def approve_change(session_id: str, change_id: str, payload: ApprovalRequest):
             if entity_id == session["protagonist_entity_id"]:
                 conn.execute("UPDATE sessions SET current_location=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
                              (destination, session_id))
+                conn.execute(
+                    "INSERT INTO session_presence(session_id,entity_id,location,presence_status) VALUES(?,?,?,'present') "
+                    "ON CONFLICT(session_id,entity_id) DO UPDATE SET location=excluded.location,"
+                    "presence_status='present',updated_at=CURRENT_TIMESTAMP",
+                    (session_id, entity_id, destination)
+                )
             else:
-                conn.execute("UPDATE session_presence SET location=?,updated_at=CURRENT_TIMESTAMP "
-                             "WHERE session_id=? AND entity_id=?", (destination, session_id, entity_id))
+                presence = conn.execute(
+                    "SELECT 1 FROM session_presence WHERE session_id=? AND entity_id=?",
+                    (session_id, entity_id)
+                ).fetchone()
+                if not presence:
+                    raise HTTPException(status_code=422, detail="La entidad no forma parte del reparto de esta partida.")
+                presence_status = "present" if destination.casefold() == session["current_location"].casefold() else "away"
+                conn.execute(
+                    "UPDATE session_presence SET location=?,presence_status=?,updated_at=CURRENT_TIMESTAMP "
+                    "WHERE session_id=? AND entity_id=?",
+                    (destination, presence_status, session_id, entity_id)
+                )
             accepted = {"destination": destination}
         elif field == "power_use":
             ability = str(proposed.get("ability_key", "")).strip().lower()

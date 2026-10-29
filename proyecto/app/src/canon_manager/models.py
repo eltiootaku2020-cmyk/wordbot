@@ -79,7 +79,7 @@ class NarratorResponse(StrictModel):
     narration: str = Field(min_length=1, max_length=12000)
     events: list[EventProposal] = Field(default_factory=list, max_length=30)
     state_changes: list[StateChangeProposal] = Field(default_factory=list, max_length=40)
-    elapsed_minutes: int = Field(default=1, ge=0, le=1440)
+    elapsed_minutes: int = Field(default=1, ge=0, le=10080)
     movements: list[MovementProposal] = Field(default_factory=list, max_length=20)
     inventory_ops: list[InventoryOperation] = Field(default_factory=list, max_length=40)
     resource_ops: list[ResourceOperation] = Field(default_factory=list, max_length=30)

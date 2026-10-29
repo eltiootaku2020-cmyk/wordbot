@@ -70,3 +70,11 @@ def test_initial_world_lists_have_safe_caps():
             protagonist_name="Protagonista",
             cast=[InitialEntity(name=f"PNJ {index}") for index in range(101)]
         )
+
+
+
+def test_narrator_elapsed_minutes_accepts_the_maximum_supported_time_skip():
+    from canon_manager.models import NarratorResponse
+
+    response = NarratorResponse(narration="Transcurren dos días.", elapsed_minutes=2880)
+    assert response.elapsed_minutes == 2880
