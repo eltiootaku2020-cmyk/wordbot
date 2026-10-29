@@ -2461,7 +2461,7 @@ async def submit_turn(session_id: str, payload: TurnRequest):
                     or existing_user["provider"] != payload.provider
                     or old_visibility != payload.visibility):
                 raise HTTPException(status_code=409, detail="request_id ya usado con otro contenido, destinatario, proveedor o alcance.")
-            if existing_user["generation_status"] == "undone":
+            if existing_user["generation_status"] in {"undone", "failed"}:
                 # Reusing an undone request is safe only while it remains the latest
                 # attempted user turn. Otherwise its old snapshot could overwrite state
                 # produced by later turns, creating a chronology/state divergence.
@@ -2474,9 +2474,34 @@ async def submit_turn(session_id: str, payload: TurnRequest):
                     raise HTTPException(
                         status_code=409,
                         detail=(
-                            "No se puede regenerar un turno anulado después de avanzar "
-                            "a turnos posteriores. Continúa desde el estado actual o "
-                            "restaura una copia."
+                            "No se puede reintentar un turno fallido o anulado después "
+                            "de avanzar a turnos posteriores. Continúa desde el estado "
+                            "actual o restaura una copia."
+                        )
+                    )
+                prior_snapshot = conn.execute(
+                    "SELECT state_json FROM snapshots WHERE session_id=? AND turn_id=?",
+                    (session_id, existing_user["turn_id"])
+                ).fetchone()
+                if prior_snapshot is None:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="No existe una instantánea fiable para ese reintento; crea una acción nueva desde el estado actual."
+                    )
+                try:
+                    prior_state = json.loads(prior_snapshot["state_json"])
+                except (TypeError, ValueError, json.JSONDecodeError) as exc:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="La instantánea anterior no se puede validar; no se reintentó el turno."
+                    ) from exc
+                if prior_state != capture_turn_state(conn, session_id):
+                    raise HTTPException(
+                        status_code=409,
+                        detail=(
+                            "El estado de la partida cambió desde la instantánea de ese turno "
+                            "fallido o anulado. No se puede reutilizar el reintento antiguo; "
+                            "continúa con una acción nueva o restaura una copia."
                         )
                     )
             saved_audience = old_metadata.get("audience_ids")
