@@ -629,6 +629,7 @@ def get_messages(session_id: str):
 @app.post("/api/sessions/{session_id}/turns")
 async def submit_turn(session_id: str, payload: TurnRequest):
     authorized_skip = parse_skip(payload.text)
+    client_request_id = payload.request_id.strip() or new_id()
     turn_id = new_id()
     user_message_id = new_id()
     with database.transaction() as conn:
@@ -636,18 +637,59 @@ async def submit_turn(session_id: str, payload: TurnRequest):
         if session is None:
             raise HTTPException(status_code=404, detail="Partida no encontrada.")
         if payload.recipient_id and conn.execute(
-            "SELECT 1 FROM entities WHERE id=? AND world_id=?", (payload.recipient_id, session["world_id"])
+            "SELECT 1 FROM entities WHERE id=? AND world_id=?",
+            (payload.recipient_id, session["world_id"])
         ).fetchone() is None:
             raise HTTPException(status_code=422, detail="El destinatario no pertenece a este mundo.")
-        turn_index = conn.execute(
-            "SELECT COALESCE(MAX(turn_index),0)+1 AS n FROM messages WHERE session_id=?", (session_id,)
-        ).fetchone()["n"]
-        conn.execute(
-            "INSERT INTO messages(id,session_id,turn_id,turn_index,role,recipient_entity_id,content,provider,generation_status) "
-            "VALUES(?,?,?,?,?,?,?,?,?)",
-            (user_message_id, session_id, turn_id, turn_index, "user", payload.recipient_id,
-             payload.text, payload.provider, "complete")
-        )
+
+        existing_user = conn.execute(
+            "SELECT * FROM messages WHERE session_id=? AND client_request_id=? AND role='user'",
+            (session_id, client_request_id)
+        ).fetchone()
+        if existing_user:
+            if (existing_user["content"] != payload.text
+                    or existing_user["recipient_entity_id"] != payload.recipient_id
+                    or existing_user["provider"] != payload.provider):
+                raise HTTPException(status_code=409, detail="request_id ya usado con otro contenido, destinatario o proveedor.")
+            existing_assistant = conn.execute(
+                "SELECT content,generation_status FROM messages WHERE session_id=? AND turn_id=? AND role='assistant'",
+                (session_id, existing_user["turn_id"])
+            ).fetchone()
+            if existing_assistant and existing_assistant["generation_status"] == "complete":
+                saved_state = load_state(conn, session_id)
+                saved_events = [dict(row) for row in conn.execute(
+                    "SELECT kind,entity_id,description,status FROM events WHERE session_id=? AND turn_id=? ORDER BY created_at",
+                    (session_id, existing_user["turn_id"])
+                ).fetchall()]
+                return {
+                    "turn_id": existing_user["turn_id"],
+                    "narration": existing_assistant["content"],
+                    "events": saved_events,
+                    "applied_changes": ["Reintento idempotente: se reutilizó la respuesta guardada; no se repitieron operaciones."],
+                    "pending_notes": [],
+                    "state": saved_state,
+                    "replayed": True
+                }
+            if existing_user["generation_status"] == "processing":
+                raise HTTPException(status_code=409, detail="Ese turno sigue procesándose; no se creó una segunda solicitud.")
+            turn_id = existing_user["turn_id"]
+            user_message_id = existing_user["id"]
+            turn_index = int(existing_user["turn_index"])
+            conn.execute(
+                "UPDATE messages SET generation_status='processing' WHERE id=?",
+                (user_message_id,)
+            )
+        else:
+            turn_index = int(conn.execute(
+                "SELECT COALESCE(MAX(turn_index),0)+1 AS n FROM messages WHERE session_id=?",
+                (session_id,)
+            ).fetchone()["n"])
+            conn.execute(
+                "INSERT INTO messages(id,session_id,turn_id,client_request_id,turn_index,role,recipient_entity_id,content,provider,generation_status) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (user_message_id, session_id, turn_id, client_request_id, turn_index, "user",
+                 payload.recipient_id, payload.text, payload.provider, "processing")
+            )
         session = session_row(conn, session_id)
         context = build_context(conn, session, payload.text, payload.recipient_id, turn_id)
 
@@ -655,27 +697,39 @@ async def submit_turn(session_id: str, payload: TurnRequest):
     try:
         provider = make_provider(provider_name, settings)
         result = await provider.generate({
-            "user_message": payload.text, "recipient_id": payload.recipient_id,
-            "context": context, "authorized_skip": authorized_skip or {}
+            "user_message": payload.text,
+            "recipient_id": payload.recipient_id,
+            "context": context,
+            "authorized_skip": authorized_skip or {}
         })
     except ProviderError as exc:
         with database.transaction() as conn:
-            conn.execute("UPDATE messages SET generation_status='failed' WHERE id=?", (user_message_id,))
+            conn.execute(
+                "UPDATE messages SET generation_status='failed' WHERE id=?",
+                (user_message_id,)
+            )
         raise HTTPException(status_code=502, detail=str(exc)) from exc
     except Exception as exc:
         with database.transaction() as conn:
-            conn.execute("UPDATE messages SET generation_status='failed' WHERE id=?", (user_message_id,))
+            conn.execute(
+                "UPDATE messages SET generation_status='failed' WHERE id=?",
+                (user_message_id,)
+            )
         raise HTTPException(status_code=502, detail=f"Fallo del proveedor: {exc}") from exc
 
     assistant_message_id = new_id()
     with database.transaction() as conn:
         session = session_row(conn, session_id)
         conn.execute(
-            "INSERT INTO messages(id,session_id,turn_id,turn_index,role,recipient_entity_id,content,provider,generation_status,metadata_json) "
-            "VALUES(?,?,?,?,?,?,?,?,?,?)",
-            (assistant_message_id, session_id, turn_id, turn_index, "assistant", payload.recipient_id,
-             result.narration, provider_name, "complete",
+            "INSERT INTO messages(id,session_id,turn_id,client_request_id,turn_index,role,recipient_entity_id,content,provider,generation_status,metadata_json) "
+            "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+            (assistant_message_id, session_id, turn_id, client_request_id, turn_index, "assistant",
+             payload.recipient_id, result.narration, provider_name, "complete",
              json.dumps({"pending": result.pending}, ensure_ascii=False))
+        )
+        conn.execute(
+            "UPDATE messages SET generation_status='complete' WHERE id=?",
+            (user_message_id,)
         )
         applied, pending = apply_narrator_result(
             conn, session, turn_id, user_message_id, payload.text, result, authorized_skip
@@ -687,10 +741,14 @@ async def submit_turn(session_id: str, payload: TurnRequest):
             (session_id, turn_id)
         ).fetchall()]
     return {
-        "turn_id": turn_id, "narration": result.narration, "events": events,
-        "applied_changes": applied, "pending_notes": pending, "state": state
+        "turn_id": turn_id,
+        "narration": result.narration,
+        "events": events,
+        "applied_changes": applied,
+        "pending_notes": pending,
+        "state": state,
+        "replayed": False
     }
-
 
 @app.post("/api/sessions/{session_id}/changes/{change_id}/approve")
 def approve_change(session_id: str, change_id: str, payload: ApprovalRequest):
