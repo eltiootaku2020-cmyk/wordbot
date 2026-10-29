@@ -1,4 +1,3 @@
-import tempfile
 from pathlib import Path
 
 import pytest
@@ -67,7 +66,7 @@ def test_pending_disabled_and_future_events_do_not_fire(tmp_path):
 
 def test_world_clock_cannot_move_backwards():
     assert absolute_minute(2, 0) == 1440
-    with pytest.raises(ValueError, match="retroceder"):
+    with pytest.raises(ValueError, match="fecha"):
         absolute_minute(0, 0)
     with pytest.raises(ValueError, match="retroceder"):
         fire_due_world_events(None, "missing", 100, 99)
