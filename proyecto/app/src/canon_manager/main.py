@@ -1411,16 +1411,23 @@ def apply_narrator_result(
             accepted_value, status, reason, source["id"] if source else None
         )
 
-    explicit_power = bool(re.search(r"/psiquico|/hechizo|uso\s+eco|usar\s+eco|intento\s+usar\s+eco", user_text, re.IGNORECASE))
+    explicit_power = bool(re.search(
+        r"/(?:ps[ií]quic[oa]?|hechizo|eco|hipnosis)\b|uso\s+eco|usar\s+eco|intento\s+usar\s+eco",
+        user_text, re.IGNORECASE
+    ))
+    eco_aliases = {"eco", "eco_humano", "hipnosis"}
     power_signature_counts: dict[tuple[str, str], int] = {}
     for power in result.power_uses:
-        signature = (power.ability_key.strip().lower(), power.target_entity_id)
+        raw_ability = power.ability_key.strip().lower()
+        canonical_ability = "eco_humano" if raw_ability in eco_aliases else raw_ability
+        signature = (canonical_ability, power.target_entity_id)
         power_signature_counts[signature] = power_signature_counts.get(signature, 0) + 1
 
     for use_index, power in enumerate(result.power_uses):
         source = event_map.get(power.event_ref)
         ability = power.ability_key.strip().lower()
-        signature = (ability, power.target_entity_id)
+        canonical_ability = "eco_humano" if ability in eco_aliases else ability
+        signature = (canonical_ability, power.target_entity_id)
         duplicated_power = power_signature_counts.get(signature, 0) > 1
         can_apply = bool(
             not duplicated_power and explicit_power and source
