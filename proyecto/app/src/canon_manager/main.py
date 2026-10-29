@@ -998,7 +998,7 @@ def load_state(conn, session_id: str) -> dict[str, Any]:
     resources = [dict(row) for row in conn.execute(
         "SELECT resource_key,display_name,quantity,unit FROM resources WHERE session_id=? ORDER BY display_name",
         (session_id,)
-    ).fetchall())
+    ).fetchall()]
     pending = [dict(row) for row in conn.execute(
         "SELECT id,entity_id,field,operation,proposed_value_json,reason,created_at FROM state_changes "
         "WHERE session_id=? AND status='pending' ORDER BY created_at DESC LIMIT 100", (session_id,)
