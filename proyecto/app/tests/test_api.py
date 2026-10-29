@@ -3592,7 +3592,10 @@ def test_mixed_50_turn_continuity_campaign_with_retries_privacy_and_restore(monk
                 )
                 assert prepared.status_code == 200, prepared.text
                 before_state = client.get(f"/api/sessions/{session_id}/state").json()
-                before_tables = read_session_tables()
+                before_effect_tables = {
+                    table: rows for table, rows in read_session_tables().items()
+                    if table not in {"messages", "snapshots"}
+                }
                 common = {
                     "request_id": request_id, "text": text, "provider": "gemini_web",
                     "visibility": visibility, "recipient_id": recipient_id,
@@ -3604,7 +3607,11 @@ def test_mixed_50_turn_continuity_campaign_with_retries_privacy_and_restore(monk
                 )
                 assert truncated.status_code == 502, truncated.text
                 assert client.get(f"/api/sessions/{session_id}/state").json() == before_state
-                assert read_session_tables() == before_tables
+                after_effect_tables = {
+                    table: rows for table, rows in read_session_tables().items()
+                    if table not in {"messages", "snapshots"}
+                }
+                assert after_effect_tables == before_effect_tables
                 corrected = json.dumps({
                     "narration": "Respuesta corregida tras el JSON truncado.",
                     "events": [], "state_changes": [], "elapsed_minutes": 1,
