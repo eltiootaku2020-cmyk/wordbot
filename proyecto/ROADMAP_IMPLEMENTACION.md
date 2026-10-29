@@ -1,6 +1,6 @@
 # Roadmap de implementación — gestor local v0.1
 
-El prototipo v0.1 ya existe. Las casillas marcan código presente, no necesariamente validación manual completa. La CI aprobó 12 pruebas automáticas en Linux/Python 3.12; proveedores reales y la instalación en Windows aún deben probarse.
+El prototipo v0.1 ya existe. Las casillas marcan código presente, no necesariamente validación manual completa. La CI aprobó 13 pruebas automáticas en Linux/Python 3.12; proveedores reales y la instalación en Windows aún deben probarse.
 
 ## Fase 0 — Investigación y arquitectura
 - [x] Revisar clientes de roleplay (SillyTavern, RisuAI, Agnai).
@@ -10,6 +10,7 @@ El prototipo v0.1 ya existe. Las casillas marcan código presente, no necesariam
 - [x] Documentar restricciones de la página de consumo y facturación API.
 - [x] Preparar las decisiones técnicas provisionales.
 - [x] Crear y probar un flujo pequeño con proveedor simulado.
+- [x] Cargar preset de Isekai sin Destino y validar las 76 entradas, reparto, inventario inicial y nueva sesión.
 - [ ] Probar manualmente la instalación en Windows y revisar la interfaz en Chromium.
 
 ## Fase 1 — Esqueleto ejecutable
@@ -82,3 +83,7 @@ La primera entrega útil no necesita personajes animados, imágenes ni un motor 
 ## Creación de mundos
 
 La interfaz ya permite crear un mundo y su primera sesión, con protagonista, canon breve, personajes presentes e inventario inicial. Se crea todo dentro de una transacción; si el reparto tiene nombres duplicados, la operación se revierte. Está cubierto por pruebas automatizadas simuladas; la interfaz aún requiere prueba manual en Windows.
+
+- [x] Validar sintaxis del JavaScript de la interfaz en CI.
+
+Última CI aprobada (13 pruebas Python + JavaScript): https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40863341616
