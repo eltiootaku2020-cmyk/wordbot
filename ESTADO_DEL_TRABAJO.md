@@ -14,7 +14,7 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 - Estado: prototipo v0.1 implementado parcialmente; no es todavía una aplicación final.
 - Stack: Python/FastAPI, HTML/CSS/JavaScript para Chromium, SQLite, narrador simulado y adaptadores iniciales OpenAI/Gemini.
 - Flujo de ejemplo: «Hola, linda» dirigido a Maelis produce narración + evento + propuesta de cambio; la confianza queda pendiente si no existe valor inicial confirmado.
-- Preset Isekai v1.16: botón dedicado carga las 77 entradas del JSON de Lorebook, los cinco aventureros, protagonista, cinco objetos iniciales y una nueva sesión cada vez, sin mezclar estado entre partidas.
+- Preset Isekai v1.18: botón dedicado carga las 77 entradas del JSON de Lorebook, el reparto inicial y cinco objetos, y abre una sesión independiente por partida.
 - CI más reciente de fiabilidad: 75 pruebas Python y sintaxis JavaScript aprobadas: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40928659012. Incluye recuperación tras reinicio, reintentos idempotentes, rechazo de destinos contradictorios y bloqueo de movimientos de PNJ fuera de escena. PR #1, #2, #3 y #4 ya están integrados en `docs/historias-organizadas`; no valida Windows manual ni una campaña con modelo externo.
 - Pendiente: prueba manual en Windows con ChatGPT/Gemini web; compatibilidad de datos históricos/cambios de presencia; exportación/restauración visual; campaña de 50–100 intercambios. Las llamadas API reales y su medición de tokens/coste son opcionales.
 - Documentos: `INVESTIGACION_REFERENCIAS.md`, `DECISIONES_TECNICAS.md`, `ROADMAP_IMPLEMENTACION.md`, `ARQUITECTURA.md`, `CONTRATO_RESPUESTA_IA.md`, `ESQUEMA_LOCAL.md`, `PRUEBAS_DE_ACEPTACION.md`.
@@ -74,7 +74,7 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 - Añadido inventario inicial limitado (pañuelo gastado, bolsita vacía, cordel corto); el resto del catálogo sigue siendo posibilidades, no regalos automáticos.
 - Añadidas pautas para diálogo espontáneo completo de PNJ cercanos y metodología de identidad/estado/conocimiento/objetivos.
 - Añadido documento de investigación con fuentes de SpicyChat, SillyTavern y diseño de PNJ.
-- Corregida la documentación maestra: bloques de cuatro horas, Lorebook de 76 entradas y contadores reales de campos.
+- En la revisión histórica v1.15 se registró una Lorebook de 76 entradas; la revisión v1.18 actual tiene 77, con contadores de campos verificados.
 - Añadidas instrucciones completas para `/estado` y `/guardar` al esquema cerrado.
 - Pendiente de importar y probar en SpicyChat; no se declara validado.
 
@@ -104,7 +104,7 @@ El usuario aclaró que al decir IA se refiere al chat normal de ChatGPT o Gemini
 Cada prompt preparado devuelve una huella SHA-256 del contexto exacto. Al pegar la respuesta, el servidor reconstruye el contexto actual y lo compara antes de aceptar el turno; si la partida cambió entre ambas acciones, rechaza la respuesta y pide volver a preparar el prompt. Esta comprobación evita aplicar una escena basada en un estado antiguo. Está cubierta por una prueba de CI.
 
 
-## Actualización Isekai v1.16 / Lorebook v1.17
+## Histórico: Isekai v1.16 / Lorebook v1.17 (superado por v1.18)
 - Personality incorpora foco narrativo y movimiento/acción de PNJ o entorno cada 1–2 respuestas, sin controlar al protagonista.
 - Guardado completo en varias partes para respetar el límite de 180 tokens por respuesta en Free. Mantiene cronología causal de hitos aún relevantes y los 3–5 sucesos recientes por separado.
 - Nuevo segmento de registro de Eco por uso: intención/objetivo/reacción/resultado/efectos por eje/Δ en puntos/testigos/coste y duración si se conocen.
