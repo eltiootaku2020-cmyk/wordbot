@@ -1,6 +1,6 @@
 # Gestor local de canon — prototipo v0.1
 
-**Estado de validación:** CI aprobó **86 pruebas Python** y la comprobación sintáctica JavaScript: [ver resultados](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40941934304). Incluye JSON truncado, acciones hipotéticas, cambios contradictorios, restauración tras 100 turnos simulados, migración de presencia, audiencia histórica, privacidad al deshacer/regenerar y rechazo de reintentos con snapshots obsoletos y coherencia entre la versión del JSON y el botón de preset. Falta probar el intercambio real en Windows y ejecutar una campaña narrativa con un chat externo.
+**Estado de validación:** CI aprobó **87 pruebas Python** y la comprobación sintáctica JavaScript: [ver resultados](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40943636768). Incluye JSON truncado, acciones hipotéticas, cambios contradictorios, restauración tras 100 turnos simulados, migración de presencia, audiencia histórica, privacidad al deshacer/regenerar y rechazo de reintentos con snapshots obsoletos, coherencia entre la versión del JSON y el botón de preset, y undo protegido contra estado modificado tras el turno. Falta probar el intercambio real en Windows y ejecutar una campaña narrativa con un chat externo.
 
 Esta carpeta contiene un primer prototipo ejecutable del flujo local: interfaz de chat en Chromium, base SQLite y narrador simulado por defecto. El proveedor simulado permite probar la persistencia sin clave ni coste. OpenAI y Gemini son opciones externas configurables.
 
@@ -83,7 +83,7 @@ No expongas el servidor a Internet: el prototipo está pensado para ejecutarse s
 
 ## Qué valida la CI actual
 
-La ejecución más reciente del workflow aprobó 86 pruebas Python y sintaxis JavaScript, incluida la prueba del preset de 77 entradas, JSON truncado, restauración tras 100 turnos simulados, compatibilidad de presencia/audiencia histórica, privacidad tras undo/regeneración, reintentos protegidos frente a snapshots obsoletos y concordancia de la versión del botón con la versión declarada en el JSON. Consulta el resultado: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40940906581. La CI no usa respuestas reales de chats web, no demuestra el intercambio manual en Windows ni mide tokens/coste de API.
+La ejecución más reciente del workflow aprobó 87 pruebas Python y sintaxis JavaScript, incluida la prueba del preset de 77 entradas, JSON truncado, restauración tras 100 turnos simulados, compatibilidad de presencia/audiencia histórica, privacidad tras undo/regeneración, reintentos protegidos frente a snapshots obsoletos, concordancia de la versión del botón con la versión declarada en el JSON y protección de undo ante cambios aprobados posteriores. Consulta el resultado: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40940906581. La CI no usa respuestas reales de chats web, no demuestra el intercambio manual en Windows ni mide tokens/coste de API.
 
 Limitaciones conocidas:
 - Las compras se cobran dentro de `InventoryOperation acquire`; no debe emitirse además un `ResourceOperation spend` duplicado para ese evento.
