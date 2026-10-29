@@ -125,3 +125,18 @@ El usuario eligió un enfoque mixto para el Bosque de las Bestias. Esto se convi
 - **Descubrimiento verificable:** un hallazgo añade conocimiento con fuente y grado de certeza; una huella puede sugerir una especie sin confirmar su identidad.
 
 Esta decisión fija el enfoque general, no aprueba automáticamente nombres, estadísticas ni fichas individuales del catálogo.
+
+
+## 12. Decisión aprobada: estructura combinada del bosque
+
+El usuario eligió organizar el Bosque de las Bestias mediante una combinación de zonas de peligro, caminos y territorios, y niveles naturales.
+
+- El bosque no se divide en anillos concéntricos ni en niveles de dificultad lineales.
+- La geografía se organiza mediante regiones y subzonas conectadas por rutas transitables con condiciones propias.
+- Los niveles naturales (suelo, sotobosque, copas, cavidades, subsuelo y cavernas) existen solo donde la geografía los permita.
+- Los territorios ecológicos de criaturas pueden cruzar varias subzonas y cambiar con el tiempo.
+- El peligro es una capa dinámica determinada por criaturas, clima, hora, terreno, recursos, rastros y acontecimientos; la distancia al borde no determina por sí sola la dificultad.
+- El mapa completo pertenece al diseño interno. El protagonista descubre rutas, territorios y puntos de interés mediante experiencia y fuentes; no recibe el mapa completo automáticamente.
+- Se modelará el mapa como nodos, conexiones, territorios y puntos de interés, con estado real separado del conocimiento del protagonista.
+
+La estructura general está aprobada. Los nombres, posiciones, conexiones y fichas de subzonas concretas siguen siendo propuestas hasta su revisión.
