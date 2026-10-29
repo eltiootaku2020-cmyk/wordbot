@@ -1853,6 +1853,58 @@ def test_failed_turn_cannot_be_retried_after_a_later_turn(monkeypatch):
         assert failed_user["generation_status"] == "failed"
 
 
+def test_failed_turn_retry_rejected_if_snapshot_state_changed_without_later_turn(monkeypatch):
+    with TestClient(app) as client:
+        started, _entities = _create_state_ops_world(client)
+        session_id = started["session_id"]
+        provider_state = {"calls": 0}
+
+        class FailThenSucceedProvider:
+            name = "mock"
+
+            async def generate(self, payload):
+                provider_state["calls"] += 1
+                if provider_state["calls"] == 1:
+                    raise main_module.ProviderError("Fallo simulado del proveedor.")
+                return NarratorResponse(
+                    narration="El turno reintentado avanza cuatro minutos.",
+                    elapsed_minutes=4
+                )
+
+        monkeypatch.setattr(
+            main_module, "make_provider",
+            lambda provider_name, settings: FailThenSucceedProvider()
+        )
+        payload = {
+            "request_id": "ghost-snapshot-retry-001",
+            "text": "Intento una acción que falla antes de responder",
+            "provider": "mock"
+        }
+        failed = client.post(f"/api/sessions/{session_id}/turns", json=payload)
+        assert failed.status_code == 502, failed.text
+        assert client.get(f"/api/sessions/{session_id}/state").json()["state"]["time_label"].endswith("08:00")
+
+        # Simulate a non-turn state mutation, such as approving a pending proposal
+        # after the provider failed. No later user turn exists to trigger the chronology guard.
+        with database.transaction() as conn:
+            conn.execute(
+                "UPDATE resources SET quantity=quantity-1 "
+                "WHERE session_id=? AND resource_key='monedas'",
+                (session_id,)
+            )
+
+        stale_retry = client.post(f"/api/sessions/{session_id}/turns", json=payload)
+        assert stale_retry.status_code == 409, stale_retry.text
+        assert "El estado de la partida cambió" in stale_retry.json()["detail"]
+        assert provider_state["calls"] == 1
+
+        current = client.get(f"/api/sessions/{session_id}/state").json()
+        assert current["state"]["time_label"].endswith("08:00")
+        assert next(
+            resource for resource in current["resources"] if resource["resource_key"] == "monedas"
+        )["quantity"] == 4
+
+
 def test_undo_rejects_a_turn_that_is_not_the_latest_completed_turn(monkeypatch):
     with TestClient(app) as client:
         started, _entities = _create_state_ops_world(client)
