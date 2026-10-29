@@ -281,3 +281,17 @@ Son hallazgos de revisión del código, no defectos confirmados en una partida r
 Mantener el prototipo ligero actual: FastAPI + interfaz en Chromium + SQLite + un turno estructurado por llamada. Añadir primero seguridad de conocimiento, política de aplicación de cambios y reversión. Dejar Mem0, Graphiti, memoria de embeddings, bucles multiagente y generación de imágenes como opciones futuras, solo si las pruebas muestran que el registro estructurado y la recuperación selectiva no bastan.
 
 El programa seguirá sin extraer respuestas de la pestaña de ChatGPT de consumo. Los proveedores remotos se conectarán por APIs oficiales; la UI y los datos persistentes seguirán locales.
+
+### Actualización de estado — corrección inicial de visibilidad (29-10-2026)
+
+Después de esta revisión se implementó un primer alcance explícito para cada turno:
+
+- La solicitud acepta `visibility=scene` o `visibility=private`; la interfaz permite elegir escena/grupo o privado con destinatario.
+- Los mensajes guardan `visibility` y `audience_ids` en sus metadatos, sin migración estructural adicional de SQLite.
+- `build_context` limita los participantes en modo privado y filtra mensajes/eventos por audiencia, destinatario y testigos. Los eventos que no están confirmados no se presentan como hechos en el contexto.
+- En una escena privada, el narrador simulado no añade automáticamente reacciones de Ivar y Brina; el alcance de testigos se comprueba al persistir eventos.
+- Prueba de regresión: conversación privada con Maelis no se incluye en el contexto posterior de Ivar; turnos privados sin destinatario se rechazan.
+
+**Verificación:** CI aprobó 15 pruebas Python y la comprobación sintáctica de JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40867432602
+
+**Límites:** CI usa narrador simulado; falta probar Windows y proveedores reales. Los mensajes anteriores a esta función no tienen audiencias guardadas; el filtro trata los mensajes antiguos dirigidos a un personaje de forma conservadora, pero no puede reconstruir testigos que nunca se registraron. El inspector visual de inclusión/exclusión de recuerdos sigue pendiente.
