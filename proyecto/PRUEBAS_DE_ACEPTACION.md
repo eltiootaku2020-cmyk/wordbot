@@ -1,6 +1,6 @@
 # Pruebas de aceptación del gestor local
 
-La aplicación no se considerará fiable por una demostración breve. La CI actual pasa 13 pruebas automatizadas con datos simulados: persistencia/backups, esquema estricto, comportamiento del narrador, turno de extremo a extremo, reintentos idempotentes, revisión de eventos y creación atómica de mundos con reparto/inventario inicial. Eso no valida las llamadas reales a OpenAI/Gemini, el uso manual en Windows ni los casos de aceptación pendientes. Las pruebas de estado deben poder repetirse sin llamadas pagas.
+La aplicación no se considerará fiable por una demostración breve. La última CI pasa 24 pruebas automatizadas con datos simulados: persistencia/backups, esquema estricto, privacidad por audiencia, inspector Lorebook, turno de extremo a extremo, reintentos idempotentes, inventario, movimientos de PNJ, libro de recursos, compras y creación atómica de mundos. Eso no valida las llamadas reales a OpenAI/Gemini, el uso manual en Windows ni los casos de aceptación pendientes. Las pruebas de estado deben poder repetirse sin llamadas pagas.
 
 ## A. Persistencia y recuperación
 
@@ -159,3 +159,15 @@ Se considera apto para una primera partida cuando A, C, D, E, F, G, H e I pasan 
 3. Pulsar de nuevo y comprobar que se crea una segunda sesión en el mismo mundo sin mezclar mensajes/inventario de partidas anteriores.
 
 **Criterio:** canon y Lorebook compartidos, estado de cada partida aislado. La prueba de CI usa el Lorebook versionado en el repositorio y el narrador simulado; aún falta una prueba manual en Windows y una llamada real al proveedor.
+
+
+## Q. Recursos, monedas y compras transaccionales (implementado, CI simulada)
+
+1. Una partida Isekai nueva registra explícitamente 0 monedas.
+2. Crear una partida personalizada con una cantidad inicial de monedas y consultar el panel de estado.
+3. Comprar un objeto con precio positivo y saldo suficiente: registrar pago y añadir la cantidad exacta del objeto.
+4. Comprar sin saldo suficiente: dejar la propuesta pendiente y comprobar que ni saldo ni inventario cambian.
+5. Cobrar una recompensa explícita con evento fuente de tipo `resource` y comprobar que el saldo aumenta exactamente una vez.
+6. Proponer además un segundo gasto de recurso asociado al mismo evento de compra y verificar que no duplique el cargo.
+
+**Cobertura actual:** CI valida los casos de compra suficiente, insuficiente y recompensa explícita con narrador simulado. Pendiente prueba de idempotencia al reintentar el mismo turno por API y pruebas con proveedor real.
