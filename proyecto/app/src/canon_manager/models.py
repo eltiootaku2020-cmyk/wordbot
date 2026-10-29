@@ -94,6 +94,15 @@ class WorldCreate(StrictModel):
     canon_text: str = Field(default="", max_length=100000)
 
 
+class WorldTimelineEventCreate(StrictModel):
+    external_uid: str = Field(min_length=1, max_length=120)
+    title: str = Field(min_length=1, max_length=160)
+    description: str = Field(min_length=1, max_length=2000)
+    scheduled_day: int = Field(ge=1)
+    scheduled_minute: int = Field(ge=0, le=1439)
+    location: str = Field(default="", max_length=180)
+
+
 class EntityCreate(StrictModel):
     name: str = Field(min_length=1, max_length=120)
     kind: Literal["protagonist", "character", "creature", "npc", "other"] = "character"
