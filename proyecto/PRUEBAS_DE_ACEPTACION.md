@@ -1,6 +1,6 @@
 # Pruebas de aceptación del gestor local
 
-La CI más reciente validó **82 pruebas Python** y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40937190743.
+La CI más reciente validó **83 pruebas Python** y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40939319271.
 
 ## A. Persistencia y recuperación
 
@@ -260,3 +260,17 @@ Se considera apto para una primera partida cuando A, C, D, E, F, G, H e I pasan 
 **Cobertura automatizada actual:** CI posterior al PR #7 aprobó 82 pruebas Python y sintaxis JavaScript (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40937190743). Se prueba la exclusión de eventos sin procedencia, el acceso por destinatario de mensajes heredados y la recuperación por relevancia cuando hay testigos explícitos. La regla evita inventar una audiencia ausente; no pretende certificar todos los formatos históricos posibles.
 
 **Pendiente:** revisar otras variantes de migración, prueba manual de Windows/Chromium con ChatGPT/Gemini web, restauración visual con vista previa y campaña narrativa real de 50–100 turnos.
+
+
+## Y. Privacidad al deshacer y regenerar un turno privado
+
+1. Crear un turno privado dirigido a Maelis, con una cadena confidencial identificable en la narración y en un evento que registre a los testigos correctos.
+2. Preparar el contexto compartido de Ivar. No debe contener la cadena ni en mensajes ni en eventos.
+3. Deshacer el último turno completado. El evento original debe trasladarse al turno de auditoría y quedar rechazado; la narración y el evento no deben aparecer en el contexto activo de Ivar.
+4. Regenerar la misma solicitud usando el mismo `request_id`. Debe reutilizar el turno, no duplicar efectos y conservar la visibilidad privada original.
+5. Volver a preparar el contexto compartido de Ivar y comprobar que sigue sin recibir la cadena confidencial.
+6. Preparar el contexto privado de Maelis y comprobar que la narración y el evento privados regenerados siguen disponibles para su destinataria.
+
+**Cobertura automatizada actual:** CI posterior al PR #8 aprobó 83 pruebas Python y sintaxis JavaScript (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40939319271). Esta prueba usa un proveedor simulado y verifica mensajes, eventos, auditoría, undo y regeneración dentro de un único flujo. No sustituye una prueba real con el navegador.
+
+**Pendiente:** probar manualmente Windows/Chromium con ChatGPT/Gemini web y ejecutar una campaña narrativa real de 50–100 turnos con reinicio y restauración.
