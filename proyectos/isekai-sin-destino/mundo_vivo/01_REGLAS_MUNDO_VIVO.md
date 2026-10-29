@@ -167,3 +167,14 @@ El usuario eligió una densidad **equilibrada** para las aldeas, campamentos, ru
 - Se conservarán extensiones amplias de bosque salvaje entre los lugares habitados.
 - La densidad global no fija cantidades exactas ni garantiza encuentros; la distribución dependerá de geografía, recursos, seguridad, historia, accesibilidad y presión ecológica.
 - Los nombres, cifras, poblaciones, facciones y ubicaciones concretas siguen pendientes de diseño y aprobación.
+
+
+## Decisión aprobada: aldeas repartidas entre límites e interior
+
+El usuario eligió que las aldeas del Bosque de las Bestias estén repartidas entre los límites y el interior, con distribución desigual:
+
+- Mayor concentración relativa de aldeas pequeñas cerca de límites y accesos, por su mejor conexión con intercambio, abastecimiento y exterior.
+- Algunas comunidades aisladas podrán existir en subzonas interiores si agua, alimento, refugio, rutas y seguridad lo hacen viable.
+- En zonas profundas o especialmente peligrosas la presencia estable será muy escasa y requerirá justificación excepcional.
+- Las rutas pueden conectar comunidades, pero no implican una red continua de asentamientos.
+- Se aprueba el patrón general, no nombres, cantidades, población, coordenadas, facciones ni localizaciones concretas.
