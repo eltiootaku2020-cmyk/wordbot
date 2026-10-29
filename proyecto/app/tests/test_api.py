@@ -4610,30 +4610,30 @@ def test_narrative_variation_cue_is_stable_per_turn_and_avoids_recent_repeats():
     with TestClient(app) as client:
         seed = client.post("/api/demo/seed", json={}).json()
     session_id = seed["session_id"]
-        with database.transaction() as conn:
-            first = main_module.narrative_variation_hint(conn, session_id, "preview-next")
-            repeated_preview = main_module.narrative_variation_hint(conn, session_id, "preview-next")
-            assert first == repeated_preview
+    with database.transaction() as conn:
+        first = main_module.narrative_variation_hint(conn, session_id, "preview-next")
+        repeated_preview = main_module.narrative_variation_hint(conn, session_id, "preview-next")
+        assert first == repeated_preview
 
-            used = []
-            for turn_index in range(1, 4):
-                cue = main_module.narrative_variation_hint(
-                    conn, session_id, f"preview-{turn_index}"
-                )["cue"]
-                # Persist the cue exactly as a completed assistant turn would.
-                conn.execute(
-                    "INSERT INTO messages(id,session_id,turn_id,turn_index,role,recipient_entity_id,"
-                    "content,provider,generation_status,metadata_json) "
-                    "VALUES(?,?,?,?,?,?,?,?,?,?)",
-                    (uuid.uuid4().hex, session_id, f"cue-turn-{turn_index}", turn_index,
-                     "assistant", "", "Escena de prueba.", "mock", "complete",
-                     json.dumps({"variation_cue": cue}))
-                )
-                used.append(cue)
+        used = []
+        for turn_index in range(1, 4):
+            cue = main_module.narrative_variation_hint(
+                conn, session_id, f"preview-{turn_index}"
+            )["cue"]
+            # Persist the cue exactly as a completed assistant turn would.
+            conn.execute(
+                "INSERT INTO messages(id,session_id,turn_id,turn_index,role,recipient_entity_id,"
+                "content,provider,generation_status,metadata_json) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (uuid.uuid4().hex, session_id, f"cue-turn-{turn_index}", turn_index,
+                 "assistant", "", "Escena de prueba.", "mock", "complete",
+                 json.dumps({"variation_cue": cue}))
+            )
+            used.append(cue)
 
-            next_hint = main_module.narrative_variation_hint(conn, session_id, "preview-four")
-            assert next_hint["turn_index"] == 4
-            assert next_hint["cue"] not in used
+        next_hint = main_module.narrative_variation_hint(conn, session_id, "preview-four")
+        assert next_hint["turn_index"] == 4
+        assert next_hint["cue"] not in used
 
 
 def test_event_continuity_columns_exist_after_fresh_database_initialization():
