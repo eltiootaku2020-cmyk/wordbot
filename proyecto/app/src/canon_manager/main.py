@@ -1439,6 +1439,11 @@ def apply_narrator_result(
             ).fetchone()
             if not presence:
                 reason = "La entidad no tiene estado de presencia en esta partida."
+            elif (
+                presence["presence_status"] != "present"
+                or str(presence["location"]).casefold() != str(session["current_location"]).casefold()
+            ):
+                reason = "El PNJ no está presente en la escena actual; no se aplica un movimiento desde fuera de escena."
             else:
                 old_value = {"location": presence["location"], "presence_status": presence["presence_status"]}
                 presence_status = "present" if destination.casefold() == session["current_location"].casefold() else "away"
