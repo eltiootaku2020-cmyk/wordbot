@@ -105,6 +105,74 @@ def session_row(conn, session_id: str):
     ).fetchone()
 
 
+def capture_turn_state(conn, session_id: str) -> dict[str, Any]:
+    """Capture the mutable, authoritative game state before a turn."""
+    session = conn.execute(
+        "SELECT day,minute_of_day,current_location,updated_at FROM sessions WHERE id=?",
+        (session_id,)
+    ).fetchone()
+    if session is None:
+        raise HTTPException(status_code=404, detail="Partida no encontrada.")
+    return {
+        "session": dict(session),
+        "presence": [dict(row) for row in conn.execute(
+            "SELECT * FROM session_presence WHERE session_id=? ORDER BY entity_id", (session_id,)
+        ).fetchall()],
+        "inventory": [dict(row) for row in conn.execute(
+            "SELECT * FROM inventory_items WHERE session_id=? ORDER BY item_key", (session_id,)
+        ).fetchall()],
+        "resources": [dict(row) for row in conn.execute(
+            "SELECT * FROM resources WHERE session_id=? ORDER BY resource_key", (session_id,)
+        ).fetchall()],
+        "relationships": [dict(row) for row in conn.execute(
+            "SELECT * FROM relationships WHERE session_id=? ORDER BY from_entity_id,to_entity_id,axis",
+            (session_id,)
+        ).fetchall()],
+        "ability_uses": [dict(row) for row in conn.execute(
+            "SELECT * FROM ability_uses WHERE session_id=? ORDER BY created_at,id", (session_id,)
+        ).fetchall()]
+    }
+
+
+def create_turn_snapshot(conn, session_id: str, turn_id: str, event_sequence: int) -> None:
+    state = capture_turn_state(conn, session_id)
+    conn.execute(
+        "INSERT OR IGNORE INTO snapshots(id,session_id,turn_id,event_sequence,state_json) "
+        "VALUES(?,?,?,?,?)",
+        (new_id(), session_id, turn_id, event_sequence,
+         json.dumps(state, ensure_ascii=False, separators=(",", ":")))
+    )
+
+
+def restore_turn_state(conn, session_id: str, state: dict[str, Any]) -> None:
+    """Restore only authoritative mutable state; transcript and audit rows stay available."""
+    session = state.get("session") or {}
+    conn.execute(
+        "UPDATE sessions SET day=?,minute_of_day=?,current_location=?,updated_at=? WHERE id=?",
+        (int(session["day"]), int(session["minute_of_day"]), str(session["current_location"]),
+         session.get("updated_at") or datetime.now(timezone.utc).isoformat(timespec="seconds"), session_id)
+    )
+
+    # Table names are fixed in code, never supplied by the model or user.
+    table_rows = [
+        ("session_presence", state.get("presence", [])),
+        ("inventory_items", state.get("inventory", [])),
+        ("resources", state.get("resources", [])),
+        ("relationships", state.get("relationships", [])),
+        ("ability_uses", state.get("ability_uses", []))
+    ]
+    for table, rows in table_rows:
+        conn.execute(f"DELETE FROM {table} WHERE session_id=?", (session_id,))
+        for row in rows:
+            columns = list(row.keys())
+            placeholders = ",".join("?" for _ in columns)
+            column_sql = ",".join(columns)
+            conn.execute(
+                f"INSERT INTO {table}({column_sql}) VALUES({placeholders})",
+                tuple(row[column] for column in columns)
+            )
+
+
 def world_entity_ids(conn, world_id: str) -> set[str]:
     return {
         row["id"] for row in conn.execute("SELECT id FROM entities WHERE world_id=?", (world_id,)).fetchall()
@@ -1611,6 +1679,7 @@ async def submit_turn(session_id: str, payload: TurnRequest):
                  payload.recipient_id, payload.text, payload.provider, "processing",
                  json.dumps({"visibility": payload.visibility, "audience_ids": audience_ids}, ensure_ascii=False))
             )
+        create_turn_snapshot(conn, session_id, turn_id, turn_index)
         session = session_row(conn, session_id)
         context = build_context(
             conn, session, payload.text, payload.recipient_id, turn_id,
@@ -1678,6 +1747,89 @@ async def submit_turn(session_id: str, payload: TurnRequest):
         "state": state,
         "replayed": False
     }
+
+@app.post("/api/sessions/{session_id}/turns/{turn_id}/undo")
+def undo_latest_turn(session_id: str, turn_id: str):
+    """Undo only the latest completed turn; keep an audit trail and restore the prior game state."""
+    with database.transaction() as conn:
+        session = session_row(conn, session_id)
+        if session is None:
+            raise HTTPException(status_code=404, detail="Partida no encontrada.")
+
+        assistant = conn.execute(
+            "SELECT id,turn_index,content,recipient_entity_id,metadata_json FROM messages "
+            "WHERE session_id=? AND turn_id=? AND role='assistant' AND generation_status='complete'",
+            (session_id, turn_id)
+        ).fetchone()
+        if assistant is None:
+            raise HTTPException(status_code=409, detail="El turno no existe o ya fue anulado; no hay una respuesta completada que deshacer.")
+        latest = conn.execute(
+            "SELECT MAX(turn_index) AS n FROM messages WHERE session_id=? AND generation_status<>'undone'",
+            (session_id,)
+        ).fetchone()["n"]
+        if latest is None or int(latest) != int(assistant["turn_index"]):
+            raise HTTPException(status_code=409, detail="Solo se puede deshacer el turno completado más reciente.")
+        snapshot = conn.execute(
+            "SELECT state_json FROM snapshots WHERE session_id=? AND turn_id=?",
+            (session_id, turn_id)
+        ).fetchone()
+        if snapshot is None:
+            raise HTTPException(status_code=409, detail="No hay snapshot anterior a este turno; el estado no se modificó.")
+
+        user_message = conn.execute(
+            "SELECT id,content,recipient_entity_id,metadata_json FROM messages "
+            "WHERE session_id=? AND turn_id=? AND role='user'",
+            (session_id, turn_id)
+        ).fetchone()
+        if user_message is None:
+            raise HTTPException(status_code=409, detail="No se encontró el mensaje de usuario asociado al turno.")
+
+        try:
+            prior_state = json.loads(snapshot["state_json"])
+        except Exception as exc:
+            raise HTTPException(status_code=500, detail="El snapshot del turno no se puede leer; no se cambió el estado.") from exc
+
+        audit_turn_id = f"{turn_id}:undone:{new_id()[:10]}"
+        restore_turn_state(conn, session_id, prior_state)
+
+        # Move generated audit records to a separate audit turn id so the original request
+        # can be safely retried/regenerated with the same request_id if desired.
+        conn.execute(
+            "UPDATE events SET turn_id=?,status='rejected',"
+            "description=description || ' [Turno anulado por el usuario.]' "
+            "WHERE session_id=? AND turn_id=?",
+            (audit_turn_id, session_id, turn_id)
+        )
+        conn.execute(
+            "UPDATE state_changes SET turn_id=?,status='rejected',"
+            "reason=CASE WHEN reason='' THEN 'Turno anulado por el usuario.' "
+            "ELSE reason || ' [Turno anulado por el usuario.]' END,applied_at=NULL "
+            "WHERE session_id=? AND turn_id=?",
+            (audit_turn_id, session_id, turn_id)
+        )
+        conn.execute(
+            "UPDATE messages SET turn_id=?,client_request_id=NULL,generation_status='undone' "
+            "WHERE session_id=? AND turn_id=? AND role='assistant'",
+            (audit_turn_id, session_id, turn_id)
+        )
+        conn.execute(
+            "UPDATE messages SET generation_status='undone' WHERE session_id=? AND turn_id=? AND role='user'",
+            (session_id, turn_id)
+        )
+
+        user_metadata = json.loads(user_message["metadata_json"] or "{}")
+        restored_state = load_state(conn, session_id)
+        return {
+            "undone": True,
+            "turn_id": turn_id,
+            "audit_turn_id": audit_turn_id,
+            "user_text": user_message["content"],
+            "recipient_id": user_message["recipient_entity_id"],
+            "visibility": user_metadata.get("visibility", "scene"),
+            "state": restored_state,
+            "message": "Turno anulado. El estado anterior fue restaurado; el texto puede editarse y enviarse otra vez."
+        }
+
 
 @app.post("/api/sessions/{session_id}/changes/{change_id}/approve")
 def approve_change(session_id: str, change_id: str, payload: ApprovalRequest):
