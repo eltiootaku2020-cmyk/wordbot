@@ -12,7 +12,7 @@
 - [JSON de importación](LOREBOOK_IMPORT.json)
 - [Investigación aplicada](INVESTIGACION_DIALOGO_MEMORIA_Y_ECO_VEGETAL.md)
 - [Solución para historias largas](SOLUCION_HISTORIAS_LARGAS.md)
-- Auditoría automática: tools/audit_lorebook.py
+- [Script de auditoría automática](tools/audit_lorebook.py) · [Workflow de GitHub Actions](../../.github/workflows/isekai-lorebook-audit.yml)
 
 ## Cambios v1.19
 - Reloj en seis bloques de cuatro horas; eliminados ejemplos de cabecera a 08:03 y 08:15.
@@ -24,7 +24,7 @@
 - Inventario inicial: ropa corriente, pañuelo gastado, bolsita vacía y cordel corto. Catálogo común = posibilidades, no regalos. Sin historial de comidas.
 - Guardado recomendado cada 5–7 intercambios y tras cambios importantes; varias partes en Free no equivalen a almacenamiento externo.
 - JSON: 77 entradas, contenido bajo 1.000 caracteres, UID únicos y keywords sin duplicados.
-- Auditoría automática aprobada: 625 comprobaciones, incluido el recuento de campos y el reloj. [Ver ejecución de GitHub Actions](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40934571847).
+- Auditoría automática aprobada: 653 comprobaciones, incluido el cotejo entre Lorebook maestra y JSON. [Ver ejecución de GitHub Actions](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40935111216).
 
 ## Límites reales
 El contexto gratuito comparte 4.096 tokens entre definición, instrucciones y conversación; cada respuesta tiene hasta 180 tokens según la documentación consultada. El registro «interno» no es una base de datos oculta. Los datos pueden perderse al salir del contexto; guarda una copia de /guardar fuera de SpicyChat. Fuentes: [contexto](https://support.spicychat.ai/support/solutions/articles/153000260636-why-characters-forget-things-tokens-and-context-) · [Lorebook](https://support.spicychat.ai/support/solutions/articles/153000260673-lorebooks).
