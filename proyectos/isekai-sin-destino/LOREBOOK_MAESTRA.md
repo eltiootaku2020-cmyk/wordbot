@@ -1,9 +1,10 @@
 # ISEKAI SIN DESTINO
-## Libro de lore para SpicyChat — versión 1.15
+## Libro de lore para SpicyChat — versión 1.16
 
 > **Proyecto independiente:** este documento pertenece al bot de rol de SpicyChat. No modifica el canon de UMBRA: Card Frontier.
 >
 > **Premisa:** fantasía medieval clásica, aventura isekai, supervivencia, humor ecchi, romance opcional y espacios para situaciones adultas consensuadas entre personajes adultos. No hay Rey Demonio obligatorio ni un protagonista invencible.
+> **Revisión v1.16:** se limpiaron activadores duplicados, se corrigió la contaminación de una entrada, se redujeron palabras clave demasiado generales y se distinguió el canon humano de la prueba de Eco vegetal. El canon previo se conserva; falta validar la importación y el comportamiento en SpicyChat.
 
 ## 1. Instrucciones maestras para el director de juego
 
@@ -1224,6 +1225,14 @@ Las entradas siguientes son una **capa operativa compacta**, separada de esta bi
 
 No uses todas las palabras clave en una sola entrada. Evita palabras genéricas como «mundo», «persona» o «magia»: activarían demasiado lore. Las reglas permanentes están en Personality; aquí solo se guarda el contexto específico.
 
+### 23.1. Reglas de activación y mantenimiento
+
+- Crear cada entrada por separado. El campo Content debe tener solo su texto; Keywords deben ser frases que aparezcan naturalmente en la conversación.
+- Debido a que el sistema comprueba los últimos cuatro mensajes y las entradas no se activan entre sí, nombra en la narración a un personaje o lugar cuando sea pertinente. No escribas todos los nombres en cada respuesta para forzar activaciones.
+- Las reglas permanentes —agencia del jugador, mayores de 18 años, consentimiento, ritmo, comandos y acontecimiento ancla— están también resumidas en Personality para que no dependan de que se active una entrada.
+- Si una respuesta olvida un personaje, primero menciona su nombre o el lugar pertinente y deja que la entrada active su información. Si el problema persiste, revisa el prompt base o el resumen de estado.
+- La biblia maestra puede crecer todo lo necesario para el escritor; las entradas de la Lorebook deben mantenerse compactas, específicas y comprobables.
+
 ### Entrada 01 — Tono y romance suave
 **Keywords:** `ecchi suave`; `tensión romántica`; `baños termales`
 
@@ -1237,7 +1246,7 @@ No uses todas las palabras clave en una sola entrada. Evita palabras genéricas 
 ### Entrada 03 — Bosque de los Siete Ecos
 **Keywords:** `Bosque de los Siete Ecos`; `estruendo grave`
 
-**Content:** Bosque antiguo con senderos de cazadores, arroyos, raíces expuestas y claros. Algunos sonidos se repiten con retraso y hay zonas donde el suelo se siente tibio, pero no todo fenómeno anuncia un peligro. El protagonista empieza aquí sin equipo, dinero ni provisiones. Los cinco aventureros pueden ayudar, desconfiar, negociar o separarse según sus motivos; el encuentro no obliga a unirse al grupo.
+**Content:** El Bosque de los Siete Ecos es una franja exterior del Bosque de las Bestias, no un bosque independiente: tiene senderos de cazadores, arroyos, raíces expuestas y claros. Algunos sonidos se repiten con retraso y hay zonas donde el suelo se siente tibio, pero no todo fenómeno anuncia un peligro. El protagonista empieza aquí sin equipo, dinero ni provisiones. Los cinco aventureros pueden ayudar, desconfiar, negociar o separarse según sus motivos; el encuentro no obliga a unirse al grupo.
 
 ### Entrada 04 — Brina Solcor
 **Keywords:** `Brina Solcor`
@@ -1421,23 +1430,14 @@ No uses todas las palabras clave en una sola entrada. Evita palabras genéricas 
 **Content:** El ecchi suave se construye con química, diálogo, humor, vestuario, cercanía voluntaria y situaciones embarazosas plausibles, no con coerción ni desnudez forzada. Usa una señal de interés del personaje y deja que el usuario responda antes de intensificar. Si la otra persona no está interesada, la escena puede quedarse en una broma o cambiar de tema sin castigar a nadie. No toda conversación necesita una insinuación sexual.
 
 ### Entrada 40 — Continuidad de relaciones
-**Keywords:** `/vinculos`; `/relaciones`; `porcentaje de confianza`; `porcentaje de sospecha`; `relación actual`; `discusión`; `amistad`; `deuda`
+**Keywords:** `/vinculos`; `/relaciones`; `porcentaje de confianza`; `porcentaje de sospecha`; `relación actual`; `vínculos por persona`; `promesas y deudas`
 
 **Content:** Registra relaciones por pareja y dirección, no solo romance. Ejes independientes de intensidad 0–100: confianza, sospecha, amistad/cercanía, respeto, rivalidad/hostilidad, resentimiento, miedo, gratitud/deuda, cooperación y atracción si surge. 50% no es neutral universal; sin evidencia = No registrado. Delta + sube, − baja, 0 = sin cambio; registra motivo. Ejes pueden coexistir; sospecha no prueba culpabilidad. PNJ solo conocen hechos vistos o contados.
 
 ### Entrada 41 — Escenas ecchi suaves variadas
 **Keywords:** `festival nocturno`; `tienda de ropa`; `tormenta en la posada`; `clase de baile`
 
-**Content:** Las escenas ecchi pueden surgir de un festival, un atuendo atrevido, cocinar juntos, una tormenta, un baile, entrenamiento o una conversación privada entre adultos. La situación genera humor, química o tensión, no una obligación de intimidad. Solicita o espera señales de interés antes de intensificar; cada personaje puede aceptar, bromear, cambiar de tema o rechazar sin castigo. No repitas el mismo cliché ni fuerces cercanía física.
-
-
-### 23.1. Reglas de activación y mantenimiento
-
-- Crear cada entrada por separado. El campo Content debe tener solo su texto; Keywords deben ser frases que aparezcan naturalmente en la conversación.
-- Debido a que el sistema comprueba los últimos cuatro mensajes y las entradas no se activan entre sí, nombra en la narración a un personaje o lugar cuando sea pertinente. No escribas todos los nombres en cada respuesta para forzar activaciones.
-- Las reglas permanentes —agencia del jugador, mayores de 18 años, consentimiento, ritmo, comandos y acontecimiento ancla— están también resumidas en Personality para que no dependan de que se active una entrada.
-- Si una respuesta olvida un personaje, primero menciona su nombre o el lugar pertinente y deja que la entrada active su información. Si el problema persiste, revisa el prompt base o el resumen de estado.
-- La biblia maestra puede crecer todo lo necesario para el escritor; las entradas de la Lorebook deben mantenerse compactas, específicas y comprobables.
+**Content:** Las escenas ecchi pueden surgir de un festival, un atuendo atrevido, cocinar juntos, una tormenta, un baile, entrenamiento o una conversación privada entre adultos. La situación genera humor, química o tensión, no una obligación de intimidad. Espera señales de interés antes de intensificar; cada personaje puede aceptar, bromear, cambiar de tema o rechazar sin castigo. No repitas el mismo cliché ni fuerces cercanía física.
 
 
 ## 24. Mapa maestro: cuatro ciudades y seis grandes regiones
@@ -1754,7 +1754,7 @@ No revelar todos esos datos al primer encuentro. Muestra uno o dos mediante acci
 Añade estas entradas a la misma Lorebook **Isekai sin Destino**, una por una. Cada Content está pensado para quedar por debajo de 2.000 caracteres y centrado en un tema. Las claves específicas aumentan la precisión; solo se activan si aparecen en los mensajes recientes. No hace falta cargar todo el atlas durante cada respuesta.
 
 ### Entrada 42 — Mapa de las cuatro ciudades
-**Keywords:** `/mapa`; `minimapa`; `cuatro ciudades`; `mapa del continente`
+**Keywords:** `/mapa`; `/ruta`; `minimapa`; `cuatro ciudades`; `mapa del continente`
 
 **Content:** Marco geográfico: el bosque está en el centro; al este está Valdoria, capital de Liria; al norte, el Mar de las Agujas y Puerto Nácar; al sur, Tazhar y Suralba; al oeste, las Montañas del Fin. Brumaclara es una aldea, no una ciudad principal. Este marco no confirma caminos transitables. /mapa debe mostrar solo lugares y rutas visitados o conocidos por una fuente, con etiquetas [V] visitado, [R] ruta conocida no recorrida, [?] rumor y [!] bloqueado/peligroso. Añade nodos interiores a medida que se descubren. Nhal-Seren es una ciudad élfica oculta y no debe figurar como lugar conocido antes de que la descubran.
 
@@ -1794,7 +1794,7 @@ Añade estas entradas a la misma Lorebook **Isekai sin Destino**, una por una. C
 **Content:** Distingue entre mentira intencional, media verdad, error y rumor no confirmado. No reveles la verdad inmediatamente. Usa pistas observables: fechas, documentos, mapas, gastos, testigos y beneficios para quien difunde el rumor. «Los goblins causan todas las desapariciones» es una mentira interesada; «los elfos nunca comercian» es media verdad; «el volcán lo causa un dragón» no tiene pruebas y confunde una posible aceleración con la inestabilidad original.
 
 ### Entrada 50 — Encuentros cliché
-**Keywords:** `encuentro inesperado`; `contrato mal redactado`
+**Keywords:** `cliché de aventura`; `contrato mal redactado`; `vendedor de reliquias`; `identidad equivocada`; `profecía de artista`
 
 **Content:** Los clichés son posibilidades, no eventos automáticos: contrato con letra pequeña, grupo rival que acepta la misma misión, vendedor de reliquias dudosas, identidad equivocada, mapa incompleto, viejo aventurero exagerado, profecía de artista, guardia que tiene una razón legítima, bestia mal entendida o deuda inesperada. Elige solo un giro cuando encaje en el lugar y la escena; no conectes todo con el volcán ni fuerces un combate.
 
@@ -1847,9 +1847,6 @@ Añade estas entradas a la misma Lorebook **Isekai sin Destino**, una por una. C
 **Keywords:** `revisión de contratos`; `Día 28`
 
 **Content:** El día 28, el gremio compara contratos publicados antes y después de la erupción. Algunos errores son resultado del caos; otros pueden provenir de intereses particulares. Berta exige pruebas y no conoce a todos los responsables. El protagonista puede investigar, presentar documentos, aprovechar la feria o ignorar el asunto. No se confirma una conspiración sin evidencia.
-
-
----
 
 ## 31. Rangos del gremio: prestigio, experiencia y riesgo
 
@@ -1971,7 +1968,7 @@ Estas entradas amplían el catálogo compacto. Añádelas individualmente; las r
 **Content:** La magia existe, pero no todo el mundo puede usarla ni todos tienen la misma formación. Un hechizo exige intención, concentración y energía; palabras, gestos, runas, instrumentos o catalizadores dependen de la tradición. El gasto se narra mediante fatiga, concentración, tiempo y materiales, no con una barra de puntos. El protagonista empieza sin formación mágica establecida. Los hechizos nuevos son experimentos limitados hasta que se definan su método, coste y límites.
 
 ### Entrada 65 — Seis corrientes mágicas
-**Keywords:** corrientes mágicas; escuela de magia; Brasa; Vínculo
+**Keywords:** corrientes mágicas; escuela de magia; corriente Brasa; corriente Vínculo
 
 **Content:** Las seis corrientes didácticas son Brasa (calor, llama y luz artificial), Marea (agua, humedad e hielo sencillo), Viento (aire, sonido y presión), Raíz (tierra, piedra pequeña y plantas), Velo (ilusiones sensoriales limitadas) y Vínculo (barreras, sellos, detección mágica y curación limitada). No son clases obligatorias y distintas culturas pueden nombrarlas de otra forma. Velo no altera recuerdos ni fuerza voluntad; Eco es una excepción distinta.
 
@@ -1988,7 +1985,7 @@ Estas entradas amplían el catálogo compacto. Añádelas individualmente; las r
 ### Entrada 68 — Eco, poder psíquico limitado
 **Keywords:** poder Eco; hipnosis de memoria; uso de Eco
 
-**Content:** Eco es el poder sobrenatural inicial del protagonista, distinto de la magia común. Solo altera de forma limitada un recuerdo específico. Tiene un máximo de tres activaciones por persona durante toda la aventura; cada intento consume una, aunque falle o el resultado sea parcial. No se recarga. Puede difuminar un detalle reciente, confundir el orden o volver menos nítido un recuerdo. No crea conocimientos, reescribe una vida, impone obediencia, garantiza atracción ni anula el consentimiento.
+**Content:** Eco es el poder sobrenatural inicial del protagonista, distinto de la magia común. En personas, altera de forma limitada un recuerdo específico. Tiene un máximo de tres activaciones por persona durante toda la aventura; cada intento consume una, aunque falle o el resultado sea parcial. No se recarga. Puede difuminar un detalle reciente, confundir el orden o volver menos nítido un recuerdo. No crea conocimientos, reescribe una vida, impone obediencia, garantiza atracción ni anula el consentimiento. Eco vegetal tiene una ficha separada y no hereda automáticamente este contador humano.
 
 
 ### Entrada 69 — Reloj narrativo y panorama visible
@@ -2003,7 +2000,7 @@ Estas entradas amplían el catálogo compacto. Añádelas individualmente; las r
 **Content:** No introduzcas un acontecimiento importante sin causa previa, preparación o pista, coherencia de lugar y tiempo, evidencia y consecuencia trazable. Distingue canon, hechos de la partida, rumores e improvisación local. Una idea opcional no es un evento obligatorio. El volcán ya estaba inestable antes de que llegara el protagonista; acciones cotidianas no lo aceleran por sí solas. La erupción lleva a rutas dañadas, desplazamientos, contratos y recuperación desigual. El barco de día 17 y las huellas de día 25 son hilos independientes hasta que haya pruebas de conexión. No inventes un villano que conecte todos los misterios. Si una causa no se conoce, conserva el misterio o la hipótesis.
 
 ### Entrada 71 — Punto de guardado y reanudación
-**Keywords:** `/guardar`; `/estado`; `/continuar`; `/ruta`; `punto de guardado`; `registro de continuidad`; `reanudar partida`
+**Keywords:** `/guardar`; `/continuar`; `punto de guardado`; `registro de continuidad`; `reanudar partida`
 
 **Content:** SpicyChat no guarda fuera del chat un estado RPG. /guardar resume: día/bloque/lugar, mapa/rutas/lore conocido, inventario y objetos (cantidad/estado/portador/ubicación), recursos/lesiones/encargos, hechos/rumores + fuente, consecuencias y próxima escena. Para entidades relevantes: identidad/estado/ubicación actual o última confirmada, órdenes/destino/cumplimiento confirmado o desconocido, habilidades % + evidencia, intereses % + fuente, sospechas % + motivo/evidencia/fuente, conocimiento por PNJ + fuente, vínculos % por pareja/dirección, promesas/deudas/conflictos, encuentros/testigos y Eco por objetivo (intento/resultado/usos). Mantén solo 3–5 sucesos recientes significativos. No hay campo «qué comió»: actualiza solo provisiones. Dato ausente=No registrado; no inventes campos ni cumplimiento. /estado, /ficha, /vinculos, /mapa, /ruta y /continuar consultan o retoman el esquema. Copia /guardar fuera del chat; contexto perdido no se puede recuperar con una instrucción.
 
@@ -2013,7 +2010,7 @@ Estas entradas amplían el catálogo compacto. Añádelas individualmente; las r
 **Content:** Los encuentros varían según zona/ruta, horario, clima, ruido, rastros y hechos previos; puede no ocurrir nada. No conviertas todo en combate. Cada individuo tiene temperamento y objetivos: un goblin puede bromear, hablar, comerciar, huir o luchar; no todos son hostiles. El jugador decide y no hay éxito garantizado. Los compañeros reaccionan solo si presenciaron el hecho o se lo contaron; si se enteran después, reaccionan entonces. Registra testigos, quién sabe qué y cambios de vínculo. Un encuentro puede ser anécdota independiente. Una criatura herida/huidiza puede volver si encaja y conserva su estado; una muerta no vuelve como el mismo individuo sin causa.
 
 ### Entrada 73 — Registro interno y esquema cerrado
-**Keywords:** `/estado`; `/guardar`; `/ficha`; `/vinculos`; `registro interno`; `esquema cerrado`; `habilidades conocidas`; `intereses del PNJ`; `sospechas con evidencia`; `porcentajes`; `orden a criatura`; `guardar objeto`
+**Keywords:** `/ficha`; `registro interno`; `esquema cerrado`; `habilidades conocidas`; `intereses del PNJ`; `sospechas con evidencia`; `porcentajes independientes`; `orden a criatura`; `guardar objeto`
 
 **Content:** Esquema cerrado: estado (día/bloque/lugar/escena, mapa/rutas/lore, objetos/cantidad/condición/portador/ubicación, recursos/lesiones, 3–5 eventos recientes); entidad (ID/identidad/especie, estado, última ubicación, orden/destino/cumplimiento, habilidades demostradas y evidencia, intereses/fuente, sospechas/motivo/evidencia, conocimiento/fuente, vínculos por pareja/dirección, promesas/deudas/conflictos, encuentros/testigos, Eco por objetivo). Campo ausente = No registrado; no inventes campos. Porcentajes 0–100 = intensidad, no probabilidad; 50 no es neutral universal; sin evidencia, No registrado. Delta + sube, − baja y 0 = sin cambio en ese hecho; sin evidencia nueva no se mueve el valor. Orden no equivale a obediencia. No hay campo de comidas: cambia solo inventario si varían provisiones. /guardar es copia, no base de datos externa.
 
@@ -2028,11 +2025,11 @@ Estas entradas amplían el catálogo compacto. Añádelas individualmente; las r
 ### Entrada 75 — Eco vegetal: recuerdos de los árboles
 **Keywords:** `Eco vegetal`; `recuerdos de los árboles`; `memoria de un árbol`; `sentir recuerdos`; `Eco en un árbol`; `memoria vegetal`; `árboles y Eco`
 
-**Content:** Descubrimiento confirmado por el jugador: puede intervenir/controlar recuerdos de árboles y lo percibe como sensación interna, no como imágenes. No conviertas la sensación en visión nítida ni definas un mecanismo exacto. Alcance, coste, duración y si puede leer, modificar o ambas cosas siguen sin confirmar. Pauta prudente: un árbol por intento, impresiones parciales de lo que pudo percibir, sin nombres, diálogos exactos, recuerdos visuales perfectos ni futuro. Registra objetivo/lugar, intención, sensación, resultado y efecto confirmado. No apliques automáticamente el límite humano de tres intentos a árboles. Árboles no son omniscientes ni hablan. No reveles el poder a PNJ sin testigos/evidencia.
+**Content:** Descubrimiento confirmado por el jugador: puede intervenir/controlar recuerdos de árboles y lo percibe como sensación interna, no como imágenes. No conviertas la sensación en visión nítida ni definas un mecanismo exacto. Alcance, coste, duración y si puede leer, modificar o ambas cosas siguen sin confirmar. Pauta de prueba, no canon definitivo: limita cada experimento a un árbol por vez y describe impresiones parciales de lo que pudo percibir, sin nombres, diálogos exactos, recuerdos visuales perfectos ni futuro. Registra objetivo/lugar, intención, sensación, resultado y efecto confirmado. No apliques automáticamente el límite humano de tres intentos a árboles. Árboles no son omniscientes ni hablan. No reveles el poder a PNJ sin testigos/evidencia.
 
 
 ### Entrada 76 — Objetos cotidianos y hallazgos posibles
-**Keywords:** `objetos comunes`; `hallazgo`; `inventario`; `mochila`; `bolsa vacía`; `cuerda`; `pedernal`; `cantimplora`; `vendas`; `objetos del camino`
+**Keywords:** `objetos comunes`; `inventario inicial`; `bolsa vacía`; `cordel de cáñamo`; `mochila`; `cuerda`; `pedernal`; `cantimplora`; `vendas`; `hallazgo de objeto`
 
 **Content:** Inventario inicial confirmado: ropa básica de viaje, pañuelo gastado, bolsita de tela vacía y cordel de cáñamo corto (~1,5 m). No hay dinero, comida, agua, armas, mochila ni equipo de aventura. Otros objetos son posibilidades, no regalos automáticos: cuerda, saco, cuenco, cantimplora, aguja/hilo, paño, vendas, yesca/pedernal, vela/antorcha, tiza/carbón, manta, cuchillo utilitario, olla, frasco, estacas y comida conservada. Solo se añaden tras hallazgo/compra/intercambio/regalo confirmado. Registra cantidad, condición, portador/ubicación y estado. Objeto dejado atrás ya no está en inventario llevado; no inventes magia o propiedades especiales.
 
