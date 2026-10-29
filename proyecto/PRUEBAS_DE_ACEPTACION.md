@@ -1,6 +1,6 @@
 # Pruebas de aceptación del gestor local
 
-La CI más reciente validó **87 pruebas Python** y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40943636768.
+La CI más reciente del PR #14 validó **89 pruebas Python** y sintaxis JavaScript; queda una advertencia no bloqueante de Starlette/httpx: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40946590907.
 
 ## A. Persistencia y recuperación
 
@@ -154,7 +154,7 @@ Se considera apto para una primera partida cuando A, C, D, E, F, G, H e I pasan 
 
 ## P. Cargar el preset de Isekai sin Destino
 
-1. Pulsar «Cargar Isekai sin Destino v1.16».
+1. Pulsar «Cargar Isekai sin Destino v1.19».
 2. Verificar 77 entradas de Lorebook, protagonista y cinco aventureros, cinco objetos iniciales, lugar inicial y Día 1 a las 08:00.
 3. Pulsar de nuevo y comprobar que se crea una segunda sesión en el mismo mundo sin mezclar mensajes/inventario de partidas anteriores.
 
@@ -309,4 +309,15 @@ Se considera apto para una primera partida cuando A, C, D, E, F, G, H e I pasan 
 
 **Criterio:** el estado solo se restaura si coincide con la huella posterior del turno. Si el estado ya cambió, no se debe modificar nada. Snapshots antiguos sin huella pueden migrarse de forma perezosa solo cuando el registro de cambios no señala una aprobación posterior.
 
-**Cobertura automatizada:** PR #12 aprobó 87 pruebas Python y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40943636768. El escenario usa proveedor simulado; la campaña larga con navegador real sigue pendiente.
+**Cobertura automatizada:** la suite del PR #14 aprobó 89 pruebas Python y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40946590907. Los casos de proveedor siguen siendo simulados; la campaña larga con navegador real sigue pendiente.
+
+
+## R. Cancelación de una generación y desbloqueo seguro
+
+1. Simular que el proveedor cancela su tarea mientras `submit_turn` lo espera.
+2. Comprobar que la solicitud original permanece guardada como `failed`, no queda en `processing` y no se crea un mensaje del narrador.
+3. Comparar el estado de la partida antes y después: inventario, recursos, relaciones, presencia, reloj y eventos confirmados deben ser idénticos.
+4. Reintentar el mismo mensaje con el mismo `request_id` y un proveedor disponible.
+5. Confirmar que existe un único mensaje de usuario y una única respuesta de narrador, y que ninguna operación se aplicó dos veces.
+
+**Cobertura automatizada:** prueba añadida en PR #14; 89 pruebas Python y sintaxis JavaScript correctas en CI (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40946590907). Esto simula la cancelación en el límite del proveedor; no sustituye la campaña con ChatGPT/Gemini web reales ni el ensayo manual Windows/Chromium.
