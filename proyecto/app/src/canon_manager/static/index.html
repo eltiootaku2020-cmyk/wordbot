@@ -93,6 +93,7 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}label{font-size:13px;
     </form>
     <div class="toolbar">
       <button id="retryButton" hidden>Reintentar último envío</button>
+      <button id="undoTurnButton" type="button">Deshacer último turno</button>
       <button id="previewContextButton" type="button">Previsualizar contexto IA</button>
     </div>
     <details id="contextInspector" class="setup">
@@ -123,6 +124,7 @@ let currentSession = "";
 let entityNames = {};
 let lastState = null;
 let failedRequest = null;
+let latestCompletedTurnId = "";
 
 async function api(path, options) {
   const init = Object.assign({headers:{"Content-Type":"application/json"}}, options || {});
@@ -177,14 +179,23 @@ async function loadMessages() {
   if (!currentSession) return;
   const messages = await api("/api/sessions/" + currentSession + "/messages");
   clearChildren(el("chat"));
+  latestCompletedTurnId = "";
   for (const message of messages) {
-    if (message.generation_status !== "complete" && message.role === "user") continue;
+    if (!["complete", "undone"].includes(message.generation_status) && message.role === "user") continue;
+    if (message.role === "assistant" && message.generation_status === "complete") {
+      latestCompletedTurnId = message.turn_id;
+    }
     const label = message.role === "user" ? "Tú" : message.role === "assistant" ? "Narrador" : "Sistema";
     const recipient = message.recipient_entity_id ? " → " + (entityNames[message.recipient_entity_id] || "destinatario") : "";
     let messageMeta = {};
     try { messageMeta = JSON.parse(message.metadata_json || "{}"); } catch (_) {}
     const scopeLabel = messageMeta.visibility === "private" ? " [PRIVADO]" : "";
-    addMessage(message.role === "user" ? "user" : "assistant", label + recipient + scopeLabel + ":\n" + message.content, message.generation_status === "failed");
+    const undoLabel = message.generation_status === "undone" ? " [ANULADO]" : "";
+    addMessage(
+      message.role === "user" ? "user" : "assistant",
+      label + undoLabel + recipient + scopeLabel + ":\n" + message.content,
+      message.generation_status === "failed"
+    );
   }
 }
 function renderState(payload) {
@@ -454,6 +465,28 @@ el("sendForm").onsubmit = async event => {
 };
 el("retryButton").onclick = async () => {
   if (failedRequest) await sendTurn(failedRequest);
+};
+el("undoTurnButton").onclick = async () => {
+  try {
+    if (!currentSession) throw new Error("Selecciona una partida.");
+    if (!latestCompletedTurnId) throw new Error("No hay un turno completado que deshacer.");
+    const result = await api(
+      "/api/sessions/" + currentSession + "/turns/" + encodeURIComponent(latestCompletedTurnId) + "/undo",
+      {method:"POST", body:"{}"}
+    );
+    failedRequest = null;
+    el("retryButton").hidden = true;
+    await loadMessages();
+    await loadState();
+    el("messageInput").value = result.user_text || "";
+    el("visibilitySelect").value = result.visibility || "scene";
+    if ([...el("recipientSelect").options].some(option => option.value === result.recipient_id)) {
+      el("recipientSelect").value = result.recipient_id;
+    } else {
+      el("recipientSelect").value = "";
+    }
+    setStatus("Turno anulado; el estado anterior fue restaurado. Edita el texto y envíalo para crear un nuevo turno.", true);
+  } catch (err) { setStatus(err.message, false); }
 };
 el("previewContextButton").onclick = async () => {
   try {
