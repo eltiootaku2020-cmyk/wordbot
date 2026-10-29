@@ -95,7 +95,7 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}label{font-size:13px;
     </form>
     <details id="manualHandoff" class="setup" hidden>
       <summary>Usar tu chat normal de ChatGPT o Gemini</summary>
-      <p class="muted">El programa no entra ni lee tu cuenta. Copia este prompt al chat web, envíalo allí, copia la respuesta JSON completa y pégala abajo. La partida solo se guardará después de validar la respuesta.</p>
+      <p class="muted">El programa no entra ni lee tu cuenta. El prompt incluye el estado, el historial reciente y las fichas pertinentes de esta partida; revísalo antes de pegarlo en ChatGPT/Gemini. Copia la respuesta JSON completa y pégala abajo. La partida solo se guardará después de validar la respuesta.</p>
       <div class="toolbar">
         <button id="copyManualPrompt" type="button">Copiar prompt</button>
         <a id="manualChatLink" href="https://chatgpt.com/" target="_blank" rel="noopener noreferrer">Abrir chat web</a>
@@ -530,11 +530,25 @@ el("sendForm").onsubmit = async event => {
   await sendTurn(request);
 };
 el("providerSelect").onchange = () => {
-  const manual = ["chatgpt_web", "gemini_web"].includes(el("providerSelect").value);
+  const provider = el("providerSelect").value;
+  const manual = ["chatgpt_web", "gemini_web"].includes(provider);
+  if (preparedManualRequest && preparedManualRequest.payload.provider !== provider) {
+    preparedManualRequest = null;
+    el("manualPromptText").value = "";
+    el("manualResponseText").value = "";
+  }
   el("manualHandoff").hidden = !manual;
   el("sendButton").textContent = manual ? "Preparar prompt" : "Enviar";
   if (!manual) preparedManualRequest = null;
 };
+el("messageInput").addEventListener("input", () => {
+  if (preparedManualRequest && el("messageInput").value.trim() !== preparedManualRequest.payload.text) {
+    preparedManualRequest = null;
+    el("manualPromptText").value = "";
+    el("manualResponseText").value = "";
+    setStatus("El texto cambió. Vuelve a preparar el prompt antes de aplicar una respuesta.", false);
+  }
+});
 el("copyManualPrompt").onclick = async () => {
   try {
     const text = el("manualPromptText").value;
