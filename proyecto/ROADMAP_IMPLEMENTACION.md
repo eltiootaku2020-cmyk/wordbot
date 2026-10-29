@@ -1,6 +1,6 @@
 # Roadmap de implementación — gestor local v0.1
 
-El prototipo v0.1 ya existe. Las casillas marcan código presente, no necesariamente validación manual completa. La última CI aprobó 26 pruebas automáticas en Linux/Python 3.12 y comprobó sintaxis JavaScript; proveedores reales y la instalación en Windows aún deben probarse.
+El prototipo v0.1 ya existe. Las casillas marcan código presente, no necesariamente validación manual completa. La última CI aprobó 28 pruebas automáticas en Linux/Python 3.12 y comprobó sintaxis JavaScript; proveedores reales y la instalación en Windows aún deben probarse.
 
 ## Fase 0 — Investigación y arquitectura
 - [x] Revisar clientes de roleplay (SillyTavern, RisuAI, Agnai).
@@ -53,11 +53,14 @@ Criterio de salida: un cambio sólo se aplica si tiene una causa válida; el mis
 Criterio de salida: el programa envía solo el lore necesario y no convierte un rumor en hecho.
 
 ## Fase 5 — Fiabilidad y recuperación
-- [x] Crear copia SQLite consistente; restauración visual y snapshots automáticos siguen pendientes.
+- [x] Crear copia SQLite consistente.
+- [x] Snapshot preturno automático enlazado a turno.
+- [x] Undo del último turno completado desde la interfaz/API: restaura estado y conserva la versión anulada como auditoría.
+- [ ] Restauración visual de una copia SQLite completa.
 - [ ] Restauración con vista previa.
 - [x] Registrar cambios aceptados, pendientes y rechazados.
 - [ ] Reintento controlado para JSON inválido o timeout.
-- [x] CI: 26 pruebas aprobadas en modo simulado, sin llamadas pagas.
+- [x] CI: 28 pruebas aprobadas en modo simulado, sin llamadas pagas.
 - [ ] Prueba de 50–100 intercambios y reinicio completo.
 
 Criterio de salida: el estado, mensajes y recursos sobreviven al cierre; se pueden detectar y corregir errores de la IA.
@@ -86,7 +89,7 @@ La interfaz ya permite crear un mundo y su primera sesión, con protagonista, ca
 
 - [x] Validar sintaxis del JavaScript de la interfaz en CI.
 
-Última CI aprobada (26 pruebas Python + JavaScript): https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40873010055
+Última CI aprobada (28 pruebas Python + JavaScript): https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40873768030
 
 
 ---
@@ -112,7 +115,7 @@ Esta sección distingue implementado de pendiente. No marcar como terminado nada
 - [x] Pago e ingreso/objeto se registran en SQLite con valores anterior/propuesto/aceptado y fuente; saldo insuficiente deja inventario y dinero intactos.
 - [x] Mantener objetos de alto impacto, operaciones ambiguas y datos contradictorios pendientes.
 
-**Verificación:** 26 pruebas Python aprobadas en CI; proveedor simulado. La idempotencia de compra está probada en la API con proveedor simulado; faltan proveedor real y Windows.
+**Verificación:** 28 pruebas Python aprobadas en CI; proveedor simulado. La idempotencia de compra está probada en la API con proveedor simulado; faltan proveedor real y Windows.
 
 ### Prioridad P2 — Inspector de contexto y activación de Lorebook
 - [x] Mostrar fichas Lorebook seleccionadas y los disparadores concretos.
@@ -125,16 +128,17 @@ Esta sección distingue implementado de pendiente. No marcar como terminado nada
 **Criterio parcial alcanzado:** inspector Lorebook cubierto por prueba de CI. El contexto completo todavía no ofrece un inspector explicativo por mensaje/evento y el límite de caracteres no sustituye un tokenizador.
 
 ### Prioridad P3 — Undo, editar y regenerar de forma segura
-- [ ] Crear snapshot o conjunto reversible de cambios por turno.
-- [ ] Al editar/regenerar, revertir los cambios de ese turno antes de reaplicarlos.
-- [ ] Conservar mensajes/respuestas reemplazados en historial de versiones, no borrarlos sin rastro.
-- [ ] Asegurar idempotencia para no duplicar gasto de Eco, compra, cambio de relación o avance de reloj.
-- [ ] Añadir pruebas de rollback de eventos, inventario, relaciones, tiempo y poderes.
+- [x] Crear snapshot preturno con los campos de estado mutables y asociarlo a `turn_id`.
+- [x] Anular el último turno completado: restaura reloj, ubicación, presencia, inventario, recursos, relaciones y usos de poderes.
+- [x] Conservar auditables las versiones anuladas: mensajes con estado anulada; eventos/cambios rechazados y separados del turno regenerable.
+- [x] Permitir reintentar el mismo `request_id` después de undo sin duplicar eventos, compras ni usos de poderes.
+- [x] Rechazar el undo de turnos antiguos cuando existan turnos posteriores activos.
+- [ ] Añadir pruebas explícitas de rollback de relaciones y poderes, y ensayar la interacción visual en Windows.
 
-**Criterio de salida:** regenerar una respuesta no duplica ni conserva efectos de la versión que ya no se muestra.
+**Criterio parcial alcanzado:** restauración de inventario, recursos y reloj, auditoría y orden de undo cubiertos por CI. Falta probar todas las variantes de relaciones/poderes en una campaña larga.
 
 ### Prioridad P4 — Pruebas de integración reales y de larga duración
-- [x] CI Linux: 26 pruebas Python y comprobación sintáctica de JavaScript aprobadas el 29-10-2026 (no sustituye las pruebas manuales de Windows).
+- [x] CI Linux: 28 pruebas Python y comprobación sintáctica de JavaScript aprobadas el 29-10-2026 (no sustituye las pruebas manuales de Windows).
 - [ ] Ejecutar la instalación desde cero en Windows/Chromium.
 - [ ] Probar una llamada controlada a OpenAI y otra a Gemini con claves del usuario en su PC; no almacenar claves en Git.
 - [ ] Ejecutar 50–100 turnos con escenas grupales/privadas, compras/consumos, viajes y Eco.
