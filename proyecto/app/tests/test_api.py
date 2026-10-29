@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 
 import canon_manager.main as main_module
 from canon_manager.main import app, database, build_context, session_row, apply_narrator_result
-from canon_manager.models import NarratorResponse, EventProposal, InventoryOperation, MovementProposal, ResourceOperation
+from canon_manager.models import NarratorResponse, EventProposal, StateChangeProposal, InventoryOperation, MovementProposal, PowerUseProposal, ResourceOperation
 
 
 def test_seeded_chat_turn_is_saved_and_changes_are_validated():
@@ -1213,3 +1213,108 @@ def test_undo_completed_turn_is_not_blocked_by_a_later_failed_provider_request(m
         assert undone.json()["undone"] is True
         assert undone.json()["state"]["state"]["time_label"].endswith("08:00")
         assert provider_state["calls"] == 2
+
+
+
+def test_undo_restores_relationship_value_and_eco_use(monkeypatch):
+    with TestClient(app) as client:
+        started, entities = _create_state_ops_world(client)
+        session_id = started["session_id"]
+        protagonist_id = entities["Protagonista"]["id"]
+        maelis_id = entities["Maelis Orven"]["id"]
+        with database.transaction() as conn:
+            conn.execute(
+                "INSERT INTO relationships(id,session_id,from_entity_id,to_entity_id,axis,value,reason) "
+                "VALUES(?,?,?,?,?,?,?)",
+                (
+                    uuid.uuid4().hex, session_id, protagonist_id, maelis_id,
+                    "friendship", 50, "Valor base de prueba confirmado."
+                )
+            )
+        provider_state = {"calls": 0}
+
+        class EcoProvider:
+            name = "mock"
+
+            async def generate(self, payload):
+                provider_state["calls"] += 1
+                audience = list(payload["context"]["audience_ids"])
+                return NarratorResponse(
+                    narration="La tentativa de Eco queda registrada y Maelis reacciona al intento.",
+                    elapsed_minutes=3,
+                    events=[
+                        EventProposal(
+                            ref="undo-eco-source",
+                            kind="power",
+                            entity_id=maelis_id,
+                            description="El protagonista intenta usar Eco sobre Maelis.",
+                            witness_ids=audience
+                        )
+                    ],
+                    state_changes=[
+                        StateChangeProposal(
+                            ref="undo-friendship-change",
+                            entity_id=maelis_id,
+                            field="friendship",
+                            operation="delta",
+                            numeric_value=-2,
+                            text_value="",
+                            reason="La interacción afecta temporalmente al vínculo.",
+                            event_ref="undo-eco-source",
+                            requires_approval=False
+                        )
+                    ],
+                    power_uses=[
+                        PowerUseProposal(
+                            ability_key="eco",
+                            target_entity_id=maelis_id,
+                            event_ref="undo-eco-source",
+                            result="Intento registrado para prueba de rollback.",
+                            cost=1
+                        )
+                    ]
+                )
+
+        monkeypatch.setattr(main_module, "make_provider", lambda provider_name, settings: EcoProvider())
+        response = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json={
+                "request_id": "undo-eco-relationship-001",
+                "text": "/psiquico Uso Eco contra Maelis",
+                "provider": "mock",
+                "visibility": "scene"
+            }
+        )
+        assert response.status_code == 200, response.text
+        turn_id = response.json()["turn_id"]
+        with database.connection() as conn:
+            changed_rel = conn.execute(
+                "SELECT value FROM relationships WHERE session_id=? AND from_entity_id=? AND to_entity_id=? AND axis='friendship'",
+                (session_id, protagonist_id, maelis_id)
+            ).fetchone()
+            uses = conn.execute(
+                "SELECT COUNT(*) AS n FROM ability_uses WHERE session_id=? AND target_entity_id=?",
+                (session_id, maelis_id)
+            ).fetchone()["n"]
+        assert changed_rel["value"] == 48
+        assert uses == 1
+
+        undone = client.post(
+            f"/api/sessions/{session_id}/turns/{turn_id}/undo",
+            json={}
+        )
+        assert undone.status_code == 200, undone.text
+        with database.connection() as conn:
+            restored_rel = conn.execute(
+                "SELECT value,reason FROM relationships WHERE session_id=? AND from_entity_id=? AND to_entity_id=? AND axis='friendship'",
+                (session_id, protagonist_id, maelis_id)
+            ).fetchone()
+            restored_uses = conn.execute(
+                "SELECT COUNT(*) AS n FROM ability_uses WHERE session_id=? AND target_entity_id=?",
+                (session_id, maelis_id)
+            ).fetchone()["n"]
+        assert restored_rel["value"] == 50
+        assert restored_rel["reason"] == "Valor base de prueba confirmado."
+        assert restored_uses == 0
+        assert undone.json()["state"]["state"]["time_label"].endswith("08:00")
+        assert provider_state["calls"] == 1
