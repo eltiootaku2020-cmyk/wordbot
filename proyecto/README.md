@@ -39,6 +39,7 @@ No se debe enviar el Lorebook entero en cada mensaje. La aplicación recupera so
 ## Investigación, decisiones y plan de implementación
 
 - [Investigación de proyectos y referencias](INVESTIGACION_REFERENCIAS.md) — incluye Openovel, Chronicler, RPG Tracker, Open Dungeon, Gamentic, SillyTavern, RisuAI, memoria y APIs.
+- [Continuidad duradera y variedad narrativa](CONTINUIDAD_DURADERA_Y_VARIACION.md) — marcas persistentes para promesas, pistas, heridas y conocimiento; relaciones de escena; sugerencias antirrepetición y límites pendientes.
 - [Decisiones técnicas provisionales](DECISIONES_TECNICAS.md) — ADR-001 a ADR-015.
 - [Investigación comparativa y errores fantasma](INVESTIGACION_PROGRAMAS_SIMILARES_Y_ERRORES_FANTASMA_2026-10-29.md) — alternativas reales, criterios adoptables y nuevos casos de regresión.\n- [Roadmap de implementación](ROADMAP_IMPLEMENTACION.md) — prioridades P0–P4 y pruebas pendientes.
 

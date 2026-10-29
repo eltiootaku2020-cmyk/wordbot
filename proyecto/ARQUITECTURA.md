@@ -17,6 +17,8 @@ Un rumor no se promueve a hecho confirmado sin evidencia. Una posibilidad en la 
 
 ## 2. Ciclo de turno
 
+El contexto incluye una selección independiente de hasta 12 eventos de continuidad duradera (promesas, misiones, heridas relevantes, pistas, secretos, plazos, amenazas, conocimientos y anclas cronológicas). Se filtran por la misma audiencia y testigos que los eventos recientes, para no convertir información privada en conocimiento compartido. También se incluyen relaciones dirigidas entre los participantes de la escena, no solo la relación del protagonista con el destinatario. La variedad narrativa se orienta mediante una sugerencia de estilo estable por turno y distinta de las tres sugerencias anteriores; no modifica las reglas ni aleatoriza resultados.
+
 ### A. Entrada
 
 La interfaz guarda el texto original del usuario y los metadatos que conozca: mundo, partida, protagonista, destinatario opcional y momento actual. El programa no debe cambiar el texto original.
@@ -120,6 +122,8 @@ Los valores representan intensidad y deben tener causa e historial. La etiqueta 
 El valor `50` no se interpreta automáticamente como neutral universal. Cuando no hay evidencia suficiente, se usa `No registrado` y no un número inventado.
 
 ## 6. Tiempo y movimiento
+
+El día, la hora y la ubicación se leen del estado persistido de la sesión; no deben reponerse desde una cabecera fija. Los eventos importantes pueden marcarse con `continuity=true` e importancia 4–5 para que sigan en el contexto aunque queden fuera de la ventana reciente. `timeline_anchor` identifica una ancla cronológica, pero el disparo automático al cruzar su fecha/hora sigue pendiente y no debe presentarse como implementado.
 
 La IA propone una duración estimada y los acontecimientos ocurridos. El programa aplica el reloj según reglas deterministas configuradas por el mundo. La duración explícita indicada por el usuario prevalece. Conversaciones breves no provocan saltos arbitrarios de horas.
 

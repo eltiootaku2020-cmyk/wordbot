@@ -47,6 +47,8 @@ CREATE TABLE IF NOT EXISTS events (
   id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   turn_id TEXT NOT NULL, external_ref TEXT NOT NULL, kind TEXT NOT NULL, entity_id TEXT NOT NULL DEFAULT '',
   description TEXT NOT NULL, witnesses_json TEXT NOT NULL DEFAULT '[]',
+  continuity INTEGER NOT NULL DEFAULT 0 CHECK(continuity IN (0,1)),
+  importance INTEGER NOT NULL DEFAULT 1 CHECK(importance BETWEEN 1 AND 5),
   status TEXT NOT NULL CHECK(status IN ('recorded','pending','rejected')),
   source_message_id TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(session_id, turn_id, external_ref)
@@ -129,6 +131,12 @@ class Database:
                 "CREATE UNIQUE INDEX IF NOT EXISTS idx_snapshots_session_turn "
                 "ON snapshots(session_id,turn_id) WHERE turn_id<>''"
             )
+
+            event_columns = {row["name"] for row in conn.execute("PRAGMA table_info(events)").fetchall()}
+            if "continuity" not in event_columns:
+                conn.execute("ALTER TABLE events ADD COLUMN continuity INTEGER NOT NULL DEFAULT 0")
+            if "importance" not in event_columns:
+                conn.execute("ALTER TABLE events ADD COLUMN importance INTEGER NOT NULL DEFAULT 1")
 
             # Older local databases may predate presence_status/updated_at. Add
             # these columns in place so the existing session and its cast survive.

@@ -4,6 +4,9 @@ Este es el contrato lógico v0.1 entre el narrador y la aplicación local. El pr
 
 ## Forma general
 
+Los eventos duraderos admiten `continuity` (booleano) e `importance` (1–5). Las categorías recomendadas son `promise`, `quest`, `injury`, `clue`, `secret`, `deadline`, `threat`, `timeline_anchor`, `knowledge` y `tracked_fact`. Esos tipos se conservan por separado de la ventana de eventos recientes. Cada uno debe incluir una descripción concreta y testigos válidos; las conversaciones privadas no se convierten en conocimiento de terceros. Los eventos cotidianos usan `continuity=false` e importancia 1.
+
+
 Cada turno debe devolver un objeto con estos apartados:
 
 - `narracion`: texto que verá el usuario.

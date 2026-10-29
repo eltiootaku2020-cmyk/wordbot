@@ -4526,3 +4526,117 @@ def test_cancelled_provider_generation_marks_turn_failed_and_allows_same_request
             message for message in messages_after
             if message["role"] == "assistant" and message["turn_id"] == failed_user["turn_id"]
         ]) == 1
+
+
+def test_durable_continuity_events_survive_recent_history_window_and_respect_witnesses():
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+        session_id = seed["session_id"]
+        with database.transaction() as conn:
+            session = session_row(conn, session_id)
+            protagonist_id = session["protagonist_entity_id"]
+            maelis_id = conn.execute(
+                "SELECT id FROM entities WHERE world_id=? AND name='Maelis Orven'",
+                (session["world_id"],)
+            ).fetchone()["id"]
+            ivar_id = conn.execute(
+                "SELECT id FROM entities WHERE world_id=? AND name='Ivar Dalen'",
+                (session["world_id"],)
+            ).fetchone()["id"]
+            conn.execute(
+                "INSERT INTO relationships(id,session_id,from_entity_id,to_entity_id,axis,value,reason) "
+                "VALUES(?,?,?,?,?,?,?)",
+                (uuid.uuid4().hex, session_id, maelis_id, ivar_id, "respect", 72,
+                 "Respeto demostrado durante una guardia compartida.")
+            )
+            # Insert the important promise first so it is older than the ordinary
+            # scene events and would normally fall outside the six-event window.
+            conn.execute(
+                "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,"
+                "witnesses_json,continuity,importance,status,source_message_id) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                (uuid.uuid4().hex, session_id, "old-promise-turn", "promise-1", "promise",
+                 protagonist_id, "La arquera prometió volver al refugio antes del anochecer.",
+                 json.dumps([protagonist_id]), 1, 5, "recorded", "")
+            )
+            for index in range(10):
+                conn.execute(
+                    "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,"
+                    "witnesses_json,continuity,importance,status,source_message_id) "
+                    "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (uuid.uuid4().hex, session_id, f"ordinary-turn-{index}", f"ordinary-{index}",
+                     "observation", protagonist_id, f"Observación cotidiana número {index}.",
+                     json.dumps([protagonist_id]), 0, 1, "recorded", "")
+                )
+            session = session_row(conn, session_id)
+            context = build_context(
+                conn, session, "reviso la entrada", "", "preview-continuity",
+                visibility="scene", include_diagnostics=True
+            )
+            assert any(
+                item["kind"] == "promise" and "volver al refugio" in item["description"]
+                for item in context["continuity_records"]
+            )
+            assert len(context["continuity_records"]) <= 12
+            assert any(
+                relation["from_entity_id"] == maelis_id
+                and relation["to_entity_id"] == ivar_id
+                and relation["axis"] == "respect"
+                for relation in context["relationships_in_scene"]
+            )
+            private_context = build_context(
+                conn, session, "hablo con Maelis", maelis_id, "preview-private-continuity",
+                visibility="private", audience_ids=[protagonist_id, maelis_id]
+            )
+            assert not any(
+                item["kind"] == "promise"
+                for item in private_context["continuity_records"]
+            )
+            assert not any(
+                relation["from_entity_id"] == maelis_id and relation["to_entity_id"] == ivar_id
+                for relation in private_context["relationships_in_scene"]
+            )
+
+        state_response = client.get(f"/api/sessions/{session_id}/state")
+        assert state_response.status_code == 200
+        assert any(
+            item["kind"] == "promise"
+            for item in state_response.json()["continuity_records"]
+        )
+
+
+def test_narrative_variation_cue_is_stable_per_turn_and_avoids_recent_repeats():
+    # Seed a world in the isolated test database.
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+    session_id = seed["session_id"]
+    with database.transaction() as conn:
+        first = main_module.narrative_variation_hint(conn, session_id, "preview-next")
+        repeated_preview = main_module.narrative_variation_hint(conn, session_id, "preview-next")
+        assert first == repeated_preview
+
+        used = []
+        for turn_index in range(1, 4):
+            cue = main_module.narrative_variation_hint(
+                conn, session_id, f"preview-{turn_index}"
+            )["cue"]
+            # Persist the cue exactly as a completed assistant turn would.
+            conn.execute(
+                "INSERT INTO messages(id,session_id,turn_id,turn_index,role,recipient_entity_id,"
+                "content,provider,generation_status,metadata_json) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (uuid.uuid4().hex, session_id, f"cue-turn-{turn_index}", turn_index,
+                 "assistant", "", "Escena de prueba.", "mock", "complete",
+                 json.dumps({"variation_cue": cue}))
+            )
+            used.append(cue)
+
+        next_hint = main_module.narrative_variation_hint(conn, session_id, "preview-four")
+        assert next_hint["turn_index"] == 4
+        assert next_hint["cue"] not in used
+
+
+def test_event_continuity_columns_exist_after_fresh_database_initialization():
+    with database.connection() as conn:
+        columns = {row["name"] for row in conn.execute("PRAGMA table_info(events)").fetchall()}
+    assert {"continuity", "importance"} <= columns
