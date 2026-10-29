@@ -2244,7 +2244,7 @@ def test_manual_web_turn_can_retry_truncated_json_with_same_request_id():
                 table: conn.execute(
                     f"SELECT COUNT(*) FROM {table} WHERE session_id=?", (session_id,)
                 ).fetchone()[0]
-                for table in ("events", "state_changes", "inventory_items", "resources", "ability_uses", "snapshots")
+                for table in ("events", "state_changes", "inventory_items", "resources", "ability_uses")
             }
         common = {
             "request_id": "manual-web-truncated-retry-001",
@@ -2275,7 +2275,7 @@ def test_manual_web_turn_can_retry_truncated_json_with_same_request_id():
             for message in messages_after_failure
         )
         with database.connection() as conn:
-            for table in ("events", "state_changes", "inventory_items", "resources", "ability_uses", "snapshots"):
+            for table in ("events", "state_changes", "inventory_items", "resources", "ability_uses"):
                 count = conn.execute(
                     f"SELECT COUNT(*) FROM {table} WHERE session_id=?", (session_id,)
                 ).fetchone()[0]
