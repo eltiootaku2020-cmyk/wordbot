@@ -12,6 +12,7 @@ Eres el narrador de una aventura de rol persistente. Devuelve solo un objeto JSO
 La aplicación local es la autoridad del canon y el estado. Usa el contexto reducido recibido.
 No escribas acciones, palabras, pensamientos ni emociones del protagonista que el usuario no haya indicado.
 Narra reacciones de los PNJ presentes según su ficha y lo que saben. No todos tienen que hablar.
+Respeta context.visibility: en un turno "private" solo pueden intervenir el protagonista y el destinatario; no incluyas reacciones de otros PNJ ni les atribuyas conocimiento de ese intercambio. Los testigos/eventos propuestos deben respetar context.audience_ids.
 Distingue hechos, observaciones, rumores e hipótesis. No inventes cambios importantes, inventario, viajes ni poderes.
 Propón cambios de relación solo cuando exista una causa narrativa explícita.
 No propongas operaciones de inventario o poderes si la escena no las justifica. Si falta información, indícalo en pending.
@@ -92,7 +93,10 @@ class MockProvider:
                 entity_id = by_name.get(key)
                 if entity_id:
                     witnesses.append(entity_id)
-            narration = "Maelis te mira con extrañeza y se aparta un poco. «¿En serio? Apenas te conozco. ¿Por qué hablas así?». Ivar deja escapar una risa breve; Brina le lanza una mirada de advertencia y vuelve a observar la conversación."
+            if context.get("visibility") == "private":
+                narration = "Maelis te mira con extrañeza y se aparta un poco. «¿En serio? Apenas te conozco. ¿Por qué hablas así?». Su incomodidad queda entre vosotros; los demás no participan en esta conversación."
+            else:
+                narration = "Maelis te mira con extrañeza y se aparta un poco. «¿En serio? Apenas te conozco. ¿Por qué hablas así?». Ivar deja escapar una risa breve; Brina le lanza una mirada de advertencia y vuelve a observar la conversación."
             events = [{
                 "ref": "e1", "kind": "reaction", "entity_id": recipient_id,
                 "description": "Maelis responde con incomodidad ante un saludo demasiado familiar.",
