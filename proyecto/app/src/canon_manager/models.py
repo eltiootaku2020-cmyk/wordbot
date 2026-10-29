@@ -138,14 +138,20 @@ class TurnRequest(StrictModel):
     request_id: str = Field(min_length=8, max_length=100)
     text: str = Field(min_length=1, max_length=8000)
     recipient_id: str = ""
-    provider: Literal["mock", "openai", "gemini"] = "mock"
+    provider: Literal["mock", "openai", "gemini", "chatgpt_web", "gemini_web"] = "mock"
     visibility: Literal["scene", "private"] = "scene"
+    external_response: str = Field(default="", max_length=60000)
 
 
 class ContextPreviewRequest(StrictModel):
     text: str = Field(default="", max_length=8000)
     recipient_id: str = ""
     visibility: Literal["scene", "private"] = "scene"
+
+
+class ManualPromptRequest(ContextPreviewRequest):
+    text: str = Field(min_length=1, max_length=8000)
+    provider: Literal["chatgpt_web", "gemini_web"]
 
 
 class ApprovalRequest(StrictModel):
