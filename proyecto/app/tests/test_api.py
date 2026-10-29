@@ -13,7 +13,7 @@ os.environ["APP_DB_PATH"] = str(Path(_TEST_DB_DIR.name) / "initial.sqlite3")
 from fastapi.testclient import TestClient
 
 import canon_manager.main as main_module
-from canon_manager.main import app, database, build_context, session_row, apply_narrator_result
+from canon_manager.main import app, database, build_context, session_row, apply_narrator_result, relevance_terms
 from canon_manager.models import NarratorResponse, EventProposal, StateChangeProposal, InventoryOperation, MovementProposal, PowerUseProposal, ResourceOperation
 
 
@@ -2176,3 +2176,9 @@ def test_unexpected_state_application_failure_marks_turn_failed_and_allows_same_
         messages_after = client.get(f"/api/sessions/{session_id}/messages").json()
         assert len([m for m in messages_after if m["role"] == "user" and m["content"] == payload["text"]]) == 1
         assert len([m for m in messages_after if m["role"] == "assistant" and m["turn_id"] == failed_user["turn_id"]]) == 1
+
+
+def test_history_retrieval_matches_common_spanish_plural_and_verb_forms():
+    old_fact = relevance_terms("Las llaves antiguas quedaron junto al cofre; recogí una bolsa.")
+    current_action = relevance_terms("Busco la llave antigua y quiero recoger la bolsa.")
+    assert {"llave", "antigua", "recog"}.issubset(old_fact & current_action)
