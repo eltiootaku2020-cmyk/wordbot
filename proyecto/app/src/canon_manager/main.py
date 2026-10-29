@@ -1102,7 +1102,7 @@ def apply_narrator_result(
         if not user_authorized_resource:
             unauthorized_resource_refs.add(operation.event_ref)
 
-    def explicitly_used_power_for_target(power: PowerUseProposal) -> bool:
+    def explicitly_used_power_for_target(power) -> bool:
         target = conn.execute(
             "SELECT name FROM entities WHERE id=? AND world_id=?",
             (power.target_entity_id, session["world_id"])
