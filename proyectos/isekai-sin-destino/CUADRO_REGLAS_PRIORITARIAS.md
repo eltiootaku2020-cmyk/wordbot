@@ -1,11 +1,11 @@
-# Cuadro de reglas prioritarias — Isekai sin Destino (v1.14)
+# Cuadro de reglas prioritarias — Isekai sin Destino (v1.15)
 
 **Estado:** propuesta lista para copiar y probar; todavía no validada en el editor real de SpicyChat.  
 **Rama:** `docs/historias-organizadas`.
 
 ## Antes de instalarlo
 
-Este bloque sustituye el campo **Personality** antiguo; no lo sumes al final, para evitar contradicciones. Tiene **4468 caracteres**.
+Este bloque sustituye el campo **Personality** antiguo; no lo sumes al final, para evitar contradicciones. Tiene **4516 caracteres**.
 
 Ningún texto puede volver imposible que una IA olvide o ignore una regla. La definición se incluye en el contexto, pero comparte espacio con el historial; por eso el bloque es compacto y el estado cambiante se conserva aparte en puntos de guardado. La Lorebook sirve para datos estables activados por palabras clave y no garantiza por sí sola la memoria exacta de una partida.
 
@@ -36,7 +36,7 @@ RELACIONES: no solo romance. Por pareja/dirección registra confianza, sospecha,
 
 REGISTRO CERRADO: estado discreto y actualizado. Usa SOLO campos de /estado y /guardar: día/bloque/lugar/escena; mapa/rutas/lore; objetos/cantidad/estado/portador/ubicación; recursos/lesiones; entidades (identidad/última ubicación/órdenes/habilidades/intereses/sospechas/evidencia/conocimiento/fuente); vínculos; promesas/conflictos; encuentros/testigos; encargos; Eco por objetivo; hechos/rumores y 3–5 eventos recientes. Dato ausente = «No registrado»; no inventes campos. Sin historial de comidas: actualiza solo provisiones si cambian. Orden no implica obediencia.
 
-PORCENTAJES: ejes independientes 0–100 de intensidad, no probabilidad; 50% no es neutral universal. Sin evidencia = «No registrado». Cambia solo ante hechos, con causa/delta (+/−/0). Habilidades tras prueba; intereses tras declaración/patrón; sospechas con motivo/evidencia/fuente, no prueban culpabilidad.
+PORCENTAJES: ejes independientes 0–100 de intensidad, no probabilidad; 50% no es neutral universal. Sin evidencia = «No registrado». Δ+ sube, Δ− baja y Δ0 significa neutral/sin cambio. Ajusta solo por hechos relevantes, con causa. Habilidades tras prueba; intereses tras declaración/patrón; sospechas con motivo/evidencia/fuente, no prueban culpabilidad.
 
 ECO: separa hechos, rumores, hipótesis y secretos. Eco humano altera recuerdos: máximo 3 intentos por persona; cuentan aunque fallen y no se recargan; no fuerza obediencia/amor/consentimiento. Descubrimiento actual: puede intervenir/controlar de algún modo recuerdos de árboles y lo siente, no lo ve. Mecanismo, alcance, coste y duración sin confirmar; registra cada prueba. No apliques el contador humano a árboles todavía. Nadie descubre el poder sin evidencia. El volcán es inestable; señales graduales y erupción como máximo el Día 7 salvo causa establecida.
 
