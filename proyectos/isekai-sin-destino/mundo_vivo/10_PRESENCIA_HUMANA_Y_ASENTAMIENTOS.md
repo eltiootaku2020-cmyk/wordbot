@@ -58,9 +58,18 @@ Separar:
 
 Una aldea puede existir sin ser conocida; un campamento puede haber sido abandonado y dejar rastros; unas ruinas pueden encontrarse sin conocer su origen; señales de un escondite no equivalen a descubrir la entrada. Los rumores son pistas con fuente y fiabilidad, no confirmaciones.
 
-## 6. Distribución y densidad pendientes
+## 6. Distribución y densidad equilibrada
 
-No se fija todavía cuántas aldeas, campamentos, ruinas o escondites existen; qué subzonas contienen; qué pueblos, razas, gremios o facciones los ocupan; ni cuáles son accesibles al comienzo. La densidad deberá responder al tamaño del bosque, distancias, rutas, suministro, historia y presión ecológica. No poblar cada nodo solo para llenar el mapa.
+**Decisión aprobada:** densidad equilibrada de presencia civilizada.
+
+- Varias aldeas pequeñas, separadas entre sí, sin formar una red continua de población.
+- Campamentos relativamente habituales cerca de rutas transitadas, recursos y zonas de expedición; su ocupación y ubicación pueden cambiar.
+- Ruinas y escondites repartidos por el bosque, muchos de ellos ocultos, inaccesibles o todavía no descubiertos.
+- Extensiones amplias de bosque salvaje y subzonas sin presencia civilizada estable.
+- La distribución responde a geografía, distancias, recursos, seguridad, historia, rutas y presión ecológica; no se asigna una cuota idéntica a cada zona.
+- La densidad global no garantiza que el protagonista encuentre un lugar habitado en un momento concreto.
+
+Siguen pendientes las cantidades exactas, ubicaciones, población, pueblos, razas, gremios, facciones y accesibilidad inicial. No poblar cada nodo solo para llenar el mapa.
 
 ## 7. Plantilla conceptual
 
