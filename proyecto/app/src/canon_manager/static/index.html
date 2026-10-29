@@ -458,7 +458,7 @@ async function prepareManualTurn(request) {
         provider:request.payload.provider
       })
     });
-    preparedManualRequest = request;
+    preparedManualRequest = {...request, payload:{...request.payload, manual_context_hash:data.context_hash}};
     el("manualPromptText").value = data.prompt;
     el("manualResponseText").value = "";
     const isGemini = request.payload.provider === "gemini_web";
