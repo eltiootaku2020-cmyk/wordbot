@@ -171,3 +171,28 @@ def test_world_creation_rolls_back_when_cast_has_duplicate_names():
         assert response.status_code == 409
         after = {world["name"] for world in client.get("/api/worlds").json()}
         assert after == before
+
+
+def test_load_actual_isekai_preset_imports_lorebook_and_starts_fresh_session():
+    with TestClient(app) as client:
+        first = client.post("/api/presets/isekai-sin-destino", json={})
+        assert first.status_code == 200, first.text
+        first_data = first.json()
+        assert first_data["lore_entries"] == 76
+        assert first_data["participants"] == 6
+        assert first_data["inventory_items"] == 5
+
+        state = client.get(f"/api/sessions/{first_data['session_id']}/state").json()
+        assert state["state"]["location"] == "Claro del Bosque de las Bestias"
+        assert state["state"]["time_label"].endswith("08:00")
+        assert {person["name"] for person in state["participants"]} >= {
+            "Protagonista", "Brina Solcor", "Ivar Dalen", "Maelis Orven", "Sera Linde", "Timo Venn"
+        }
+        item_names = {item["display_name"] for item in state["inventory"]}
+        assert {"Camisa corriente", "Pantalones largos", "Pañuelo gastado", "Bolsita de tela vacía", "Cordel de cáñamo corto"} <= item_names
+
+        second = client.post("/api/presets/isekai-sin-destino", json={})
+        assert second.status_code == 200, second.text
+        second_data = second.json()
+        assert second_data["world_id"] == first_data["world_id"]
+        assert second_data["session_id"] != first_data["session_id"]
