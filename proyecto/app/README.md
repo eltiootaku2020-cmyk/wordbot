@@ -1,6 +1,6 @@
 # Gestor local de canon — prototipo v0.1
 
-**Estado de validación:** 8 pruebas automáticas aprobadas en CI; ver [resultados](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40861306798). La instalación manual en Windows y las llamadas reales a proveedores aún están pendientes.
+**Estado de validación:** 12 pruebas automáticas aprobadas en CI; ver [resultados](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40861306798). La instalación manual en Windows y las llamadas reales a proveedores aún están pendientes.
 
 Esta carpeta contiene un primer prototipo ejecutable del flujo local: interfaz de chat en Chromium, base SQLite y narrador simulado por defecto. El proveedor simulado permite probar la persistencia sin clave ni coste. OpenAI y Gemini son opciones externas configurables.
 
@@ -22,7 +22,7 @@ Abre PowerShell en esta carpeta y ejecuta cada comando por separado:
 6. Inicia: uvicorn canon_manager.main:app --app-dir src --host 127.0.0.1 --port 8000
 7. Abre http://127.0.0.1:8000 en Chromium.
 
-La base predeterminada se guarda en data/canon_manager.sqlite3 dentro de esta carpeta. Los datos locales y el archivo .env están excluidos de Git.
+La base predeterminada se guarda en data/canon_manager.sqlite3 dentro de esta carpeta. Los datos locales y el archivo .env están excluidos de Git. La interfaz puede crear un mundo desde cero, definir reparto e inventario inicial e importar luego el JSON del Lorebook.
 
 ## Primera prueba
 
