@@ -1,6 +1,6 @@
 # Proyecto: gestor local de canon, Lorebooks y continuidad
 
-**Estado:** prototipo de desarrollo v0.1. La CI reporta 15 pruebas Python aprobadas y sintaxis JavaScript validada el 29-10-2026; faltan prueba manual en Windows y llamadas reales de OpenAI/Gemini. Se implementó un primer alcance por turno (grupo/privado) y filtrado por audiencia/testigos; el inspector y los casos de cambio de escena siguen pendientes.  
+**Estado:** prototipo local v0.1. CI aprobó 24 pruebas Python y sintaxis JavaScript el 29-10-2026. Incluye alcance de conversación grupo/privado, filtro de conocimiento, inspector Lorebook, operaciones de inventario de bajo riesgo y libro de recursos con compras validadas. Faltan prueba manual en Windows, APIs reales y campaña larga.  
 **Ubicación de trabajo:** rama `docs/historias-organizadas`, carpeta `proyecto/`.
 
 ## Objetivo
@@ -39,7 +39,7 @@ No se debe enviar el Lorebook entero en cada mensaje. La aplicación recupera so
 ## Investigación, decisiones y plan de implementación
 
 - [Investigación de proyectos y referencias](INVESTIGACION_REFERENCIAS.md) — incluye Openovel, Chronicler, RPG Tracker, Open Dungeon, Gamentic, SillyTavern, RisuAI, memoria y APIs.
-- [Decisiones técnicas provisionales](DECISIONES_TECNICAS.md) — ADR-001 a ADR-014.
+- [Decisiones técnicas provisionales](DECISIONES_TECNICAS.md) — ADR-001 a ADR-015.
 - [Roadmap de implementación](ROADMAP_IMPLEMENTACION.md) — prioridades P0–P4 y pruebas pendientes.
 
 La investigación recomienda una interfaz web local en Chromium, backend Python/FastAPI, SQLite y adaptadores para APIs oficiales. No se leerá automáticamente la pestaña de ChatGPT de consumo. La decisión podrá reconsiderarse tras una prueba técnica de un solo turno.
@@ -52,7 +52,7 @@ La investigación recomienda una interfaz web local en Chromium, backend Python/
 - [Base de datos y esquema SQLite](app/src/canon_manager/db.py)
 - [Narrador simulado y adaptadores OpenAI/Gemini](app/src/canon_manager/providers.py)
 - [Pruebas automáticas](app/tests/)
-- [Ejecución CI registrada: 13 pruebas aprobadas](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40863341616)
+- [Ejecución CI registrada: 24 pruebas aprobadas](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40870848920)
 
 La prueba de integración ejecuta «Hola, linda» dirigido a Maelis y registra mensajes/eventos; el cambio numérico queda pendiente si no existe una base confirmada. También se prueba crear mundos personalizados de forma atómica y cargar el preset real de Isekai: 76 entradas de Lorebook, cinco aventureros, el protagonista y los objetos iniciales. La CI valida el modo simulado y la sintaxis JavaScript, pero no sustituye la prueba manual en Windows ni las llamadas reales a proveedores.
 
@@ -102,6 +102,6 @@ La decisión se basa en la investigación enlazada y puede revisarse después de
 
 ## Estado y siguientes pasos
 
-**Estado actual:** el código incluye interfaz local en Chromium, SQLite, un narrador simulado, adaptadores iniciales OpenAI/Gemini, importación de Lorebook, guardados y propuestas de cambios. La última ejecución de CI enlazada en este documento aprobó 13 pruebas automáticas; esto no demuestra que las llamadas reales o Windows funcionen.
+**Estado actual:** el código incluye interfaz en Chromium, SQLite, narrador simulado, adaptadores iniciales OpenAI/Gemini, preset real de Isekai (76 entradas), privacidad por audiencia, inspector de contexto, inventario validado y libro de recursos. CI aprueba 24 pruebas Python y la sintaxis JavaScript. Esto no demuestra que las llamadas reales o la interfaz en Windows funcionen.
 
-**Prioridades actuales:** completar el inspector de conocimiento y los casos de cambio de escena; P1 definir qué cambios cotidianos se aceptan automáticamente y cuáles requieren revisión; P2 mejorar activadores/inspector de Lorebook; P3 revertir cambios al editar o regenerar turnos; P4 probar APIs reales, Windows y 50–100 intercambios.
+**Prioridades actuales:** completar inspector de inclusión/exclusión de mensajes y eventos; probar idempotencia de compras al reintentar; añadir rollback de edición/regeneración; hacer configurable el presupuesto de contexto; después ejecutar prueba manual Windows, APIs reales y campaña de 50–100 turnos con reinicio/restauración.
