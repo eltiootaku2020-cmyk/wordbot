@@ -923,3 +923,93 @@ def test_paid_purchase_api_retry_is_idempotent(monkeypatch):
         assert messages["n"] == 2
         assert len(changes) == 2
         assert all(change["status"] == "accepted" for change in changes)
+
+
+
+def test_explicit_resource_expense_applies_only_when_balance_is_sufficient():
+    with TestClient(app) as client:
+        started, entities = _create_state_ops_world(client)
+        session_id = started["session_id"]
+        protagonist_id = entities["Protagonista"]["id"]
+        witnesses = [entities[name]["id"] for name in ("Protagonista", "Maelis Orven", "Ivar Dalen", "Brina Solcor")]
+
+        affordable = NarratorResponse(
+            narration="Pagas dos monedas por pasar la noche en la posada.",
+            events=[
+                EventProposal(
+                    ref="event-inn-cost",
+                    kind="resource",
+                    entity_id=protagonist_id,
+                    description="El protagonista paga dos monedas por el alojamiento en la posada.",
+                    witness_ids=witnesses
+                )
+            ],
+            resource_ops=[
+                ResourceOperation(
+                    operation="spend",
+                    resource_key="monedas",
+                    display_name="Monedas",
+                    quantity=2,
+                    unit="monedas",
+                    reason="Pago explícito del alojamiento.",
+                    event_ref="event-inn-cost"
+                )
+            ]
+        )
+        turn_a, applied_a, pending_a = _apply_synthetic_result(
+            session_id, "Pago dos monedas por el alojamiento", affordable
+        )
+        with database.connection() as conn:
+            balance = conn.execute(
+                "SELECT quantity FROM resources WHERE session_id=? AND resource_key='monedas'",
+                (session_id,)
+            ).fetchone()
+            change_a = conn.execute(
+                "SELECT status FROM state_changes WHERE session_id=? AND turn_id=? AND field='resource'",
+                (session_id, turn_a)
+            ).fetchone()
+        assert balance["quantity"] == 3
+        assert change_a["status"] == "accepted"
+        assert any("Recurso gastado: -2 Monedas" in note for note in applied_a)
+        assert not pending_a
+
+        unaffordable = NarratorResponse(
+            narration="El posadero exige cuatro monedas adicionales.",
+            events=[
+                EventProposal(
+                    ref="event-extra-inn-cost",
+                    kind="resource",
+                    entity_id=protagonist_id,
+                    description="El protagonista intenta pagar cuatro monedas adicionales por el alojamiento.",
+                    witness_ids=witnesses
+                )
+            ],
+            resource_ops=[
+                ResourceOperation(
+                    operation="spend",
+                    resource_key="monedas",
+                    display_name="Monedas",
+                    quantity=4,
+                    unit="monedas",
+                    reason="Pago solicitado superior al saldo restante.",
+                    event_ref="event-extra-inn-cost"
+                )
+            ]
+        )
+        turn_b, applied_b, pending_b = _apply_synthetic_result(
+            session_id, "Intento pagar cuatro monedas por el alojamiento", unaffordable
+        )
+        with database.connection() as conn:
+            balance_after = conn.execute(
+                "SELECT quantity FROM resources WHERE session_id=? AND resource_key='monedas'",
+                (session_id,)
+            ).fetchone()
+            change_b = conn.execute(
+                "SELECT status,reason FROM state_changes WHERE session_id=? AND turn_id=? AND field='resource'",
+                (session_id, turn_b)
+            ).fetchone()
+        assert balance_after["quantity"] == 3
+        assert change_b["status"] == "pending"
+        assert "Saldo insuficiente" in change_b["reason"]
+        assert any("Recurso:" in note for note in pending_b)
+        assert not any("Recurso gastado:" in note for note in applied_b)
