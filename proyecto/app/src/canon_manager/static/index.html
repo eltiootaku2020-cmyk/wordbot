@@ -140,6 +140,12 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}label{font-size:13px;
     <div id="pending"><p class="muted">No hay propuestas cargadas.</p></div>
     <hr>
     <button id="backup">Crear copia de seguridad</button>
+    <label for="backupSelect" style="display:block;margin-top:12px">Copias de esta partida</label>
+    <div class="toolbar" style="margin-top:6px">
+      <select id="backupSelect" style="min-width:0;flex:1"><option value="">Selecciona una copia</option></select>
+      <button id="restoreBackup" type="button" disabled>Restaurar</button>
+    </div>
+    <p class="muted">Restaurar reemplaza el historial y el estado de esta partida por el guardado seleccionado. El mundo debe conservar el mismo canon y Lorebook. Los demás mundos y partidas no se modifican.</p>
     <p class="muted">Configura las claves API en el archivo local .env. No las pegues en el chat ni en GitHub.</p>
   </aside>
 </main>
@@ -373,11 +379,48 @@ async function loadState() {
   const state = await api("/api/sessions/" + currentSession + "/state");
   renderState(state);
 }
-async function loadSession(sessionId) {
-  currentSession = sessionId;
+async function refreshBackups() {
+  const select = el("backupSelect");
+  clearChildren(select);
+  addOption(select, "", "Selecciona una copia");
+  el("restoreBackup").disabled = true;
   if (!currentSession) return;
+  try {
+    const result = await api("/api/sessions/" + currentSession + "/backups");
+    clearChildren(select);
+    addOption(select, "", result.backups.length ? "Selecciona una copia" : "No hay copias guardadas");
+    for (const backup of result.backups) {
+      const date = new Date(backup.created_at);
+      const label = (Number.isFinite(date.getTime()) ? date.toLocaleString("es-AR") : backup.created_at) +
+        " · " + Math.max(1, Math.round(backup.size_bytes / 1024)) + " KB";
+      addOption(select, backup.name, label);
+    }
+    el("restoreBackup").disabled = result.backups.length === 0;
+  } catch (err) {
+    clearChildren(select);
+    addOption(select, "", "No se pudieron leer las copias");
+    setStatus("No se pudieron listar las copias de seguridad: " + err.message, false);
+  }
+}
+async function loadSession(sessionId) {
+  const changedSession = currentSession !== sessionId;
+  currentSession = sessionId;
+  if (!currentSession) {
+    preparedManualRequest = null;
+    failedRequest = null;
+    el("restoreBackup").disabled = true;
+    return;
+  }
+  if (changedSession) {
+    preparedManualRequest = null;
+    failedRequest = null;
+    el("retryButton").hidden = true;
+    el("manualPromptText").value = "";
+    el("manualResponseText").value = "";
+  }
   await loadMessages();
   await loadState();
+  await refreshBackups();
 }
 el("worldSelect").onchange = async () => { currentSession = ""; await refreshSessions(); };
 el("sessionSelect").onchange = async () => { if (el("sessionSelect").value) await loadSession(el("sessionSelect").value); };
@@ -733,7 +776,33 @@ el("backup").onclick = async () => {
   try {
     if (!currentSession) throw new Error("Selecciona una partida.");
     const result = await api("/api/sessions/" + currentSession + "/backup", {method:"POST",body:"{}"});
-    setStatus("Copia creada en: " + result.path, true);
+    await refreshBackups();
+    setStatus("Copia creada: " + (result.backup_name || result.path), true);
+  } catch (err) { setStatus(err.message, false); }
+};
+el("restoreBackup").onclick = async () => {
+  try {
+    if (!currentSession) throw new Error("Selecciona una partida.");
+    const backupName = el("backupSelect").value;
+    if (!backupName) throw new Error("Selecciona una copia de seguridad.");
+    const confirmed = window.confirm(
+      "Se reemplazarán el historial, reloj, ubicación, inventario, recursos, relaciones y poderes de esta partida por el estado del guardado seleccionado. No afecta a otras partidas. ¿Continuar?"
+    );
+    if (!confirmed) return;
+    setStatus("Validando copia y restaurando el estado de la partida…", false);
+    const result = await api("/api/sessions/" + currentSession + "/restore", {
+      method:"POST",
+      body:JSON.stringify({backup_name:backupName, confirmation:"RESTAURAR"})
+    });
+    preparedManualRequest = null;
+    failedRequest = null;
+    latestCompletedTurnId = "";
+    el("retryButton").hidden = true;
+    el("messageInput").value = "";
+    el("manualPromptText").value = "";
+    el("manualResponseText").value = "";
+    await loadSession(currentSession);
+    setStatus("Partida restaurada. " + result.message, true);
   } catch (err) { setStatus(err.message, false); }
 };
 (async function start() {
