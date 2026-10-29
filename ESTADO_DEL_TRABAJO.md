@@ -14,8 +14,8 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 - Estado: prototipo v0.1 implementado parcialmente; no es todavía una aplicación final.
 - Stack: Python/FastAPI, HTML/CSS/JavaScript para Chromium, SQLite, narrador simulado y adaptadores iniciales OpenAI/Gemini.
 - Flujo de ejemplo: «Hola, linda» dirigido a Maelis produce narración + evento + propuesta de cambio; la confianza queda pendiente si no existe valor inicial confirmado.
-- Preset Isekai v1.16: botón dedicado carga las 76 entradas del JSON de Lorebook, los cinco aventureros, protagonista, cinco objetos iniciales y una nueva sesión cada vez, sin mezclar estado entre partidas.
-- CI más reciente de fiabilidad: 73 pruebas Python y sintaxis JavaScript aprobadas: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40908949397. Incluye recuperación tras reinicio, reintentos idempotentes, rechazo de destinos contradictorios y bloqueo de movimientos de PNJ fuera de escena. PR #1, #2 y #3 ya están integrados en `docs/historias-organizadas`; no valida Windows manual ni una campaña con modelo externo.
+- Preset Isekai v1.16: botón dedicado carga las 77 entradas del JSON de Lorebook, los cinco aventureros, protagonista, cinco objetos iniciales y una nueva sesión cada vez, sin mezclar estado entre partidas.
+- CI más reciente de fiabilidad: 75 pruebas Python y sintaxis JavaScript aprobadas: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40928659012. Incluye recuperación tras reinicio, reintentos idempotentes, rechazo de destinos contradictorios y bloqueo de movimientos de PNJ fuera de escena. PR #1, #2, #3 y #4 ya están integrados en `docs/historias-organizadas`; no valida Windows manual ni una campaña con modelo externo.
 - Pendiente: prueba manual en Windows con ChatGPT/Gemini web; compatibilidad de datos históricos/cambios de presencia; exportación/restauración visual; campaña de 50–100 intercambios. Las llamadas API reales y su medición de tokens/coste son opcionales.
 - Documentos: `INVESTIGACION_REFERENCIAS.md`, `DECISIONES_TECNICAS.md`, `ROADMAP_IMPLEMENTACION.md`, `ARQUITECTURA.md`, `CONTRATO_RESPUESTA_IA.md`, `ESQUEMA_LOCAL.md`, `PRUEBAS_DE_ACEPTACION.md`.
 - Ubicación de trabajo: rama `docs/historias-organizadas`. La rama literal `main` aún no contiene las carpetas organizadas de mundos.
@@ -23,7 +23,7 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 
 ### 1. Isekai sin Destino
 - Carpeta: `proyectos/isekai-sin-destino/`
-- Versión de configuración: Personality y esquema de continuidad v1.15; Lorebook revisada v1.16 (76 entradas, activadores depurados y contenido contaminado corregido). Importación y comportamiento real siguen pendientes de probar.
+- Versión de configuración: Personality y esquema de continuidad v1.15; Lorebook revisada v1.16 (77 entradas, activadores depurados y contenido contaminado corregido). Importación y comportamiento real siguen pendientes de probar.
 - Archivos: `CONFIG_LIGERA.md`, `CUADRO_REGLAS_PRIORITARIAS.md`, `REGISTRO_INTERNO_ESQUEMA.md`, `LOREBOOK_MAESTRA.md`, `LOREBOOK_IMPORT.json`, `README.md`.
 - Lorebook: 77 entradas.
 - Cambios recientes: cuadro prioritario v1.15; registro interno cerrado y porcentual con delta 0=sin cambio; reloj por seis bloques de cuatro horas; mini mapa progresivo que solo revela lo conocido por el protagonista; reloj con cabecera dinámica para que el saludo del Día 1 no se repita; encuentros aleatorios controlados; persistencia de estado de monstruos y PNJ; los compañeros conservan recuerdos; un monstruo muerto no reaparece como el mismo individuo sin causa; Eco mantiene usos y efectos por objetivo; se registran promesas, objetos y animales afectados por Eco/hipnosis; los vínculos incluyen sospechas, discusiones, amistad, respeto, deudas y conflictos, no solo romance; los compañeros solo reaccionan a hechos que presenciaron o les contaron, incluso si se enteran después; los PNJ cercanos pueden iniciar diálogo espontáneamente sin que el usuario los nombre o mire, con 1–2 intervenciones naturales por respuesta de grupo y sin frases sueltas.
@@ -48,17 +48,17 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 
 ### 3. Gestor local de canon, Lorebooks y continuidad
 - Carpeta: `proyecto/`; aplicación prototipo: `proyecto/app/`.
-- Estado: v0.1 con código real en desarrollo; la documentación anterior que decía «solo documentación» quedó obsoleta. Las cifras 32/38/71 son históricas; la CI más reciente aprobó 73 pruebas Python y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40908949397. No es una validación manual de Windows.
+- Estado: v0.1 con código real en desarrollo; la documentación anterior que decía «solo documentación» quedó obsoleta. Las cifras 32/38/71 son históricas; la CI más reciente aprobó 75 pruebas Python y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40928659012. No es una validación manual de Windows.
 - Stack: Python + FastAPI, HTML/CSS/JavaScript ligero en Chromium, SQLite y proveedores simulados/OpenAI/Gemini.
-- Ya existe: base local, interfaz, importación del JSON real de Isekai v1.16 (76 entradas), creación de mundos/partidas, reparto/inventario, mensajes/eventos, audiencia scene/private, filtrado por destinatario/testigos, inspector de contexto Lorebook y libro de recursos con compras validadas.
+- Ya existe: base local, interfaz, importación del JSON real de Isekai v1.16 (77 entradas), creación de mundos/partidas, reparto/inventario, mensajes/eventos, audiencia scene/private, filtrado por destinatario/testigos, inspector de contexto Lorebook y libro de recursos con compras validadas.
 - Referencias: `INVESTIGACION_REFERENCIAS.md`; decisiones ADR-001 a ADR-014 en `DECISIONES_TECNICAS.md`; prioridades P0–P4 en `ROADMAP_IMPLEMENTACION.md`.
-- **Privacidad por audiencia implementada:** selector escena/grupo o privado, metadatos de audiencia y filtro de mensajes/eventos por destinatario/testigos; el inspector explica las inclusiones/exclusiones. CI actual de fiabilidad: 73 pruebas Python y sintaxis JavaScript aprobadas (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40908949397). Sigue pendiente validar visualmente Windows y cubrir cambios históricos de presencia.
+- **Privacidad por audiencia implementada:** selector escena/grupo o privado, metadatos de audiencia y filtro de mensajes/eventos por destinatario/testigos; el inspector explica las inclusiones/exclusiones. CI actual de fiabilidad: 75 pruebas Python y sintaxis JavaScript aprobadas (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40928659012). Sigue pendiente validar visualmente Windows y cubrir cambios históricos de presencia.
 - Otros pendientes prioritarios: prueba manual Windows del chat web; rollback al editar/regenerar más escenarios; compatibilidad de cambios de presencia antiguos; prueba de 50–100 intercambios y restauración. Llamadas API reales son opcionales.
 - No hay que enviar el Lorebook completo cada turno ni extraer respuestas automáticamente de la página web. En el modo manual previsto, el usuario copia un prompt compacto a ChatGPT/Gemini y pega la respuesta; el programa la valida y guarda solo los cambios aceptados. Las llamadas API son opcionales y están separadas del chat web.
 - Rama de trabajo: `docs/historias-organizadas`. La rama literal `main` de este repositorio sigue sin las carpetas organizadas de mundos/Lorebooks; no mezclar ni mover ramas sin una tarea explícita.
 
 ### Actualización del gestor local — 29-10-2026
-- Las referencias de 32/38/71 pruebas son históricas; la ejecución más reciente aprobó 73 pruebas Python y sintaxis JS: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40908949397.
+- Las referencias de 32/38/71 pruebas son históricas; la ejecución más reciente aprobó 75 pruebas Python y sintaxis JS: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40928659012.
 - Referencias web actuales: Chronicler (ACL de conocimiento por personaje + inspector), Open Dungeon (app local SQLite con edición/reintento), Gamentic (FastAPI/SQLite con herramientas validadas pero requisitos de hardware superiores), Openovel (narración separada del mantenimiento), AI Adventure (historial SQLite, validación de eventos, undo/ramas y checkpoints) y documentación World Info de SillyTavern.
 - Código: privacidad scene/private; Lorebook de ocho entradas máximo y presupuesto configurable de 500–12.000 caracteres (4.500 por defecto), ocho entradas máximas e inspector de disparadores/inclusión/exclusión; inventario y libro de recursos por partida; compras con saldo transaccional; snapshots preturno y undo del último turno completado con auditoría.
 - Monedas de Isekai empiezan en cero; compra con coste positivo y saldo suficiente descuenta dinero y añade objeto en la misma transacción; saldo insuficiente no cambia ninguno. Los cambios ambiguos siguen pendientes.
@@ -96,7 +96,7 @@ El usuario aclaró que al decir IA se refiere al chat normal de ChatGPT o Gemini
 - No se automatizan login, envío de mensajes, lectura del DOM ni extracción automática de respuestas. El usuario revisa qué datos del juego pega al proveedor.
 - Los adaptadores API siguen disponibles opcionalmente y no deben confundirse con la suscripción/cupo de chat web.
 
-**Verificación actual de continuidad y movimientos:** CI — 73 pruebas Python y comprobación de sintaxis JavaScript aprobadas: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40908949397. No es una prueba real del navegador ni de una cuenta ChatGPT/Gemini.
+**Verificación actual de continuidad y movimientos:** CI — 75 pruebas Python y comprobación de sintaxis JavaScript aprobadas: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40928659012. No es una prueba real del navegador ni de una cuenta ChatGPT/Gemini.
 
 **Pendiente:** prueba manual en Windows con ChatGPT web y Gemini web; comprobar el intercambio JSON en ambos; probar 50–100 turnos, reinicio y restauración. El chat web manual no tiene medida automática de tokens/coste. No revertir este enfoque a automatización del navegador sin nueva investigación y evaluación de políticas.
 
@@ -112,3 +112,13 @@ Cada prompt preparado devuelve una huella SHA-256 del contexto exacto. Al pegar 
 - Nuevo segmento de registro de Eco por uso: intención/objetivo/reacción/resultado/efectos por eje/Δ en puntos/testigos/coste y duración si se conocen.
 - El efecto deseado no se asume como resultado; miedo y obediencia son ejes separados; capacidades de Eco vegetal/animal continúan abiertas hasta confirmarse.
 - Validación pendiente dentro de SpicyChat; GitHub no instala automáticamente las modificaciones.
+
+## Actualización de fiabilidad — 29-10-2026: evidencia de acción afirmativa
+
+- Integrado mediante PR #4 en la rama docs/historias-organizadas; commit de integración: 304dd3ae73b74c32d5469d1b27a00905f8899338. La rama literal main no se modificó.
+- Corregido un defecto de autorización: la descripción generada por el narrador ya no puede servir como prueba suficiente de que el protagonista compró o recogió un objeto, ingresó o gastó recursos o usó Eco. La evidencia debe estar en el mensaje actual del usuario, ser afirmativa y mencionar el objeto, recurso u objetivo aplicable.
+- Las preguntas, negaciones, intenciones hipotéticas y acciones contrastantes se separan antes de autorizar el cambio. Por ejemplo, «No compro la manzana pero pago la posada» permite validar el pago de la posada, no adquirir la manzana.
+- Las propuestas sin evidencia suficiente quedan pendientes de revisión; los cambios de relación asociados a un poder no confirmado tampoco se aplican.
+- CI verificada: 75 pruebas Python aprobadas y comprobación de sintaxis JavaScript correcta: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40928659012. Hubo una advertencia no bloqueante de compatibilidad httpx/Starlette y otra por la retirada de Node.js 20 en acciones de CI.
+- Alcance no validado: aún faltan pruebas manuales en Windows con ChatGPT/Gemini web y la campaña de 50–100 turnos con reinicio y restauración. No se hicieron llamadas reales a cuentas web ni a APIs.
+- Siguiente prioridad: ampliar pruebas de respuestas truncadas, instrucciones ambiguas, contradicciones del narrador y restauración; comparar el estado exacto antes y después de una secuencia larga.
