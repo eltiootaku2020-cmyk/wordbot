@@ -143,6 +143,11 @@ def test_startup_recovery_preserves_turn_owned_by_live_process(monkeypatch):
                     )
                 )
 
+        # Also exercise the real liveness probe for the current OS before
+        # replacing it with deterministic owners for the recovery regression.
+        assert main_module._process_is_alive(os.getpid()) is True
+        assert main_module._process_is_alive(2**31 - 1) is False
+
         # Model the OS process check deterministically: 10101 is alive, 20202 is gone.
         monkeypatch.setattr(
             main_module, "_process_is_alive", lambda pid: pid == 10101
