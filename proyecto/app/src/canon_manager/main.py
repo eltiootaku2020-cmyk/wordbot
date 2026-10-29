@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .db import Database
-from .models import ApprovalRequest, ContextPreviewRequest, EntityCreate, NarratorResponse, SessionCreate, TurnRequest, WorldCreate, WorldStartCreate
+from .models import ApprovalRequest, ContextPreviewRequest, EntityCreate, LocalSettingsUpdate, NarratorResponse, SessionCreate, TurnRequest, WorldCreate, WorldStartCreate
 from .providers import ProviderError, make_provider
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -44,12 +44,41 @@ RELATION_AXES = {
 MAX_AUTO_RELATION_DELTA = 3
 MAX_LORE_ENTRIES = 8
 MAX_LORE_CHARS = 4500
+MIN_LORE_CHARS = 500
+MAX_CONFIGURABLE_LORE_CHARS = 12000
 MAX_CANON_CORE_CHARS = 3000
 MAX_RECENT_MESSAGES = 6
 MAX_RECENT_MESSAGE_CHARS = 1000
 MAX_RECENT_EVENTS = 6
 MAX_EVENT_DESCRIPTION_CHARS = 450
 MAX_CONTEXT_INVENTORY_ITEMS = 40
+
+
+def get_lore_budget_chars(conn) -> int:
+    """Read the persistent local Lorebook budget, clamped to safe bounds."""
+    row = conn.execute(
+        "SELECT value_json FROM app_settings WHERE setting_key='lore_budget_chars'"
+    ).fetchone()
+    value = MAX_LORE_CHARS
+    if row is not None:
+        try:
+            value = int(json.loads(row["value_json"]))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            value = MAX_LORE_CHARS
+    return min(MAX_CONFIGURABLE_LORE_CHARS, max(MIN_LORE_CHARS, value))
+
+
+def save_lore_budget_chars(conn, value: int) -> None:
+    if not MIN_LORE_CHARS <= value <= MAX_CONFIGURABLE_LORE_CHARS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"El presupuesto Lorebook debe estar entre {MIN_LORE_CHARS} y {MAX_CONFIGURABLE_LORE_CHARS} caracteres."
+        )
+    conn.execute(
+        "INSERT INTO app_settings(setting_key,value_json) VALUES('lore_budget_chars',?) "
+        "ON CONFLICT(setting_key) DO UPDATE SET value_json=excluded.value_json,updated_at=CURRENT_TIMESTAMP",
+        (json.dumps(value),)
+    )
 
 
 def keyword_matches(text: str, keyword: str) -> bool:
@@ -383,6 +412,7 @@ def build_context(
             no_trigger_count += 1
 
     lore_candidates.sort(key=lambda item: (-item["score"], item["priority"], item["title"].casefold()))
+    lore_budget_chars = get_lore_budget_chars(conn)
     lore = []
     selected_lore_debug = []
     omitted_lore_debug = []
@@ -392,7 +422,7 @@ def build_context(
             omitted_lore_debug.append({"title": item["title"], "reason": "límite de entradas"})
             continue
         item_chars = item["chars"]
-        if lore_chars_used + item_chars > MAX_LORE_CHARS:
+        if lore_chars_used + item_chars > lore_budget_chars:
             omitted_lore_debug.append({"title": item["title"], "reason": "presupuesto de caracteres"})
             continue
         lore_chars_used += item_chars
@@ -517,7 +547,7 @@ def build_context(
         "omitted_lore_by_limit": omitted_lore_debug,
         "lore_without_trigger_count": no_trigger_count,
         "lore_chars_used": lore_chars_used,
-        "lore_chars_budget": MAX_LORE_CHARS,
+        "lore_chars_budget": lore_budget_chars,
         "lore_entries_selected": len(lore),
         "lore_entries_max": MAX_LORE_ENTRIES,
         "selected_messages": selected_messages_debug,
@@ -1165,6 +1195,29 @@ def health():
     with database.connection() as conn:
         conn.execute("SELECT 1").fetchone()
     return {"ok": True, "provider": settings.default_provider, "database": "ready"}
+
+
+@app.get("/api/settings")
+def get_local_settings():
+    with database.connection() as conn:
+        return {
+            "lore_budget_chars": get_lore_budget_chars(conn),
+            "min_lore_budget_chars": MIN_LORE_CHARS,
+            "max_lore_budget_chars": MAX_CONFIGURABLE_LORE_CHARS,
+            "lore_max_entries": MAX_LORE_ENTRIES
+        }
+
+
+@app.post("/api/settings")
+def update_local_settings(payload: LocalSettingsUpdate):
+    with database.transaction() as conn:
+        save_lore_budget_chars(conn, payload.lore_budget_chars)
+        return {
+            "lore_budget_chars": get_lore_budget_chars(conn),
+            "min_lore_budget_chars": MIN_LORE_CHARS,
+            "max_lore_budget_chars": MAX_CONFIGURABLE_LORE_CHARS,
+            "lore_max_entries": MAX_LORE_ENTRIES
+        }
 
 
 @app.get("/api/worlds")
