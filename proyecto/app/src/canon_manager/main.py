@@ -38,6 +38,41 @@ class Settings:
 
 settings = Settings()
 logger = logging.getLogger(__name__)
+
+
+def _process_is_alive(pid_value: Any) -> bool:
+    """Return whether a recorded local process still exists, on Windows and POSIX."""
+    try:
+        pid = int(pid_value)
+    except (TypeError, ValueError, OverflowError):
+        return False
+    if pid <= 0:
+        return False
+
+    if os.name == "nt":
+        # os.kill(pid, 0) is not a safe liveness probe on Windows; OpenProcess is.
+        import ctypes
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.OpenProcess.argtypes = (ctypes.c_ulong, ctypes.c_int, ctypes.c_ulong)
+        kernel32.OpenProcess.restype = ctypes.c_void_p
+        handle = kernel32.OpenProcess(0x1000, False, pid)  # PROCESS_QUERY_LIMITED_INFORMATION
+        if handle:
+            kernel32.CloseHandle(handle)
+            return True
+        return ctypes.get_last_error() == 5  # ERROR_ACCESS_DENIED means the PID exists.
+
+    try:
+        os.kill(pid, 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
+    except OSError:
+        return False
+
+
 database = Database(settings.db_path)
 database.initialize()
 
@@ -60,6 +95,13 @@ def recover_interrupted_turns() -> int:
                     metadata = {}
             except (TypeError, ValueError, json.JSONDecodeError):
                 metadata = {}
+            owner_pid = metadata.get("processing_owner_pid")
+            if owner_pid is not None and _process_is_alive(owner_pid):
+                # Another application instance still owns this generation. It is
+                # unsafe to release its session lock merely because this instance
+                # has just started against the same SQLite file.
+                continue
+            metadata.pop("processing_owner_pid", None)
             metadata["recovered_after_restart"] = True
             metadata["recovery_note"] = (
                 "El turno se interrumpió antes de terminar. No se aplicaron "
@@ -2567,9 +2609,10 @@ async def submit_turn(session_id: str, payload: TurnRequest):
             turn_id = existing_user["turn_id"]
             user_message_id = existing_user["id"]
             turn_index = int(existing_user["turn_index"])
+            old_metadata["processing_owner_pid"] = os.getpid()
             conn.execute(
-                "UPDATE messages SET generation_status='processing' WHERE id=?",
-                (user_message_id,)
+                "UPDATE messages SET generation_status='processing',metadata_json=? WHERE id=?",
+                (json.dumps(old_metadata, ensure_ascii=False), user_message_id)
             )
         else:
             turn_index = int(conn.execute(
@@ -2581,7 +2624,11 @@ async def submit_turn(session_id: str, payload: TurnRequest):
                 "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                 (user_message_id, session_id, turn_id, client_request_id, turn_index, "user",
                  payload.recipient_id, payload.text, payload.provider, "processing",
-                 json.dumps({"visibility": payload.visibility, "audience_ids": audience_ids}, ensure_ascii=False))
+                 json.dumps({
+                     "visibility": payload.visibility,
+                     "audience_ids": audience_ids,
+                     "processing_owner_pid": os.getpid()
+                 }, ensure_ascii=False))
             )
         create_turn_snapshot(conn, session_id, turn_id, turn_index)
         session = session_row(conn, session_id)
@@ -2665,9 +2712,19 @@ async def submit_turn(session_id: str, payload: TurnRequest):
                      "audience_ids": audience_ids
                  }, ensure_ascii=False))
             )
+            user_metadata_row = conn.execute(
+                "SELECT metadata_json FROM messages WHERE id=?", (user_message_id,)
+            ).fetchone()
+            try:
+                user_metadata = json.loads(user_metadata_row["metadata_json"] or "{}")
+                if not isinstance(user_metadata, dict):
+                    user_metadata = {}
+            except (TypeError, ValueError, json.JSONDecodeError):
+                user_metadata = {}
+            user_metadata.pop("processing_owner_pid", None)
             conn.execute(
-                "UPDATE messages SET generation_status='complete' WHERE id=?",
-                (user_message_id,)
+                "UPDATE messages SET generation_status='complete',metadata_json=? WHERE id=?",
+                (json.dumps(user_metadata, ensure_ascii=False), user_message_id)
             )
             applied, pending = apply_narrator_result(
                 conn, session, turn_id, user_message_id, payload.text, result, authorized_skip,

@@ -111,6 +111,63 @@ def test_interrupted_turn_is_recovered_without_losing_user_message():
         assert main_module.recover_interrupted_turns() == 0
 
 
+
+def test_startup_recovery_preserves_turn_owned_by_live_process(monkeypatch):
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+        session_id = seed["session_id"]
+        live_turn_id = "live-owner-" + uuid.uuid4().hex
+        dead_turn_id = "dead-owner-" + uuid.uuid4().hex
+        with database.transaction() as conn:
+            next_index = int(conn.execute(
+                "SELECT COALESCE(MAX(turn_index),0)+1 AS n FROM messages WHERE session_id=?",
+                (session_id,)
+            ).fetchone()["n"])
+            for offset, (turn_id, owner_pid) in enumerate([
+                (live_turn_id, 10101),
+                (dead_turn_id, 20202),
+            ]):
+                conn.execute(
+                    "INSERT INTO messages(id,session_id,turn_id,client_request_id,turn_index,role,"
+                    "recipient_entity_id,content,provider,generation_status,metadata_json) "
+                    "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                    (
+                        uuid.uuid4().hex, session_id, turn_id,
+                        "owner-recovery-" + uuid.uuid4().hex, next_index + offset, "user", "",
+                        "Acción en curso", "mock", "processing",
+                        json.dumps({
+                            "visibility": "scene",
+                            "audience_ids": [],
+                            "processing_owner_pid": owner_pid,
+                        })
+                    )
+                )
+
+        # Also exercise the real liveness probe for the current OS before
+        # replacing it with deterministic owners for the recovery regression.
+        assert main_module._process_is_alive(os.getpid()) is True
+        assert main_module._process_is_alive(2**31 - 1) is False
+
+        # Model the OS process check deterministically: 10101 is alive, 20202 is gone.
+        monkeypatch.setattr(
+            main_module, "_process_is_alive", lambda pid: pid == 10101
+        )
+        recovered = main_module.recover_interrupted_turns()
+        assert recovered == 1
+
+        with database.connection() as conn:
+            live = conn.execute(
+                "SELECT generation_status FROM messages WHERE session_id=? AND turn_id=?",
+                (session_id, live_turn_id)
+            ).fetchone()
+            dead = conn.execute(
+                "SELECT generation_status,metadata_json FROM messages WHERE session_id=? AND turn_id=?",
+                (session_id, dead_turn_id)
+            ).fetchone()
+        assert live["generation_status"] == "processing"
+        assert dead["generation_status"] == "failed"
+        assert json.loads(dead["metadata_json"])["recovered_after_restart"] is True
+
 def test_backup_for_one_session_is_not_blocked_by_another_session_turn():
     with TestClient(app) as client:
         first = client.post("/api/demo/seed", json={}).json()
