@@ -165,4 +165,4 @@ Se reprodujo que una generación ya había guardado `generation_status='processi
 3. Respuesta HTTP perdida después de confirmar el turno: repetir el mismo `request_id` debe devolver la respuesta ya guardada sin repetir costes o cambios.
 4. Ejecución completa de 50–100 turnos en Windows/Chromium con ChatGPT y Gemini web, incluyendo cambios de ubicación, compras, eventos privados/grupales, interrupciones, reinicio y restauración.
 
-**Estado honesto:** 89 pruebas automáticas y sintaxis JavaScript aprobadas en el HEAD de PR #14. La prueba de cancelación usa proveedor simulado. La campaña de navegador con chats externos reales, la restauración visual y los casos de varias instancias siguen pendientes. PR #14 aún no está integrado; `main` no se modificó.
+**Estado honesto:** 89 pruebas automáticas y sintaxis JavaScript aprobadas en el HEAD de PR #14. La prueba de cancelación usa proveedor simulado. La campaña de navegador con chats externos reales, la restauración visual y los casos de varias instancias siguen pendientes. PR #14 está integrado en `docs/historias-organizadas`; `main` no se modificó.
