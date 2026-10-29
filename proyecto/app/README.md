@@ -1,6 +1,6 @@
 # Gestor local de canon — prototipo v0.1
 
-**Estado de validación:** CI aprobó 38 pruebas Python y comprobación sintáctica JavaScript el 29-10-2026: [ver resultados](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40890138277). El modo manual de ChatGPT/Gemini web está cubierto por pruebas automatizadas; falta probar el intercambio real en Windows.
+**Estado de validación:** CI pasó la suite Python y la comprobación sintáctica JavaScript en la revisión v1.18: [ver resultados](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40930336007). El modo manual de ChatGPT/Gemini web está cubierto por pruebas automatizadas; falta probar el intercambio real en Windows.
 
 Esta carpeta contiene un primer prototipo ejecutable del flujo local: interfaz de chat en Chromium, base SQLite y narrador simulado por defecto. El proveedor simulado permite probar la persistencia sin clave ni coste. OpenAI y Gemini son opciones externas configurables.
 
