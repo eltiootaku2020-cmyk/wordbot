@@ -1,6 +1,6 @@
 # Roadmap de implementación — gestor local v0.1
 
-El prototipo v0.1 ya existe. Las casillas marcan código presente, no necesariamente validación manual completa. La última CI aprobó 24 pruebas automáticas en Linux/Python 3.12 y comprobó sintaxis JavaScript; proveedores reales y la instalación en Windows aún deben probarse.
+El prototipo v0.1 ya existe. Las casillas marcan código presente, no necesariamente validación manual completa. La última CI aprobó 26 pruebas automáticas en Linux/Python 3.12 y comprobó sintaxis JavaScript; proveedores reales y la instalación en Windows aún deben probarse.
 
 ## Fase 0 — Investigación y arquitectura
 - [x] Revisar clientes de roleplay (SillyTavern, RisuAI, Agnai).
@@ -57,7 +57,7 @@ Criterio de salida: el programa envía solo el lore necesario y no convierte un 
 - [ ] Restauración con vista previa.
 - [x] Registrar cambios aceptados, pendientes y rechazados.
 - [ ] Reintento controlado para JSON inválido o timeout.
-- [x] CI: 24 pruebas aprobadas en modo simulado, sin llamadas pagas.
+- [x] CI: 26 pruebas aprobadas en modo simulado, sin llamadas pagas.
 - [ ] Prueba de 50–100 intercambios y reinicio completo.
 
 Criterio de salida: el estado, mensajes y recursos sobreviven al cierre; se pueden detectar y corregir errores de la IA.
@@ -86,7 +86,7 @@ La interfaz ya permite crear un mundo y su primera sesión, con protagonista, ca
 
 - [x] Validar sintaxis del JavaScript de la interfaz en CI.
 
-Última CI aprobada (24 pruebas Python + JavaScript): https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40870848920
+Última CI aprobada (26 pruebas Python + JavaScript): https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40873010055
 
 
 ---
@@ -112,7 +112,7 @@ Esta sección distingue implementado de pendiente. No marcar como terminado nada
 - [x] Pago e ingreso/objeto se registran en SQLite con valores anterior/propuesto/aceptado y fuente; saldo insuficiente deja inventario y dinero intactos.
 - [x] Mantener objetos de alto impacto, operaciones ambiguas y datos contradictorios pendientes.
 
-**Verificación:** 24 pruebas Python aprobadas en CI; proveedor simulado. Pendiente prueba de compra en conversación real de API, Windows e idempotencia de compra bajo reintento.
+**Verificación:** 26 pruebas Python aprobadas en CI; proveedor simulado. La idempotencia de compra está probada en la API con proveedor simulado; faltan proveedor real y Windows.
 
 ### Prioridad P2 — Inspector de contexto y activación de Lorebook
 - [x] Mostrar fichas Lorebook seleccionadas y los disparadores concretos.
@@ -134,7 +134,7 @@ Esta sección distingue implementado de pendiente. No marcar como terminado nada
 **Criterio de salida:** regenerar una respuesta no duplica ni conserva efectos de la versión que ya no se muestra.
 
 ### Prioridad P4 — Pruebas de integración reales y de larga duración
-- [x] CI Linux: 24 pruebas Python y comprobación sintáctica de JavaScript aprobadas el 29-10-2026 (no sustituye las pruebas manuales de Windows).
+- [x] CI Linux: 26 pruebas Python y comprobación sintáctica de JavaScript aprobadas el 29-10-2026 (no sustituye las pruebas manuales de Windows).
 - [ ] Ejecutar la instalación desde cero en Windows/Chromium.
 - [ ] Probar una llamada controlada a OpenAI y otra a Gemini con claves del usuario en su PC; no almacenar claves en Git.
 - [ ] Ejecutar 50–100 turnos con escenas grupales/privadas, compras/consumos, viajes y Eco.
