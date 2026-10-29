@@ -2853,7 +2853,7 @@ def undo_latest_turn(session_id: str, turn_id: str):
 def approve_change(session_id: str, change_id: str, payload: ApprovalRequest):
     with database.transaction() as conn:
         ensure_no_turn_in_progress(conn, session_id)
-row = conn.execute(
+        row = conn.execute(
             "SELECT * FROM state_changes WHERE id=? AND session_id=? AND status='pending'",
             (change_id, session_id)
         ).fetchone()
@@ -3009,7 +3009,7 @@ row = conn.execute(
 def reject_change(session_id: str, change_id: str):
     with database.transaction() as conn:
         ensure_no_turn_in_progress(conn, session_id)
-row = conn.execute(
+        row = conn.execute(
             "SELECT id FROM state_changes WHERE id=? AND session_id=? AND status='pending'",
             (change_id, session_id)
         ).fetchone()
@@ -3026,7 +3026,7 @@ row = conn.execute(
 def approve_event(session_id: str, event_id: str):
     with database.transaction() as conn:
         ensure_no_turn_in_progress(conn, session_id)
-event = conn.execute(
+        event = conn.execute(
             "SELECT * FROM events WHERE id=? AND session_id=? AND status='pending'",
             (event_id, session_id)
         ).fetchone()
@@ -3047,7 +3047,7 @@ event = conn.execute(
 def reject_event(session_id: str, event_id: str):
     with database.transaction() as conn:
         ensure_no_turn_in_progress(conn, session_id)
-event = conn.execute(
+        event = conn.execute(
             "SELECT id FROM events WHERE id=? AND session_id=? AND status='pending'",
             (event_id, session_id)
         ).fetchone()
