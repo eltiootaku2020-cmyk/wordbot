@@ -96,3 +96,14 @@ Estos son candidatos de pruebas, no defectos confirmados:
 - **Verificado por CI:** 86 pruebas Python y comprobación sintáctica JavaScript en la revisión de PR #10; restauración tras 100 turnos breves simulados sigue siendo una prueba sintética.
 - **Pendiente:** prueba manual de instalación e interfaz en Windows/Chromium; flujo real copiar/pegar con ChatGPT web y Gemini web; campaña de 50–100 intercambios con cierre/reinicio/restauración; y comprobación de compatibilidad con otros formatos históricos que aún no estén cubiertos.
 - **Alcance de rama:** todos estos cambios pertenecen a `docs/historias-organizadas`; `main` no se modificó.
+
+
+## Segundo error fantasma: versión mostrada distinta de la versión importada (PR #11)
+
+La interfaz mostraba `Isekai sin Destino v1.16`; el README de la app decía v1.18, mientras que el JSON usado por el endpoint de importación y el README del proyecto declaran v1.19. La carga era real y correcta: el defecto era que la etiqueta visible describía otra versión, lo que podía confundir al usuario durante pruebas o al reportar errores.
+
+Se corrigió el botón a v1.19, se actualizó la documentación y se añadió una aserción que extrae el número de versión de la descripción del JSON y lo compara con el HTML. Así, una futura actualización del JSON sin la etiqueta correspondiente hará fallar la CI.
+
+- PR #11: https://github.com/eltiootaku2020-cmyk/wordbot/pull/11
+- CI: 86 pruebas Python y sintaxis JavaScript correcta: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40941934304
+- Auditoría del Lorebook v1.19: 659 comprobaciones aprobadas: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40941934333
