@@ -3154,7 +3154,8 @@ def test_submit_turn_recovers_owner_that_dies_after_startup_recovery(monkeypatch
             ).fetchone()
         assert old_marker["generation_status"] == "failed"
         old_metadata = json.loads(old_marker["metadata_json"])
-        assert old_metadata["recovered_after_restart"] is True
+        assert old_metadata["recovered_during_runtime"] is True
+        assert "recovered_after_restart" not in old_metadata
         assert "processing_owner_pid" not in old_metadata
         assert "processing_owner_start_token" not in old_metadata
 
