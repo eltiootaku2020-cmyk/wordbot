@@ -135,3 +135,40 @@ Si la IA responde con JSON inválido, falta un ID o el resultado contradice el c
 5. Permitir al usuario editar o aprobar las propuestas pendientes.
 
 El estado no se reconstruye a partir de la memoria del modelo si la base de datos contiene un registro válido.
+
+
+## 8. Decisión técnica provisional basada en referencias
+
+La comparación está documentada en [INVESTIGACION_REFERENCIAS.md](INVESTIGACION_REFERENCIAS.md) y las decisiones detalladas en [DECISIONES_TECNICAS.md](DECISIONES_TECNICAS.md).
+
+### Base propuesta
+
+- Interfaz web mínima abierta desde Chromium en una dirección local (loopback).
+- Backend Python/FastAPI para endpoints de mensajes, mundos, sesiones y estado.
+- SQLite como base local, con transacciones, historial de eventos y copias de seguridad.
+- Adaptadores independientes para APIs oficiales de OpenAI y Gemini.
+- Contrato JSON Schema compartido por proveedores, reducido al subconjunto compatible; validación semántica adicional dentro de la aplicación.
+- Sin inferencia local obligatoria, sin grafo de conocimiento ni sistema de embeddings en la primera versión.
+
+### Qué se toma de proyectos existentes
+
+- **SillyTavern:** recuperación selectiva de Lorebook, fichas de personajes, chat grupal y extensibilidad.
+- **RisuAI:** selección de proveedores, presentación del Lorebook y memoria de contexto.
+- **Agnai:** ejemplos de proveedor intercambiable y escenas multi-PNJ.
+- **LangGraph:** separación entre checkpoint del hilo y datos duraderos.
+- **Mem0/Graphiti:** ideas futuras para recuperar hechos narrativos y mantener procedencia temporal, no fuente de verdad en v0.1.
+
+La aplicación no reutilizará fragmentos de esos proyectos sin revisar licencias. SillyTavern declara AGPL-3.0, RisuAI GPL-3.0 y Agnai AGPL-3.0; el objetivo es implementar un diseño propio, usando la documentación como referencia.
+
+### Integración permitida y coste
+
+No se debe automatizar la extracción de respuestas desde el DOM de la página de ChatGPT de consumo. La documentación de términos consultada prohíbe esa extracción programática; el diseño utilizará una API oficial u otra integración expresamente admitida. ChatGPT y su API tienen facturación separada, por lo que cada proveedor tendrá configuración propia y avisos de coste cuando estén disponibles.
+
+### Decisiones de fiabilidad
+
+- JSON válido no equivale a cambio correcto.
+- El programa da los IDs definitivos a los turnos y operaciones; no confía en identificadores inventados por el modelo.
+- Cada propuesta debe referenciar un evento de su mismo turno.
+- Los cambios se aplican una vez y en una transacción.
+- Ambigüedad, contradicción o cambio irreversible puede dejarse como pendiente.
+- La base local se considera autoridad, nunca un resumen generado por IA.
