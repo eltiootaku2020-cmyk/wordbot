@@ -1,3 +1,5 @@
+import hashlib
+import hmac
 import json
 import os
 import re
@@ -88,6 +90,12 @@ def keyword_matches(text: str, keyword: str) -> bool:
     if not normalized_keyword:
         return False
     return re.search(rf"(?<!\w){re.escape(normalized_keyword)}(?!\w)", normalized_text) is not None
+
+
+def manual_context_hash(payload: dict[str, Any]) -> str:
+    """Stable fingerprint so a pasted reply cannot mutate a changed game state."""
+    canonical = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
 
 
 def new_id() -> str:
@@ -1743,7 +1751,8 @@ def create_manual_prompt(session_id: str, payload: ManualPromptRequest):
     return {
         "provider": payload.provider,
         "prompt": build_manual_prompt(input_payload),
-        "context_characters": len(json.dumps(input_payload, ensure_ascii=False))
+        "context_characters": len(json.dumps(input_payload, ensure_ascii=False)),
+        "context_hash": manual_context_hash(input_payload)
     }
 
 
@@ -1846,6 +1855,26 @@ async def submit_turn(session_id: str, payload: TurnRequest):
             conn, session, payload.text, payload.recipient_id, turn_id,
             visibility=payload.visibility, audience_ids=audience_ids
         )
+        provider_name = payload.provider or settings.default_provider
+        if provider_name in {"chatgpt_web", "gemini_web"}:
+            if not payload.manual_context_hash or len(payload.manual_context_hash) != 64:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Falta la huella del prompt preparado. Vuelve a preparar el prompt desde la interfaz."
+                )
+            current_input_payload = {
+                "user_message": payload.text,
+                "recipient_id": payload.recipient_id,
+                "context": context,
+                "authorized_skip": authorized_skip or {}
+            }
+            if not hmac.compare_digest(
+                manual_context_hash(current_input_payload), payload.manual_context_hash
+            ):
+                raise HTTPException(
+                    status_code=409,
+                    detail="La partida cambió desde que se preparó el prompt. Vuelve a prepararlo y pide una nueva respuesta al chat web."
+                )
 
     provider_name = payload.provider or settings.default_provider
     try:
