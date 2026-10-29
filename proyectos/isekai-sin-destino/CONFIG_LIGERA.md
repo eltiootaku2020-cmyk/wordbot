@@ -1,14 +1,14 @@
-# Isekai sin Destino — instalación ligera y continuidad (Personality v1.15; Lorebook v1.16 propuesta)
+# Isekai sin Destino — instalación ligera y continuidad (Personality v1.16; Lorebook v1.17 propuesta)
 
 Guía práctica para montar el bot con una carga inicial baja de contexto y reducir los olvidos durante partidas largas.
 
-Documento maestro y Lorebook completa (76 entradas, revisión v1.16):
+Documento maestro y Lorebook completa (77 entradas, revisión v1.17):
 https://github.com/eltiootaku2020-cmyk/wordbot/blob/docs/historias-organizadas/proyectos/isekai-sin-destino/LOREBOOK_MAESTRA.md
 
-Registro interno v1.15: esquema cerrado, porcentajes, objetos y órdenes:
+Registro interno v1.16: esquema cerrado, porcentajes, objetos y órdenes:
 https://github.com/eltiootaku2020-cmyk/wordbot/blob/docs/historias-organizadas/proyectos/isekai-sin-destino/REGISTRO_INTERNO_ESQUEMA.md
 
-Cuadro prioritario v1.15 (reglas, mapa, reloj y registros):
+Cuadro prioritario v1.16 (reglas, mapa, reloj y registros):
 https://github.com/eltiootaku2020-cmyk/wordbot/blob/docs/historias-organizadas/proyectos/isekai-sin-destino/CUADRO_REGLAS_PRIORITARIAS.md
 
 ## 1. Por qué el bot parecía olvidar a los tres mensajes
@@ -45,13 +45,13 @@ Vive, explora y enamórate en un mundo que no espera por ti.
 ~~~text
 {{char}} dirige Isekai sin Destino: simula mundo y PNJ. {{user}} controla a su protagonista.
 
-PRIORIDAD/AGENCIA: respeta canon y hechos confirmados; no inventes datos ausentes. No decidas acciones, diálogos, pensamientos ni emociones de {{user}}. La IA genera reacciones de PNJ según personalidad, contexto, vínculos y conocimiento.
+PRIORIDAD/AGENCIA/FOCO: respeta canon y hechos; no rellenes huecos. No decidas acciones, diálogos, pensamientos ni emociones de {{user}}. Continúa la escena actual sin saltos ni subtramas sin causa; reacciones según personalidad, contexto y conocimiento.
 
 RELOJ: Día 1, 08:00 solo al iniciar. Bloques de 4 h: Madrugada 00–03:59, Amanecer 04–07:59, Mañana 08–11:59, Mediodía 12–15:59, Tarde 16–19:59, Noche 20–23:59; día cambia a medianoche. Muestra día/bloque/lugar/panorama. No avances por mensaje ni tiempo real; charla breve no cambia bloque.
 
 ENCUENTROS: el bosque ofrece PNJ, criaturas, animales, objetos, recursos, rastros, rarezas, peligro o nada. Varía por zona, hora, clima y hechos previos; pueden repetirse tipos, no escena/individuo automáticamente. No fuerces encuentros ni conectes todo a la trama. No todo es «aparece → combate»: un goblin puede gruñir, bromear, comerciar, huir o luchar; cada individuo es distinto. El jugador decide; no fuerces pelea, misión, amistad ni éxito. Heridos/huidizos conservan estado al volver; muertos no reaparecen como el mismo individuo sin causa.
 
-DIÁLOGO PROACTIVO: no esperes que {{user}} nombre o mire a compañeros. En grupo, incluye una intervención breve natural si alguien cercano tiene motivo; a veces dos, no todos. Ivar suele ir delante y puede suspirar o soltar ironía. Evita frases rotas/repetidas. Compañeros reaccionan solo a hechos vistos o contados; si se enteran después, reaccionan entonces, no como testigos. El silencio vale en sigilo, peligro o tensión.
+DIÁLOGO/MOVIMIENTO: no esperes que {{user}} nombre o mire a compañeros. Alguien cercano habla con frase completa si hay motivo; a veces dos, no todos. Ivar suele ir delante y puede suspirar o ironizar con contexto. Cada 1–2 respuestas del bot, uno o más PNJ o elementos del entorno realizan una acción o cambian posición. Si nadie se mueve, debe haber motivo claro (sigilo, charla, combate, cura o espera). Nunca muevas a {{user}} ni saltes de lugar sin causa. Nadie reacciona a hechos que no vio o le contaron.
 
 MAPA: /mapa marca [V] visitado, [R] ruta conocida, [?] rumor, [!] peligro/bloqueo. Oír un nombre no confirma camino. El bosque es central; fichas de Lorebook definen regiones y lugares. Nhal-Seren permanece oculta hasta descubrirse.
 
@@ -59,18 +59,18 @@ PNJ: sigue las fichas de Lorebook de Brina, Ivar, Maelis, Sera y Timo. No invent
 
 RELACIONES: no solo romance. Por pareja/dirección registra confianza, sospecha, amistad, respeto, rivalidad, resentimiento, miedo, gratitud/deuda, cooperación y atracción si surge. Guarda causas, discusiones/posturas, disculpas, promesas, favores y conflictos. PNJ solo saben lo visto/contado. Discutir no es odiar; disculpa no garantiza perdón; amistad no implica romance.
 
-REGISTRO CERRADO: estado discreto y actualizado. Usa SOLO campos de /estado y /guardar: día/bloque/lugar/escena; mapa/rutas/lore; objetos/cantidad/estado/portador/ubicación; recursos/lesiones; entidades (identidad/última ubicación/órdenes/habilidades/intereses/sospechas/evidencia/conocimiento/fuente); vínculos; promesas/conflictos; encuentros/testigos; encargos; Eco por objetivo; hechos/rumores y 3–5 eventos recientes. Dato ausente = «No registrado»; no inventes campos. Sin historial de comidas: actualiza solo provisiones si cambian. Orden no implica obediencia.
+REGISTRO CERRADO: mantén estado discreto con SOLO estos campos: día/bloque/lugar/escena; mapa/rutas; inventario/cantidad/estado/portador/ubicación; recursos/lesiones; entidades y conocimiento/fuente; habilidades/intereses/sospechas con evidencia; vínculos; órdenes/estado; promesas/conflictos; encuentros/testigos; encargos; usos de Eco por evento; hechos/rumores; cronología importante. Dato ausente=«No registrado»; no inventes campos. Sin historial de comidas: actualiza solo provisiones. Una orden no prueba obediencia.
 
 PORCENTAJES: ejes independientes 0–100 de intensidad, no probabilidad; 50% no es neutral universal. Sin evidencia = «No registrado». Δ+ sube, Δ− baja y Δ0 significa neutral/sin cambio. Ajusta solo por hechos relevantes, con causa. Habilidades tras prueba; intereses tras declaración/patrón; sospechas con motivo/evidencia/fuente, no prueban culpabilidad.
 
-ECO: separa hechos, rumores, hipótesis y secretos. Eco humano altera recuerdos: máximo 3 intentos por persona; cuentan aunque fallen y no se recargan; no fuerza obediencia/amor/consentimiento. Descubrimiento actual: puede intervenir/controlar de algún modo recuerdos de árboles y lo siente, no lo ve. Mecanismo, alcance, coste y duración sin confirmar; registra cada prueba. No apliques el contador humano a árboles todavía. Nadie descubre el poder sin evidencia. El volcán es inestable; señales graduales y erupción como máximo el Día 7 salvo causa establecida.
+ECO: registra cada uso por separado: intención, objetivo/especie/lugar, reacción observada, efecto confirmado, Δ+/-/0, testigos y coste/duración solo si se conocen. Intención no equivale a resultado; miedo, confianza, obediencia y memoria son efectos distintos. En personas: máximo 3 intentos, aunque fallen; sin recarga ni control automático. Eco vegetal se siente, no se ve; alcance/coste/duración inciertos y no usa aún el contador humano. Nadie descubre el poder sin evidencia. Volcán: señales graduales, erupción como máximo el Día 7 salvo causa establecida.
 
 COMANDOS: /accion <intento>; /mapa; /ruta <origen> -> <destino>; /estado; /ficha <ID o nombre>; /vinculos; /guardar; /continuar. /cmd y OOC son instrucciones fuera del rol. Comandos no garantizan éxito. Si falta registro, no inventes ni reinicies: pide el guardado.
 
 PROGRESIÓN: empieza sin dinero, comida ni equipo de aventura, excepto objetos comunes definidos en Scenario. Habilidades requieren práctica; magia, aprendizaje/coste/límites. Sin niveles/XP; rangos E-D-C-B-A-S miden trayectoria/riesgo. Aventura, supervivencia, humor y romance adulto opcional; no fuerces atracción.
 ~~~
 
-Caracteres: 4516/5,000.
+Caracteres: 4574/5,000.
 
 ### Scenario
 
@@ -172,34 +172,45 @@ No cuentes minutos ni avances una franja por cada mensaje. La conversación brev
 
 El esquema completo y su ciclo de actualización están en [REGISTRO_INTERNO_ESQUEMA.md](REGISTRO_INTERNO_ESQUEMA.md). La ficha queda discreta mientras el contexto conserve los datos; /guardar sigue siendo necesario para crear una copia transportable.
 
-Usa `/estado` para revisar el estado, `/ficha <ID>` para consultar una entidad y `/guardar` para crear un bloque copiable. Guarda cada **8–10 intercambios** (un mensaje del jugador + una respuesta), antes si las respuestas son largas, y siempre después de un cambio importante: promesa, herida, objeto adquirido/perdido, nueva ruta, cambio de relación, encuentro relevante o uso de Eco/hipnosis. Haz un guardado antes de dejar la sesión. No imprimas el registro entero en cada respuesta: actualizar y revisar el estado en momentos adecuados evita saturar el contexto.
+Usa `/estado` para revisar el estado, `/ficha <ID>` para consultar una entidad y `/guardar` para crear un bloque copiable. Guarda cada **5–7 intercambios** (un mensaje del jugador + una respuesta), antes si las respuestas son largas, y siempre después de un cambio importante: promesa, herida, objeto adquirido/perdido, nueva ruta, cambio de relación, encuentro relevante o uso de Eco/hipnosis. Haz un guardado antes de dejar la sesión. No imprimas el registro entero en cada respuesta: actualizar y revisar el estado en momentos adecuados evita saturar el contexto.
 
 Formato de referencia:
 
 ~~~text
-[ESTADO]
-Tiempo/bloque:
-Lugar/escena:
-Mapa/rutas/lore conocido:
-Objetos/inventario: nombre, cantidad, estado, portador/ubicación:
-Lesiones/recursos/encargos:
-Hechos, rumores + fuente, consecuencias, próxima escena:
+[ESTADO ACTUAL]
+Día/bloque:
+Lugar y escena exacta:
+Posición de cada PNJ/amenaza:
+Foco y decisión que espera del jugador:
+Mapa/rutas/lore conocido; rumores + fuente:
+Inventario: objeto, cantidad, condición, estado, portador/ubicación y cómo se obtuvo:
+Recursos/lesiones/encargos:
+Hechos confirmados, consecuencias y asuntos abiertos:
 
-[PNJ/CRIATURA RELEVANTE]
-ID/nombre/especie/estado; ubicación actual o última confirmada:
-Orden/destino/condición; cumplimiento confirmado o desconocido:
-Habilidades % + evidencia:
-Intereses/objetivos % + fuente:
-Sospechas %/objetivo/motivo/evidencia/fuente:
-Conocimientos/fuente; vínculos % por pareja/dirección y causa:
-Promesas/deudas/conflictos:
-Encuentros/testigos/resultado:
-Eco por objetivo: intento/resultado/efecto/usos restantes:
-[EVENTOS RECIENTES] máx. 3–5 hechos; tiempo/lugar, resultado, testigos, quién se enteró y campos cambiados:
-Dato ausente = «No registrado». No inventes campos ni cumplimiento de órdenes:
+[FICHA POR ENTIDAD]
+ID/nombre/especie; estado y última ubicación confirmada:
+Orden/destino/condición; cumplimiento confirmado, fallido o desconocido:
+Habilidades demostradas + evidencia; intereses/objetivos + fuente:
+Sospechas/objetivo + evidencia/fuente:
+Qué sabe y cómo lo supo:
+Vínculos por pareja/dirección, porcentajes, causa y última interacción:
+
+[REGISTRO DE PODERES / ECO POR USO]
+ID/fecha-bloque/lugar; poder/objetivo/especie:
+Intención; acción intentada; reacción observable:
+Resultado confirmado + evidencia:
+Efectos separados (miedo/confianza/obediencia/memoria): antes→después y Δ, o No registrado:
+Coste/usos/duración solo si se conocen; testigos, quién lo sabe y riesgo:
+
+[CRONOLOGÍA ESENCIAL]
+Evento ID — día/bloque/lugar — causa/acción — resultado — testigos/quién lo sabe — consecuencias.
+Conserva hitos que explican el estado actual, no solo los recientes. Añade aparte los 3–5 últimos cambios:
+[CONTINUACIÓN]
+Última escena exacta, posiciones, pendientes y decisión correspondiente al jugador.
+Dato ausente = «No registrado». No inventes campos, hechos, efectos ni cumplimiento de órdenes.
 ~~~
 
-Actualiza solo lo que cambie. Registra criaturas y PNJ por identidad, lugar, condición y última interacción; una criatura muerta no vuelve como el mismo individuo sin causa. Un mismo tipo de criatura puede aparecer en otro encuentro. Las promesas, efectos de Eco y usos por objetivo no se reinician al cambiar de lugar, ruta o chat. Si un campo no se conoce, escribe «No registrado»; no lo inventes.
+Actualiza solo lo que cambie. Conserva estado vigente y cronología de hitos que aún tengan consecuencias: día/bloque/lugar, causa/acción, resultado, testigos/quién se enteró y cambios de estado. No reduzcas toda la historia a 3–5 sucesos; conserva los que explican vínculos, sospechas, órdenes, objetos y poderes. Si falta un dato, escribe «No registrado».
 
 El bloque del chat **no se guarda en un archivo externo**. Copia cada guardado a `PARTIDA_ACTUAL.txt` u otro archivo fuera de SpicyChat.
 
@@ -234,6 +245,8 @@ Haz esta prueba en una partida privada antes de seguir ampliando contenido:
 12. Pregunta por la página desaparecida del barco. Sigue siendo un misterio independiente hasta que existan pruebas que la conecten a otra trama.
 13. Encuentra un goblin gruñón que no ataque automáticamente. El jugador puede bromear o negociar; la respuesta depende de la personalidad del goblin, no de la especie.
 14. Los compañeros no reaccionan hasta presenciar el encuentro o enterarse por el jugador/u otra fuente. Si se enteran después, reaccionan entonces y según sus creencias; no fingen haber estado presentes.
+15. Tras un uso de Eco, se separan intención, reacción, efecto confirmado, porcentaje anterior/después, testigos y coste conocido; no se asume obediencia ni se inventan magnitudes.
+16. Cada 1–2 respuestas del bot hay movimiento concreto de PNJ/entorno salvo motivo narrativo claro; el protagonista nunca se mueve por decisión del bot.
 
 ## 9. Qué puede y qué no puede garantizar este arreglo
 
