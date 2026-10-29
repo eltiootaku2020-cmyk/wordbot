@@ -3296,7 +3296,7 @@ def test_restore_accepts_legacy_backup_without_presence_status():
         world_id, session_id = seed["world_id"], seed["session_id"]
         entities = client.get(f"/api/worlds/{world_id}/entities").json()
         maelis = next(entity for entity in entities if entity["name"] == "Maelis Orven")
-        current_location = client.get(f"/api/sessions/{session_id}/state").json()["session"]["current_location"]
+        current_location = client.get(f"/api/sessions/{session_id}/state").json()["state"]["location"]
 
         # Create the checkpoint while Maelis is outside the active scene.
         with database.transaction() as conn:
