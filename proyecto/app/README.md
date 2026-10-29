@@ -1,6 +1,6 @@
 # Gestor local de canon — prototipo v0.1
 
-**Estado de validación:** 13 pruebas automáticas aprobadas en CI; ver [resultados](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40861306798). La instalación manual en Windows y las llamadas reales a proveedores aún están pendientes.
+**Estado de validación:** la última ejecución de CI enlazada al proyecto informa 13 pruebas automáticas aprobadas; ver [resultados](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40863341616). Esto no valida la instalación manual en Windows ni las llamadas reales a proveedores; ambas siguen pendientes.
 
 Esta carpeta contiene un primer prototipo ejecutable del flujo local: interfaz de chat en Chromium, base SQLite y narrador simulado por defecto. El proveedor simulado permite probar la persistencia sin clave ni coste. OpenAI y Gemini son opciones externas configurables.
 
@@ -50,7 +50,12 @@ Este es un prototipo de desarrollo, no una aplicación final endurecida para pro
 
 ## Validación automática
 
-La última ejecución de CI aprobó las 12 pruebas de Python y comprobó la sintaxis del JavaScript incrustado en la interfaz con `node --check`: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40863082953. Esto no es una prueba visual del navegador ni sustituye el ensayo manual en Windows.
+La última ejecución de CI enlazada en esta guía informa 13 pruebas de Python aprobadas y comprobación de sintaxis del JavaScript incrustado: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40863341616. Es una prueba automatizada en el entorno de CI; no demuestra que la interfaz se haya probado visualmente en Windows ni que las claves/modelos reales funcionen.
 
+## Hallazgos importantes antes de una campaña larga
 
-La última ejecución CI pasó 13 pruebas de Python y comprobó la sintaxis del JavaScript incrustado: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40863341616. Sigue pendiente ejecutar en Windows y probar llamadas API reales.
+- **P0 pendiente:** revisar el filtrado de contexto por destinatario/testigos; la inspección de código encontró consultas que podrían incluir mensajes/eventos fuera del conocimiento del PNJ seleccionado.
+- Las operaciones de inventario y movimiento se registran como propuestas pendientes en esta versión; falta una política segura para autoaplicar cambios cotidianos de baja ambigüedad.
+- Falta probar edición/regeneración con reversión de efectos, llamadas API reales y una partida de 50–100 turnos.
+
+No expongas el servidor a Internet: el prototipo está pensado para ejecutarse solo en el PC.
