@@ -70,20 +70,20 @@ Este es un prototipo de desarrollo, no una aplicación final endurecida para pro
 
 ## Validación automática
 
-La última ejecución de CI enlazada en esta guía informa 15 pruebas de Python aprobadas y comprobación de sintaxis del JavaScript incrustado: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40867432602. Es una prueba automatizada en el entorno de CI; no demuestra que la interfaz se haya probado visualmente en Windows ni que las claves/modelos reales funcionen.
+Nota histórica: una ejecución temprana informó 15 pruebas; no es la CI actual. La ejecución vigente con 35 pruebas Python y sintaxis JavaScript es https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40880074124. Ninguna sustituye la prueba manual en Windows.
 
 ## Hallazgos importantes antes de una campaña larga
 
 - **Privacidad básica implementada y probada en CI:** el selector de alcance permite escena/grupo o privado con destinatario; mensajes y eventos se filtran por audiencia/testigos. Faltan el inspector y los casos de cambio de presencia.
 - Las operaciones de inventario y movimiento se registran como propuestas pendientes en esta versión; falta una política segura para autoaplicar cambios cotidianos de baja ambigüedad.
-- Falta probar edición/regeneración con reversión de efectos, llamadas API reales y una partida de 50–100 turnos.
+- Faltan la prueba manual de edición/undo en Windows y una campaña de 50–100 turnos. La llamada real a una API es opcional para la modalidad de chat web manual.
 
 No expongas el servidor a Internet: el prototipo está pensado para ejecutarse solo en el PC.
 
 
 ## Qué valida la CI actual
 
-La ejecución con 32 pruebas cubre el preset real, privacidad por destinatario, inclusión/exclusión de mensajes/eventos, presupuesto Lorebook editable/persistente, consumo y estado de objetos, movimientos de PNJ, compras, ingresos/gastos de recursos, rollback de relación/Eco y undo/regeneración. La CI usa proveedor simulado; no mide tokens/coste real ni valida API/Windows.
+La ejecución actual con 35 pruebas cubre el preset real, privacidad por destinatario, inclusión/exclusión de mensajes/eventos, presupuesto Lorebook editable/persistente, operaciones de objetos y recursos, undo/regeneración, construcción del prompt para ChatGPT/Gemini web y validación/rechazo del JSON pegado. La CI no utiliza ni extrae respuestas reales de los chats web y no demuestra el intercambio manual en Windows. Tampoco mide tokens/coste de la API.
 
 Limitaciones conocidas:
 - Las compras se cobran dentro de `InventoryOperation acquire`; no debe emitirse además un `ResourceOperation spend` duplicado para ese evento.
