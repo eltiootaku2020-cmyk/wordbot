@@ -1622,3 +1622,120 @@ def test_manual_web_turn_rejects_stale_prepared_context():
         assert "La partida cambió" in response.json()["detail"]
         messages = client.get(f"/api/sessions/{session_id}/messages").json()
         assert not any(m["role"] == "user" and m["content"] == "Observo alrededor con atención." for m in messages)
+
+
+def test_manual_web_turn_can_retry_corrected_json_with_same_request_id():
+    """A bad pasted answer must be recoverable without consuming or duplicating a turn."""
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+        session_id = seed["session_id"]
+        prepared = client.post(
+            f"/api/sessions/{session_id}/manual-prompt",
+            json={
+                "text": "Observo el camino con cuidado.",
+                "provider": "chatgpt_web",
+                "visibility": "scene"
+            }
+        )
+        assert prepared.status_code == 200, prepared.text
+        common = {
+            "request_id": "manual-web-retry-0001",
+            "text": "Observo el camino con cuidado.",
+            "provider": "chatgpt_web",
+            "visibility": "scene",
+            "manual_context_hash": prepared.json()["context_hash"]
+        }
+
+        invalid = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json={**common, "external_response": "La respuesta narrativa está fuera del JSON."}
+        )
+        assert invalid.status_code == 502
+
+        corrected_json = json.dumps({
+            "narration": "El camino desciende hacia un arroyo poco profundo.",
+            "events": [],
+            "state_changes": [],
+            "elapsed_minutes": 1,
+            "movements": [],
+            "inventory_ops": [],
+            "resource_ops": [],
+            "power_uses": [],
+            "pending": []
+        }, ensure_ascii=False)
+        recovered = client.post(
+            f"/api/sessions/{session_id}/turns",
+            json={**common, "external_response": corrected_json}
+        )
+        assert recovered.status_code == 200, recovered.text
+        assert "arroyo poco profundo" in recovered.json()["narration"]
+
+        messages = client.get(f"/api/sessions/{session_id}/messages").json()
+        user_messages = [
+            message for message in messages
+            if message["role"] == "user" and message["content"] == "Observo el camino con cuidado."
+        ]
+        assistant_messages = [
+            message for message in messages
+            if message["role"] == "assistant" and "arroyo poco profundo" in message["content"]
+        ]
+        assert len(user_messages) == 1
+        assert user_messages[0]["generation_status"] == "complete"
+        assert len(assistant_messages) == 1
+
+
+def test_manual_web_mode_allows_multiple_consecutive_turns_without_api_calls():
+    """Several copy/paste exchanges should work in one session without a local call quota."""
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={}).json()
+        session_id = seed["session_id"]
+        actions = [
+            "Observo el camino.",
+            "Me acerco al arroyo.",
+            "Escucho si hay alguien cerca."
+        ]
+
+        for index, action in enumerate(actions, start=1):
+            prepared = client.post(
+                f"/api/sessions/{session_id}/manual-prompt",
+                json={
+                    "text": action,
+                    "provider": "gemini_web",
+                    "visibility": "scene"
+                }
+            )
+            assert prepared.status_code == 200, prepared.text
+            pasted_json = json.dumps({
+                "narration": f"Respuesta manual número {index}.",
+                "events": [],
+                "state_changes": [],
+                "elapsed_minutes": 1,
+                "movements": [],
+                "inventory_ops": [],
+                "resource_ops": [],
+                "power_uses": [],
+                "pending": []
+            }, ensure_ascii=False)
+            response = client.post(
+                f"/api/sessions/{session_id}/turns",
+                json={
+                    "request_id": f"manual-web-multi-{index:04d}",
+                    "text": action,
+                    "provider": "gemini_web",
+                    "visibility": "scene",
+                    "external_response": pasted_json,
+                    "manual_context_hash": prepared.json()["context_hash"]
+                }
+            )
+            assert response.status_code == 200, response.text
+            assert response.json()["narration"] == f"Respuesta manual número {index}."
+
+        messages = client.get(f"/api/sessions/{session_id}/messages").json()
+        accepted = [
+            message for message in messages
+            if message["role"] == "assistant"
+            and message["provider"] == "gemini_web"
+            and message["generation_status"] == "complete"
+            and message["content"].startswith("Respuesta manual número")
+        ]
+        assert len(accepted) == 3
