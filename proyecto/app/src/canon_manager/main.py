@@ -168,7 +168,7 @@ def build_context(conn, session, user_text: str, recipient_id: str, current_turn
 
     day, minute = int(session["day"]), int(session["minute_of_day"])
     return {
-        "world": {"name": session["world_name"], "canon_core": session["canon_text"]},
+        "world": {"name": session["world_name"], "canon_core": ((session["canon_text"] or "").strip()[:6000] + ("\n[Canon largo recortado; recuperar fichas específicas desde Lorebook.]" if len((session["canon_text"] or "").strip()) > 6000 else ""))},
         "state": {
             "day": day, "minute_of_day": minute, "time_label": time_label(day, minute),
             "location": session["current_location"]
@@ -622,7 +622,7 @@ def get_messages(session_id: str):
             raise HTTPException(status_code=404, detail="Partida no encontrada.")
         return [dict(row) for row in conn.execute(
             "SELECT id,turn_id,turn_index,role,recipient_entity_id,content,provider,generation_status,created_at "
-            "FROM messages WHERE session_id=? ORDER BY turn_index ASC,created_at ASC", (session_id,)
+            "FROM messages WHERE session_id=? ORDER BY turn_index ASC, CASE role WHEN 'user' THEN 0 ELSE 1 END ASC, created_at ASC", (session_id,)
         ).fetchall()]
 
 
@@ -701,6 +701,12 @@ def approve_change(session_id: str, change_id: str, payload: ApprovalRequest):
         ).fetchone()
         if row is None:
             raise HTTPException(status_code=404, detail="Propuesta pendiente no encontrada.")
+        source_event_id = row["source_event_id"]
+        if not source_event_id:
+            raise HTTPException(status_code=422, detail="La propuesta no tiene un evento fuente; no puede aprobarse como hecho.")
+        source_status = conn.execute("SELECT status FROM events WHERE id=?", (source_event_id,)).fetchone()
+        if source_status is None or source_status["status"] != "recorded":
+            raise HTTPException(status_code=422, detail="El evento fuente no está confirmado; la propuesta no puede aplicarse.")
         proposed = json.loads(row["proposed_value_json"])
         field = row["field"]
         session = session_row(conn, session_id)
