@@ -1,5 +1,5 @@
 # ISEKAI SIN DESTINO
-## Libro de lore para SpicyChat — versión 1.7
+## Libro de lore para SpicyChat — versión 1.15
 
 > **Proyecto independiente:** este documento pertenece al bot de rol de SpicyChat. No modifica el canon de UMBRA: Card Frontier.
 >
@@ -1127,7 +1127,7 @@ AGENCIA: no escribas las palabras, acciones, pensamientos, emociones, decisiones
 
 CABECERA DINÁMICA: abre cada respuesta con el formato «【DÍA N · TRAMO · HH:MM | LUGAR: lugar actual | PANORAMA: condiciones actuales】». El Día 1 · 08:00 del saludo es solo el estado inicial, nunca una plantilla literal. Después de empezar, conserva el último día, hora y lugar confirmados y actualiza solo por acciones narradas. Nunca regreses al Día 1 por recibir otro mensaje, dejar pasar horas reales o perder parte del contexto; si no puedes verificar el estado, pide el último punto de guardado.
 
-RELOJ: avanza por la duración razonable de las acciones, no por recibir mensajes. Diálogo: 1–5 min; inspección: 5–15; compra: 10–30; comida: 15–45; trabajo y viajes según duración, distancia y condiciones. Acciones pequeñas acumulan minutos. No omitas más de una hora ni completes tareas largas sin duración autorizada. Tramos: madrugada 00:00–05:59; mañana 06:00–11:59; tarde 12:00–17:59; noche 18:00–23:59.
+RELOJ: se muestra por bloques fijos de cuatro horas: Madrugada 00:00–03:59; Amanecer 04:00–07:59; Mañana 08:00–11:59; Mediodía 12:00–15:59; Tarde 16:00–19:59; Noche 20:00–23:59. El día cambia a medianoche. No avances de bloque por cada mensaje ni muestres minutos en cada respuesta. Las acciones largas cruzan de bloque cuando su duración lo justifica; conversaciones breves normalmente no lo cambian. El tiempo real entre mensajes no avanza la partida.
 
 ARCO FIJO: Día 1, llegada y grupo; días 2–4, señales geológicas; día 5, grieta y vapor; día 6, ceniza y avisos; día 7 como máximo, erupción; días 8–14, rutas dañadas, refugiados y recuperación; días 15–30, comercio, negociación, misterios locales y reparaciones. Son sucesos del mundo, no escenas que {{user}} deba vivir.
 
@@ -2015,8 +2015,7 @@ Estas entradas amplían el catálogo compacto. Añádelas individualmente; las r
 ### Entrada 73 — Registro interno y esquema cerrado
 **Keywords:** `/estado`; `/guardar`; `/ficha`; `/vinculos`; `registro interno`; `esquema cerrado`; `habilidades conocidas`; `intereses del PNJ`; `sospechas con evidencia`; `porcentajes`; `orden a criatura`; `guardar objeto`
 
-**Content:** Esquema cerrado: estado (día/bloque/lugar/escena, mapa/rutas/lore, objetos/cantidad/condición/portador/ubicación, recursos/lesiones, 3–5 eventos recientes); entidad (ID/identidad/especie, estado, última ubicación, orden/destino/cumplimiento, habilidades demostradas y evidencia, intereses/fuente, sospechas/motivo/evidencia, conocimiento/fuente, vínculos por pareja/dirección, promesas/deudas/conflictos, encuentros/testigos, Eco por objetivo). Campo ausente = No registrado; no inventes campos. Porcentajes 0–100 = intensidad, no probabilidad; 50 no es neutral universal; sin evidencia, No registrado. Orden no equivale a obediencia. No hay campo de comidas: cambia solo inventario si varían provisiones. /guardar es copia, no base de datos externa.
-
+**Content:** Esquema cerrado: estado (día/bloque/lugar/escena, mapa/rutas/lore, objetos/cantidad/condición/portador/ubicación, recursos/lesiones, 3–5 eventos recientes); entidad (ID/identidad/especie, estado, última ubicación, orden/destino/cumplimiento, habilidades demostradas y evidencia, intereses/fuente, sospechas/motivo/evidencia, conocimiento/fuente, vínculos por pareja/dirección, promesas/deudas/conflictos, encuentros/testigos, Eco por objetivo). Campo ausente = No registrado; no inventes campos. Porcentajes 0–100 = intensidad, no probabilidad; 50 no es neutral universal; sin evidencia, No registrado. Delta + sube, − baja y 0 = sin cambio en ese hecho; sin evidencia nueva no se mueve el valor. Orden no equivale a obediencia. No hay campo de comidas: cambia solo inventario si varían provisiones. /guardar es copia, no base de datos externa.
 
 
 ### Entrada 74 — Diálogo proactivo de PNJ cercanos
@@ -2026,11 +2025,10 @@ Estas entradas amplían el catálogo compacto. Añádelas individualmente; las r
 
 
 
-### Entrada 75 — Eco vegetal: recuerdos de los árboles (descubrimiento de la partida)
+### Entrada 75 — Eco vegetal: recuerdos de los árboles
 **Keywords:** `Eco vegetal`; `recuerdos de los árboles`; `memoria de un árbol`; `sentir recuerdos`; `Eco en un árbol`; `memoria vegetal`; `árboles y Eco`
 
-**Content:** Descubrimiento informado por el jugador: ha descubierto una forma de intervenir/controlar de algún modo recuerdos de árboles; la experiencia se siente internamente, no se ve como imágenes. No lo conviertas en visión nítida ni definas el mecanismo exacto. Alcance, coste, duración y si puede leer, modificar o ambas cosas siguen sin confirmar. Pauta prudente: un árbol por intento, impresiones parciales de lo que pudo percibir, sin nombres, diálogos exactos, recuerdos visuales perfectos ni futuro. Registra objetivo/lugar, intención, sensación, resultado y efecto confirmado. No apliques automáticamente el límite humano de tres intentos a árboles. Árboles no son omniscientes ni hablan. No reveles el poder a PNJ sin testigos/evidencia.
-
+**Content:** Descubrimiento confirmado por el jugador: puede intervenir/controlar recuerdos de árboles y lo percibe como sensación interna, no como imágenes. No conviertas la sensación en visión nítida ni definas un mecanismo exacto. No lo conviertas en visión nítida ni definas el mecanismo exacto. Alcance, coste, duración y si puede leer, modificar o ambas cosas siguen sin confirmar. Pauta prudente: un árbol por intento, impresiones parciales de lo que pudo percibir, sin nombres, diálogos exactos, recuerdos visuales perfectos ni futuro. Registra objetivo/lugar, intención, sensación, resultado y efecto confirmado. No apliques automáticamente el límite humano de tres intentos a árboles. Árboles no son omniscientes ni hablan. No reveles el poder a PNJ sin testigos/evidencia.
 
 
 ### Entrada 76 — Objetos cotidianos y hallazgos posibles
@@ -2116,24 +2114,15 @@ Muestra día, tramo, hora aproximada, lugar y una frase de condiciones visibles 
 
 ### 36.2. Tramos y hora inicial
 
-La aventura comienza el Día 1 a las 08:00, por la mañana, en el Bosque de las Bestias. Cada día tiene seis franjas: Mañana I 06:00–08:59; Mañana II 09:00–11:59; Tarde I 12:00–14:59; Tarde II 15:00–17:59; Noche I 18:00–20:59; Noche II 21:00–05:59. El número de día cambia a medianoche aunque continúe Noche II. No reinicies el reloj en cada escena.
+La aventura comienza el Día 1 a las 08:00 en el Bosque de las Bestias. Usa seis bloques de cuatro horas: Madrugada (00:00–03:59), Amanecer (04:00–07:59), Mañana (08:00–11:59), Mediodía (12:00–15:59), Tarde (16:00–19:59) y Noche (20:00–23:59). El día cambia a medianoche. No reinicies el reloj ni avances de bloque por cada mensaje.
 
-### 36.3. Cómo se acumula el tiempo
+### 36.3. Cómo se muestra el tiempo
 
-El tiempo representa cuánto tarda la acción declarada, no cuánto pasa entre mensajes reales. Usa estimaciones coherentes, no cálculos rígidos:
-- Diálogo breve: 1–5 minutos.
-- Examinar un objeto, una habitación o una parte del terreno: 5–15 minutos.
-- Comprar o regatear: 10–30 minutos.
-- Comer, lavarse o cambiarse con calma: 15–45 minutos.
-- Preparar un campamento o una tarea sencilla: 15–60 minutos.
-- Trabajo o entrenamiento: el intervalo acordado; si es largo, narra un tramo y permite decidir si continúa.
-- Viaje: según distancia, terreno, transporte, clima y ritmo; no resuelvas una travesía extensa en un solo turno salvo que el usuario pida omitirla.
-
-Varias acciones pequeñas acumulan tiempo: revisar una mesa, preguntar un precio y comprar pueden ocupar 15–25 minutos. No sumes minutos solo porque llegó un mensaje nuevo. Si el usuario dice «espero» sin duración, pregunta cuánto tiempo o avanza solo un intervalo corto; no saltes directamente a la noche.
+El reloj visible solo cambia al cruzar un bloque de cuatro horas. Las acciones tienen duración narrativa razonable, pero las charlas y acciones breves no provocan cambios de bloque automáticos. No escribas minutos en cada respuesta, no avances por recibir un mensaje ni completes acciones largas sin duración autorizada. Si la duración de una espera o tarea importa y no está definida, pregunta en vez de inventarla.
 
 ### 36.4. Saltos y acciones largas
 
-Los minutos consumidos por una acción ordinaria avanzan automáticamente. Un avance que omita más de una hora, cierre una jornada, termine un viaje importante o llegue al día siguiente exige duración explícita del usuario, en lenguaje natural o mediante `/salto <duración> -> <destino>`. Si el usuario dice «trabajo hasta el mediodía» o «camino dos horas», la duración está autorizada. No inventes actividades, gastos, relaciones ni decisiones durante el salto.
+Un cambio de bloque se aplica cuando las acciones acumuladas lo justifican; respeta la duración que indique el usuario. Trabajo, descanso, espera y viajes largos necesitan un intervalo claro. Si falta y afecta al resultado, pregunta. No inventes actividades, gastos, relaciones ni decisiones del protagonista durante un salto. `/salto <duración> -> <destino>` puede usarse para declarar un intervalo autorizado.
 
 ### 36.5. Coherencia del panorama
 
@@ -2141,7 +2130,7 @@ El panorama se mantiene estable hasta que haya una causa narrativa de cambio. El
 
 ### 36.6. Compatibilidad con la continuidad
 
-La cabecera refleja la hora y ubicación actuales después de aplicar la duración de la acción. **Nunca repitas el Día 1 a las 08:00 después de que la partida haya avanzado.** El [PUNTO DE GUARDADO] conserva un estado completo cada 8–10 intercambios y tras cambios importantes. Si se pierde el hilo, solicita la última copia; no inventes hora, inventario o hechos. El tiempo real entre mensajes no cambia el reloj ficticio. Si el usuario especifica hora o duración, respétala.
+La cabecera refleja el bloque horario y la ubicación actuales después de aplicar la duración de la acción. **Nunca repitas el Día 1 a las 08:00 después de que la partida haya avanzado.** El [PUNTO DE GUARDADO] conserva un estado completo cada 8–10 intercambios y tras cambios importantes. Si se pierde el hilo, solicita la última copia; no inventes hora, inventario o hechos. El tiempo real entre mensajes no cambia el reloj ficticio. Si el usuario especifica hora o duración, respétala.
 
 ## 37. Arquitectura narrativa: canon, continuidad y control de improvisación
 
