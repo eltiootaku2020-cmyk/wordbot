@@ -24,9 +24,15 @@ Trabajar desde la rama `docs/historias-organizadas` para los siguientes cambios.
 
 ### 2. DanMachi
 - Carpeta: `proyectos/danmachi/`
-- Versión: v0.1, base inicial en desarrollo.
-- Archivos: `SPICYCHAT_CONFIG.md`, `LOREBOOK_ENTRIES.md`, `DECISIONES_Y_CONTINUIDAD.md`, `PRUEBAS_DE_COHERENCIA.md`, `README.md`.
-- Protagonista, origen, punto exacto del canon y posibles poderes originales: decisiones pendientes, no convertirlas en canon sin autorización.
+- Versión propuesta: v0.2 — Orario durante los últimos años de la Edad Oscura, antes del Gran Conflicto de los Siete Días. El intervalo exacto sigue pendiente.
+- Archivos base actualizados: `SPICYCHAT_CONFIG.md`, `LOREBOOK_ENTRIES.md`, `DECISIONES_Y_CONTINUIDAD.md`, `PRUEBAS_DE_COHERENCIA.md`, `README.md`.
+- Documentos añadidos: `INVESTIGACION_EDAD_OSCURA.md` y `ESQUEMA_ESTADO_Y_GUARDADO.md`.
+- Lorebook: 40 entradas breves, cada Content bajo 1.000 caracteres como margen conservador.
+- Reparto/facciones: Astraea, Alise Lovell, Ryuu Lion, Gojouno Kaguya, Lyra y compañeras; Evilus, Apate, Alecto, Erebus, Alfia y Zald; referencias a Loki, Freya, Gremio, Rudra y al futuro incidente del piso 27.
+- Memoria: esquema cerrado para habilidades demostradas, intereses/objetivos con fuente, sospechas/evidencia, conocimiento por PNJ, vínculos porcentuales con delta/causa, inventario, encuentros/testigos, órdenes y desviaciones del canon.
+- Narración: encuentros abiertos; PNJ cercanos pueden hacer comentarios naturales, sin forzar que todos hablen. Solo reaccionan a hechos presenciados o contados.
+- Protagonista: base provisional de adulto recién llegado, sin Familia/Falna/poder original confirmado; identidad y decisiones siguen pendientes.
+- Pendiente: prueba en SpicyChat. No está instalado ni validado, y no hay JSON de importación porque el exportador no ha sido verificado.
 
 ## Separación de ramas
 
