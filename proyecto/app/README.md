@@ -63,7 +63,7 @@ No pegues claves API en una conversación, en GitHub ni en una exportación de L
 
 Implementado en esta primera versión: interfaz local, base SQLite, importación de Lorebook JSON, recuperación de contexto por palabras clave, narrador simulado, adaptadores API iniciales, registro de mensajes/eventos, propuesta y aprobación/rechazo de cambios, reloj básico, historial de usos de Eco y copia de seguridad.
 
-Todavía incompleto: validación exhaustiva de movimientos y acciones físicas, editor completo de mundos/entidades, restauración visual de copias, selección semántica avanzada, comprobación automática de todos los cambios de canon y prueba real con claves/modelos del usuario. Las propuestas de inventario y movimiento permanecen pendientes para revisión; no se aplican automáticamente.
+Todavía incompleto: validación exhaustiva de movimientos y acciones físicas, editor completo de mundos/entidades, restauración visual con vista previa, selección semántica avanzada, comprobación de todos los cambios de canon y prueba manual de la interfaz en Windows. Las operaciones cotidianas de bajo riesgo se validan según el mensaje del usuario; los cambios ambiguos, contradictorios o de alto impacto quedan pendientes. Las llamadas reales a APIs no son necesarias para el modo manual.
 
 Este es un prototipo de desarrollo, no una aplicación final endurecida para producción. Ejecuta solo en tu propio PC y no expongas el servidor a Internet.
 
