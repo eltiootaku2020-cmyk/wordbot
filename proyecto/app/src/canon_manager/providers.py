@@ -42,8 +42,46 @@ def _unique_json_object(pairs):
     return result
 
 
+def _extract_single_json_object(text: str) -> str | None:
+    """Find exactly one top-level JSON object, ignoring braces inside JSON strings."""
+    spans: list[tuple[int, int]] = []
+    depth = 0
+    start: int | None = None
+    in_string = False
+    escaped = False
+
+    for index, char in enumerate(text):
+        if in_string:
+            if escaped:
+                escaped = False
+            elif char == "\\":
+                escaped = True
+            elif char == '"':
+                in_string = False
+            continue
+
+        if char == '"':
+            in_string = True
+        elif char == "{":
+            if depth == 0:
+                start = index
+            depth += 1
+        elif char == "}":
+            if depth == 0:
+                return None
+            depth -= 1
+            if depth == 0 and start is not None:
+                spans.append((start, index + 1))
+                start = None
+
+    if in_string or depth != 0 or len(spans) != 1:
+        return None
+    first, last = spans[0]
+    return text[first:last]
+
+
 def parse_narrator_response(raw: str) -> NarratorResponse:
-    """Parse one narrator object, accepting a single fenced JSON block from a web chat."""
+    """Parse one narrator object, tolerating prose around a single unambiguous JSON object."""
     text = str(raw or "").lstrip("\ufeff").strip()
     if not text:
         raise ValueError("La respuesta está vacía.")
@@ -52,7 +90,13 @@ def parse_narrator_response(raw: str) -> NarratorResponse:
         if len(blocks) != 1 or text.count("```") != 2:
             raise ValueError("Se esperaba un único bloque de JSON.")
         text = blocks[0].strip()
-    data = json.loads(text, object_pairs_hook=_unique_json_object)
+    try:
+        data = json.loads(text, object_pairs_hook=_unique_json_object)
+    except json.JSONDecodeError as original_error:
+        candidate = _extract_single_json_object(text)
+        if candidate is None:
+            raise original_error
+        data = json.loads(candidate, object_pairs_hook=_unique_json_object)
     if not isinstance(data, dict):
         raise ValueError("La respuesta debe ser un objeto JSON.")
     return NarratorResponse.model_validate(data)
