@@ -1682,6 +1682,21 @@ def test_undo_latest_turn_restores_state_and_allows_safe_regeneration(monkeypatc
         assert played.json()["state"]["state"]["time_label"].endswith("08:07")
         assert provider_state["calls"] == 1
 
+        # Simulate a legacy pre-turn snapshot from an older app version. Since no
+        # state-changing approval happened after this turn, safe undo remains available.
+        with database.transaction() as conn:
+            snapshot_row = conn.execute(
+                "SELECT state_json FROM snapshots WHERE session_id=? AND turn_id=?",
+                (session_id, turn_id)
+            ).fetchone()
+            legacy_snapshot = json.loads(snapshot_row["state_json"])
+            legacy_snapshot.pop("_post_turn_state_hash", None)
+            conn.execute(
+                "UPDATE snapshots SET state_json=? WHERE session_id=? AND turn_id=?",
+                (json.dumps(legacy_snapshot, ensure_ascii=False, separators=(",", ":")),
+                 session_id, turn_id)
+            )
+
         undone = client.post(f"/api/sessions/{session_id}/turns/{turn_id}/undo", json={})
         assert undone.status_code == 200, undone.text
         undo_data = undone.json()
