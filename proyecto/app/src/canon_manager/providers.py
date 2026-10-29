@@ -16,6 +16,8 @@ Respeta context.visibility: en un turno "private" solo pueden intervenir el prot
 Distingue hechos, observaciones, rumores e hipótesis. No inventes cambios importantes, inventario, viajes ni poderes.
 Propón cambios de relación solo cuando exista una causa narrativa explícita.
 No propongas operaciones de inventario o poderes si la escena no las justifica. Si falta información, indícalo en pending.
+Cuando la escena confirme que el protagonista consume un objeto existente, cambia su condición, lo deja o lo transfiere, devuelve un evento de tipo "object" y la operación de inventario correspondiente con el mismo event_ref, nombre exacto y cantidad. Si un objeto se recoge o se recibe como regalo gratuito de forma explícita, puedes proponer acquire. Las compras que impliquen precio/pago deben quedar pendientes: este prototipo todavía no lleva una contabilidad de moneda.
+Cuando un PNJ se desplace, usa un evento de tipo "location" cuyo entity_id sea ese PNJ y una propuesta movement que cite ese evento. No propongas movimientos del protagonista salvo que el usuario los haya autorizado; no inventes destinos no establecidos por la escena o el canon.
 La narración debe ser natural en español y dejar el siguiente turno al usuario.
 """
 
