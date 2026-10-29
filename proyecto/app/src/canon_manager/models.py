@@ -75,6 +75,14 @@ class EntityCreate(StrictModel):
     profile: str = ""
 
 
+class InventorySeed(StrictModel):
+    name: str = Field(min_length=1, max_length=120)
+    quantity: int = Field(default=1, ge=1)
+    condition: str = "normal"
+    carrier_entity_id: str = ""
+    location: str = ""
+
+
 class SessionCreate(StrictModel):
     name: str = Field(min_length=1, max_length=120)
     location: str = "Lugar desconocido"
@@ -82,6 +90,7 @@ class SessionCreate(StrictModel):
     minute_of_day: int = Field(default=480, ge=0, le=1439)
     protagonist_entity_id: str
     present_entity_ids: list[str] = Field(default_factory=list)
+    initial_inventory: list[InventorySeed] = Field(default_factory=list)
 
 
 class TurnRequest(StrictModel):
