@@ -4062,6 +4062,7 @@ def test_undo_and_regenerate_private_turn_never_leaks_to_scene_bystanders(monkey
 
 def test_cancelled_provider_generation_marks_turn_failed_and_allows_same_request_retry(monkeypatch):
     import asyncio
+    from concurrent.futures import CancelledError as FutureCancelledError
 
     with TestClient(app) as client:
         seed = client.post("/api/demo/seed", json={}).json()
@@ -4100,7 +4101,7 @@ def test_cancelled_provider_generation_marks_turn_failed_and_allows_same_request
             cancelled_response = client.post(
                 f"/api/sessions/{session_id}/turns", json=payload
             )
-        except asyncio.CancelledError:
+        except (asyncio.CancelledError, FutureCancelledError):
             cancelled_response = None
         if cancelled_response is not None:
             assert cancelled_response.status_code >= 500
