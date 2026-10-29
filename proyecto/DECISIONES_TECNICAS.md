@@ -144,7 +144,7 @@ Implementación inicial en la rama organizada y prueba aislada en commit `456ac5
 - El recurso y objeto se actualizan en el mismo turno/transacción; si la validación de compra falla, no se cambia ninguno.
 - La operación y su valor anterior/propuesto/aceptado quedan en `state_changes`.
 
-**Verificación:** CI con 28 pruebas Python y sintaxis de JavaScript aprobadas el 29-10-2026: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40873768030. Incluye compra con saldo suficiente, saldo insuficiente sin mutación, ingreso y gasto explícitos, y reintento de API sin cobro duplicado.
+**Verificación:** CI con 32 pruebas Python y sintaxis de JavaScript aprobadas el 29-10-2026: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40877808136. Incluye compra con saldo suficiente, saldo insuficiente sin mutación, ingreso y gasto explícitos, y reintento de API sin cobro duplicado.
 
 **Verificado con narrador simulado:** compra suficiente/insuficiente, ingresos/gastos explícitos y reintento del mismo request_id sin doble cargo. Pendiente: prueba manual en Windows y contrato con proveedor real.
 
@@ -155,6 +155,17 @@ Implementación inicial en la rama organizada y prueba aislada en commit `456ac5
 
 **Regeneración:** el texto original vuelve al cuadro de entrada para poder editarse y enviarse como un nuevo turno. También está cubierto el reintento del mismo `request_id` tras el undo. El sistema rechaza anular un turno antiguo mientras haya turnos posteriores activos.
 
-**Verificación:** CI con 28 pruebas Python y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40873768030. Incluye restauración de compra/inventario/monedas/reloj, regeneración sin duplicados y rechazo de undo fuera de orden. La CI usa narrador simulado.
+**Verificación:** CI con 32 pruebas Python y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40877808136. Incluye restauración de compra/inventario/monedas/reloj, regeneración sin duplicados y rechazo de undo fuera de orden. La CI usa narrador simulado.
 
-**Pendiente:** ampliar pruebas de rollback para relaciones y usos de poderes complejos, y probar manualmente UI en Windows. La restauración visual de una copia completa SQLite es distinta del undo de un turno.
+**Verificado por CI simulada:** incluye rollback de una relación y del contador de usos de Eco. Pendiente: pruebas manuales en Windows, campaña larga y restauración visual de copia SQLite.
+
+
+## ADR-017 — Presupuesto Lorebook editable en la interfaz
+
+**Decisión:** guardar la preferencia global `lore_budget_chars` en la tabla SQLite `app_settings`. El valor por defecto es 4.500; el usuario puede escoger entre 500 y 12.000 caracteres desde la interfaz. El máximo de ocho entradas sigue siendo una protección adicional.
+
+**Aplicación:** el mismo ajuste se consulta al crear el contexto real para la IA y al previsualizarlo. El diagnóstico informa el presupuesto configurado, caracteres usados y fichas omitidas. Los caracteres no equivalen a un conteo exacto de tokens.
+
+**Validación:** la API rechaza valores fuera de rango; la preferencia se conserva en SQLite. CI: 32 pruebas Python más sintaxis JavaScript, https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40877808136.
+
+**Pendiente:** medir tokens reales por proveedor y probar la interfaz manualmente en Windows.
