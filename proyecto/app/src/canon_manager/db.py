@@ -151,7 +151,7 @@ class Database:
                 "SET presence_status = CASE "
                 "WHEN LOWER(location) = LOWER(COALESCE(("
                 "SELECT current_location FROM sessions WHERE sessions.id=session_presence.session_id"
-                "), ''))) THEN 'present' ELSE 'away' END, "
+                "), '')) THEN 'present' ELSE 'away' END, "
                 "updated_at = CASE WHEN COALESCE(updated_at, '') = '' "
                 "THEN CURRENT_TIMESTAMP ELSE updated_at END "
                 "WHERE session_id IN (SELECT id FROM sessions)"
