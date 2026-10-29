@@ -96,12 +96,13 @@ La interfaz ya permite crear un mundo y su primera sesión, con protagonista, ca
 Esta sección distingue implementado de pendiente. No marcar como terminado nada que no haya pasado CI y prueba manual.
 
 ### Prioridad P0 — Evitar fugas de conocimiento entre personajes
-- [ ] Añadir alcance/audiencia a mensajes: privado, destinatario, grupo o público.
-- [ ] Filtrar contexto reciente por destinatario, testigos y transmisión de información.
-- [ ] Añadir pruebas: una conversación privada con Maelis no aparece al hablar después con Ivar; Ivar solo lo sabe si alguien se lo cuenta y queda registrado.
-- [ ] Mostrar en el inspector la razón por la que cada recuerdo es visible al PNJ.
+- [x] Alcance/audiencia por turno: privado con destinatario o escena/grupo. Visibilidad y lista de audiencia se guardan en metadatos.
+- [x] Filtrado de contexto por destinatario, audiencia y testigos; los eventos pendientes/rechazados no se insertan como hechos confirmados.
+- [x] Prueba aislada: una conversación privada con Maelis no aparece en el contexto posterior de Ivar; turnos privados sin destinatario se rechazan.
+- [ ] Mostrar en el inspector por qué cada recuerdo es visible al PNJ seleccionado.
+- [ ] Probar los cambios de presencia y registros antiguos sin metadatos de audiencia.
 
-**Criterio de salida:** ningún secreto se envía a un narrador de PNJ sin una fuente de conocimiento válida.
+**Criterio parcial alcanzado:** la regresión privada está cubierta por CI. P0 no queda completamente cerrado hasta añadir inspector de contexto y completar las pruebas con cambios de escena.
 
 ### Prioridad P1 — Política automática para cambios de bajo riesgo
 - [ ] Mantener revisión para cambios ambiguos y de alto impacto.
@@ -131,11 +132,12 @@ Esta sección distingue implementado de pendiente. No marcar como terminado nada
 **Criterio de salida:** regenerar una respuesta no duplica ni conserva efectos de la versión que ya no se muestra.
 
 ### Prioridad P4 — Pruebas de integración reales y de larga duración
+- [x] CI Linux: 15 pruebas Python y comprobación sintáctica de JavaScript aprobadas el 29-10-2026 (no sustituye las pruebas manuales de Windows).
 - [ ] Ejecutar la instalación desde cero en Windows/Chromium.
-- [ ] Probar una llamada controlada a OpenAI y otra a Gemini usando claves del usuario en su PC; no almacenar claves en Git.
-- [ ] Ejecutar 50–100 turnos con conversación grupal, mensajes privados, compras/consumos, viajes y Eco.
-- [ ] Reiniciar aplicación, restaurar backup y verificar que el estado sea idéntico.
-- [ ] Medir uso del contexto y coste por turno en cada proveedor cuando esos datos estén disponibles.
+- [ ] Probar una llamada controlada a OpenAI y otra a Gemini con claves del usuario en su PC; no almacenar claves en Git.
+- [ ] Ejecutar 50–100 turnos con escenas grupales/privadas, compras/consumos, viajes y Eco.
+- [ ] Reiniciar la aplicación, restaurar backup y verificar que el estado sea idéntico.
+- [ ] Medir uso del contexto y coste por turno en cada proveedor cuando los datos estén disponibles.
 
 **Criterio de salida:** la partida sobrevive a reinicios y no hay fugas de conocimiento ni efectos duplicados en el conjunto de pruebas.
 
