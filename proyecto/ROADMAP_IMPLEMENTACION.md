@@ -1,6 +1,6 @@
 # Roadmap de implementación — gestor local v0.1
 
-La CI más reciente aprobó 82 pruebas Python en Linux/Python 3.12 y comprobó sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40937190743.
+La CI más reciente aprobó 83 pruebas Python en Linux/Python 3.12 y comprobó sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40939319271.
 
 ## Fase 0 — Investigación y arquitectura
 - [x] Revisar clientes de roleplay (SillyTavern, RisuAI, Agnai).
@@ -61,7 +61,7 @@ Criterio de salida: el programa envía solo el lore necesario y no convierte un 
 - [ ] Restauración con vista previa.
 - [x] Registrar cambios aceptados, pendientes y rechazados.
 - [x] Reintento controlado para JSON inválido/truncado; la respuesta corregida reutiliza el mismo request_id sin duplicar el turno.
-- [x] CI: 82 pruebas Python y sintaxis JavaScript aprobadas en modo simulado/manual-input, sin llamadas API pagas: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40937190743.
+- [x] CI: 83 pruebas Python y sintaxis JavaScript aprobadas en modo simulado/manual-input, sin llamadas API pagas: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40939319271.
 - [x] Continuidad automatizada: 100 turnos breves simulados, reinicialización SQLite, copia, mutación posterior, restauración y comparación exacta del estado/tablas.
 - [ ] Campaña narrativa real de 50–100 intercambios con ChatGPT/Gemini web y decisiones variadas.
 
@@ -91,7 +91,7 @@ La interfaz ya permite crear un mundo y su primera sesión, con protagonista, ca
 
 - [x] Validar sintaxis del JavaScript de la interfaz en CI.
 
-Última CI aprobada (82 pruebas Python + JavaScript): https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40937190743
+Última CI aprobada (83 pruebas Python + JavaScript): https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40939319271
 
 
 ---
@@ -119,7 +119,7 @@ Esta sección distingue implementado de pendiente. No marcar como terminado nada
 - [x] Pago e ingreso/objeto se registran en SQLite con valores anterior/propuesto/aceptado y fuente; saldo insuficiente deja inventario y dinero intactos.
 - [x] Mantener objetos de alto impacto, operaciones ambiguas y datos contradictorios pendientes.
 
-**Verificación:** 82 pruebas Python aprobadas en CI (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40937190743),
+**Verificación:** 83 pruebas Python aprobadas en CI (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40939319271),
 
 ### Prioridad P2 — Inspector de contexto y activación de Lorebook
 - [x] Mostrar fichas Lorebook seleccionadas y los disparadores concretos.
@@ -143,7 +143,7 @@ Esta sección distingue implementado de pendiente. No marcar como terminado nada
 **Criterio parcial alcanzado:** restauración de inventario, recursos y reloj, auditoría y orden de undo cubiertos por CI. Quedan escenarios de campaña larga y prueba manual de la interfaz.
 
 ### Prioridad P4 — Pruebas de integración reales y de larga duración
-- [x] CI Linux: 82 pruebas Python
+- [x] CI Linux: 83 pruebas Python
 - [x] CI de compatibilidad de presencia histórica y restauración de backups sin `presence_status`.
 - [ ] Ejecutar la instalación desde cero en Windows/Chromium.
 - [ ] Probar manualmente en Windows el flujo completo con el chat web normal de ChatGPT y con Gemini.
@@ -179,7 +179,7 @@ Esta sección distingue implementado de pendiente. No marcar como terminado nada
 - [x] Prueba de continuidad sintética de 100 turnos, reinicio, backup, mutación y restauración exacta.
 - [ ] Completar una campaña narrativa real de 50–100 turnos y comprobar cierre, reinicio y restauración.
 
-CI aprobada con 82 pruebas Python y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40937190743
+CI aprobada con 83 pruebas Python y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40939319271
 
 ## Actualización — 29-10-2026, continuidad y restauración
 
@@ -210,3 +210,13 @@ CI aprobada con 82 pruebas Python y sintaxis JavaScript: https://github.com/elti
 - [x] Eventos sin mensaje fuente resoluble y sin testigos se excluyen del contexto del modelo; queda diagnóstico y los registros siguen en la base para auditoría.
 - [x] La prueba de recuperación de eventos por relevancia usa testigos explícitos; la selección por relevancia no relaja el control de audiencia.
 - [ ] Revisar variantes históricas no cubiertas, restauración visual con vista previa, prueba manual Windows/Chromium y campaña narrativa real de 50–100 turnos.
+
+
+## Actualización — 29-10-2026, privacidad durante undo/regeneración (PR #8)
+
+- PR #8 integrado en `docs/historias-organizadas`: https://github.com/eltiootaku2020-cmyk/wordbot/pull/8; commit `312c10ab4e2cdabc9e92a2842765c7f70fb0b0a5`.
+- CI posterior a la integración: **83 pruebas Python aprobadas** y sintaxis JavaScript correcta (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40939319271).
+- [x] Prueba combinada de turno privado → undo → regeneración con el mismo `request_id`.
+- [x] Verificar que un personaje ajeno no reciba la narración ni el evento confidencial antes del undo, después del undo o después de regenerar.
+- [x] Verificar que el destinatario original conserva acceso al diálogo privado regenerado y que el evento anulado queda en auditoría.
+- [ ] Prueba manual Windows/Chromium con ChatGPT/Gemini web; restauración visual con vista previa; campaña narrativa real de 50–100 turnos con reinicio/restauración.
