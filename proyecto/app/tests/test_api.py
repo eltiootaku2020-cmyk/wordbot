@@ -2439,7 +2439,7 @@ def test_context_recovers_relevant_old_event_beyond_the_recent_window():
                 "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,witnesses_json,status,created_at) "
                 "VALUES(?,?,?,?,?,?,?,?,?,?)",
                 (uuid.uuid4().hex, session_id, "old-relevant-turn", "old-medallion", "object", protagonist_id,
-                 "El medallón de obsidiana quedó enterrado bajo la torre del norte.", "[]", "recorded", "2020-01-01 00:00:00")
+                 "El medallón de obsidiana quedó enterrado bajo la torre del norte.", json.dumps([protagonist_id]), "recorded", "2020-01-01 00:00:00")
             )
             for index in range(18):
                 conn.execute(
