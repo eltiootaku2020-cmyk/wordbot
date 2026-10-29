@@ -1,6 +1,6 @@
 # Gestor local de canon — prototipo v0.1
 
-**Estado de validación:** CI pasó la suite Python y la comprobación sintáctica JavaScript en la revisión v1.18: [ver resultados](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40930336007). El modo manual de ChatGPT/Gemini web está cubierto por pruebas automatizadas; falta probar el intercambio real en Windows.
+**Estado de validación:** CI aprobó 79 pruebas Python y la comprobación sintáctica JavaScript: [ver resultados](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40932636884). Incluye JSON truncado, acciones hipotéticas, cambios contradictorios y restauración exacta después de 100 turnos breves simulados. Falta probar el intercambio real en Windows y ejecutar una campaña narrativa con un chat externo.
 
 Esta carpeta contiene un primer prototipo ejecutable del flujo local: interfaz de chat en Chromium, base SQLite y narrador simulado por defecto. El proveedor simulado permite probar la persistencia sin clave ni coste. OpenAI y Gemini son opciones externas configurables.
 
@@ -70,20 +70,20 @@ Este es un prototipo de desarrollo, no una aplicación final endurecida para pro
 
 ## Validación automática
 
-Nota histórica: las ejecuciones de 15 y 38 pruebas pertenecen a revisiones anteriores. La ejecución más reciente de la revisión v1.18 aprobó la suite Python y la comprobación sintáctica JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40930336007. Ninguna sustituye la prueba manual en Windows.
+Nota histórica: las ejecuciones de 15, 38 y 73 pruebas pertenecen a revisiones anteriores. La ejecución más reciente aprobó 79 pruebas Python y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40932636884. Ninguna sustituye la prueba manual en Windows.
 
 ## Hallazgos importantes antes de una campaña larga
 
 - **Privacidad básica implementada y probada en CI:** el selector permite escena/grupo o privado con destinatario; mensajes y eventos se filtran por audiencia/testigos. La comprobación actual aún necesita una prueba manual en Windows para los flujos visuales.
-- Las operaciones de inventario y movimiento se registran como propuestas pendientes en esta versión; falta una política segura para autoaplicar cambios cotidianos de baja ambigüedad.
-- Faltan la prueba manual de edición/undo en Windows y una campaña de 50–100 turnos. La llamada real a una API es opcional para la modalidad de chat web manual.
+- Las operaciones de inventario y movimiento se validan localmente; las compras requieren acción afirmativa del usuario, coste y saldo suficientes. Las propuestas ambiguas o de alto impacto permanecen pendientes.
+- Faltan la prueba manual de edición/undo e intercambio copiar/pegar en Windows y una campaña narrativa de 50–100 turnos con un chat externo. La llamada real a una API es opcional para la modalidad de chat web manual; la prueba automatizada de 100 turnos breves usa el proveedor simulado.
 
 No expongas el servidor a Internet: el prototipo está pensado para ejecutarse solo en el PC.
 
 
 ## Qué valida la CI actual
 
-La ejecución más reciente del workflow cubre la suite Python completa y la comprobación sintáctica JavaScript, incluida la prueba de 77 entradas, tamaño de Content y unicidad de keywords. Revisa el resumen de la ejecución aquí: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40930336007. La CI no utiliza respuestas reales de chats web ni demuestra el intercambio manual en Windows; tampoco mide tokens/coste de API. La CI no utiliza ni extrae respuestas reales de los chats web y no demuestra el intercambio manual en Windows. Tampoco mide tokens/coste de la API.
+La ejecución más reciente del workflow aprobó 79 pruebas Python y la comprobación sintáctica JavaScript, incluida la prueba del preset de 77 entradas, tamaño de Content, unicidad de keywords, JSON truncado y restauración de la partida tras 100 turnos breves simulados. Revisa el resumen de la ejecución aquí: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40932636884. La CI no utiliza respuestas reales de chats web, no demuestra el intercambio manual en Windows y no mide tokens/coste de API.
 
 Limitaciones conocidas:
 - Las compras se cobran dentro de `InventoryOperation acquire`; no debe emitirse además un `ResourceOperation spend` duplicado para ese evento.
