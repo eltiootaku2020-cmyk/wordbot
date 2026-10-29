@@ -149,7 +149,7 @@ class Database:
             conn.execute(
                 "UPDATE session_presence "
                 "SET presence_status = CASE "
-                "WHEN LOWER(TRIM(location)) = LOWER(TRIM(COALESCE(("
+                "WHEN LOWER(location) = LOWER(COALESCE(("
                 "SELECT current_location FROM sessions WHERE sessions.id=session_presence.session_id"
                 "), ''))) THEN 'present' ELSE 'away' END, "
                 "updated_at = CASE WHEN COALESCE(updated_at, '') = '' "
