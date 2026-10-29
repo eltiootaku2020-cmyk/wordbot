@@ -1,6 +1,6 @@
 # Pruebas de aceptación del gestor local
 
-La CI más reciente validó 79 pruebas Python y la sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40932636884. La suite incluye persistencia, privacidad por audiencia, Lorebook, inventario/recursos, undo, el puente manual ChatGPT/Gemini, acciones preguntadas/negadas, JSON truncado, propuestas contradictorias y restauración exacta tras 100 turnos breves simulados. Esto no valida aún el uso real en Windows, la interacción real con ambos chats web ni una campaña narrativa externa larga. Las pruebas locales deben poder repetirse sin llamadas pagas.
+La CI más reciente validó **81 pruebas Python** y la sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40935903505.
 
 ## A. Persistencia y recuperación
 
@@ -220,7 +220,7 @@ Se considera apto para una primera partida cuando A, C, D, E, F, G, H e I pasan 
 
 **Criterio:** una pregunta, intención hipotética o acción negada no autoriza por sí sola una operación. Las descripciones del narrador y los motivos de sus propuestas pueden servir como información para revisar el turno, pero nunca sustituyen la evidencia afirmativa en el mensaje del usuario.
 
-**Cobertura automatizada actual:** CI aprobó 75 pruebas Python y la comprobación de sintaxis JavaScript. La prueba de regresión combina preguntas y negaciones para compra, recogida, gasto, ingreso y uso de Eco; otra verifica que pagar por un alojamiento no autoriza una compra que el usuario negó. El estado sigue sin cambiar ante propuestas no autorizadas del narrador. No se hicieron llamadas reales a APIs ni pruebas manuales del navegador.
+**Cobertura automatizada actual:** CI aprobó 81 pruebas Python y la comprobación de sintaxis JavaScript (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40935903505).
 
 ## V. Continuidad extendida, respuestas incompletas y restauración con rollback
 
@@ -230,6 +230,19 @@ Se considera apto para una primera partida cuando A, C, D, E, F, G, H e I pasan 
 4. Ejecutar 100 turnos breves con el proveedor simulado, reinicializar SQLite y comprobar que el estado y todos los mensajes siguen idénticos. Crear copia, aplicar un turno posterior y restaurar; comparar el estado, mensajes y todas las tablas listadas en `RESTORE_SESSION_TABLES` con la instantánea anterior.
 5. Construir una copia SQLite que pase la validación de lectura pero contenga una fila que incumpla una restricción del esquema activo. La restauración debe revertir la transacción completa, devolver un error 422 controlado y dejar el estado y las tablas activas exactamente iguales a la instantánea anterior.
 
-**Cobertura automatizada actual:** la ejecución CI del PR #5 aprobó 79 pruebas Python y sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40932636884. Incluye los cinco escenarios anteriores. Los 100 turnos son una prueba de continuidad con proveedor simulado, no una campaña narrativa con un modelo externo.
+**Cobertura automatizada actual:** CI posterior al PR #6 aprobó 81 pruebas Python y sintaxis JavaScript (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40935903505). Incluye los cinco escenarios de continuidad del PR #5 y la migración de datos históricos de presencia descrita en la sección W. Los 100 turnos son una prueba con proveedor simulado, no una campaña narrativa externa.
 
 **Pendiente:** probar manualmente la instalación e intercambio copiar/pegar en Windows/Chromium con las páginas reales de ChatGPT y Gemini y ejecutar una campaña narrativa prolongada. Las API reales son opcionales y no se requieren para los casos cubiertos por CI.
+
+
+## W. Compatibilidad de presencia histórica y restauración de backups antiguos
+
+1. Crear una base histórica cuya tabla `session_presence` tenga solo `session_id`, `entity_id` y `location`, sin `presence_status` ni `updated_at`.
+2. Inicializar la aplicación y verificar que migra las columnas sin perder las filas ni las ubicaciones originales.
+3. Comprobar que cada estado se deriva de la ubicación registrada respecto de la ubicación actual de la partida: el protagonista en la escena figura como `present` y un PNJ en otra ubicación como `away`.
+4. Alterar intencionalmente un estado almacenado para que contradiga la ubicación, volver a inicializar y comprobar que se normaliza sin cambiar la ubicación.
+5. Crear una copia de seguridad, sustituir su tabla de presencia por el formato histórico sin `presence_status`, modificar la partida activa y restaurar. El endpoint debe aceptar la copia y reconstruir el estado de presencia derivado.
+
+**Cobertura automatizada actual:** los cinco puntos tienen cobertura con pruebas de migración SQLite y restauración API. CI posterior al merge aprobó 81 pruebas Python y sintaxis JavaScript (https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40935903505). La prueba no pretende certificar todas las variantes posibles de esquemas históricos ni los metadatos de audiencia antiguos.
+
+**Pendiente:** instalar y probar visualmente en Windows/Chromium, completar el intercambio manual con ChatGPT/Gemini web y ejecutar una campaña narrativa real de 50–100 turnos.
