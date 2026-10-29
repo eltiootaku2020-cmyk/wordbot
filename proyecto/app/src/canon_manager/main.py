@@ -1085,7 +1085,7 @@ def apply_narrator_result(
         )
         if (
             (operation.cost > 0 and not positive_purchase)
-            or (operation.cost == 0 and (positive_purchase or not positive_pickup))
+            or (operation.cost == 0 and not (positive_purchase or positive_pickup))
         ):
             unauthorized_acquisition_refs.add(operation.event_ref)
 
@@ -1660,8 +1660,6 @@ def apply_narrator_result(
         reason = ""
         if duplicated_power:
             reason = "El mismo poder contra el mismo objetivo aparece varias veces en un turno; se requiere revisión para no duplicar usos."
-        elif not power_action_authorized:
-            reason = "El uso no coincide con una orden afirmativa del usuario dirigida a este objetivo."
         elif not source:
             reason = "No existe el evento que justifica el uso del poder."
         elif source["status"] != "recorded":
@@ -1672,6 +1670,8 @@ def apply_narrator_result(
             reason = "El objetivo del evento de poder no coincide con el objetivo de la operación."
         elif power.target_entity_id not in valid_ids:
             reason = "El objetivo del poder no pertenece a este mundo."
+        elif not power_action_authorized:
+            reason = "El uso no coincide con una orden afirmativa del usuario dirigida a este objetivo."
         if can_apply and ability in {"eco", "eco_humano", "hipnosis"}:
             count = conn.execute(
                 "SELECT COUNT(*) AS n FROM ability_uses WHERE session_id=? AND target_entity_id=? AND ability_key IN ('eco','eco_humano','hipnosis')",
