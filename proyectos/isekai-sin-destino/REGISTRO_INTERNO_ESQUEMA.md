@@ -1,4 +1,4 @@
-# Registro interno y esquema cerrado — Isekai sin Destino v1.16
+# Registro interno y esquema cerrado — Isekai sin Destino v1.18
 
 **Propósito:** mantener continuidad dentro del contexto activo de SpicyChat y producir guardados detallados, portables y divididos en partes. Complementa Personality y Lorebook; no las reemplaza.
 
@@ -50,9 +50,10 @@ Los porcentajes son indicadores de intensidad, no probabilidades objetivas. Cada
 
 Escala de 0–100 por dirección y eje. Ejes: confianza, sospecha, amistad/cercanía, respeto, rivalidad/hostilidad, resentimiento, miedo, gratitud/deuda, cooperación y atracción si surge naturalmente.
 
-- **0–100%:** intensidad del eje, no probabilidad ni puntuación global. 50% no es neutral universal; depende del eje.
-- **No registrado:** falta evidencia; no inventes valor ni uses 50% por defecto.
-- **Delta:** `+` sube, `−` baja, `0` significa neutral/sin cambio en ese hecho. Registra la causa; no ajustes por cada mensaje ni sin evidencia.
+- **0–100%:** intensidad del eje, no probabilidad ni puntuación global; 50% no es neutral universal.
+- **No registrado:** falta evidencia; no equivale a 0% ni a 50%.
+- **0%:** solo es válido si hay evidencia de intensidad nula; no significa desconocimiento.
+- **Delta (Δ):** valor nuevo menos valor anterior, medido en puntos porcentuales. Ej.: 20%→30% = Δ +10 puntos porcentuales, no +10% relativo. Δ0 significa que ese hecho no cambia el eje; no significa neutralidad ni valor 50%. Registra la causa y no cambies valores sin evidencia.
 - Los ejes pueden coexistir: confianza alta y sospecha alta pueden tener motivos diferentes.
 
 ### 4.2 Habilidades, intereses y sospechas
@@ -60,7 +61,7 @@ Escala de 0–100 por dirección y eje. Ejes: confianza, sospecha, amistad/cerca
 - **Habilidad:** porcentaje de dominio solo después de una demostración o enseñanza confirmada, con prueba descrita. `No registrado` significa que no se evaluó; 0% no significa “desconocido”.
 - **Interés:** intensidad de un objetivo/tema solo si se declaró o hay patrón observable. Anota cuál y la fuente.
 - **Sospecha:** intensidad dirigida hacia una entidad o hipótesis, con motivo, evidencia y fuente. 100% indica sospecha muy fuerte, no culpabilidad objetiva. Sin evidencia, `No registrado`.
-- **Variaciones:** 0 = ningún cambio significativo; ±1–3 = leve; ±4–8 = relevante; ±9–15 = fuerte; ±16 o más = excepcional y requiere un hecho extraordinario. Limita el valor a 0–100 y anota el motivo. No muevas puntuaciones por cada mensaje sin evidencia nueva.
+- **Variación en puntos:** Δ0 = sin cambio por este hecho; ±1–3 = leve; ±4–8 = relevante; ±9–15 = fuerte; ±16 o más = excepcional y requiere un hecho extraordinario. Son puntos porcentuales, no cambios relativos. No apliques delta a valor previo No registrado; fija base solo con evidencia y fuente.
 
 No puntúes ejes no establecidos. Si no existe evidencia, deja `No registrado` en lugar de inventar un porcentaje para que el sistema parezca completo.
 
@@ -187,7 +188,7 @@ Coste/uso consumido/duración: solo si confirmado:
 Testigos/quién lo sabe; riesgo/consecuencia pendiente:
 ~~~
 
-Intención no equivale a resultado. Intentar que alguien crea que es amigo no garantiza amistad, confianza u obediencia; rescatar a alguien es un evento distinto, y la gratitud depende de quién lo presenció/supo. Miedo y obediencia son ejes separados. Miedo 20→30% (Δ +10 puntos) requiere valor anterior confirmado y una reacción que justifique el cambio; sin base, No registrado. En personas cada intento cuenta aunque falle; máximo tres por objetivo. En árboles/animales alcance, coste, duración y contador siguen desconocidos hasta confirmarlos; no supongas control de animales.
+Intención no equivale a resultado. Intentar que alguien crea que es amigo no garantiza amistad, confianza u obediencia; rescatar a alguien es un evento distinto, y la gratitud depende de quién lo presenció/supo. Miedo y obediencia son ejes separados. Miedo 20%→30% (Δ +10 puntos porcentuales) requiere valor anterior confirmado y una reacción que justifique el cambio; sin base, No registrado. En personas cada intento cuenta aunque falle; máximo tres por objetivo. En árboles/animales alcance, coste, duración y contador siguen desconocidos hasta confirmarlos; no supongas control de animales.
 
 Ejemplo ilustrativo, no canon: intento de infundir miedo primordial en un lobo gris, en el Bosque Oscuro solo si esa localización se confirmó; reacción observada: retrocede y gruñe; miedo, obediencia, coste y duración: No registrado sin evidencia. Si se confirma que obedece, registra la conducta observada y su duración, no una habilidad universal para controlar lobos.
 
