@@ -101,6 +101,15 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}label{font-size:13px;
       <p class="muted">Vista local de diagnóstico. No llama al modelo ni cambia la partida; muestra las fichas, mensajes y eventos seleccionados con el alcance actual.</p>
       <pre id="contextPreview" style="white-space:pre-wrap;overflow-wrap:anywhere;max-height:50vh;overflow:auto;font-size:0.8rem">Aún no se ha generado una vista previa.</pre>
     </details>
+    <details id="localSettings" class="setup">
+      <summary>Configuración local del contexto</summary>
+      <label for="loreBudgetChars">Presupuesto de Lorebook en caracteres (500–12.000)</label>
+      <div class="toolbar" style="margin-top:8px">
+        <input id="loreBudgetChars" type="number" min="500" max="12000" step="250" value="4500" style="width:170px">
+        <button id="saveLoreBudget" type="button">Guardar presupuesto</button>
+      </div>
+      <p id="loreBudgetHelp" class="muted">Por defecto: 4.500 caracteres y máximo 8 entradas. Este límite se aplica a las próximas respuestas y a la previsualización; no es un contador exacto de tokens.</p>
+    </details>
     <p class="muted">La conversación, el canon importado y el estado se guardan en SQLite en este PC. Las propuestas dudosas no se aplican sin revisión.</p>
   </section>
   <aside class="panel">
@@ -132,6 +141,14 @@ async function api(path, options) {
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(body.detail || ("HTTP " + response.status));
   return body;
+}
+async function loadLocalSettings() {
+  const config = await api("/api/settings");
+  el("loreBudgetChars").value = config.lore_budget_chars;
+  el("loreBudgetHelp").textContent =
+    "Presupuesto guardado: " + config.lore_budget_chars.toLocaleString("es-AR") +
+    " caracteres · máximo " + config.lore_max_entries +
+    " entradas. Se aplica a próximas respuestas y previsualizaciones; no equivale a tokens exactos.";
 }
 function setStatus(text, good) {
   el("status").textContent = text;
@@ -488,6 +505,20 @@ el("undoTurnButton").onclick = async () => {
     setStatus("Turno anulado; el estado anterior fue restaurado. Edita el texto y envíalo para crear un nuevo turno.", true);
   } catch (err) { setStatus(err.message, false); }
 };
+el("saveLoreBudget").onclick = async () => {
+  try {
+    const value = Number(el("loreBudgetChars").value);
+    if (!Number.isInteger(value) || value < 500 || value > 12000) {
+      throw new Error("El presupuesto debe ser un número entero entre 500 y 12.000 caracteres.");
+    }
+    const saved = await api("/api/settings", {
+      method:"POST",
+      body:JSON.stringify({lore_budget_chars:value})
+    });
+    await loadLocalSettings();
+    setStatus("Presupuesto de Lorebook guardado: " + saved.lore_budget_chars + " caracteres.", true);
+  } catch (err) { setStatus(err.message, false); }
+};
 el("previewContextButton").onclick = async () => {
   try {
     if (!currentSession) throw new Error("Selecciona una partida.");
@@ -527,6 +558,7 @@ el("backup").onclick = async () => {
 (async function start() {
   try {
     const health = await api("/api/health");
+    await loadLocalSettings();
     await refreshWorlds();
     setStatus("Listo · proveedor predeterminado: " + health.provider, true);
   } catch (err) { setStatus("No se pudo conectar al servidor: " + err.message, false); }
