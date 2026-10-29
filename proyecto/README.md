@@ -1,6 +1,6 @@
 # Proyecto: gestor local de canon, Lorebooks y continuidad
 
-**Estado:** prototipo local v0.1. CI aprobó 24 pruebas Python y sintaxis JavaScript el 29-10-2026. Incluye alcance de conversación grupo/privado, filtro de conocimiento, inspector Lorebook, operaciones de inventario de bajo riesgo y libro de recursos con compras validadas. Faltan prueba manual en Windows, APIs reales y campaña larga.  
+**Estado:** prototipo local v0.1. CI aprobó 26 pruebas Python y sintaxis JavaScript el 29-10-2026. Incluye alcance de conversación grupo/privado, filtro de conocimiento, inspector Lorebook, operaciones de inventario de bajo riesgo y libro de recursos con compras validadas. Faltan prueba manual en Windows, APIs reales y campaña larga.  
 **Ubicación de trabajo:** rama `docs/historias-organizadas`, carpeta `proyecto/`.
 
 ## Objetivo
@@ -52,7 +52,7 @@ La investigación recomienda una interfaz web local en Chromium, backend Python/
 - [Base de datos y esquema SQLite](app/src/canon_manager/db.py)
 - [Narrador simulado y adaptadores OpenAI/Gemini](app/src/canon_manager/providers.py)
 - [Pruebas automáticas](app/tests/)
-- [Ejecución CI registrada: 24 pruebas aprobadas](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40870848920)
+- [Ejecución CI registrada: 26 pruebas aprobadas](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40873010055)
 
 La prueba de integración ejecuta «Hola, linda» dirigido a Maelis y registra mensajes/eventos; el cambio numérico queda pendiente si no existe una base confirmada. También se prueba crear mundos personalizados de forma atómica y cargar el preset real de Isekai: 76 entradas de Lorebook, cinco aventureros, el protagonista y los objetos iniciales. La CI valida el modo simulado y la sintaxis JavaScript, pero no sustituye la prueba manual en Windows ni las llamadas reales a proveedores.
 
@@ -102,6 +102,6 @@ La decisión se basa en la investigación enlazada y puede revisarse después de
 
 ## Estado y siguientes pasos
 
-**Estado actual:** el código incluye interfaz en Chromium, SQLite, narrador simulado, adaptadores iniciales OpenAI/Gemini, preset real de Isekai (76 entradas), privacidad por audiencia, inspector de contexto, inventario validado y libro de recursos. CI aprueba 24 pruebas Python y la sintaxis JavaScript. Esto no demuestra que las llamadas reales o la interfaz en Windows funcionen.
+**Estado actual:** el código incluye interfaz en Chromium, SQLite, narrador simulado, adaptadores iniciales OpenAI/Gemini, preset real de Isekai (76 entradas), privacidad por audiencia, inspector de contexto, inventario validado y libro de recursos. CI aprueba 26 pruebas Python y la sintaxis JavaScript. Esto no demuestra que las llamadas reales o la interfaz en Windows funcionen.
 
 **Prioridades actuales:** completar inspector de inclusión/exclusión de mensajes y eventos; probar idempotencia de compras al reintentar; añadir rollback de edición/regeneración; hacer configurable el presupuesto de contexto; después ejecutar prueba manual Windows, APIs reales y campaña de 50–100 turnos con reinicio/restauración.
