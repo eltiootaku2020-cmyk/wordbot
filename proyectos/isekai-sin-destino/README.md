@@ -1,8 +1,8 @@
 # Isekai sin Destino
 
-**Revisión:** v1.18 — configuración, esquema cerrado y Lorebook auditados.  
-**Estado:** validación estática en GitHub; la importación y el roleplay real aún deben probarse en SpicyChat.  
-**Rama:** `docs/historias-organizadas` · **Lorebook:** 77 entradas con UID único (los UID no tienen que ser consecutivos).
+**Revisión:** v1.19 — porcentajes trazables, registro cerrado, diálogo proactivo y Lorebook auditada.  
+**Estado:** validación estática en GitHub; importación y roleplay real aún deben probarse en SpicyChat.  
+**Rama:** docs/historias-organizadas · Lorebook: 77 entradas con UID único.
 
 ## Archivos
 - [Configuración ligera](CONFIG_LIGERA.md)
@@ -12,23 +12,21 @@
 - [JSON de importación](LOREBOOK_IMPORT.json)
 - [Investigación aplicada](INVESTIGACION_DIALOGO_MEMORIA_Y_ECO_VEGETAL.md)
 - [Solución para historias largas](SOLUCION_HISTORIAS_LARGAS.md)
+- Auditoría automática: tools/audit_lorebook.py
 
-## Correcciones v1.18
-- Personality: 4344 caracteres (aprox. 1086 tokens orientativos); bajo 5.000 y cerca de la recomendación oficial de 800–1.100 tokens.
-- JSON con 77 entradas; cada Content <1.000 caracteres como margen conservador (máximo oficial actual publicado: 2.000).
-- Eliminada la keyword duplicada `uso de Eco`.
-- Δ = diferencia en puntos porcentuales: 20%→30% = +10 puntos. Δ0 es sin cambio por ese hecho; No registrado no equivale a 0%.
-- Inventario inicial unificado: ropa corriente, pañuelo gastado, bolsita vacía y cordel corto; sin dinero, comida, agua, armas ni mochila.
-- Estado cerrado: no inventar campos, no registrar historial de comidas ni asumir obediencia sin confirmación.
-- Guardado cada 5–7 intercambios y tras cambios importantes; en Free se divide en partes por el máximo de 180 tokens por respuesta.
+## Cambios v1.19
+- Reloj en seis bloques de cuatro horas; eliminados ejemplos de cabecera a 08:03 y 08:15.
+- PNJ cercanos intervienen por iniciativa propia cada 1–2 respuestas si hay motivo. Ivar puede suspirar o hablar desde delante del grupo; no hay palabras sueltas ni frases cortadas.
+- Reacciones/emociones son generadas por la IA según personalidad y contexto; el registro conserva hechos, causas y efectos persistentes. Un PNJ solo sabe lo que vio o le contaron.
+- Porcentajes independientes 0–100, no probabilidad: Δ positivo = sube, negativo = baja, cero = sin cambio por ese hecho. No registrado no equivale a 0, 50 ni neutralidad.
+- Objetos, criaturas y órdenes quedan separados. Una criatura ordenada a esperar o volver al bosque conserva última ubicación, orden/destino y cumplimiento desconocido hasta confirmación.
+- Eco vegetal: sensación interna vinculada a recuerdos de árboles; mecanismo, alcance, coste, duración y contador quedan por confirmar.
+- Inventario inicial: ropa corriente, pañuelo gastado, bolsita vacía y cordel corto. Catálogo común = posibilidades, no regalos. Sin historial de comidas.
+- Guardado recomendado cada 5–7 intercambios y tras cambios importantes; varias partes en Free no equivalen a almacenamiento externo.
+- JSON: 77 entradas, contenido bajo 1.000 caracteres, UID únicos y keywords sin duplicados.
 
-## Contexto y Lorebook
-- Free: 4.096 tokens de contexto compartidos; máximo 180 tokens por respuesta.
-- Lorebook activa: aproximadamente 740 tokens. Keywords se buscan en los últimos cuatro mensajes; una keyword duplicada puede cargar varias entradas.
-- El estado «interno» no es base de datos oculta; copia `/guardar` fuera del chat.
+## Límites reales
+El contexto gratuito comparte 4.096 tokens entre definición, instrucciones y conversación; cada respuesta tiene hasta 180 tokens según la documentación consultada. El registro «interno» no es una base de datos oculta. Los datos pueden perderse al salir del contexto; guarda una copia de /guardar fuera de SpicyChat. Fuentes: [contexto](https://support.spicychat.ai/support/solutions/articles/153000260636-why-characters-forget-things-tokens-and-context-) · [Lorebook](https://support.spicychat.ai/support/solutions/articles/153000260673-lorebooks).
 
 ## Validación
-- JSON parseable: 77 entradas, UID únicos, cada Content <1.000 caracteres y keywords sin duplicados exactos.
-- Personality: 4.344 caracteres; Scenario: 795; Greeting: 687; Example Dialogue: 1.044 caracteres.
-- La CI aprobó el test del preset, el conteo de 77 entradas y las comprobaciones de longitud/keywords: [ver ejecución](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40930336007).
-- Pendiente: importar en la cuenta real de SpicyChat y comprobar la continuidad de una partida; GitHub no instala la configuración automáticamente.
+El script y GitHub Actions se usarán para verificar conteo de entradas, longitud, UID/keywords, campos y ejemplos horarios. La importación y el comportamiento real aún requieren prueba manual; los cambios de GitHub no se instalan automáticamente.
