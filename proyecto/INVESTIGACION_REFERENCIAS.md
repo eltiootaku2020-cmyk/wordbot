@@ -295,3 +295,76 @@ Después de esta revisión se implementó un primer alcance explícito para cada
 **Verificación:** CI aprobó 15 pruebas Python y la comprobación sintáctica de JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40867432602
 
 **Límites:** CI usa narrador simulado; falta probar Windows y proveedores reales. Los mensajes anteriores a esta función no tienen audiencias guardadas; el filtro trata los mensajes antiguos dirigidos a un personaje de forma conservadora, pero no puede reconstruir testigos que nunca se registraron. El inspector visual de inclusión/exclusión de recuerdos sigue pendiente.
+
+
+---
+
+## Tercera ronda — verificación web actual y decisión de reutilización (29-10-2026)
+
+Se revisaron de nuevo README, licencias y documentación pública disponibles al 29-10-2026. Los proyectos cambian con rapidez; la licencia del commit y las dependencias concretas deben verificarse antes de copiar código.
+
+### A. Chronicler: la referencia más directa para privacidad y memoria inspeccionable
+Repositorio: https://github.com/yantrikos/chronicler (MIT; memoria YantrikDB indicada como Apache-2.0).
+
+La versión actual describe control de acceso `visible_to` aplicado durante la recuperación de recuerdos, tres niveles reflex/heuristic/canon, inspector del prompt que enseña qué se envía y por qué y un arnés para reproducir transiciones de memoria. Es más específico que un prompt que simplemente instruye a los personajes a no revelar secretos. Estas ideas confirman el camino que acabamos de implementar en nuestro prototipo: guardar audiencias y filtrar recuerdos antes de llamar al narrador.
+
+**Adoptar:** ACL de memoria durante recuperación, diferencia entre memoria efímera/inferencia/canon, explicación de recuperación y pruebas de reproducción.  
+**No adoptar aún:** instalar todo su motor cognitivo como dependencia; nuestro inventario, monedas, partida y contratos de evento ya tienen esquema local propio y deben permanecer simples.
+
+### B. Open Dungeon: opción real para reutilizar una interfaz de historia
+Repositorio: https://github.com/newideas99/open-dungeon (licencia MIT declarada; revisar la versión exacta).
+
+El README actual describe una aplicación de roleplay local con SQLite, backends Ollama o compatibles con OpenAI, historia larga con resumen progresivo, controles Continue/Retry/Erase/Edit y un lanzador para Windows. Su release 0.4.1 documenta una prueba de humo de Windows y validaciones locales de build en ese commit. Es una opción real para comparar experiencia de escritura/edición si la interfaz propia se convierte en el mayor coste.
+
+**No sustituir el motor local automáticamente:** el problema principal aquí no es solo generar texto largo; también necesitamos registro de recursos, compras validadas, conocimiento por PNJ, Lorebook importada y cambios de estado aceptados/pendientes. Antes de migrar, haría falta una prueba comparativa que demuestre que esos datos y reglas pueden integrarse sin duplicar la fuente de verdad.
+
+### C. Gamentic: un juego completo, pero no una base adecuada para este hardware
+Repositorio: https://github.com/hec-ovi/gamentic (MIT declarado por el repositorio).
+
+Su documentación describe FastAPI + SQLite + JavaScript ligero, estado como máquina explícita, acciones que pasan por herramientas validadas y tests que reemplazan el modelo en el límite para ejercitar el resto. Eso es una referencia fuerte para las pruebas de aceptación y la autoridad local de los datos. Sin embargo, la versión actual está orientada a una configuración de hardware AMD Strix Halo/APU y añade modelos locales de texto, imagen y voz. No debemos tomar sus requisitos de hardware ni cargar servicios de imagen/voz en el primer prototipo ligero.
+
+**Adoptar:** pruebas de integración con proveedor simulado, operaciones mutables validadas, estado acotado y criterios de fin de turno.  
+**No adoptar:** stack local de generación de imagen/voz ni la arquitectura multiagente completa.
+
+### D. Openovel: dos bucles de trabajo, con control del estado
+Repositorio: https://github.com/Feed-Scription/openovel (Apache-2.0 declarado).
+
+El README actualizado confirma su bucle dual: narrador de primer plano y agentes de fondo que actualizan archivos de historia. Sigue describiendo el proyecto como beta/demo. La separación es útil; la escritura autónoma del canon requiere límites.
+
+**Adoptar:** separar latencia del turno y mantenimiento de memoria.  
+**Posponer:** agentes de fondo capaces de cambiar canon sin revisión. En v0.1 basta con una respuesta estructurada por turno, validador determinista y tareas auxiliares que solo producen propuestas.
+
+### E. RPG Tracker para SillyTavern: rollback al editar y regenerar
+Repositorio: https://github.com/Soyo5800/rpg-tracker-for-sillytavern.
+
+El README sigue advirtiendo que es experimental y documenta snapshots, rollback ante swipe/eliminación y Delta Logs para cambios. Esto respalda que antes de habilitar editar/regenerar debemos conservar las operaciones aplicadas por turno y revertirlas sin duplicarlas.
+
+**Adoptar:** snapshots por mensaje, historial de deltas y pruebas de rollback; no incorporar código sin verificar licencia/compatibilidad de su commit.
+
+### F. SillyTavern: claves de Lorebook y presupuesto
+Documentación: https://docs.sillytavern.app/usage/core-concepts/worldinfo/
+
+La documentación oficial actual describe coincidencia de palabras completas, profundidad de escaneo, activación recursiva, orden/prioridad y presupuesto de contexto. También advierte que Lorebook orienta al modelo, pero no garantiza que siga el contenido. La coincidencia por palabra completa y el presupuesto ya están en nuestro prototipo. Falta hacer el presupuesto configurable y añadir un registro visible de por qué cada mensaje/evento se incluyó o excluyó, además de las fichas del Lorebook.
+
+### G. Salidas estructuradas de OpenAI y Gemini
+- OpenAI: https://developers.openai.com/api/docs/guides/structured-outputs
+- Gemini: https://ai.google.dev/gemini-api/docs/structured-output
+
+OpenAI documenta que Structured Outputs valida contra un subconjunto de JSON Schema; JSON mode solo asegura sintaxis JSON y no el esquema semántico. De ello se desprende que el contrato Pydantic/JSON no elimina el validador local. La CI de este proyecto continúa usando proveedor simulado y no acredita que las APIs de pago funcionen con una clave real.
+
+### Qué está implementado en el prototipo después de esta ronda
+
+CI de la rama organizada: **24 pruebas Python aprobadas**, más comprobación sintáctica del JavaScript, en https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40870848920
+
+- Visibilidad explícita `scene/private`, audiencia por mensaje y filtrado de contexto por destinatario/testigos.
+- Inspector de contexto que no llama al modelo y explica disparadores de las entradas Lorebook seleccionadas, límites y caracteres aproximados.
+- Coincidencia de palabras/frases completas para evitar activaciones accidentales.
+- Inventario ordinario: consumo, cambio de condición, soltar, transferir, recoger pila registrada y hallazgos/regalos explícitos, con causa y validación.
+- Movimientos de PNJ con evento fuente válido; conversación directa con un personaje fuera de la ubicación actual se rechaza.
+- Libro de recursos por partida, saldo inicial de monedas en cero para Isekai, ingresos explícitos y compras con precio/currency_key. Saldo y objeto se actualizan dentro de la transacción; si no alcanza, ambos quedan sin modificar y la operación permanece pendiente.
+
+**Límites sin validar:** instalación/uso manual en Windows, llamadas reales a proveedores, campañas de 50–100 turnos, restauración visual y rollback de una respuesta ya aplicada. El inspector aún no muestra la explicación por cada mensaje/evento excluido y el límite de Lorebook está en caracteres fijos, no es todavía un contador exacto de tokens.
+
+### Decisión de reutilización
+
+Seguir con el motor ligero propio para el estado (FastAPI + SQLite) porque ya tiene el preset real de Isekai integrado, una fuente de verdad por partida y reglas explícitas sobre conocimiento, objetos, monedas y eventos. Usar Chronicler como referencia principal de privacidad/memoria, Open Dungeon para comparar controles de edición y calidad de vida, Openovel para separar turnos de mantenimiento y SillyTavern para comparar activación de Lorebook. No agregar un grafo vectorial ni agentes en segundo plano antes de que las pruebas largas demuestren una necesidad concreta.
