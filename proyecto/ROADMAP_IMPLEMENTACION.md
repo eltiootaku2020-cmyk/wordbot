@@ -1,6 +1,6 @@
 # Roadmap de implementación — gestor local v0.1
 
-La CI más reciente aprobó 86 pruebas Python en Linux/Python 3.12 y comprobó sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40940906581.
+La CI más reciente aprobó 86 pruebas Python en Linux/Python 3.12 y comprobó sintaxis JavaScript: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40941934304.
 
 ## Fase 0 — Investigación y arquitectura
 - [x] Revisar clientes de roleplay (SillyTavern, RisuAI, Agnai).
@@ -230,3 +230,13 @@ CI aprobada con 83 pruebas Python y sintaxis JavaScript: https://github.com/elti
 - [ ] Prueba manual Windows/Chromium con ChatGPT/Gemini web.
 - [ ] Campaña narrativa real de 50–100 turnos con checkpoints de backup/restart/restore.
 - [ ] Seguir revisando variantes históricas y casos de concurrencia no cubiertos.
+
+
+## Actualización — 29-10-2026, coherencia de versión del preset (PR #11)
+
+- [x] Etiqueta visible del botón actualizada de v1.16 a v1.19, igual que el Lorebook JSON que el endpoint importa.
+- [x] README de la app corregido para v1.19.
+- [x] Prueba de regresión: extrae el número de versión de la descripción JSON y lo compara con el número visible en el botón HTML.
+- [x] CI: 86 pruebas Python aprobadas y sintaxis JavaScript correcta: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40941934304.
+- [x] Auditoría de Isekai v1.19: 659 comprobaciones aprobadas: https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40941934333.
+- [ ] Prueba visual manual de Windows/Chromium sigue pendiente.
