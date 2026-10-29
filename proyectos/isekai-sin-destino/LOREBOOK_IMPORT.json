@@ -1,6 +1,6 @@
 {
   "name": "Isekai sin Destino",
-  "description": "Fantasía abierta, aventura adulta, cronología y continuidad causal. v1.17: activadores depurados, contenido corregido y límites provisionales claros.",
+  "description": "Fantasía abierta, aventura adulta y continuidad causal. v1.18: Content corto (<1000 caracteres), palabras clave únicas y porcentajes explícitos.",
   "entries": {
     "0": {
       "uid": 0,
@@ -1563,7 +1563,7 @@
       ],
       "keysecondary": [],
       "comment": "Registro interno y esquema cerrado",
-      "content": "Esquema cerrado: estado (día/bloque/lugar/escena, mapa/rutas/lore, objetos/estado/portador/ubicación, recursos/lesiones, órdenes/cumplimiento, cronología persistente y sucesos recientes); entidad (ID/identidad/especie/estado/última ubicación, habilidades demostradas/evidencia, intereses/fuente, sospechas/motivo/evidencia, conocimiento/fuente, vínculos por pareja/dirección, promesas/deudas/conflictos, encuentros/testigos, Eco por uso). Dato ausente=No registrado; no inventes campos. Porcentajes 0–100 miden intensidad, no probabilidad; 50 no es neutral universal; sin evidencia, No registrado. Δ+/-/0 requiere causa. Sin historial de comidas, solo inventario. Orden no implica obediencia. Conserva hitos con consecuencias activas, no solo 3–5 recientes.",
+      "content": "Esquema cerrado: estado (día/bloque/lugar/escena, mapa/rutas/lore); objetos/estado/portador/ubicación; recursos/lesiones; órdenes/cumplimiento; hitos persistentes y sucesos recientes; entidad (ID/especie/estado/última ubicación, habilidades demostradas/evidencia, intereses/fuente, sospechas/motivo/evidencia, conocimiento/fuente, vínculos, promesas/deudas/conflictos, encuentros/testigos, Eco por uso). Dato ausente=No registrado; no inventes campos. Porcentajes 0–100 miden intensidad, no probabilidad; 50 no es neutral universal; sin evidencia=No registrado y 0 solo si está establecido. Δ=nuevo−anterior en puntos porcentuales: 20%→30%=+10 puntos, no +10% relativo; Δ0=no cambia por ese hecho, no es estado neutral. Sin historial de comidas, solo inventario. Orden no implica obediencia; conserva hitos con consecuencias activas.",
       "constant": false,
       "selective": false,
       "order": 730,
@@ -1661,22 +1661,16 @@
     "77": {
       "uid": 77,
       "key": [
-        "registro de Eco",
-        "uso de Eco",
-        "efecto de Eco",
-        "efecto de poder",
-        "miedo primordial",
-        "implantar recuerdo",
-        "creer que somos amigos",
-        "controlar un lobo",
-        "lobo gris",
-        "obediencia +10",
-        "miedo +10",
-        "libro de poderes"
+        "registro de poderes",
+        "evento de poder",
+        "resultado del poder",
+        "efecto confirmado",
+        "libro de poderes",
+        "intención de Eco"
       ],
       "keysecondary": [],
       "comment": "Registro de poderes por uso: intención, reacción y efecto",
-      "content": "Cada uso de Eco u otra habilidad sobrenatural es un evento propio con ID, día/bloque/lugar, poder/subtipo, objetivo/ID/especie, intención, acción intentada, reacción observable, resultado confirmado y evidencia, efectos separados, valor anterior→nuevo y Δ en puntos si hay base, coste/usos/duración solo si se conocen, testigos/quién se enteró y riesgo pendiente. Intención no equivale a resultado: intentar que alguien crea que son amigos no garantiza amistad/confianza/obediencia; rescatar a alguien es un evento distinto y la gratitud depende de quién lo presenció/supo. Miedo y obediencia son ejes distintos. Miedo 20→30% (Δ +10 puntos) requiere valor previo y evidencia; sin base, No registrado. Ejemplo ilustrativo, no canon: intento de infundir miedo primordial a un lobo gris, en Bosque Oscuro solo si se confirmó ese lugar; reacción observada: retrocede y gruñe; miedo, obediencia, coste y duración siguen No registrados sin evidencia. Personas: máximo tres intentos por objetivo, cada uno cuenta aunque falle. Árboles/animales: alcance, coste, duración y contador siguen sin confirmar; no supongas control de animales.",
+      "content": "Cada uso de Eco u otro poder es un evento: ID, día/bloque/lugar, poder, objetivo/especie, intención, reacción observable, resultado/evidencia, efectos por eje, valor anterior→nuevo y Δ en puntos si hay base, coste/duración solo si conocidos, testigos/quién se enteró y consecuencias. Intención no es resultado: pedir amistad no confirma confianza u obediencia; gratitud depende de quién vio o supo el acto. En personas, cada intento consume uno aunque falle; máximo 3 por objetivo. Eco vegetal y animal: límites, coste, duración y contador quedan No registrados hasta confirmación; no extrapoles control animal. Ejemplos de porcentajes no son canon.",
       "constant": false,
       "selective": false,
       "order": 780,
