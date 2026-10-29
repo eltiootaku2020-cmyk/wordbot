@@ -1,4 +1,4 @@
-# Investigación aplicada — SpicyChat, personalidad de PNJ, cronología y estado (v1.16)
+# Investigación aplicada — SpicyChat, personalidad de PNJ, cronología y estado (v1.18)
 
 ## Objetivo
 Mejorar Isekai sin Destino sin convertir Personality en una enciclopedia ni gastar contexto registrando cada detalle. Se combinan límites reales de SpicyChat con patrones documentados de diseño de personajes y estado en juegos narrativos.
@@ -117,3 +117,30 @@ Ejemplo hipotético, no canon: «Intención: infundir miedo en un lobo gris; lug
 
 ### Movimiento físico y voz proactiva
 Cada 1–2 respuestas del bot, uno o más PNJ cercanos o elementos del entorno se mueven o realizan una acción concreta, salvo que la escena justifique quietud. Eso no autoriza a mover al protagonista ni a saltar de lugar. PNJ cercanos pueden hablar con frases completas sin ser nombrados, según posición, personalidad, conocimiento y objetivo inmediato.
+
+
+## Auditoría de coherencia v1.18 (29-10-2026)
+
+### Límite de entrada y activadores
+La documentación de soporte vigente publica hasta 2.000 caracteres por Content; una guía detallada anterior conserva 1.000. Para reducir riesgo de importación y activaciones pesadas, esta versión impone menos de 1.000 caracteres como regla conservadora del proyecto, no como máximo oficial vigente. Las keywords se buscan en los últimos cuatro mensajes; si varias entradas comparten keyword, se activan juntas; el contenido de una entrada no activa otras entradas.
+
+Fuentes: [planes y límites](https://support.spicychat.ai/support/solutions/articles/153000260533-plans-and-what-s-included), [por qué olvidan los bots](https://support.spicychat.ai/support/solutions/articles/153000260636-why-characters-forget-things-tokens-and-context-), [Lorebooks](https://support.spicychat.ai/support/solutions/articles/153000260673-lorebooks), [guía detallada](https://docs.spicychat.ai/product-guides/lorebook).
+
+### Errores detectados y corregidos
+- UID 77 excedía 1.000 caracteres y repetía la keyword `uso de Eco` de UID 67. Se acortó y cambiaron las claves.
+- El JSON contiene 77 entradas pero el test del preset esperaba 76. Se actualiza a 77 y se añade prueba de longitud/unicidad.
+- Inventario inicial unificado: ropa corriente, pañuelo gastado, bolsita vacía y cordel corto; sin dinero, comida, agua, armas ni mochila.
+- Δ = nuevo−anterior en puntos porcentuales: 20%→30% = +10 puntos, no +10% relativo. Δ0 significa sin cambio por ese hecho; No registrado no equivale a 0 ni a 50.
+- Guardado activo: cada 5–7 intercambios y tras cambios importantes; Free requiere varias partes por el máximo de 180 tokens por respuesta.
+- El registro «interno» no es una base de datos oculta; la copia externa de /guardar permite recuperación después de perder contexto.
+
+### Aceptación v1.18
+1. JSON parseable con 77 entradas y UID únicos.
+2. Cada Content <1.000 caracteres; sin keywords duplicadas.
+3. Cada cambio porcentual documenta valor previo, nuevo, Δ en puntos y causa; sin base, No registrado.
+4. Sin campos nuevos ni historial de comidas; solo provisiones cambian tras consumo confirmado.
+5. Órdenes quedan con cumplimiento desconocido hasta confirmación.
+6. Objetos dejados salen del inventario llevado y conservan última ubicación confirmada.
+7. PNJ ausentes reaccionan solo al presenciar o recibir el relato.
+8. Test local espera 77 y audita longitudes/keywords.
+9. Importación y roleplay real en SpicyChat siguen pendientes de prueba manual.
