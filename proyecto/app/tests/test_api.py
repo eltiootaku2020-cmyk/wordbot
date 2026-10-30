@@ -518,7 +518,7 @@ def _apply_synthetic_result(session_id, user_text, result):
             ).fetchall()
         ]
         applied, pending = apply_narrator_result(
-            conn, session, turn_id, "test-source-message", user_text, result, None,
+            conn, session, turn_id, "", user_text, result, None,
             visibility="scene", audience_ids=audience_ids
         )
     return turn_id, applied, pending
@@ -4719,7 +4719,7 @@ def test_evidence_backed_suspicion_can_change_only_local_public_reputation():
                 EvidenceProposal(
                     ref="evidence-fibers", event_ref="local-clue-found",
                     about_event_id=about_event_id, discovered_by_entity_id=maelis_id,
-                    evidence_kind="physical", effect="supports",
+                    candidate_entity_id=ivar_id, evidence_kind="physical", effect="supports",
                     description="Fibras similares a las de la bolsa aparecen en una capa."
                 )
             ],
@@ -4830,7 +4830,7 @@ def test_secret_crime_without_external_listener_does_not_create_local_reputation
                 EvidenceProposal(
                     ref="secret-evidence", event_ref="secret-clue",
                     about_event_id=about_event_id, discovered_by_entity_id=protagonist_id,
-                    evidence_kind="physical", effect="supports",
+                    candidate_entity_id=protagonist_id, evidence_kind="physical", effect="supports",
                     description="La moneda permanece en posesión del protagonista."
                 )
             ],
@@ -4935,13 +4935,13 @@ def test_identification_requires_independent_observers_and_ai_cannot_confirm_gui
                 EvidenceProposal(
                     ref="identification-evidence-maelis", event_ref="identification-clue-maelis",
                     about_event_id=about_event_id, discovered_by_entity_id=maelis_id,
-                    evidence_kind="physical", effect="supports",
+                    candidate_entity_id=ivar_id, evidence_kind="physical", effect="supports",
                     description="Maelis aporta una observación independiente."
                 ),
                 EvidenceProposal(
                     ref="identification-evidence-brina", event_ref="identification-clue-brina",
                     about_event_id=about_event_id, discovered_by_entity_id=brina_id,
-                    evidence_kind="physical", effect="supports",
+                    candidate_entity_id=ivar_id, evidence_kind="physical", effect="supports",
                     description="Brina aporta una observación independiente."
                 )
             ],
@@ -5050,6 +5050,7 @@ def test_identified_attribution_rejects_two_observers_without_explicit_recogniti
                     event_ref="unrecognized-clue-maelis",
                     about_event_id=about_event_id,
                     discovered_by_entity_id=maelis_id,
+                    candidate_entity_id=ivar_id,
                     evidence_kind="physical",
                     effect="supports",
                     description="Una observación visual parcial."
@@ -5059,6 +5060,7 @@ def test_identified_attribution_rejects_two_observers_without_explicit_recogniti
                     event_ref="unrecognized-clue-brina",
                     about_event_id=about_event_id,
                     discovered_by_entity_id=brina_id,
+                    candidate_entity_id=ivar_id,
                     evidence_kind="physical",
                     effect="supports",
                     description="Una observación visual incierta."
@@ -5152,6 +5154,7 @@ def test_social_evidence_perceptions_attribution_and_reputation_restore_together
                     event_ref="restore-social-clue",
                     about_event_id=about_event_id,
                     discovered_by_entity_id=maelis_id,
+                    candidate_entity_id=ivar_id,
                     evidence_kind="physical",
                     effect="supports",
                     description="Fibra similar a la de la bolsa encontrada en una capa."
@@ -5295,6 +5298,314 @@ def test_invalid_out_of_scene_witness_perception_remains_pending_and_is_not_stor
         assert event["status"] == "pending"
         assert count == 0
         assert any("requiere revisión" in note for note in pending)
+
+
+def test_approved_pending_event_materializes_witness_knowledge_and_multiple_perceptions():
+    with TestClient(app) as client:
+        started, entities = _create_state_ops_world(client)
+        session_id = started["session_id"]
+        protagonist_id = entities["Protagonista"]["id"]
+        maelis_id = entities["Maelis Orven"]["id"]
+        ivar_id = entities["Ivar Dalen"]["id"]
+
+        pending = NarratorResponse(
+            narration="La escena de alto impacto queda pendiente de revisión.",
+            events=[
+                EventProposal(
+                    ref="approval-materializes-perceptions", kind="major_change",
+                    entity_id=ivar_id, description="Maelis observa a Ivar en el lugar del incidente.",
+                    witness_ids=[protagonist_id, maelis_id],
+                    perceptions=[
+                        WitnessPerceptionProposal(
+                            observer_entity_id=maelis_id, modality="visual",
+                            observed_details="Al principio solo distingue una figura.",
+                            identity_assessment="unidentified"
+                        ),
+                        WitnessPerceptionProposal(
+                            observer_entity_id=maelis_id, modality="visual",
+                            observed_details="Después ve claramente el rostro y reconoce a Ivar.",
+                            identity_assessment="recognized", claimed_entity_id=ivar_id
+                        )
+                    ]
+                )
+            ]
+        )
+        turn_id, _, _ = _apply_synthetic_result(
+            session_id, "Registro el incidente para revisión.", pending
+        )
+        with database.connection() as conn:
+            event = conn.execute(
+                "SELECT id,status,perceptions_json FROM events WHERE session_id=? AND turn_id=? "
+                "AND external_ref='approval-materializes-perceptions'",
+                (session_id, turn_id)
+            ).fetchone()
+        assert event["status"] == "pending"
+        assert len(json.loads(event["perceptions_json"])) == 2
+
+        approved = client.post(f"/api/sessions/{session_id}/events/{event['id']}/approve", json={})
+        assert approved.status_code == 200, approved.text
+        with database.connection() as conn:
+            knowledge = conn.execute(
+                "SELECT knower_entity_id,knowledge_kind FROM entity_knowledge "
+                "WHERE session_id=? AND about_event_id=?",
+                (session_id, event["id"])
+            ).fetchall()
+            perceptions = conn.execute(
+                "SELECT identity_assessment,claimed_entity_id,observed_details "
+                "FROM event_perceptions WHERE session_id=? AND event_id=? ORDER BY rowid",
+                (session_id, event["id"])
+            ).fetchall()
+            context = build_context(
+                conn, session_row(conn, session_id), "¿Qué vio Maelis?",
+                maelis_id, "approval-perception-context", visibility="scene"
+            )
+        assert {row["knower_entity_id"] for row in knowledge} == {protagonist_id, maelis_id}
+        assert all(row["knowledge_kind"] == "direct_observation" for row in knowledge)
+        assert len(perceptions) == 2
+        assert any(row["identity_assessment"] == "recognized" and row["claimed_entity_id"] == ivar_id
+                   for row in perceptions)
+        assert sum(1 for row in context["known_perceptions"] if row["event_id"] == event["id"]) == 2
+
+
+def test_pending_rumor_keeps_provenance_and_cannot_be_approved_without_source_knowledge():
+    with TestClient(app) as client:
+        started, entities = _create_state_ops_world(client)
+        session_id = started["session_id"]
+        protagonist_id = entities["Protagonista"]["id"]
+        maelis_id = entities["Maelis Orven"]["id"]
+        brina_id = entities["Brina Solcor"]["id"]
+        ivar_id = entities["Ivar Dalen"]["id"]
+
+        original = NarratorResponse(
+            narration="Maelis presencia un suceso.",
+            events=[
+                EventProposal(
+                    ref="pending-rumor-origin", kind="observation",
+                    description="Una lámpara se apaga junto al camino.",
+                    witness_ids=[protagonist_id, maelis_id]
+                )
+            ]
+        )
+        origin_turn, _, _ = _apply_synthetic_result(session_id, "Observo la lámpara.", original)
+        with database.connection() as conn:
+            about_id = conn.execute(
+                "SELECT id FROM events WHERE session_id=? AND turn_id=? AND external_ref='pending-rumor-origin'",
+                (session_id, origin_turn)
+            ).fetchone()["id"]
+
+        invalid_source = NarratorResponse(
+            narration="Brina intenta transmitir un suceso que aún no conoce.",
+            events=[
+                EventProposal(
+                    ref="pending-rumor-from-brina", kind="rumor",
+                    description="Brina dice que Ivar apagó la lámpara.",
+                    witness_ids=[brina_id, ivar_id],
+                    source_entity_id=brina_id, about_event_id=about_id
+                )
+            ]
+        )
+        rumor_turn, _, _ = _apply_synthetic_result(
+            session_id, "Brina intenta contar lo ocurrido.", invalid_source
+        )
+        with database.connection() as conn:
+            pending_event = conn.execute(
+                "SELECT * FROM events WHERE session_id=? AND turn_id=? AND external_ref='pending-rumor-from-brina'",
+                (session_id, rumor_turn)
+            ).fetchone()
+        assert pending_event["status"] == "pending"
+        assert pending_event["source_entity_id"] == brina_id
+        assert pending_event["about_event_id"] == about_id
+
+        refused = client.post(f"/api/sessions/{session_id}/events/{pending_event['id']}/approve", json={})
+        assert refused.status_code == 422
+        with database.connection() as conn:
+            assert conn.execute(
+                "SELECT status FROM events WHERE id=?", (pending_event["id"],)
+            ).fetchone()["status"] == "pending"
+
+        report = NarratorResponse(
+            narration="Maelis le cuenta a Brina lo que presenció.",
+            events=[
+                EventProposal(
+                    ref="valid-testimony-to-brina", kind="testimony",
+                    description="Maelis cuenta a Brina que la lámpara se apagó.",
+                    witness_ids=[maelis_id, brina_id],
+                    source_entity_id=maelis_id, about_event_id=about_id
+                )
+            ]
+        )
+        _apply_synthetic_result(session_id, "Maelis se lo cuenta a Brina.", report)
+        approved = client.post(f"/api/sessions/{session_id}/events/{pending_event['id']}/approve", json={})
+        assert approved.status_code == 200, approved.text
+        with database.connection() as conn:
+            received = conn.execute(
+                "SELECT knowledge_kind,source_knowledge_id,source_entity_id "
+                "FROM entity_knowledge WHERE session_id=? AND knower_entity_id=? "
+                "AND about_event_id=? AND transmission_event_id=?",
+                (session_id, ivar_id, about_id, pending_event["id"])
+            ).fetchone()
+            source = conn.execute(
+                "SELECT knowledge_kind FROM entity_knowledge WHERE id=?",
+                (received["source_knowledge_id"],)
+            ).fetchone()
+        assert received["knowledge_kind"] == "rumor"
+        assert received["source_entity_id"] == brina_id
+        assert source["knowledge_kind"] == "testimony"
+
+
+def test_duplicate_attribution_refs_are_quarantined_without_aborting_turn():
+    with TestClient(app) as client:
+        started, entities = _create_state_ops_world(client)
+        session_id = started["session_id"]
+        protagonist_id = entities["Protagonista"]["id"]
+        maelis_id = entities["Maelis Orven"]["id"]
+        ivar_id = entities["Ivar Dalen"]["id"]
+        original = NarratorResponse(
+            narration="Se registra el incidente inicial.",
+            events=[
+                EventProposal(
+                    ref="duplicate-attribution-origin", kind="observation",
+                    description="Una bolsa desaparece.", witness_ids=[protagonist_id, maelis_id]
+                )
+            ]
+        )
+        origin_turn, _, _ = _apply_synthetic_result(
+            session_id, "Registro la desaparición.", original
+        )
+        with database.connection() as conn:
+            about_id = conn.execute(
+                "SELECT id FROM events WHERE session_id=? AND turn_id=? AND external_ref='duplicate-attribution-origin'",
+                (session_id, origin_turn)
+            ).fetchone()["id"]
+
+        result = NarratorResponse(
+            narration="Maelis encuentra un indicio.",
+            events=[
+                EventProposal(
+                    ref="duplicate-attribution-clue", kind="observation",
+                    description="Maelis encuentra una fibra.", witness_ids=[protagonist_id, maelis_id]
+                )
+            ],
+            evidence=[
+                EvidenceProposal(
+                    ref="duplicate-attribution-evidence", event_ref="duplicate-attribution-clue",
+                    about_event_id=about_id, discovered_by_entity_id=maelis_id,
+                    candidate_entity_id=ivar_id, evidence_kind="physical", effect="supports",
+                    description="La fibra parece vinculada a la bolsa."
+                )
+            ],
+            attributions=[
+                AttributionProposal(
+                    ref="duplicate-attribution-ref", about_event_id=about_id,
+                    attribution_level="suspected", subject_entity_id=ivar_id,
+                    description="Propuesta A.", evidence_refs=["duplicate-attribution-evidence"]
+                ),
+                AttributionProposal(
+                    ref="duplicate-attribution-ref", about_event_id=about_id,
+                    attribution_level="suspected", subject_entity_id=ivar_id,
+                    description="Propuesta B contradictoria.", evidence_refs=["duplicate-attribution-evidence"]
+                )
+            ]
+        )
+        turn_id, _, notes = _apply_synthetic_result(session_id, "Maelis investiga la fibra.", result)
+        with database.connection() as conn:
+            rows = conn.execute(
+                "SELECT status,reason FROM event_attributions WHERE session_id=? AND turn_id=? "
+                "AND external_ref='duplicate-attribution-ref'",
+                (session_id, turn_id)
+            ).fetchall()
+            events = conn.execute(
+                "SELECT status FROM events WHERE session_id=? AND turn_id=?",
+                (session_id, turn_id)
+            ).fetchall()
+        assert len(rows) == 1
+        assert rows[0]["status"] == "pending"
+        assert "duplicada" in rows[0]["reason"].lower()
+        assert all(row["status"] == "recorded" for row in events)
+        assert any("duplicada" in note.lower() for note in notes)
+
+
+def test_suspicion_requires_evidence_candidate_to_match_attributed_entity():
+    with TestClient(app) as client:
+        started, entities = _create_state_ops_world(client)
+        session_id = started["session_id"]
+        protagonist_id = entities["Protagonista"]["id"]
+        maelis_id = entities["Maelis Orven"]["id"]
+        ivar_id = entities["Ivar Dalen"]["id"]
+        brina_id = entities["Brina Solcor"]["id"]
+        original = NarratorResponse(
+            narration="Se registra una desaparición.",
+            events=[
+                EventProposal(
+                    ref="candidate-link-origin", kind="observation",
+                    description="Desaparece una bolsa.", witness_ids=[protagonist_id, maelis_id]
+                )
+            ]
+        )
+        origin_turn, _, _ = _apply_synthetic_result(session_id, "Registro la desaparición.", original)
+        with database.connection() as conn:
+            about_id = conn.execute(
+                "SELECT id FROM events WHERE session_id=? AND turn_id=? AND external_ref='candidate-link-origin'",
+                (session_id, origin_turn)
+            ).fetchone()["id"]
+
+        result = NarratorResponse(
+            narration="Una pista menciona a Brina, pero el narrador intenta sospechar de Ivar.",
+            events=[
+                EventProposal(
+                    ref="candidate-link-clue", kind="observation",
+                    description="Maelis encuentra una pista junto al banco.",
+                    witness_ids=[protagonist_id, maelis_id]
+                ),
+                EventProposal(
+                    ref="candidate-link-report", kind="rumor",
+                    description="Maelis cuenta a Ivar que hay una pista sobre la desaparición.",
+                    witness_ids=[maelis_id, ivar_id],
+                    source_entity_id=maelis_id, about_event_id=about_id
+                )
+            ],
+            evidence=[
+                EvidenceProposal(
+                    ref="candidate-link-evidence", event_ref="candidate-link-clue",
+                    about_event_id=about_id, discovered_by_entity_id=maelis_id,
+                    candidate_entity_id=brina_id, evidence_kind="physical", effect="supports",
+                    description="La pista implica a Brina, no a Ivar."
+                )
+            ],
+            attributions=[
+                AttributionProposal(
+                    ref="candidate-link-suspicion", about_event_id=about_id,
+                    attribution_level="suspected", subject_entity_id=ivar_id,
+                    description="La propuesta intenta señalar a Ivar.",
+                    evidence_refs=["candidate-link-evidence"]
+                )
+            ],
+            reputation_changes=[
+                LocalReputationProposal(
+                    ref="candidate-link-reputation", entity_id=ivar_id,
+                    scope_type="location", scope_key="Claro del bosque", delta=-1,
+                    attribution_ref="candidate-link-suspicion",
+                    awareness_event_ref="candidate-link-report",
+                    reason="No debe afectar la reputación de Ivar."
+                )
+            ]
+        )
+        _, applied, _ = _apply_synthetic_result(
+            session_id, "Maelis comparte la investigación.", result
+        )
+        with database.connection() as conn:
+            attribution = conn.execute(
+                "SELECT status,reason FROM event_attributions WHERE session_id=? "
+                "AND external_ref='candidate-link-suspicion'", (session_id,)
+            ).fetchone()
+            reputation = conn.execute(
+                "SELECT value FROM local_reputation WHERE session_id=? AND entity_id=?",
+                (session_id, ivar_id)
+            ).fetchone()
+        assert attribution["status"] == "pending"
+        assert "candidate_entity_id" in attribution["reason"]
+        assert reputation is None
+        assert not any("Reputación local de" in item for item in applied)
 
 
 def test_restore_preserves_entity_knowledge_and_rumor_source_chain():
