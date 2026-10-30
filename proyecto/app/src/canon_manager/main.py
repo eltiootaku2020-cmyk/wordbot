@@ -3573,7 +3573,24 @@ def _restore_world_signature(conn, world_id: str):
             (world_id,)
         ).fetchall()
     ]
-    return (tuple(world), tuple(entities), tuple(lore))
+    # Timeline definitions belong to shared world canon, not to one session.
+    # A backup must not restore against a world whose scheduled facts changed.
+    available_tables = {
+        row["name"] for row in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        ).fetchall()
+    }
+    timeline_events = []
+    if "world_timeline_events" in available_tables:
+        timeline_events = [
+            tuple(row) for row in conn.execute(
+                "SELECT id,external_uid,title,description,scheduled_day,scheduled_minute,"
+                "location,canon_status,enabled FROM world_timeline_events "
+                "WHERE world_id=? ORDER BY id",
+                (world_id,)
+            ).fetchall()
+        ]
+    return (tuple(world), tuple(entities), tuple(lore), tuple(timeline_events))
 
 
 def _table_columns(conn, table: str) -> set[str]:
