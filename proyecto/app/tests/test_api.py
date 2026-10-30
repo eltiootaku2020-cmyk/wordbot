@@ -4640,3 +4640,93 @@ def test_event_continuity_columns_exist_after_fresh_database_initialization():
     with database.connection() as conn:
         columns = {row["name"] for row in conn.execute("PRAGMA table_info(events)").fetchall()}
     assert {"continuity", "importance"} <= columns
+
+
+
+def test_world_timeline_can_be_edited_cancelled_and_locked_after_firing():
+    with TestClient(app) as client:
+        started = client.post(
+            "/api/worlds/start",
+            json={
+                "name": "Mundo de cronología",
+                "canon_text": "Canon de prueba.",
+                "protagonist_name": "Ari",
+                "session_name": "Partida de cronología",
+                "location": "Puerto",
+                "day": 1,
+                "minute_of_day": 480,
+            },
+        )
+        assert started.status_code == 200, started.text
+        world_id = started.json()["world_id"]
+        session_id = started.json()["session_id"]
+
+        created = client.post(
+            f"/api/worlds/{world_id}/timeline",
+            json={
+                "external_uid": "volcan-test-01",
+                "title": "Erupción prevista",
+                "description": "El volcán entra en erupción.",
+                "scheduled_day": 5,
+                "scheduled_minute": 600,
+                "location": "Montañas del oeste",
+            },
+        )
+        assert created.status_code == 200, created.text
+        event_id = created.json()["id"]
+
+        # A future event can be edited and disabled before it becomes canon history.
+        disabled = client.patch(
+            f"/api/worlds/{world_id}/timeline/{event_id}",
+            json={"title": "Erupción retrasada", "enabled": False},
+        )
+        assert disabled.status_code == 200, disabled.text
+        assert disabled.json()["event"]["enabled"] == 0
+
+        listing = client.get(f"/api/worlds/{world_id}/timeline")
+        assert next(row for row in listing.json() if row["id"] == event_id)["title"] == "Erupción retrasada"
+
+        # Re-enabling after moving its date into the past catches up active sessions.
+        enabled = client.patch(
+            f"/api/worlds/{world_id}/timeline/{event_id}",
+            json={"enabled": True, "scheduled_day": 1, "scheduled_minute": 480},
+        )
+        assert enabled.status_code == 200, enabled.text
+        assert enabled.json()["sessions_caught_up"] == 1
+        with database.connection() as conn:
+            fired_count = conn.execute(
+                "SELECT COUNT(*) FROM session_timeline_events WHERE session_id=? AND world_event_id=?",
+                (session_id, event_id),
+            ).fetchone()[0]
+        assert fired_count == 1
+
+        # Once any session has observed the event, its history cannot be rewritten or deleted.
+        rewrite = client.patch(
+            f"/api/worlds/{world_id}/timeline/{event_id}",
+            json={"title": "Historia reescrita"},
+        )
+        assert rewrite.status_code == 409
+        deletion = client.delete(f"/api/worlds/{world_id}/timeline/{event_id}")
+        assert deletion.status_code == 409
+
+        # An event that has never fired can be cancelled and removed safely.
+        removable = client.post(
+            f"/api/worlds/{world_id}/timeline",
+            json={
+                "external_uid": "encuentro-cancelable",
+                "title": "Encuentro pendiente",
+                "description": "Un encuentro todavía no ocurrido.",
+                "scheduled_day": 8,
+                "scheduled_minute": 700,
+            },
+        )
+        assert removable.status_code == 200, removable.text
+        removable_id = removable.json()["id"]
+        cancelled = client.patch(
+            f"/api/worlds/{world_id}/timeline/{removable_id}",
+            json={"enabled": False},
+        )
+        assert cancelled.status_code == 200, cancelled.text
+        removed = client.delete(f"/api/worlds/{world_id}/timeline/{removable_id}")
+        assert removed.status_code == 200, removed.text
+
