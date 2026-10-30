@@ -19,7 +19,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .db import Database, backfill_entity_knowledge
-from .models import ApprovalRequest, AttributionProposal, ContextPreviewRequest, EntityCreate, EvidenceProposal, LocalCommandRequest, LocalReputationProposal, LocalSettingsUpdate, ManualPromptRequest, NarratorResponse, SessionCreate, SessionRestoreRequest, TurnRequest, WorldCreate, WorldStartCreate
+from .models import ApprovalRequest, AttributionProposal, ContextPreviewRequest, EntityCreate, EventProposal, EvidenceProposal, LocalCommandRequest, LocalReputationProposal, LocalSettingsUpdate, ManualPromptRequest, NarratorResponse, SessionCreate, SessionRestoreRequest, TurnRequest, WitnessPerceptionProposal, WorldCreate, WorldStartCreate
 from .providers import ProviderError, build_manual_prompt, make_provider
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -1216,10 +1216,15 @@ def write_event(
         if witness in valid_ids and (allowed_witnesses is None or witness in allowed_witnesses)
     ]
     conn.execute(
-        "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,witnesses_json,status,source_message_id) "
-        "VALUES(?,?,?,?,?,?,?,?,?,?)",
-        (event_id, session_id, turn_id, event.ref, event.kind, event.entity_id,
-         event.description, json.dumps(witnesses, ensure_ascii=False), status, source_message_id)
+        "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,"
+        "witnesses_json,status,source_message_id,source_entity_id,about_event_id,perceptions_json) "
+        "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        (
+            event_id, session_id, turn_id, event.ref, event.kind, event.entity_id,
+            event.description, json.dumps(witnesses, ensure_ascii=False), status,
+            source_message_id, event.source_entity_id or "", event.about_event_id or "",
+            json.dumps([item.model_dump() for item in event.perceptions], ensure_ascii=False)
+        )
     )
     return event.ref, event_id, status
 
@@ -1238,13 +1243,21 @@ def record_event_perceptions(conn, session_id: str, event_id: str, event) -> int
         return 0
 
     inserted = 0
+    seen_perceptions = set()
     for perception in event.perceptions:
         observer_id = perception.observer_entity_id
         claimed_id = perception.claimed_entity_id or None
         if observer_id not in witnesses:
             continue
+        signature = (
+            observer_id, perception.modality, perception.observed_details,
+            perception.identity_assessment, claimed_id
+        )
+        if signature in seen_perceptions:
+            continue
+        seen_perceptions.add(signature)
         cursor = conn.execute(
-            "INSERT OR IGNORE INTO event_perceptions("
+            "INSERT INTO event_perceptions("
             "id,session_id,event_id,observer_entity_id,modality,observed_details,"
             "identity_assessment,claimed_entity_id"
             ") VALUES(?,?,?,?,?,?,?,?)",
@@ -1290,6 +1303,8 @@ def persist_evidence_proposals(conn, session_id, result, event_map, valid_ids, p
             status, reason = "pending", "El acontecimiento investigado no existe o no está registrado."
         elif item.discovered_by_entity_id not in valid_ids:
             status, reason = "pending", "Quien descubre la evidencia no pertenece a este mundo."
+        elif item.candidate_entity_id and item.candidate_entity_id not in valid_ids:
+            status, reason = "pending", "La entidad señalada por la evidencia no pertenece a este mundo."
         else:
             try:
                 witnesses = json.loads(source_row["witnesses_json"] or "[]")
@@ -1313,23 +1328,26 @@ def persist_evidence_proposals(conn, session_id, result, event_map, valid_ids, p
                     status, reason = "pending", "La evidencia física o circunstancial requiere una observación directa registrada."
 
         evidence_id = ""
+        stored_candidate_id = item.candidate_entity_id or ""
         if about is not None and source_row is not None:
             evidence_id = new_id()
             conn.execute(
                 "INSERT OR IGNORE INTO event_evidence("
                 "id,session_id,about_event_id,evidence_event_id,discovered_by_entity_id,"
-                "evidence_kind,effect,source_knowledge_id,source_knowledge_kind,description,status,reason"
-                ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                "candidate_entity_id,evidence_kind,effect,source_knowledge_id,source_knowledge_kind,"
+                "description,status,reason"
+                ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     evidence_id, session_id, item.about_event_id, source_row["id"],
-                    item.discovered_by_entity_id, item.evidence_kind, item.effect,
+                    item.discovered_by_entity_id, item.candidate_entity_id or "",
+                    item.evidence_kind, item.effect,
                     knowledge["id"] if knowledge else None,
                     knowledge["knowledge_kind"] if knowledge else "unknown",
                     item.description, status, reason
                 )
             )
             existing = conn.execute(
-                "SELECT id,status,source_knowledge_kind FROM event_evidence "
+                "SELECT id,status,source_knowledge_kind,candidate_entity_id FROM event_evidence "
                 "WHERE session_id=? AND evidence_event_id=? AND discovered_by_entity_id=? "
                 "AND about_event_id=? AND evidence_kind=?",
                 (session_id, source_row["id"], item.discovered_by_entity_id,
@@ -1339,6 +1357,7 @@ def persist_evidence_proposals(conn, session_id, result, event_map, valid_ids, p
                 evidence_id = existing["id"]
                 status = existing["status"]
                 knowledge_kind = existing["source_knowledge_kind"]
+                stored_candidate_id = existing["candidate_entity_id"] or ""
             else:
                 knowledge_kind = knowledge["knowledge_kind"] if knowledge else "unknown"
         else:
@@ -1349,6 +1368,7 @@ def persist_evidence_proposals(conn, session_id, result, event_map, valid_ids, p
             "id": evidence_id, "status": status, "about_event_id": item.about_event_id,
             "evidence_event_id": source_row["id"] if source_row else "",
             "discovered_by_entity_id": item.discovered_by_entity_id,
+            "candidate_entity_id": stored_candidate_id,
             "evidence_kind": item.evidence_kind, "effect": item.effect,
             "source_knowledge_kind": knowledge_kind, "reason": reason
         }
@@ -1362,7 +1382,13 @@ def persist_event_attributions(conn, session_id, turn_id, result, evidence_map, 
         counts[item.ref] = counts.get(item.ref, 0) + 1
     duplicates = {ref for ref, count in counts.items() if count > 1}
     attribution_map = {}
+    seen_refs = set()
     for item in result.attributions:
+        # Duplicate refs share one unique DB key. Keep one pending audit row so
+        # malformed narrator output cannot abort the entire turn transaction.
+        if item.ref in seen_refs:
+            continue
+        seen_refs.add(item.ref)
         about = conn.execute(
             "SELECT id,status FROM events WHERE id=? AND session_id=?",
             (item.about_event_id, session_id)
@@ -1387,13 +1413,18 @@ def persist_event_attributions(conn, session_id, turn_id, result, evidence_map, 
         elif item.attribution_level == "suspected":
             if item.subject_entity_id not in valid_ids:
                 status, reason = "pending", "La persona sospechosa no pertenece a este mundo."
-            elif not any(entry["effect"] == "supports" for entry in selected):
-                status, reason = "pending", "La sospecha necesita al menos un indicio que apoye esa hipótesis."
+            elif not any(
+                entry["effect"] == "supports"
+                and entry.get("candidate_entity_id") == item.subject_entity_id
+                for entry in selected
+            ):
+                status, reason = "pending", "La sospecha necesita evidencia de apoyo vinculada explícitamente a esa misma entidad."
         elif item.attribution_level == "identified":
             independent_observers = set()
             for entry in selected:
                 if (
                     entry["effect"] != "supports"
+                    or entry.get("candidate_entity_id") != item.subject_entity_id
                     or entry["source_knowledge_kind"] != "direct_observation"
                     or not entry.get("evidence_event_id")
                 ):
