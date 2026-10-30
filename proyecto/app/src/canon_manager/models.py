@@ -103,6 +103,15 @@ class WorldTimelineEventCreate(StrictModel):
     location: str = Field(default="", max_length=180)
 
 
+class WorldTimelineEventUpdate(StrictModel):
+    title: str | None = Field(default=None, min_length=1, max_length=160)
+    description: str | None = Field(default=None, min_length=1, max_length=2000)
+    scheduled_day: int | None = Field(default=None, ge=1)
+    scheduled_minute: int | None = Field(default=None, ge=0, le=1439)
+    location: str | None = Field(default=None, max_length=180)
+    enabled: bool | None = None
+
+
 class EntityCreate(StrictModel):
     name: str = Field(min_length=1, max_length=120)
     kind: Literal["protagonist", "character", "creature", "npc", "other"] = "character"
