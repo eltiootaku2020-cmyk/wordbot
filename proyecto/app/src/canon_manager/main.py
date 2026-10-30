@@ -889,7 +889,12 @@ def build_context(
     # Give the narrator only information explicitly recorded for the active
     # participants. A rumor remains a rumor; its source event is not disclosed
     # as a confirmed fact to someone who only heard the report.
-    knowledge_ids = sorted({item["id"] for item in participants if item.get("id")})
+    # The active narrative context may include the protagonist and one addressed
+    # NPC, never every bystander in the scene. This prevents one NPC's private
+    # knowledge from leaking merely because another NPC shares the location.
+    knowledge_ids = [session["protagonist_entity_id"]]
+    if recipient_id and recipient_id != session["protagonist_entity_id"]:
+        knowledge_ids.append(recipient_id)
     known_information = []
     if knowledge_ids:
         placeholders = ",".join("?" for _ in knowledge_ids)
