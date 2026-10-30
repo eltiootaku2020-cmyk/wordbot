@@ -3715,7 +3715,7 @@ def restore_session_from_backup(session_id: str, backup_path: Path) -> dict[str,
         if current_world_signature != backup_world_signature:
             raise HTTPException(
                 status_code=409,
-                detail="El canon, los personajes o el Lorebook del mundo cambiaron desde la copia. Para evitar mezclar versiones, restaura solo después de volver al mismo mundo."
+                detail="El canon, los personajes, el Lorebook o la cronología del mundo cambiaron desde la copia. Para evitar mezclar versiones, restaura solo después de volver a la misma versión del mundo."
             )
 
         conn.execute(
