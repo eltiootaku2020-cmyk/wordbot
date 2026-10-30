@@ -1076,6 +1076,87 @@ def record_event_knowledge(conn, session_id: str, event_id: str, event) -> int:
     return inserted
 
 
+def record_event_perceptions(conn, session_id: str, event_id: str, event) -> int:
+    """Persist only the perceptions of valid witnesses of a recorded event."""
+    stored = conn.execute(
+        "SELECT witnesses_json,status FROM events WHERE id=? AND session_id=?",
+        (event_id, session_id)
+    ).fetchone()
+    if stored is None or stored["status"] != "recorded":
+        return 0
+    try:
+        witnesses = set(json.loads(stored["witnesses_json"] or "[]"))
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return 0
+
+    inserted = 0
+    for perception in event.perceptions:
+        observer_id = perception.observer_entity_id
+        claimed_id = perception.claimed_entity_id or None
+        if observer_id not in witnesses:
+            continue
+        cursor = conn.execute(
+            "INSERT OR IGNORE INTO event_perceptions("
+            "id,session_id,event_id,observer_entity_id,modality,observed_details,"
+            "identity_assessment,claimed_entity_id"
+            ") VALUES(?,?,?,?,?,?,?,?)",
+            (
+                new_id(), session_id, event_id, observer_id, perception.modality,
+                perception.observed_details, perception.identity_assessment, claimed_id
+            )
+        )
+        inserted += max(0, cursor.rowcount)
+    return inserted
+
+
+def record_event_evidence(
+    conn, session_id: str, evidence, event_map: dict[str, dict[str, Any]],
+    valid_ids: set[str], allowed_witnesses: set[str] | None = None,
+    private_subject_ids: set[str] | None = None,
+) -> tuple[bool, str]:
+    """Persist a discovered clue without treating it as proof of culpability."""
+    discovery = event_map.get(evidence.discovery_event_ref)
+    if not discovery or discovery["status"] != "recorded":
+        return False, "el evento de descubrimiento no está registrado"
+    if discovery["kind"] not in {"observation", "object"}:
+        return False, "la evidencia debe proceder de un evento de observación o hallazgo"
+    discoverer_id = evidence.discoverer_entity_id
+    if discoverer_id not in valid_ids:
+        return False, "la entidad que descubre la evidencia no pertenece al mundo"
+    if discoverer_id not in discovery["witness_ids"]:
+        return False, "quien descubre la evidencia no figura entre los testigos del hallazgo"
+    if allowed_witnesses is not None and discoverer_id not in allowed_witnesses:
+        return False, "quien descubre la evidencia está fuera de la audiencia autorizada"
+    if private_subject_ids is not None and discoverer_id not in private_subject_ids:
+        return False, "quien descubre la evidencia está fuera del alcance privado"
+
+    related_event_id = evidence.related_event_id or None
+    if related_event_id:
+        related = conn.execute(
+            "SELECT id,status FROM events WHERE id=? AND session_id=?",
+            (related_event_id, session_id)
+        ).fetchone()
+        if related is None or related["status"] != "recorded":
+            return False, "el acontecimiento relacionado no está registrado en esta partida"
+        source_knowledge = find_entity_knowledge_source(
+            conn, session_id, discoverer_id, related_event_id
+        )
+        if source_knowledge is None or source_knowledge["knowledge_kind"] == "rumor":
+            return False, "quien descubre la evidencia no tiene conocimiento suficiente del acontecimiento relacionado"
+
+    conn.execute(
+        "INSERT INTO event_evidence("
+        "id,session_id,discovery_event_id,related_event_id,discoverer_entity_id,"
+        "evidence_type,description,location,condition"
+        ") VALUES(?,?,?,?,?,?,?,?,?)",
+        (
+            new_id(), session_id, discovery["id"], related_event_id, discoverer_id,
+            evidence.evidence_type, evidence.description, evidence.location, evidence.condition
+        )
+    )
+    return True, ""
+
+
 def write_event(
     conn,
     session_id: str,
@@ -1276,7 +1357,7 @@ def apply_narrator_result(
     if authorized_skip:
         # A time skip is a direct user command, not permission to invent loot,
         # relationships, powers or NPC movements while the protagonist is absent.
-        side_effect_fields = ("events", "state_changes", "movements", "inventory_ops", "resource_ops", "power_uses")
+        side_effect_fields = ("events", "evidence", "state_changes", "movements", "inventory_ops", "resource_ops", "power_uses")
         ignored = sum(len(getattr(result, field)) for field in side_effect_fields)
         pending = list(result.pending)
         if ignored:
@@ -1286,7 +1367,7 @@ def apply_narrator_result(
             else:
                 pending.append(note)
         result = result.model_copy(update={
-            "events": [], "state_changes": [], "movements": [],
+            "events": [], "evidence": [], "state_changes": [], "movements": [],
             "inventory_ops": [], "resource_ops": [], "power_uses": [],
             "elapsed_minutes": int(authorized_skip["minutes"]),
             "pending": pending
