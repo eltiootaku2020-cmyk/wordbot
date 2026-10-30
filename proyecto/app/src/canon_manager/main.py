@@ -19,9 +19,9 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .db import Database
-from .models import ApprovalRequest, ContextPreviewRequest, EntityCreate, LocalCommandRequest, LocalSettingsUpdate, ManualPromptRequest, NarratorResponse, SessionCreate, SessionRestoreRequest, TurnRequest, WorldCreate, WorldStartCreate
+from .models import ApprovalRequest, ContextPreviewRequest, EntityCreate, LocalCommandRequest, LocalSettingsUpdate, ManualPromptRequest, NarratorResponse, SessionCreate, SessionRestoreRequest, TurnRequest, WorldCreate, WorldStartCreate, WorldTimelineEventCreate, WorldTimelineEventUpdate, WorldTimelineEventReview
 from .providers import ProviderError, build_manual_prompt, make_provider
-from .timeline import fire_crossed_events
+from .timeline import fire_crossed_events, fire_due_events
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 load_dotenv(BASE_DIR / ".env")
@@ -573,6 +573,10 @@ def capture_turn_state(conn, session_id: str) -> dict[str, Any]:
         ).fetchall()],
         "ability_uses": [dict(row) for row in conn.execute(
             "SELECT * FROM ability_uses WHERE session_id=? ORDER BY created_at,id", (session_id,)
+        ).fetchall()],
+        "timeline_runs": [dict(row) for row in conn.execute(
+            "SELECT * FROM session_timeline_runs WHERE session_id=? ORDER BY reached_day,reached_minute,scheduled_event_id",
+            (session_id,)
         ).fetchall()]
     }
 
@@ -608,7 +612,9 @@ def restore_turn_state(conn, session_id: str, state: dict[str, Any]) -> None:
         ("inventory_items", state.get("inventory", [])),
         ("resources", state.get("resources", [])),
         ("relationships", state.get("relationships", [])),
-        ("ability_uses", state.get("ability_uses", []))
+        ("ability_uses", state.get("ability_uses", [])),
+        # Undoing a clock advance must also rewind its per-session timeline ledger.
+        ("session_timeline_runs", state.get("timeline_runs", []))
     ]
     for table, rows in table_rows:
         conn.execute(f"DELETE FROM {table} WHERE session_id=?", (session_id,))
@@ -1064,6 +1070,23 @@ def build_context(
 
     day, minute = int(session["day"]), int(session["minute_of_day"])
     canon_text = (session["canon_text"] or "").strip()
+    world_timeline = [dict(row) for row in conn.execute(
+        "SELECT w.stable_key,w.title,w.description,w.scope_type,w.location,"
+        "w.scheduled_day,w.scheduled_minute,f.reached_day,f.reached_minute,f.record_json "
+        "FROM session_timeline_runs f "
+        "JOIN world_timeline_events w ON w.id=f.scheduled_event_id "
+        "WHERE f.session_id=? ORDER BY f.reached_day DESC,f.reached_minute DESC LIMIT 30",
+        (session["id"],)
+    ).fetchall()]
+    for item in world_timeline:
+        try:
+            item["record"] = json.loads(item.pop("record_json") or "{}")
+        except (TypeError, ValueError, json.JSONDecodeError):
+            item["record"] = {}
+        item["knowledge_boundary"] = (
+            "Hecho confirmado del mundo; no implica que el protagonista ni los PNJ presentes lo conozcan. "
+            "No revelarlo sin una vía narrativa de información."
+        )
     context = {
         "world": {
             "name": session["world_name"],
@@ -1087,6 +1110,7 @@ def build_context(
         "recent_messages": recent,
         "recent_events": recent_events,
         "continuity_records": continuity_records,
+        "world_timeline": world_timeline,
         "narrative_variation": narrative_variation_hint(conn, session["id"], current_turn_id),
         "relevant_lore": lore
     }
@@ -1109,6 +1133,7 @@ def build_context(
         "excluded_events": excluded_events_debug,
         "recent_messages_selected": len(recent),
         "recent_events_selected": len(recent_events),
+        "world_timeline_selected": len(world_timeline),
         "messages_excluded_count": len(excluded_messages_debug),
         "events_excluded_count": len(excluded_events_debug),
         "messages_recovered_by_relevance": sum(1 for item in selected_messages_debug if "recuperado por relevancia" in item["reason"]),
