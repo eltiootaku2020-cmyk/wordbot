@@ -2539,7 +2539,14 @@ def create_session(world_id: str, payload: SessionCreate):
             )
         for resource in payload.initial_resources:
             seed_resource(conn, session_id, resource)
-    return {"id": session_id, "name": payload.name}
+        timeline_caught_up = len(fire_due_events(
+            conn, session_id, payload.day, payload.minute_of_day,
+            fired_turn_id=f"system:session-created:{session_id}"
+        ))
+    return {
+        "id": session_id, "name": payload.name,
+        "timeline_events_caught_up": timeline_caught_up
+    }
 
 
 @app.post("/api/worlds/{world_id}/lorebook/import")
@@ -3638,9 +3645,11 @@ RESTORE_SESSION_TABLES = (
     "ability_uses",
     "messages",
     "events",
+    "session_timeline_runs",
     "state_changes",
     "snapshots",
 )
+RESTORE_OPTIONAL_TABLES = {"session_timeline_runs"}
 RESTORE_REQUIRED_COLUMNS = {
     "session_presence": {"session_id", "entity_id", "location", "presence_status"},
     "inventory_items": {"id", "session_id", "item_key", "display_name", "quantity", "condition", "carrier_entity_id", "location"},
@@ -3649,6 +3658,10 @@ RESTORE_REQUIRED_COLUMNS = {
     "ability_uses": {"id", "session_id", "turn_id", "ability_key", "target_entity_id", "result"},
     "messages": {"id", "session_id", "turn_id", "turn_index", "role", "recipient_entity_id", "content", "provider", "generation_status"},
     "events": {"id", "session_id", "turn_id", "external_ref", "kind", "entity_id", "description", "witnesses_json", "status"},
+    "session_timeline_runs": {
+        "id", "session_id", "scheduled_event_id", "fired_turn_id", "due_day",
+        "due_minute", "reached_day", "reached_minute", "record_json", "created_at"
+    },
     "state_changes": {"id", "session_id", "turn_id", "external_ref", "entity_id", "field", "operation", "proposed_value_json", "status", "reason"},
     "snapshots": {"id", "session_id", "event_sequence", "state_json"},
 }
@@ -3707,7 +3720,10 @@ def _read_session_backup(backup_path: Path, session_id: str):
                 "SELECT name FROM sqlite_master WHERE type='table'"
             ).fetchall()
         }
-        missing_tables = [table for table in RESTORE_SESSION_TABLES if table not in source_tables]
+        missing_tables = [
+            table for table in RESTORE_SESSION_TABLES
+            if table not in source_tables and table not in RESTORE_OPTIONAL_TABLES
+        ]
         if missing_tables:
             raise HTTPException(
                 status_code=422,
@@ -3716,6 +3732,9 @@ def _read_session_backup(backup_path: Path, session_id: str):
 
         table_rows = {}
         for table in RESTORE_SESSION_TABLES:
+            if table not in source_tables:
+                table_rows[table] = []
+                continue
             columns = _table_columns(source, table)
             required_columns = RESTORE_REQUIRED_COLUMNS[table]
             # Older backups stored location but not the derived presence_status.
