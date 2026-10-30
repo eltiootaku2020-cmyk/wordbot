@@ -31,6 +31,7 @@ class EvidenceProposal(StrictModel):
     event_ref: str = Field(min_length=1, max_length=40)
     about_event_id: str = Field(min_length=1, max_length=80)
     discovered_by_entity_id: str = Field(min_length=1, max_length=120)
+    candidate_entity_id: str = Field(default="", max_length=120)
     evidence_kind: Literal["physical", "testimonial", "circumstantial", "alibi", "other"]
     effect: Literal["supports", "contradicts", "neutral"]
     description: str = Field(min_length=1, max_length=800)

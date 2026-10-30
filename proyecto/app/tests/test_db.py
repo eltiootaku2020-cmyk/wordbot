@@ -195,3 +195,90 @@ def test_database_backfills_recorded_event_knowledge_idempotently(tmp_path: Path
             "WHERE session_id='knowledge-session'"
         ).fetchone()["n"]
     assert count == 2
+
+
+
+def test_database_migrates_legacy_single_perception_constraint(tmp_path: Path):
+    db = Database(str(tmp_path / "legacy-perceptions.sqlite3"))
+    db.initialize()
+    with db.transaction() as conn:
+        conn.execute(
+            "INSERT INTO worlds(id,name,canon_text) VALUES(?,?,?)",
+            ("perception-world", "Perception world", "")
+        )
+        conn.execute(
+            "INSERT INTO entities(id,world_id,name,kind) VALUES(?,?,?,?)",
+            ("perception-npc", "perception-world", "Maelis", "character")
+        )
+        conn.execute(
+            "INSERT INTO sessions(id,world_id,name,current_location,protagonist_entity_id) "
+            "VALUES(?,?,?,?,?)",
+            ("perception-session", "perception-world", "Partida", "Claro", "perception-npc")
+        )
+        conn.execute(
+            "INSERT INTO events(id,session_id,turn_id,external_ref,kind,description,status) "
+            "VALUES(?,?,?,?,?,?,?)",
+            ("perception-event", "perception-session", "turn", "event", "observation", "Una figura", "recorded")
+        )
+        # Simulate the old schema's UNIQUE(session,event,observer,modality).
+        conn.execute("DROP TABLE event_perceptions")
+        conn.execute(
+            "CREATE TABLE event_perceptions ("
+            "id TEXT PRIMARY KEY,"
+            "session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,"
+            "event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,"
+            "observer_entity_id TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,"
+            "modality TEXT NOT NULL,"
+            "observed_details TEXT NOT NULL,"
+            "identity_assessment TEXT NOT NULL,"
+            "claimed_entity_id TEXT REFERENCES entities(id) ON DELETE SET NULL,"
+            "created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,"
+            "UNIQUE(session_id,event_id,observer_entity_id,modality))"
+        )
+        conn.execute(
+            "INSERT INTO event_perceptions("
+            "id,session_id,event_id,observer_entity_id,modality,observed_details,identity_assessment) "
+            "VALUES(?,?,?,?,?,?,?)",
+            ("old-perception", "perception-session", "perception-event", "perception-npc",
+             "visual", "Una silueta", "unidentified")
+        )
+
+    db.initialize()
+    with db.transaction() as conn:
+        conn.execute(
+            "INSERT INTO event_perceptions("
+            "id,session_id,event_id,observer_entity_id,modality,observed_details,identity_assessment,claimed_entity_id"
+            ") VALUES(?,?,?,?,?,?,?,?)",
+            ("new-perception", "perception-session", "perception-event", "perception-npc",
+             "visual", "Rostro reconocido", "recognized", "perception-npc")
+        )
+        indexes = conn.execute("PRAGMA index_list(event_perceptions)").fetchall()
+        legacy_key_present = False
+        for index in indexes:
+            if bool(index["unique"]):
+                columns = tuple(
+                    row["name"] for row in conn.execute(
+                        f'PRAGMA index_info("{index["name"]}")'
+                    ).fetchall()
+                )
+                if columns == ("session_id", "event_id", "observer_entity_id", "modality"):
+                    legacy_key_present = True
+        assert not legacy_key_present
+        rows = conn.execute(
+            "SELECT identity_assessment,observed_details FROM event_perceptions "
+            "WHERE session_id='perception-session' ORDER BY id"
+        ).fetchall()
+    assert [(row["identity_assessment"], row["observed_details"]) for row in rows] == [
+        ("recognized", "Rostro reconocido"),
+        ("unidentified", "Una silueta")
+    ]
+
+
+def test_database_adds_pending_provenance_and_candidate_columns_to_existing_tables(tmp_path: Path):
+    db = Database(str(tmp_path / "provenance-columns.sqlite3"))
+    db.initialize()
+    with db.connection() as conn:
+        event_columns = {row["name"] for row in conn.execute("PRAGMA table_info(events)")}
+        evidence_columns = {row["name"] for row in conn.execute("PRAGMA table_info(event_evidence)")}
+    assert {"source_entity_id", "about_event_id", "perceptions_json"}.issubset(event_columns)
+    assert "candidate_entity_id" in evidence_columns

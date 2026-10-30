@@ -19,7 +19,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .db import Database, backfill_entity_knowledge
-from .models import ApprovalRequest, AttributionProposal, ContextPreviewRequest, EntityCreate, EvidenceProposal, LocalCommandRequest, LocalReputationProposal, LocalSettingsUpdate, ManualPromptRequest, NarratorResponse, SessionCreate, SessionRestoreRequest, TurnRequest, WorldCreate, WorldStartCreate
+from .models import ApprovalRequest, AttributionProposal, ContextPreviewRequest, EntityCreate, EventProposal, EvidenceProposal, LocalCommandRequest, LocalReputationProposal, LocalSettingsUpdate, ManualPromptRequest, NarratorResponse, SessionCreate, SessionRestoreRequest, TurnRequest, WitnessPerceptionProposal, WorldCreate, WorldStartCreate
 from .providers import ProviderError, build_manual_prompt, make_provider
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -1216,10 +1216,15 @@ def write_event(
         if witness in valid_ids and (allowed_witnesses is None or witness in allowed_witnesses)
     ]
     conn.execute(
-        "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,witnesses_json,status,source_message_id) "
-        "VALUES(?,?,?,?,?,?,?,?,?,?)",
-        (event_id, session_id, turn_id, event.ref, event.kind, event.entity_id,
-         event.description, json.dumps(witnesses, ensure_ascii=False), status, source_message_id)
+        "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,"
+        "witnesses_json,status,source_message_id,source_entity_id,about_event_id,perceptions_json) "
+        "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+        (
+            event_id, session_id, turn_id, event.ref, event.kind, event.entity_id,
+            event.description, json.dumps(witnesses, ensure_ascii=False), status,
+            source_message_id, event.source_entity_id or "", event.about_event_id or "",
+            json.dumps([item.model_dump() for item in event.perceptions], ensure_ascii=False)
+        )
     )
     return event.ref, event_id, status
 
@@ -1238,13 +1243,21 @@ def record_event_perceptions(conn, session_id: str, event_id: str, event) -> int
         return 0
 
     inserted = 0
+    seen_perceptions = set()
     for perception in event.perceptions:
         observer_id = perception.observer_entity_id
         claimed_id = perception.claimed_entity_id or None
         if observer_id not in witnesses:
             continue
+        signature = (
+            observer_id, perception.modality, perception.observed_details,
+            perception.identity_assessment, claimed_id
+        )
+        if signature in seen_perceptions:
+            continue
+        seen_perceptions.add(signature)
         cursor = conn.execute(
-            "INSERT OR IGNORE INTO event_perceptions("
+            "INSERT INTO event_perceptions("
             "id,session_id,event_id,observer_entity_id,modality,observed_details,"
             "identity_assessment,claimed_entity_id"
             ") VALUES(?,?,?,?,?,?,?,?)",
@@ -1290,6 +1303,8 @@ def persist_evidence_proposals(conn, session_id, result, event_map, valid_ids, p
             status, reason = "pending", "El acontecimiento investigado no existe o no está registrado."
         elif item.discovered_by_entity_id not in valid_ids:
             status, reason = "pending", "Quien descubre la evidencia no pertenece a este mundo."
+        elif item.candidate_entity_id and item.candidate_entity_id not in valid_ids:
+            status, reason = "pending", "La entidad señalada por la evidencia no pertenece a este mundo."
         else:
             try:
                 witnesses = json.loads(source_row["witnesses_json"] or "[]")
@@ -1313,23 +1328,26 @@ def persist_evidence_proposals(conn, session_id, result, event_map, valid_ids, p
                     status, reason = "pending", "La evidencia física o circunstancial requiere una observación directa registrada."
 
         evidence_id = ""
+        stored_candidate_id = item.candidate_entity_id or ""
         if about is not None and source_row is not None:
             evidence_id = new_id()
             conn.execute(
                 "INSERT OR IGNORE INTO event_evidence("
                 "id,session_id,about_event_id,evidence_event_id,discovered_by_entity_id,"
-                "evidence_kind,effect,source_knowledge_id,source_knowledge_kind,description,status,reason"
-                ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                "candidate_entity_id,evidence_kind,effect,source_knowledge_id,source_knowledge_kind,"
+                "description,status,reason"
+                ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 (
                     evidence_id, session_id, item.about_event_id, source_row["id"],
-                    item.discovered_by_entity_id, item.evidence_kind, item.effect,
+                    item.discovered_by_entity_id, item.candidate_entity_id or "",
+                    item.evidence_kind, item.effect,
                     knowledge["id"] if knowledge else None,
                     knowledge["knowledge_kind"] if knowledge else "unknown",
                     item.description, status, reason
                 )
             )
             existing = conn.execute(
-                "SELECT id,status,source_knowledge_kind FROM event_evidence "
+                "SELECT id,status,source_knowledge_kind,candidate_entity_id FROM event_evidence "
                 "WHERE session_id=? AND evidence_event_id=? AND discovered_by_entity_id=? "
                 "AND about_event_id=? AND evidence_kind=?",
                 (session_id, source_row["id"], item.discovered_by_entity_id,
@@ -1339,6 +1357,7 @@ def persist_evidence_proposals(conn, session_id, result, event_map, valid_ids, p
                 evidence_id = existing["id"]
                 status = existing["status"]
                 knowledge_kind = existing["source_knowledge_kind"]
+                stored_candidate_id = existing["candidate_entity_id"] or ""
             else:
                 knowledge_kind = knowledge["knowledge_kind"] if knowledge else "unknown"
         else:
@@ -1349,6 +1368,7 @@ def persist_evidence_proposals(conn, session_id, result, event_map, valid_ids, p
             "id": evidence_id, "status": status, "about_event_id": item.about_event_id,
             "evidence_event_id": source_row["id"] if source_row else "",
             "discovered_by_entity_id": item.discovered_by_entity_id,
+            "candidate_entity_id": stored_candidate_id,
             "evidence_kind": item.evidence_kind, "effect": item.effect,
             "source_knowledge_kind": knowledge_kind, "reason": reason
         }
@@ -1362,7 +1382,13 @@ def persist_event_attributions(conn, session_id, turn_id, result, evidence_map, 
         counts[item.ref] = counts.get(item.ref, 0) + 1
     duplicates = {ref for ref, count in counts.items() if count > 1}
     attribution_map = {}
+    seen_refs = set()
     for item in result.attributions:
+        # Duplicate refs share one unique DB key. Keep one pending audit row so
+        # malformed narrator output cannot abort the entire turn transaction.
+        if item.ref in seen_refs:
+            continue
+        seen_refs.add(item.ref)
         about = conn.execute(
             "SELECT id,status FROM events WHERE id=? AND session_id=?",
             (item.about_event_id, session_id)
@@ -1387,13 +1413,18 @@ def persist_event_attributions(conn, session_id, turn_id, result, evidence_map, 
         elif item.attribution_level == "suspected":
             if item.subject_entity_id not in valid_ids:
                 status, reason = "pending", "La persona sospechosa no pertenece a este mundo."
-            elif not any(entry["effect"] == "supports" for entry in selected):
-                status, reason = "pending", "La sospecha necesita al menos un indicio que apoye esa hipótesis."
+            elif not any(
+                entry["effect"] == "supports"
+                and entry.get("candidate_entity_id") == item.subject_entity_id
+                for entry in selected
+            ):
+                status, reason = "pending", "La sospecha necesita evidencia de apoyo con candidate_entity_id igual a la entidad sospechosa."
         elif item.attribution_level == "identified":
             independent_observers = set()
             for entry in selected:
                 if (
                     entry["effect"] != "supports"
+                    or entry.get("candidate_entity_id") != item.subject_entity_id
                     or entry["source_knowledge_kind"] != "direct_observation"
                     or not entry.get("evidence_event_id")
                 ):
@@ -2407,11 +2438,21 @@ def load_state(conn, session_id: str) -> dict[str, Any]:
     for item in pending:
         item["proposed_value"] = json.loads(item.pop("proposed_value_json"))
     pending_events = [dict(row) for row in conn.execute(
-        "SELECT id,turn_id,kind,entity_id,description,witnesses_json,created_at FROM events "
-        "WHERE session_id=? AND status='pending' ORDER BY created_at DESC LIMIT 100", (session_id,)
+        "SELECT ev.id,ev.turn_id,ev.kind,ev.entity_id,ev.description,ev.witnesses_json,"
+        "ev.source_entity_id,source.name AS source_entity_name,ev.about_event_id,"
+        "about_event.description AS about_description,ev.perceptions_json,ev.created_at "
+        "FROM events ev "
+        "LEFT JOIN entities source ON source.id=ev.source_entity_id "
+        "LEFT JOIN events about_event ON about_event.id=ev.about_event_id "
+        "WHERE ev.session_id=? AND ev.status='pending' ORDER BY ev.created_at DESC LIMIT 100",
+        (session_id,)
     ).fetchall()]
     for event in pending_events:
-        event["witness_ids"] = json.loads(event.pop("witnesses_json"))
+        event["witness_ids"] = json.loads(event.pop("witnesses_json") or "[]")
+        try:
+            event["perceptions"] = json.loads(event.pop("perceptions_json") or "[]")
+        except (TypeError, ValueError, json.JSONDecodeError):
+            event["perceptions"] = []
     eco = [dict(row) for row in conn.execute(
         "SELECT target_entity_id,COUNT(*) AS attempts FROM ability_uses "
         "WHERE session_id=? AND ability_key IN ('eco','eco_humano','hipnosis') GROUP BY target_entity_id",
@@ -2420,12 +2461,14 @@ def load_state(conn, session_id: str) -> dict[str, Any]:
     evidence_records = [dict(row) for row in conn.execute(
         "SELECT ev.id,ev.about_event_id,about_event.description AS about_description,"
         "ev.evidence_event_id,discovery.description AS discovery_description,"
-        "ev.discovered_by_entity_id,e.name AS discovered_by_name,ev.evidence_kind,ev.effect,"
-        "ev.source_knowledge_kind,ev.description,ev.status,ev.reason,ev.created_at "
+        "ev.discovered_by_entity_id,e.name AS discovered_by_name,"
+        "ev.candidate_entity_id,candidate.name AS candidate_entity_name,"
+        "ev.evidence_kind,ev.effect,ev.source_knowledge_kind,ev.description,ev.status,ev.reason,ev.created_at "
         "FROM event_evidence ev "
         "LEFT JOIN events about_event ON about_event.id=ev.about_event_id "
         "LEFT JOIN events discovery ON discovery.id=ev.evidence_event_id "
         "LEFT JOIN entities e ON e.id=ev.discovered_by_entity_id "
+        "LEFT JOIN entities candidate ON candidate.id=ev.candidate_entity_id "
         "WHERE ev.session_id=? ORDER BY ev.created_at DESC LIMIT 100",
         (session_id,)
     ).fetchall()]
@@ -3689,6 +3732,130 @@ def reject_change(session_id: str, change_id: str):
     return {"rejected": True, "change_id": change_id}
 
 
+def _validated_event_proposal_for_approval(conn, session, event, valid_ids):
+    """Rehydrate and revalidate the original proposal before manual approval."""
+    try:
+        witnesses = json.loads(event["witnesses_json"] or "[]")
+        raw_perceptions = json.loads(event["perceptions_json"] or "[]")
+    except (TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise HTTPException(status_code=422, detail="La procedencia o las percepciones del evento están dañadas; no se aprobó.") from exc
+    if (
+        not isinstance(witnesses, list)
+        or any(not isinstance(value, str) or not value for value in witnesses)
+        or len(set(witnesses)) != len(witnesses)
+        or not isinstance(raw_perceptions, list)
+    ):
+        raise HTTPException(status_code=422, detail="La lista de testigos o percepciones no es válida; no se aprobó.")
+    if event["entity_id"] and event["entity_id"] not in valid_ids:
+        raise HTTPException(status_code=422, detail="La entidad del evento no existe; corrige la ficha o rechaza el evento.")
+    if any(witness not in valid_ids for witness in witnesses):
+        raise HTTPException(status_code=422, detail="Hay testigos no registrados; el evento no puede confirmarse.")
+
+    if not event["source_message_id"]:
+        raise HTTPException(
+            status_code=422,
+            detail="El evento no conserva un mensaje fuente verificable; no se puede reconstruir su audiencia y permanece pendiente."
+        )
+    source_message = conn.execute(
+        "SELECT recipient_entity_id,metadata_json FROM messages "
+        "WHERE id=? AND session_id=? AND role='user'",
+        (event["source_message_id"], session["id"])
+    ).fetchone()
+    if source_message is None:
+        raise HTTPException(status_code=422, detail="No se puede comprobar la audiencia del mensaje fuente; el evento permanece pendiente.")
+    recipient_id = source_message["recipient_entity_id"] or ""
+    try:
+        metadata = json.loads(source_message["metadata_json"] or "{}")
+    except (TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise HTTPException(status_code=422, detail="La audiencia del mensaje original está dañada; no se aprobó el evento.") from exc
+    if not isinstance(metadata, dict):
+        raise HTTPException(status_code=422, detail="La audiencia del mensaje original no es válida; no se aprobó el evento.")
+    source_visibility = metadata.get("visibility") or ""
+    if source_visibility not in {"scene", "private"}:
+        raise HTTPException(status_code=422, detail="El alcance original no se puede validar; el evento permanece pendiente.")
+    raw_audience = metadata.get("audience_ids")
+    if (
+        not isinstance(raw_audience, list)
+        or any(not isinstance(value, str) or not value or value not in valid_ids for value in raw_audience)
+        or len(set(raw_audience)) != len(raw_audience)
+    ):
+        raise HTTPException(status_code=422, detail="La audiencia original falta o contiene entidades no válidas; el evento permanece pendiente.")
+    allowed_witnesses = set(raw_audience)
+    if session["protagonist_entity_id"] not in allowed_witnesses:
+        raise HTTPException(status_code=422, detail="La audiencia original no incluye al protagonista; el evento permanece pendiente.")
+    if source_visibility == "private":
+        if not recipient_id or recipient_id not in valid_ids or recipient_id not in allowed_witnesses:
+            raise HTTPException(status_code=422, detail="El destinatario privado no coincide con la audiencia original; el evento permanece pendiente.")
+
+    if allowed_witnesses is not None and any(witness not in allowed_witnesses for witness in witnesses):
+        raise HTTPException(status_code=422, detail="El evento incluye testigos fuera de la audiencia original.")
+    private_subject_ids = None
+    if source_visibility == "private":
+        private_subject_ids = {session["protagonist_entity_id"], recipient_id}
+        if event["entity_id"] and event["entity_id"] not in private_subject_ids:
+            raise HTTPException(status_code=422, detail="El evento privado señala a una entidad fuera de su audiencia.")
+
+    source_entity_id = event["source_entity_id"] or ""
+    about_event_id = event["about_event_id"] or ""
+    report_event = event["kind"] in {"testimony", "rumor"}
+    if report_event:
+        if (
+            not source_entity_id
+            or source_entity_id not in valid_ids
+            or source_entity_id not in witnesses
+            or not about_event_id
+        ):
+            raise HTTPException(status_code=422, detail="El testimonio o rumor no conserva una fuente y un acontecimiento de origen válidos.")
+        if private_subject_ids is not None and source_entity_id not in private_subject_ids:
+            raise HTTPException(status_code=422, detail="La fuente del evento privado está fuera de su audiencia.")
+        about = conn.execute(
+            "SELECT id,status FROM events WHERE id=? AND session_id=?",
+            (about_event_id, session["id"])
+        ).fetchone()
+        if about is None or about["status"] != "recorded":
+            raise HTTPException(status_code=422, detail="El acontecimiento de origen no está registrado; no se puede aprobar la transmisión.")
+        source_knowledge = find_entity_knowledge_source(
+            conn, session["id"], source_entity_id, about_event_id
+        )
+        if source_knowledge is None:
+            raise HTTPException(status_code=422, detail="La fuente todavía no tiene conocimiento válido del acontecimiento; el rumor/testimonio permanece pendiente.")
+    elif source_entity_id or about_event_id:
+        raise HTTPException(status_code=422, detail="Un evento que no es rumor/testimonio no puede incluir procedencia de transmisión.")
+
+    perceptions = []
+    for raw in raw_perceptions:
+        try:
+            perception = WitnessPerceptionProposal.model_validate(raw)
+        except Exception as exc:
+            raise HTTPException(status_code=422, detail="Una percepción almacenada no cumple el contrato; no se aprobó el evento.") from exc
+        observer_id = perception.observer_entity_id
+        claimed_id = perception.claimed_entity_id
+        if (
+            observer_id not in valid_ids
+            or observer_id not in witnesses
+            or (allowed_witnesses is not None and observer_id not in allowed_witnesses)
+            or (private_subject_ids is not None and observer_id not in private_subject_ids)
+        ):
+            raise HTTPException(status_code=422, detail="Una percepción pertenece a un observador que no estaba autorizado.")
+        if perception.identity_assessment in {"suspected", "recognized"}:
+            if not claimed_id or claimed_id not in valid_ids:
+                raise HTTPException(status_code=422, detail="Una percepción sospechosa/reconocida no señala una entidad válida.")
+        elif claimed_id:
+            raise HTTPException(status_code=422, detail="Una descripción o percepción no identificada no puede señalar una entidad.")
+        perceptions.append(perception)
+
+    try:
+        proposal = EventProposal(
+            ref=event["external_ref"], kind=event["kind"], entity_id=event["entity_id"] or "",
+            description=event["description"], witness_ids=witnesses,
+            source_entity_id=source_entity_id, about_event_id=about_event_id,
+            perceptions=perceptions
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=422, detail="El evento pendiente ya no cumple el contrato actual; no se aprobó.") from exc
+    return proposal
+
+
 @app.post("/api/sessions/{session_id}/events/{event_id}/approve")
 def approve_event(session_id: str, event_id: str):
     with database.transaction() as conn:
@@ -3701,12 +3868,11 @@ def approve_event(session_id: str, event_id: str):
             raise HTTPException(status_code=404, detail="Evento pendiente no encontrado.")
         session = session_row(conn, session_id)
         valid_ids = world_entity_ids(conn, session["world_id"])
-        if event["entity_id"] and event["entity_id"] not in valid_ids:
-            raise HTTPException(status_code=422, detail="La entidad del evento no existe; corrige la ficha o rechaza el evento.")
-        witnesses = json.loads(event["witnesses_json"])
-        if any(witness not in valid_ids for witness in witnesses):
-            raise HTTPException(status_code=422, detail="Hay testigos no registrados; el evento no puede confirmarse.")
+        proposal = _validated_event_proposal_for_approval(conn, session, event, valid_ids)
         conn.execute("UPDATE events SET status='recorded' WHERE id=?", (event_id,))
+        # Approval and the derived epistemic records commit or roll back together.
+        record_event_knowledge(conn, session_id, event_id, proposal)
+        record_event_perceptions(conn, session_id, event_id, proposal)
     return {"approved": True, "event_id": event_id}
 
 

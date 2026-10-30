@@ -50,7 +50,11 @@ CREATE TABLE IF NOT EXISTS events (
   turn_id TEXT NOT NULL, external_ref TEXT NOT NULL, kind TEXT NOT NULL, entity_id TEXT NOT NULL DEFAULT '',
   description TEXT NOT NULL, witnesses_json TEXT NOT NULL DEFAULT '[]',
   status TEXT NOT NULL CHECK(status IN ('recorded','pending','rejected')),
-  source_message_id TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  source_message_id TEXT NOT NULL DEFAULT '',
+  source_entity_id TEXT NOT NULL DEFAULT '',
+  about_event_id TEXT NOT NULL DEFAULT '',
+  perceptions_json TEXT NOT NULL DEFAULT '[]',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(session_id, turn_id, external_ref)
 );
 CREATE TABLE IF NOT EXISTS entity_knowledge (
@@ -79,8 +83,7 @@ CREATE TABLE IF NOT EXISTS event_perceptions (
   observed_details TEXT NOT NULL,
   identity_assessment TEXT NOT NULL CHECK(identity_assessment IN ('unidentified','description_only','suspected','recognized')),
   claimed_entity_id TEXT REFERENCES entities(id) ON DELETE SET NULL,
-  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  UNIQUE(session_id,event_id,observer_entity_id,modality)
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 CREATE INDEX IF NOT EXISTS idx_event_perceptions_observer
   ON event_perceptions(session_id,observer_entity_id,event_id);
@@ -89,6 +92,7 @@ CREATE TABLE IF NOT EXISTS event_evidence (
   about_event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
   evidence_event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
   discovered_by_entity_id TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  candidate_entity_id TEXT NOT NULL DEFAULT '',
   evidence_kind TEXT NOT NULL CHECK(evidence_kind IN ('physical','testimonial','circumstantial','alibi','other')),
   effect TEXT NOT NULL CHECK(effect IN ('supports','contradicts','neutral')),
   source_knowledge_id TEXT REFERENCES entity_knowledge(id) ON DELETE SET NULL,
@@ -280,6 +284,61 @@ class Database:
                 "CREATE UNIQUE INDEX IF NOT EXISTS idx_snapshots_session_turn "
                 "ON snapshots(session_id,turn_id) WHERE turn_id<>''"
             )
+
+            # Preserve provenance for events awaiting manual approval.
+            event_columns = {row["name"] for row in conn.execute("PRAGMA table_info(events)").fetchall()}
+            for column, declaration in (
+                ("source_entity_id", "TEXT NOT NULL DEFAULT ''"),
+                ("about_event_id", "TEXT NOT NULL DEFAULT ''"),
+                ("perceptions_json", "TEXT NOT NULL DEFAULT '[]'"),
+            ):
+                if column not in event_columns:
+                    conn.execute(f"ALTER TABLE events ADD COLUMN {column} {declaration}")
+
+            evidence_columns = {row["name"] for row in conn.execute("PRAGMA table_info(event_evidence)").fetchall()}
+            if "candidate_entity_id" not in evidence_columns:
+                conn.execute("ALTER TABLE event_evidence ADD COLUMN candidate_entity_id TEXT NOT NULL DEFAULT ''")
+
+            # Rebuild the legacy table whose UNIQUE(observer, modality) key silently
+            # discarded a later recognition from the same observer.
+            perception_indexes = conn.execute("PRAGMA index_list(event_perceptions)").fetchall()
+            legacy_perception_key = False
+            for index in perception_indexes:
+                if not bool(index["unique"]):
+                    continue
+                index_name = str(index["name"]).replace('"', '""')
+                indexed_columns = tuple(
+                    row["name"] for row in conn.execute(f'PRAGMA index_info("{index_name}")').fetchall()
+                )
+                if indexed_columns == ("session_id", "event_id", "observer_entity_id", "modality"):
+                    legacy_perception_key = True
+                    break
+            if legacy_perception_key:
+                conn.execute("ALTER TABLE event_perceptions RENAME TO event_perceptions_legacy")
+                conn.execute(
+                    "CREATE TABLE event_perceptions ("
+                    "id TEXT PRIMARY KEY,"
+                    "session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,"
+                    "event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,"
+                    "observer_entity_id TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,"
+                    "modality TEXT NOT NULL CHECK(modality IN ('visual','auditory','olfactory','tactile','magical','other')),"
+                    "observed_details TEXT NOT NULL,"
+                    "identity_assessment TEXT NOT NULL CHECK(identity_assessment IN ('unidentified','description_only','suspected','recognized')),"
+                    "claimed_entity_id TEXT REFERENCES entities(id) ON DELETE SET NULL,"
+                    "created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP)"
+                )
+                conn.execute(
+                    "INSERT INTO event_perceptions("
+                    "id,session_id,event_id,observer_entity_id,modality,observed_details,"
+                    "identity_assessment,claimed_entity_id,created_at) "
+                    "SELECT id,session_id,event_id,observer_entity_id,modality,observed_details,"
+                    "identity_assessment,claimed_entity_id,created_at FROM event_perceptions_legacy"
+                )
+                conn.execute("DROP TABLE event_perceptions_legacy")
+                conn.execute(
+                    "CREATE INDEX IF NOT EXISTS idx_event_perceptions_observer "
+                    "ON event_perceptions(session_id,observer_entity_id,event_id)"
+                )
 
             # Backfill direct observations for databases created before per-entity knowledge.
             backfill_entity_knowledge(conn)
