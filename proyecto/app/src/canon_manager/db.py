@@ -152,10 +152,14 @@ class Database:
             # Backfill per-entity knowledge from previously recorded events.
             # Stored witness lists were already restricted to the turn's authorized audience.
             legacy_events = conn.execute(
-                "SELECT id,session_id,witnesses_json,description,created_at "
+                "SELECT id,session_id,kind,witnesses_json,description,created_at "
                 "FROM events WHERE status='recorded'"
             ).fetchall()
             for event in legacy_events:
+                # A report event gives listeners testimony/rumor knowledge through
+                # its explicit provenance; do not also treat its claim as direct fact.
+                if event["kind"] in {"testimony", "rumor"}:
+                    continue
                 try:
                     witnesses = json.loads(event["witnesses_json"] or "[]")
                 except (TypeError, ValueError, json.JSONDecodeError):
