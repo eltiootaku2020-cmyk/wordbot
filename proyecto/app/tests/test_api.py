@@ -15,7 +15,7 @@ from fastapi.testclient import TestClient
 
 import canon_manager.main as main_module
 from canon_manager.main import app, database, build_context, session_row, apply_narrator_result, relevance_terms
-from canon_manager.models import (NarratorResponse, EventProposal, StateChangeProposal, InventoryOperation, MovementProposal, PowerUseProposal, ResourceOperation, EvidenceProposal, AttributionProposal, LocalReputationProposal)
+from canon_manager.models import (NarratorResponse, EventProposal, WitnessPerceptionProposal, StateChangeProposal, InventoryOperation, MovementProposal, PowerUseProposal, ResourceOperation, EvidenceProposal, AttributionProposal, LocalReputationProposal)
 
 
 @pytest.fixture(autouse=True)
@@ -4904,13 +4904,31 @@ def test_identification_requires_independent_observers_and_ai_cannot_confirm_gui
             events=[
                 EventProposal(
                     ref="identification-clue-maelis", kind="observation",
-                    description="Maelis reconoce a Ivar en una descripción observada.",
-                    witness_ids=[protagonist_id, maelis_id]
+                    description="Maelis reconoce a Ivar en una observación directa.",
+                    witness_ids=[protagonist_id, maelis_id],
+                    perceptions=[
+                        WitnessPerceptionProposal(
+                            observer_entity_id=maelis_id,
+                            modality="visual",
+                            observed_details="Maelis vio el rostro de Ivar con claridad.",
+                            identity_assessment="recognized",
+                            claimed_entity_id=ivar_id
+                        )
+                    ]
                 ),
                 EventProposal(
                     ref="identification-clue-brina", kind="observation",
                     description="Brina reconoce a Ivar por separado.",
-                    witness_ids=[protagonist_id, brina_id]
+                    witness_ids=[protagonist_id, brina_id],
+                    perceptions=[
+                        WitnessPerceptionProposal(
+                            observer_entity_id=brina_id,
+                            modality="visual",
+                            observed_details="Brina reconoce a Ivar de forma independiente.",
+                            identity_assessment="recognized",
+                            claimed_entity_id=ivar_id
+                        )
+                    ]
                 )
             ],
             evidence=[
