@@ -70,6 +70,20 @@ CREATE INDEX IF NOT EXISTS idx_entity_knowledge_knower_time
   ON entity_knowledge(session_id,knower_entity_id,created_at);
 CREATE INDEX IF NOT EXISTS idx_entity_knowledge_source
   ON entity_knowledge(session_id,source_entity_id,about_event_id);
+CREATE TABLE IF NOT EXISTS event_perceptions (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  observer_entity_id TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  modality TEXT NOT NULL CHECK(modality IN ('visual','auditory','olfactory','tactile','magical','other')),
+  observed_details TEXT NOT NULL,
+  identity_assessment TEXT NOT NULL CHECK(identity_assessment IN ('unidentified','description_only','suspected','recognized')),
+  claimed_entity_id TEXT REFERENCES entities(id) ON DELETE SET NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(session_id,event_id,observer_entity_id,modality)
+);
+CREATE INDEX IF NOT EXISTS idx_event_perceptions_observer
+  ON event_perceptions(session_id,observer_entity_id,event_id);
 CREATE TABLE IF NOT EXISTS event_evidence (
   id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   about_event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
