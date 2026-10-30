@@ -190,3 +190,17 @@ Una identificación no es un veredicto. Los indicios contradictorios pueden qued
 `reputation_changes` enlaza la entidad, el nivel de atribución, el evento de transmisión y el ámbito. Esta versión solo acepta `scope_type="location"` y exige que `scope_key` coincida con la ubicación actual. El evento de transmisión debe ser `testimony` o `rumor` y llegar al menos a un PNJ que no sea el protagonista, el hablante ni la entidad señalada. Un rumor solo puede difundir una sospecha. El cambio máximo es 1 punto para sospecha y 2 para identificación; los valores se mantienen entre −100 y 100.
 
 Un crimen secreto sin oyentes externos no genera reputación local. La reputación no es global: el valor de una ciudad/ubicación no se copia a otra. Los ámbitos de gremio, facción y caravana quedan pendientes hasta implementar membresías verificables y su propagación.
+
+## Percepciones individuales, evidencia y atribución
+
+Un evento puede incluir `perceptions`, una lista de registros personales del testigo. Cada entrada lleva `observer_entity_id`, `modality`, `observed_details`, `identity_assessment` y, únicamente para `suspected` o `recognized`, `claimed_entity_id`. El observador debe figurar en los testigos y dentro de la audiencia autorizada del evento. Una descripción parcial no identifica por sí sola a una persona.
+
+`known_perceptions` se filtra por el conocimiento activo del protagonista y del destinatario. No se entrega la percepción privada de otro PNJ solo porque esté presente en la misma escena. `recognized` significa que ese observador declara reconocer a la persona; no prueba que la persona cometiera el hecho.
+
+`EvidenceProposal` conserva la relación entre evento investigado y evento de descubrimiento, la entidad descubridora, clase de evidencia, efecto (`supports`, `contradicts`, `neutral`), procedencia del conocimiento y descripción. Una pista no confirma una identidad ni culpabilidad por sí sola. Los rumores nunca pueden usarse como evidencia.
+
+Los niveles de atribución son `description`, `suspected`, `identified` y `confirmed`. Una identificación requiere al menos dos observadores distintos con conocimiento directo y una percepción `recognized` de cada uno que nombre al mismo sujeto. Si falta ese reconocimiento explícito, la atribución queda pendiente. `confirmed` siempre exige revisión explícita y nunca puede aceptarse solo por la respuesta de la IA.
+
+La reputación se conserva por ubicación, no como fama mundial. Solo cambia cuando una atribución `suspected` o `identified` válida se transmite mediante testimonio/rumor registrado a oyentes externos al protagonista y al hablante. Un rumor solo difunde sospecha y los cambios automáticos están limitados a 1 punto para sospecha y 2 para identificación.
+
+Las tablas de conocimiento, percepciones, evidencia, atribuciones y reputación se incluyen en las copias/restauraciones. Las copias antiguas que no tienen alguna de estas tablas se aceptan como datos vacíos para esa función; el conocimiento individual faltante se reconstruye solo a partir de eventos registrados y testigos válidos, nunca inventando percepciones, pistas o atribuciones históricas.
