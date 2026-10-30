@@ -4881,6 +4881,7 @@ def test_restore_accepts_legacy_backup_without_entity_knowledge_table():
             json={"backup_name": backup_name, "confirmation": "RESTAURAR"}
         )
         assert restored.status_code == 200, restored.text
+        assert restored.json()["restored_tables"]["entity_knowledge"] == 2
 
         with database.connection() as conn:
             rows = conn.execute(
