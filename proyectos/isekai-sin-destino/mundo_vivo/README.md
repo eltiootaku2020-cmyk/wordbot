@@ -91,3 +91,14 @@ El usuario aprobó repartir las aldeas entre los límites y el interior del Bosq
 - Algunas comunidades aisladas en el interior, solo donde recursos, rutas y seguridad lo justifiquen.
 - Presencia estable muy escasa en zonas profundas o especialmente peligrosas.
 - No se crea una red continua ni se fijan nombres, cantidades, población, coordenadas, facciones o localizaciones concretas.
+
+### Sistema combinado de rutas
+
+El usuario aprobó tres clases generales de conexiones:
+
+- Caminos principales relativamente estables entre algunas aldeas, accesos y puntos de intercambio.
+- Senderos secundarios menos transitados y variables por vegetación, clima, erosión, criaturas y acontecimientos.
+- Rutas ocultas o temporales, conocidas por personas o criaturas concretas y sujetas a cambios de disponibilidad.
+
+No todas las aldeas estarán conectadas directamente; algunas comunidades interiores podrán quedar aisladas temporalmente. La decisión no fija trazados, distancias, tiempos ni ubicaciones concretas.
+
