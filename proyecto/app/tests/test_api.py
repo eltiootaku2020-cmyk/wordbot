@@ -528,9 +528,9 @@ def _create_state_ops_world(client):
     return data, {entity["name"]: entity for entity in entities}
 
 
-def _apply_synthetic_result(session_id, user_text, result):
+def _apply_synthetic_result(session_id, user_text, result, persist_source_message=False):
     turn_id = uuid.uuid4().hex
-    source_message_id = uuid.uuid4().hex
+    source_message_id = uuid.uuid4().hex if persist_source_message else ""
     with database.transaction() as conn:
         session = session_row(conn, session_id)
         audience_ids = [
@@ -539,19 +539,20 @@ def _apply_synthetic_result(session_id, user_text, result):
                 (session_id,)
             ).fetchall()
         ]
-        turn_index = int(conn.execute(
-            "SELECT COALESCE(MAX(turn_index),0)+1 AS n FROM messages WHERE session_id=?",
-            (session_id,)
-        ).fetchone()["n"])
-        conn.execute(
-            "INSERT INTO messages(id,session_id,turn_id,turn_index,role,content,provider,generation_status,metadata_json) "
-            "VALUES(?,?,?,?,?,?,?,?,?)",
-            (
-                source_message_id, session_id, turn_id, turn_index, "user", user_text,
-                "mock", "complete",
-                json.dumps({"visibility": "scene", "audience_ids": audience_ids}, ensure_ascii=False)
+        if persist_source_message:
+            turn_index = int(conn.execute(
+                "SELECT COALESCE(MAX(turn_index),0)+1 AS n FROM messages WHERE session_id=?",
+                (session_id,)
+            ).fetchone()["n"])
+            conn.execute(
+                "INSERT INTO messages(id,session_id,turn_id,turn_index,role,content,provider,generation_status,metadata_json) "
+                "VALUES(?,?,?,?,?,?,?,?,?)",
+                (
+                    source_message_id, session_id, turn_id, turn_index, "user", user_text,
+                    "mock", "complete",
+                    json.dumps({"visibility": "scene", "audience_ids": audience_ids}, ensure_ascii=False)
+                )
             )
-        )
         applied, pending = apply_narrator_result(
             conn, session, turn_id, source_message_id, user_text, result, None,
             visibility="scene", audience_ids=audience_ids
@@ -5366,7 +5367,7 @@ def test_approved_pending_event_materializes_witness_knowledge_and_multiple_perc
             ]
         )
         turn_id, _, _ = _apply_synthetic_result(
-            session_id, "Registro el incidente para revisión.", pending
+            session_id, "Registro el incidente para revisión.", pending, persist_source_message=True
         )
         with database.connection() as conn:
             event = conn.execute(
@@ -5440,7 +5441,7 @@ def test_pending_rumor_keeps_provenance_and_cannot_be_approved_without_source_kn
             ]
         )
         rumor_turn, _, _ = _apply_synthetic_result(
-            session_id, "Brina intenta contar lo ocurrido.", invalid_source
+            session_id, "Brina intenta contar lo ocurrido.", invalid_source, persist_source_message=True
         )
         with database.connection() as conn:
             pending_event = conn.execute(
