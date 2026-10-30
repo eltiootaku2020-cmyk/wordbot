@@ -94,3 +94,63 @@ def fire_crossed_events(
         if cursor.rowcount == 1:
             fired.append(record)
     return fired
+
+
+
+def fire_due_events(
+    conn: Connection,
+    session_id: str,
+    current_day: int,
+    current_minute: int,
+    fired_turn_id: str = "system:timeline-catch-up",
+) -> list[dict[str, Any]]:
+    """Catch up approved fixed-time events already due for a newly created or updated session.
+
+    This is deliberately separate from fire_crossed_events: regular turns use an
+    open/closed clock interval, while creation/approval must also handle events
+    whose scheduled time is already in the past. Condition events are stored only
+    and never evaluated or executed by this function.
+    """
+    if not session_id or not fired_turn_id:
+        raise ValueError("session_id and fired_turn_id are required")
+    current_total = _absolute_minute(current_day, current_minute)
+    session = conn.execute(
+        "SELECT world_id FROM sessions WHERE id=?", (session_id,)
+    ).fetchone()
+    if session is None:
+        raise ValueError("session does not exist")
+
+    due = conn.execute(
+        "SELECT * FROM world_timeline_events "
+        "WHERE world_id=? AND activation_type='fixed_time' "
+        "AND approval_status='approved' AND lifecycle_status='active' "
+        "AND ((scheduled_day-1)*1440 + scheduled_minute)<=? "
+        "ORDER BY scheduled_day,scheduled_minute,stable_key,id",
+        (session["world_id"], current_total),
+    ).fetchall()
+
+    fired: list[dict[str, Any]] = []
+    for event in due:
+        record = {
+            "event_id": event["id"],
+            "stable_key": event["stable_key"],
+            "title": event["title"],
+            "description": event["description"],
+            "scope_type": event["scope_type"],
+            "location": event["location"],
+            "consequences": _object_json(event["consequences_json"], "consequences_json"),
+        }
+        cursor = conn.execute(
+            "INSERT OR IGNORE INTO session_timeline_runs "
+            "(id,session_id,scheduled_event_id,fired_turn_id,due_day,due_minute,"
+            "reached_day,reached_minute,record_json) VALUES(?,?,?,?,?,?,?,?,?)",
+            (
+                uuid.uuid4().hex, session_id, event["id"], fired_turn_id,
+                int(event["scheduled_day"]), int(event["scheduled_minute"]),
+                current_day, current_minute,
+                json.dumps(record, ensure_ascii=False, separators=(",", ":")),
+            ),
+        )
+        if cursor.rowcount == 1:
+            fired.append(record)
+    return fired
