@@ -1418,7 +1418,7 @@ def persist_event_attributions(conn, session_id, turn_id, result, evidence_map, 
                 and entry.get("candidate_entity_id") == item.subject_entity_id
                 for entry in selected
             ):
-                status, reason = "pending", "La sospecha necesita evidencia de apoyo vinculada explícitamente a esa misma entidad."
+                status, reason = "pending", "La sospecha necesita evidencia de apoyo con candidate_entity_id igual a la entidad sospechosa."
         elif item.attribution_level == "identified":
             independent_observers = set()
             for entry in selected:
