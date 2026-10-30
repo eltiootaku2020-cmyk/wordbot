@@ -186,3 +186,23 @@ El código actual incluye:
 - En el preset Isekai, monedas iniciales = 0.
 
 CI aprobada: 38 pruebas Python y sintaxis JavaScript, https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40890138277. La prueba usa el narrador simulado. El undo del último turno restaura estado y deja auditoría; falta ampliar pruebas de rollback para relaciones/poderes, verificar el navegador en Windows, probar APIs reales y realizar campaña larga.
+
+
+## 10. Registro persistente de conocimiento por entidad
+
+El prototipo añade una capa persistente separada de la tabla de hechos:
+
+- Cada evento registrado crea un registro `direct_observation` para cada testigo autorizado.
+- Los registros guardan quién sabe algo, qué acontecimiento conoce, el evento de transmisión, el contenido y la procedencia.
+- Un evento `testimony` o `rumor` necesita identificar al hablante (`source_entity_id)) y el acontecimiento al que se refiere (`about_event_id`).
+- El hablante debe existir en el mundo, participar como testigo autorizado en la transmisión y tener un registro activo sobre el acontecimiento citado.
+- El conocimiento recibido por los oyentes queda ligado tanto al evento de transmisión como al evento original. Un rumor transmitido otra vez sigue siendo rumor aunque el nuevo evento se etiquete como testimonio.
+- Los registros se consideran activos solo mientras el evento de transmisión y el evento al que se refieren sigan registrados. Los eventos anulados/rechazados no se recuperan como conocimiento activo.
+- El contexto narrativo incluye conocimiento del protagonista y, si corresponde, del PNJ destinatario. No incluye automáticamente el conocimiento privado de todos los presentes.
+- El modelo no recibe la descripción del evento original cuando solo conoce un rumor; recibe la versión transmitida claramente etiquetada como rumor o testimonio.
+
+La inicialización de SQLite crea la tabla e índices sin destruir partidas. Una migración idempotente reconstruye los registros de observación directa a partir de los testigos de eventos históricos registrados; ignora testigos inválidos y no transforma eventos antiguos de rumor/testimonio en observaciones directas.
+
+### Límites de esta etapa
+
+Esto resuelve almacenamiento y procedencia básica del conocimiento individual, pero no implementa aún fama por región/facción, una red autónoma de difusión, un sistema de evidencias físicas, identificación forense o atribución validada de delitos. Los testimonios y rumores deben proponerse mediante eventos; no se simula todavía que todo PNJ difunda información automáticamente.
