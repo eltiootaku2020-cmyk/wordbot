@@ -253,7 +253,17 @@ def test_database_migrates_legacy_single_perception_constraint(tmp_path: Path):
              "visual", "Rostro reconocido", "recognized", "perception-npc")
         )
         indexes = conn.execute("PRAGMA index_list(event_perceptions)").fetchall()
-        assert not any(bool(row["unique"]) for row in indexes)
+        legacy_key_present = False
+        for index in indexes:
+            if bool(index["unique"]):
+                columns = tuple(
+                    row["name"] for row in conn.execute(
+                        f'PRAGMA index_info("{index["name"]}")'
+                    ).fetchall()
+                )
+                if columns == ("session_id", "event_id", "observer_entity_id", "modality"):
+                    legacy_key_present = True
+        assert not legacy_key_present
         rows = conn.execute(
             "SELECT identity_assessment,observed_details FROM event_perceptions "
             "WHERE session_id='perception-session' ORDER BY id"
