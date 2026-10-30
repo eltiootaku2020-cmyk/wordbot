@@ -1058,6 +1058,10 @@ def record_event_knowledge(conn, session_id: str, event_id: str, event) -> int:
     for knower_id in witnesses:
         if not isinstance(knower_id, str) or not knower_id:
             continue
+        # The speaker already has the source knowledge record; only listeners
+        # receive a new testimony/rumor record from this transmission.
+        if source_entity_id and knower_id == source_entity_id:
+            continue
         cursor = conn.execute(
             "INSERT OR IGNORE INTO entity_knowledge("
             "id,session_id,knower_entity_id,knowledge_kind,about_event_id,"
