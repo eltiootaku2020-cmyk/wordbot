@@ -4674,6 +4674,8 @@ def test_world_timeline_can_be_edited_cancelled_and_locked_after_firing():
         )
         assert created.status_code == 200, created.text
         event_id = created.json()["id"]
+        with database.connection() as conn:
+            original_world_signature = main_module._restore_world_signature(conn, world_id)
 
         # A future event can be edited and disabled before it becomes canon history.
         disabled = client.patch(
@@ -4682,6 +4684,9 @@ def test_world_timeline_can_be_edited_cancelled_and_locked_after_firing():
         )
         assert disabled.status_code == 200, disabled.text
         assert disabled.json()["event"]["enabled"] == 0
+        with database.connection() as conn:
+            edited_world_signature = main_module._restore_world_signature(conn, world_id)
+        assert edited_world_signature != original_world_signature
 
         listing = client.get(f"/api/worlds/{world_id}/timeline")
         assert next(row for row in listing.json() if row["id"] == event_id)["title"] == "Erupción retrasada"
