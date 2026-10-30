@@ -4640,3 +4640,405 @@ def test_event_continuity_columns_exist_after_fresh_database_initialization():
     with database.connection() as conn:
         columns = {row["name"] for row in conn.execute("PRAGMA table_info(events)").fetchall()}
     assert {"continuity", "importance"} <= columns
+
+
+
+def test_world_timeline_can_be_edited_cancelled_and_locked_after_firing():
+    with TestClient(app) as client:
+        started = client.post(
+            "/api/worlds/start",
+            json={
+                "name": "Mundo de cronología",
+                "canon_text": "Canon de prueba.",
+                "protagonist_name": "Ari",
+                "session_name": "Partida de cronología",
+                "location": "Puerto",
+                "day": 1,
+                "minute_of_day": 480,
+            },
+        )
+        assert started.status_code == 200, started.text
+        world_id = started.json()["world_id"]
+        session_id = started.json()["session_id"]
+
+        created = client.post(
+            f"/api/worlds/{world_id}/timeline",
+            json={
+                "external_uid": "volcan-test-01",
+                "title": "Erupción prevista",
+                "description": "El volcán entra en erupción.",
+                "scheduled_day": 5,
+                "scheduled_minute": 600,
+                "location": "Montañas del oeste",
+            },
+        )
+        assert created.status_code == 200, created.text
+        event_id = created.json()["id"]
+        with database.connection() as conn:
+            original_world_signature = main_module._restore_world_signature(conn, world_id)
+
+        # A future event can be edited and disabled before it becomes canon history.
+        disabled = client.patch(
+            f"/api/worlds/{world_id}/timeline/{event_id}",
+            json={"title": "Erupción retrasada", "enabled": False},
+        )
+        assert disabled.status_code == 200, disabled.text
+        assert disabled.json()["event"]["enabled"] == 0
+        with database.connection() as conn:
+            edited_world_signature = main_module._restore_world_signature(conn, world_id)
+        assert edited_world_signature != original_world_signature
+
+        listing = client.get(f"/api/worlds/{world_id}/timeline")
+        assert next(row for row in listing.json() if row["id"] == event_id)["title"] == "Erupción retrasada"
+
+        # Re-enabling after moving its date into the past catches up active sessions.
+        enabled = client.patch(
+            f"/api/worlds/{world_id}/timeline/{event_id}",
+            json={"enabled": True, "scheduled_day": 1, "scheduled_minute": 480},
+        )
+        assert enabled.status_code == 200, enabled.text
+        assert enabled.json()["sessions_caught_up"] == 1
+        with database.connection() as conn:
+            fired_count = conn.execute(
+                "SELECT COUNT(*) FROM session_timeline_events WHERE session_id=? AND world_event_id=?",
+                (session_id, event_id),
+            ).fetchone()[0]
+        assert fired_count == 1
+
+        # Once any session has observed the event, its history cannot be rewritten or deleted.
+        rewrite = client.patch(
+            f"/api/worlds/{world_id}/timeline/{event_id}",
+            json={"title": "Historia reescrita"},
+        )
+        assert rewrite.status_code == 409
+        deletion = client.delete(f"/api/worlds/{world_id}/timeline/{event_id}")
+        assert deletion.status_code == 409
+
+        # An event that has never fired can be cancelled and removed safely.
+        removable = client.post(
+            f"/api/worlds/{world_id}/timeline",
+            json={
+                "external_uid": "encuentro-cancelable",
+                "title": "Encuentro pendiente",
+                "description": "Un encuentro todavía no ocurrido.",
+                "scheduled_day": 8,
+                "scheduled_minute": 700,
+            },
+        )
+        assert removable.status_code == 200, removable.text
+        removable_id = removable.json()["id"]
+        cancelled = client.patch(
+            f"/api/worlds/{world_id}/timeline/{removable_id}",
+            json={"enabled": False},
+        )
+        assert cancelled.status_code == 200, cancelled.text
+        removed = client.delete(f"/api/worlds/{world_id}/timeline/{removable_id}")
+        assert removed.status_code == 200, removed.text
+
+
+
+
+def test_world_timeline_mutations_are_blocked_while_any_turn_in_world_is_processing():
+    with TestClient(app) as client:
+        started = client.post(
+            "/api/worlds/start",
+            json={
+                "name": "Mundo cronología estable " + uuid.uuid4().hex,
+                "protagonist_name": "Ari",
+                "session_name": "Partida cronología estable",
+                "location": "Aldea",
+                "day": 1,
+                "minute_of_day": 480,
+            },
+        )
+        assert started.status_code == 200, started.text
+        world_id, session_id = started.json()["world_id"], started.json()["session_id"]
+        event = client.post(
+            f"/api/worlds/{world_id}/timeline",
+            json={
+                "external_uid": "stable-existing",
+                "title": "Festival previsto",
+                "description": "El festival comienza más tarde.",
+                "scheduled_day": 5,
+                "scheduled_minute": 600,
+            },
+        )
+        assert event.status_code == 200, event.text
+        event_id = event.json()["id"]
+
+        # This is the durable marker submit_turn leaves while the provider runs
+        # outside the SQLite write transaction.
+        processing_turn_id = "world-timeline-processing-" + uuid.uuid4().hex
+        with database.transaction() as conn:
+            next_index = conn.execute(
+                "SELECT COALESCE(MAX(turn_index),0)+1 AS n FROM messages WHERE session_id=?",
+                (session_id,),
+            ).fetchone()["n"]
+            conn.execute(
+                "INSERT INTO messages(id,session_id,turn_id,client_request_id,turn_index,role,"
+                "recipient_entity_id,content,provider,generation_status,metadata_json) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    uuid.uuid4().hex, session_id, processing_turn_id,
+                    "world-timeline-processing-" + uuid.uuid4().hex, next_index, "user", "",
+                    "Acción en curso", "mock", "processing", "{}",
+                ),
+            )
+
+        try:
+            created_during_turn = client.post(
+                f"/api/worlds/{world_id}/timeline",
+                json={
+                    "external_uid": "stable-created-during-turn",
+                    "title": "Nuevo suceso",
+                    "description": "No debe entrar durante la generación.",
+                    "scheduled_day": 6,
+                    "scheduled_minute": 600,
+                },
+            )
+            changed_during_turn = client.patch(
+                f"/api/worlds/{world_id}/timeline/{event_id}",
+                json={"title": "Título cambiado a mitad del turno"},
+            )
+            deleted_during_turn = client.delete(
+                f"/api/worlds/{world_id}/timeline/{event_id}"
+            )
+            assert created_during_turn.status_code == 409, created_during_turn.text
+            assert changed_during_turn.status_code == 409, changed_during_turn.text
+            assert deleted_during_turn.status_code == 409, deleted_during_turn.text
+            assert "turno en curso en este mundo" in created_during_turn.json()["detail"].casefold()
+            listing = client.get(f"/api/worlds/{world_id}/timeline").json()
+            assert len(listing) == 1
+            assert listing[0]["id"] == event_id
+            assert listing[0]["title"] == "Festival previsto"
+        finally:
+            with database.transaction() as conn:
+                conn.execute(
+                    "DELETE FROM messages WHERE session_id=? AND turn_id=?",
+                    (session_id, processing_turn_id),
+                )
+
+
+def test_backup_restore_rewinds_world_timeline_firing_ledger():
+    import sqlite3
+
+    with TestClient(app) as client:
+        started = client.post(
+            "/api/worlds/start",
+            json={
+                "name": "Mundo respaldo cronología",
+                "protagonist_name": "Ari",
+                "session_name": "Partida respaldo cronología",
+                "location": "Puerto",
+                "day": 1,
+                "minute_of_day": 480,
+            },
+        )
+        assert started.status_code == 200, started.text
+        world_id = started.json()["world_id"]
+        session_id = started.json()["session_id"]
+        created = client.post(
+            f"/api/worlds/{world_id}/timeline",
+            json={
+                "external_uid": "backup-eruption",
+                "title": "Erupción",
+                "description": "El volcán entra en erupción.",
+                "scheduled_day": 1,
+                "scheduled_minute": 540,
+                "location": "Montañas",
+            },
+        )
+        assert created.status_code == 200, created.text
+
+        backup = client.post(f"/api/sessions/{session_id}/backup", json={})
+        assert backup.status_code == 200, backup.text
+        backup_data = backup.json()
+        with sqlite3.connect(backup_data["path"]) as backup_db:
+            assert backup_db.execute(
+                "SELECT COUNT(*) FROM session_timeline_events WHERE session_id=?",
+                (session_id,),
+            ).fetchone()[0] == 0
+
+        # Simulate reaching the event after the backup has been created.
+        with database.transaction() as conn:
+            conn.execute(
+                "UPDATE sessions SET day=1,minute_of_day=540 WHERE id=?",
+                (session_id,),
+            )
+            fired = main_module.fire_due_world_events(conn, session_id, 480, 540)
+            assert [event["external_uid"] for event in fired] == ["backup-eruption"]
+        with database.connection() as conn:
+            assert conn.execute(
+                "SELECT COUNT(*) FROM session_timeline_events WHERE session_id=?",
+                (session_id,),
+            ).fetchone()[0] == 1
+
+        restored = client.post(
+            f"/api/sessions/{session_id}/restore",
+            json={"backup_name": backup_data["backup_name"], "confirmation": "RESTAURAR"},
+        )
+        assert restored.status_code == 200, restored.text
+        assert restored.json()["state"]["state"]["time_label"].endswith("08:00")
+        with database.connection() as conn:
+            ledger_count = conn.execute(
+                "SELECT COUNT(*) FROM session_timeline_events WHERE session_id=?",
+                (session_id,),
+            ).fetchone()[0]
+        assert ledger_count == 0
+
+
+def test_restore_rejects_backup_when_world_timeline_definition_changed():
+    with TestClient(app) as client:
+        started = client.post(
+            "/api/worlds/start",
+            json={
+                "name": "Mundo firma cronológica",
+                "protagonist_name": "Ari",
+                "session_name": "Partida firma cronológica",
+                "location": "Puerto",
+                "day": 1,
+                "minute_of_day": 480,
+            },
+        )
+        assert started.status_code == 200, started.text
+        world_id = started.json()["world_id"]
+        session_id = started.json()["session_id"]
+        created = client.post(
+            f"/api/worlds/{world_id}/timeline",
+            json={
+                "external_uid": "backup-signature",
+                "title": "Festival",
+                "description": "Comienza el festival.",
+                "scheduled_day": 5,
+                "scheduled_minute": 600,
+            },
+        )
+        assert created.status_code == 200, created.text
+        event_id = created.json()["id"]
+        backup = client.post(f"/api/sessions/{session_id}/backup", json={})
+        assert backup.status_code == 200, backup.text
+
+        changed = client.patch(
+            f"/api/worlds/{world_id}/timeline/{event_id}",
+            json={"title": "Festival cancelado"},
+        )
+        assert changed.status_code == 200, changed.text
+
+        restore = client.post(
+            f"/api/sessions/{session_id}/restore",
+            json={"backup_name": backup.json()["backup_name"], "confirmation": "RESTAURAR"},
+        )
+        assert restore.status_code == 409, restore.text
+        assert "cronología" in restore.json()["detail"].casefold()
+        listing = client.get(f"/api/worlds/{world_id}/timeline").json()
+        assert next(row for row in listing if row["id"] == event_id)["title"] == "Festival cancelado"
+
+
+def test_restore_accepts_legacy_backup_without_world_timeline_tables():
+    import sqlite3
+
+    with TestClient(app) as client:
+        started = client.post(
+            "/api/worlds/start",
+            json={
+                "name": "Mundo copia antigua",
+                "protagonist_name": "Ari",
+                "session_name": "Partida copia antigua",
+                "location": "Aldea",
+                "day": 1,
+                "minute_of_day": 480,
+            },
+        )
+        assert started.status_code == 200, started.text
+        session_id = started.json()["session_id"]
+        backup = client.post(f"/api/sessions/{session_id}/backup", json={})
+        assert backup.status_code == 200, backup.text
+        backup_data = backup.json()
+
+        # Model a pre-timeline SQLite backup by removing both tables introduced by PR #21.
+        with sqlite3.connect(backup_data["path"]) as old_db:
+            old_db.execute("PRAGMA foreign_keys=OFF")
+            old_db.execute("DROP TABLE session_timeline_events")
+            old_db.execute("DROP TABLE world_timeline_events")
+            old_db.commit()
+
+        with database.transaction() as conn:
+            conn.execute(
+                "UPDATE sessions SET day=2,minute_of_day=600 WHERE id=?",
+                (session_id,),
+            )
+        restored = client.post(
+            f"/api/sessions/{session_id}/restore",
+            json={"backup_name": backup_data["backup_name"], "confirmation": "RESTAURAR"},
+        )
+        assert restored.status_code == 200, restored.text
+        assert restored.json()["state"]["state"]["time_label"].endswith("08:00")
+        with database.connection() as conn:
+            assert conn.execute(
+                "SELECT COUNT(*) FROM session_timeline_events WHERE session_id=?",
+                (session_id,),
+            ).fetchone()[0] == 0
+
+
+
+
+def test_restore_rejects_backup_with_only_one_world_timeline_table():
+    import sqlite3
+
+    with TestClient(app) as client:
+        started = client.post(
+            "/api/worlds/start",
+            json={
+                "name": "Mundo copia incompleta",
+                "protagonist_name": "Ari",
+                "session_name": "Partida copia incompleta",
+                "location": "Puerto",
+                "day": 1,
+                "minute_of_day": 480,
+            },
+        )
+        assert started.status_code == 200, started.text
+        world_id = started.json()["world_id"]
+        session_id = started.json()["session_id"]
+        event = client.post(
+            f"/api/worlds/{world_id}/timeline",
+            json={
+                "external_uid": "partial-backup-event",
+                "title": "Suceso programado",
+                "description": "Suceso de prueba.",
+                "scheduled_day": 4,
+                "scheduled_minute": 500,
+            },
+        )
+        assert event.status_code == 200, event.text
+        backup = client.post(f"/api/sessions/{session_id}/backup", json={})
+        assert backup.status_code == 200, backup.text
+
+        # A partial migration cannot be mistaken for a genuine pre-feature backup.
+        with sqlite3.connect(backup.json()["path"]) as backup_db:
+            backup_db.execute("PRAGMA foreign_keys=OFF")
+            backup_db.execute("DROP TABLE session_timeline_events")
+            backup_db.commit()
+
+        with database.transaction() as conn:
+            conn.execute(
+                "UPDATE sessions SET day=2,minute_of_day=700 WHERE id=?",
+                (session_id,),
+            )
+        rejected = client.post(
+            f"/api/sessions/{session_id}/restore",
+            json={"backup_name": backup.json()["backup_name"], "confirmation": "RESTAURAR"},
+        )
+        assert rejected.status_code == 422, rejected.text
+        assert "esquema de cronología incompleto" in rejected.json()["detail"].casefold()
+        with database.connection() as conn:
+            clock = conn.execute(
+                "SELECT day,minute_of_day FROM sessions WHERE id=?",
+                (session_id,),
+            ).fetchone()
+            assert (clock["day"], clock["minute_of_day"]) == (2, 700)
+            assert conn.execute(
+                "SELECT COUNT(*) FROM world_timeline_events WHERE world_id=?",
+                (world_id,),
+            ).fetchone()[0] == 1
+

@@ -19,8 +19,9 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .db import Database
-from .models import ApprovalRequest, ContextPreviewRequest, EntityCreate, LocalCommandRequest, LocalSettingsUpdate, ManualPromptRequest, NarratorResponse, SessionCreate, SessionRestoreRequest, TurnRequest, WorldCreate, WorldStartCreate
+from .models import ApprovalRequest, ContextPreviewRequest, EntityCreate, LocalCommandRequest, LocalSettingsUpdate, ManualPromptRequest, NarratorResponse, SessionCreate, SessionRestoreRequest, TurnRequest, WorldCreate, WorldStartCreate, WorldTimelineEventCreate, WorldTimelineEventUpdate
 from .providers import ProviderError, build_manual_prompt, make_provider
+from .timeline import fire_due_world_events
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 load_dotenv(BASE_DIR / ".env")
@@ -547,6 +548,23 @@ def ensure_no_turn_in_progress(conn, session_id: str) -> None:
         )
 
 
+def ensure_world_no_turn_in_progress(conn, world_id: str) -> None:
+    """Keep shared world chronology stable while any session in that world is generating."""
+    in_progress = conn.execute(
+        "SELECT 1 FROM messages m JOIN sessions s ON s.id=m.session_id "
+        "WHERE s.world_id=? AND m.role='user' AND m.generation_status='processing' LIMIT 1",
+        (world_id,)
+    ).fetchone()
+    if in_progress:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Hay un turno en curso en este mundo. Espera a que termine antes de "
+                "modificar la cronología compartida; el contexto narrativo debe mantenerse estable."
+            )
+        )
+
+
 def capture_turn_state(conn, session_id: str) -> dict[str, Any]:
     """Capture the mutable, authoritative game state before a turn."""
     session = conn.execute(
@@ -572,6 +590,10 @@ def capture_turn_state(conn, session_id: str) -> dict[str, Any]:
         ).fetchall()],
         "ability_uses": [dict(row) for row in conn.execute(
             "SELECT * FROM ability_uses WHERE session_id=? ORDER BY created_at,id", (session_id,)
+        ).fetchall()],
+        "timeline_events": [dict(row) for row in conn.execute(
+            "SELECT * FROM session_timeline_events WHERE session_id=? ORDER BY scheduled_total_minutes,world_event_id",
+            (session_id,)
         ).fetchall()]
     }
 
@@ -607,7 +629,9 @@ def restore_turn_state(conn, session_id: str, state: dict[str, Any]) -> None:
         ("inventory_items", state.get("inventory", [])),
         ("resources", state.get("resources", [])),
         ("relationships", state.get("relationships", [])),
-        ("ability_uses", state.get("ability_uses", []))
+        ("ability_uses", state.get("ability_uses", [])),
+        # Firing records are mutable session state: undo must rewind them with the clock.
+        ("session_timeline_events", state.get("timeline_events", []))
     ]
     for table, rows in table_rows:
         conn.execute(f"DELETE FROM {table} WHERE session_id=?", (session_id,))
@@ -1063,6 +1087,21 @@ def build_context(
 
     day, minute = int(session["day"]), int(session["minute_of_day"])
     canon_text = (session["canon_text"] or "").strip()
+    absolute_minute = (day - 1) * 1440 + minute
+    world_timeline = [dict(row) for row in conn.execute(
+        "SELECT w.external_uid,w.title,w.description,w.location,w.scheduled_day,w.scheduled_minute,"
+        "f.fired_day,f.fired_minute FROM session_timeline_events f "
+        "JOIN world_timeline_events w ON w.id=f.world_event_id "
+        "WHERE f.session_id=? AND f.fired_total_minutes<=? "
+        "ORDER BY f.fired_total_minutes DESC LIMIT 20",
+        (session["id"], absolute_minute)
+    ).fetchall()]
+    for item in world_timeline:
+        item["knowledge_boundary"] = (
+            "Hecho confirmado del mundo; no implica que el protagonista ni los PNJ presentes lo conozcan. "
+            "No revelarlo sin una vía narrativa de información."
+        )
+
     context = {
         "world": {
             "name": session["world_name"],
@@ -1086,6 +1125,7 @@ def build_context(
         "recent_messages": recent,
         "recent_events": recent_events,
         "continuity_records": continuity_records,
+        "world_timeline": world_timeline,
         "narrative_variation": narrative_variation_hint(conn, session["id"], current_turn_id),
         "relevant_lore": lore
     }
@@ -1974,7 +2014,8 @@ def apply_narrator_result(
             f"El narrador propuso {result.elapsed_minutes} minutos; el reloj no avanzó sin autorización."
         )
     if elapsed:
-        total_minutes = (int(session["day"]) - 1) * 1440 + int(session["minute_of_day"]) + elapsed
+        previous_total_minutes = (int(session["day"]) - 1) * 1440 + int(session["minute_of_day"])
+        total_minutes = previous_total_minutes + elapsed
         new_day = total_minutes // 1440 + 1
         new_minute = total_minutes % 1440
         destination = (authorized_skip.get("destination") or "").strip() if authorized_skip else ""
@@ -1994,6 +2035,14 @@ def apply_narrator_result(
             conn.execute(
                 "UPDATE sessions SET day=?,minute_of_day=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
                 (new_day, new_minute, session["id"])
+            )
+        fired_events = fire_due_world_events(
+            conn, session["id"], previous_total_minutes, total_minutes
+        )
+        for fired in fired_events:
+            applied.append(
+                f"Suceso mundial activado: {fired['title']} "
+                f"(programado para el día {fired['scheduled_day']})."
             )
     return applied, pending_notes
 
@@ -2037,6 +2086,13 @@ def load_state(conn, session_id: str) -> dict[str, Any]:
         "WHERE session_id=? AND ability_key IN ('eco','eco_humano','hipnosis') GROUP BY target_entity_id",
         (session_id,)
     ).fetchall()]
+    world_timeline = [dict(row) for row in conn.execute(
+        "SELECT w.external_uid,w.title,w.description,w.location,w.scheduled_day,w.scheduled_minute,"
+        "f.fired_day,f.fired_minute FROM session_timeline_events f "
+        "JOIN world_timeline_events w ON w.id=f.world_event_id "
+        "WHERE f.session_id=? ORDER BY f.fired_total_minutes DESC LIMIT 100",
+        (session_id,)
+    ).fetchall()]
     continuity_records = [dict(row) for row in conn.execute(
         "SELECT id,kind,entity_id,description,importance,witnesses_json,created_at "
         "FROM events WHERE session_id=? AND status='recorded' AND continuity=1 "
@@ -2052,7 +2108,7 @@ def load_state(conn, session_id: str) -> dict[str, Any]:
             "time_label": time_label(session["day"], session["minute_of_day"]),
             "location": session["current_location"]
         },
-        "participants": participants, "inventory": inventory, "resources": resources,
+        "participants": participants, "inventory": inventory, "resources": resources, "world_timeline": world_timeline,
         "relationships": relationships, "continuity_records": continuity_records,
         "eco_uses": eco, "pending_changes": pending,
         "pending_events": pending_events
@@ -2190,6 +2246,141 @@ def create_world(payload: WorldCreate):
     return {"id": world_id, "name": payload.name.strip()}
 
 
+@app.post("/api/worlds/{world_id}/timeline")
+def create_world_timeline_event(world_id: str, payload: WorldTimelineEventCreate):
+    event_id = new_id()
+    with database.transaction() as conn:
+        if conn.execute("SELECT 1 FROM worlds WHERE id=?", (world_id,)).fetchone() is None:
+            raise HTTPException(status_code=404, detail="Mundo no encontrado.")
+        ensure_world_no_turn_in_progress(conn, world_id)
+        try:
+            conn.execute(
+                "INSERT INTO world_timeline_events(id,world_id,external_uid,title,description,"
+                "scheduled_day,scheduled_minute,location,canon_status,enabled) "
+                "VALUES(?,?,?,?,?,?,?,?, 'confirmed',1)",
+                (event_id, world_id, payload.external_uid, payload.title, payload.description,
+                 payload.scheduled_day, payload.scheduled_minute, payload.location)
+            )
+        except sqlite3.IntegrityError as exc:
+            raise HTTPException(status_code=409, detail="Ya existe un acontecimiento con ese identificador en este mundo.") from exc
+        # If this date is already in the past for an existing session, record
+        # the event immediately as historical world state rather than waiting
+        # for that session's next turn.
+        sessions = conn.execute(
+            "SELECT id,day,minute_of_day FROM sessions WHERE world_id=?", (world_id,)
+        ).fetchall()
+        caught_up = 0
+        for session_item in sessions:
+            current_total = (int(session_item["day"]) - 1) * 1440 + int(session_item["minute_of_day"])
+            caught_up += len(fire_due_world_events(
+                conn, session_item["id"], current_total, current_total
+            ))
+    return {"id": event_id, "world_id": world_id, "external_uid": payload.external_uid,
+            "title": payload.title, "status": "confirmed", "sessions_caught_up": caught_up}
+
+
+@app.get("/api/worlds/{world_id}/timeline")
+def list_world_timeline_events(world_id: str):
+    with database.connection() as conn:
+        if conn.execute("SELECT 1 FROM worlds WHERE id=?", (world_id,)).fetchone() is None:
+            raise HTTPException(status_code=404, detail="Mundo no encontrado.")
+        return [dict(row) for row in conn.execute(
+            "SELECT id,external_uid,title,description,scheduled_day,scheduled_minute,location,"
+            "canon_status,enabled FROM world_timeline_events WHERE world_id=? "
+            "ORDER BY scheduled_day,scheduled_minute,title", (world_id,)
+        ).fetchall()]
+
+
+@app.patch("/api/worlds/{world_id}/timeline/{event_id}")
+def update_world_timeline_event(
+    world_id: str, event_id: str, payload: WorldTimelineEventUpdate
+):
+    changes = payload.model_dump(exclude_unset=True)
+    if not changes or any(value is None for value in changes.values()):
+        raise HTTPException(status_code=422, detail="Indica al menos un campo válido para actualizar.")
+
+    with database.transaction() as conn:
+        event = conn.execute(
+            "SELECT * FROM world_timeline_events WHERE id=? AND world_id=?",
+            (event_id, world_id),
+        ).fetchone()
+        if event is None:
+            raise HTTPException(status_code=404, detail="Acontecimiento mundial no encontrado.")
+        ensure_world_no_turn_in_progress(conn, world_id)
+
+        already_fired = conn.execute(
+            "SELECT 1 FROM session_timeline_events WHERE world_event_id=? LIMIT 1",
+            (event_id,),
+        ).fetchone()
+        if already_fired:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "El acontecimiento ya ocurrió en al menos una partida. "
+                    "No se puede editar ni cancelar retroactivamente; crea otro suceso para una nueva versión."
+                ),
+            )
+
+        allowed_columns = {
+            "title", "description", "scheduled_day", "scheduled_minute", "location", "enabled"
+        }
+        if not set(changes).issubset(allowed_columns):
+            raise HTTPException(status_code=422, detail="Campo de actualización no permitido.")
+
+        assignments = ", ".join(f"{column}=?" for column in changes)
+        conn.execute(
+            f"UPDATE world_timeline_events SET {assignments} WHERE id=? AND world_id=?",
+            (*changes.values(), event_id, world_id),
+        )
+
+        updated = conn.execute(
+            "SELECT * FROM world_timeline_events WHERE id=? AND world_id=?",
+            (event_id, world_id),
+        ).fetchone()
+        caught_up = 0
+        if bool(updated["enabled"]):
+            sessions = conn.execute(
+                "SELECT id,day,minute_of_day FROM sessions WHERE world_id=?",
+                (world_id,),
+            ).fetchall()
+            for session_item in sessions:
+                current_total = (int(session_item["day"]) - 1) * 1440 + int(session_item["minute_of_day"])
+                caught_up += len(fire_due_world_events(
+                    conn, session_item["id"], current_total, current_total
+                ))
+        return {
+            "updated": True,
+            "event": dict(updated),
+            "sessions_caught_up": caught_up,
+        }
+
+
+@app.delete("/api/worlds/{world_id}/timeline/{event_id}")
+def delete_world_timeline_event(world_id: str, event_id: str):
+    with database.transaction() as conn:
+        event = conn.execute(
+            "SELECT id FROM world_timeline_events WHERE id=? AND world_id=?",
+            (event_id, world_id),
+        ).fetchone()
+        if event is None:
+            raise HTTPException(status_code=404, detail="Acontecimiento mundial no encontrado.")
+        ensure_world_no_turn_in_progress(conn, world_id)
+        already_fired = conn.execute(
+            "SELECT 1 FROM session_timeline_events WHERE world_event_id=? LIMIT 1",
+            (event_id,),
+        ).fetchone()
+        if already_fired:
+            raise HTTPException(
+                status_code=409,
+                detail="El acontecimiento ya ocurrió en al menos una partida; no se puede borrar del historial."
+            )
+        conn.execute(
+            "DELETE FROM world_timeline_events WHERE id=? AND world_id=?",
+            (event_id, world_id),
+        )
+    return {"deleted": True, "event_id": event_id}
+
+
 @app.get("/api/worlds/{world_id}/entities")
 def list_entities(world_id: str):
     with database.connection() as conn:
@@ -2247,6 +2438,8 @@ def create_session(world_id: str, payload: SessionCreate):
                 "INSERT INTO session_presence(session_id,entity_id,location,presence_status) VALUES(?,?,?,'present')",
                 (session_id, entity_id, payload.location)
             )
+        starting_total = (int(payload.day) - 1) * 1440 + int(payload.minute_of_day)
+        fire_due_world_events(conn, session_id, starting_total, starting_total)
         for item in payload.initial_inventory:
             carrier = item.carrier_entity_id or payload.protagonist_entity_id
             if carrier not in valid_ids:
@@ -3360,6 +3553,7 @@ RESTORE_SESSION_TABLES = (
     "resources",
     "relationships",
     "ability_uses",
+    "session_timeline_events",
     "messages",
     "events",
     "state_changes",
@@ -3371,6 +3565,7 @@ RESTORE_REQUIRED_COLUMNS = {
     "resources": {"id", "session_id", "resource_key", "display_name", "quantity", "unit"},
     "relationships": {"id", "session_id", "from_entity_id", "to_entity_id", "axis", "value"},
     "ability_uses": {"id", "session_id", "turn_id", "ability_key", "target_entity_id", "result"},
+    "session_timeline_events": {"id", "session_id", "world_event_id", "scheduled_total_minutes", "fired_total_minutes", "fired_day", "fired_minute"},
     "messages": {"id", "session_id", "turn_id", "turn_index", "role", "recipient_entity_id", "content", "provider", "generation_status"},
     "events": {"id", "session_id", "turn_id", "external_ref", "kind", "entity_id", "description", "witnesses_json", "status"},
     "state_changes": {"id", "session_id", "turn_id", "external_ref", "entity_id", "field", "operation", "proposed_value_json", "status", "reason"},
@@ -3398,7 +3593,24 @@ def _restore_world_signature(conn, world_id: str):
             (world_id,)
         ).fetchall()
     ]
-    return (tuple(world), tuple(entities), tuple(lore))
+    # Timeline definitions belong to shared world canon, not to one session.
+    # A backup must not restore against a world whose scheduled facts changed.
+    available_tables = {
+        row["name"] for row in conn.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'"
+        ).fetchall()
+    }
+    timeline_events = []
+    if "world_timeline_events" in available_tables:
+        timeline_events = [
+            tuple(row) for row in conn.execute(
+                "SELECT id,external_uid,title,description,scheduled_day,scheduled_minute,"
+                "location,canon_status,enabled FROM world_timeline_events "
+                "WHERE world_id=? ORDER BY id",
+                (world_id,)
+            ).fetchall()
+        ]
+    return (tuple(world), tuple(entities), tuple(lore), tuple(timeline_events))
 
 
 def _table_columns(conn, table: str) -> set[str]:
@@ -3431,7 +3643,22 @@ def _read_session_backup(backup_path: Path, session_id: str):
                 "SELECT name FROM sqlite_master WHERE type='table'"
             ).fetchall()
         }
-        missing_tables = [table for table in RESTORE_SESSION_TABLES if table not in source_tables]
+        timeline_tables = {"world_timeline_events", "session_timeline_events"}
+        present_timeline_tables = timeline_tables.intersection(source_tables)
+        if present_timeline_tables and present_timeline_tables != timeline_tables:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "La copia contiene un esquema de cronología incompleto; "
+                    "no se modificó la partida."
+                ),
+            )
+
+        optional_tables = {"session_timeline_events"}
+        missing_tables = [
+            table for table in RESTORE_SESSION_TABLES
+            if table not in source_tables and table not in optional_tables
+        ]
         if missing_tables:
             raise HTTPException(
                 status_code=422,
@@ -3440,6 +3667,10 @@ def _read_session_backup(backup_path: Path, session_id: str):
 
         table_rows = {}
         for table in RESTORE_SESSION_TABLES:
+            if table not in source_tables:
+                # Backups created before the world timeline feature have no firing ledger.
+                table_rows[table] = []
+                continue
             columns = _table_columns(source, table)
             required_columns = RESTORE_REQUIRED_COLUMNS[table]
             # Older backups stored location but not the derived presence_status.
@@ -3515,7 +3746,7 @@ def restore_session_from_backup(session_id: str, backup_path: Path) -> dict[str,
         if current_world_signature != backup_world_signature:
             raise HTTPException(
                 status_code=409,
-                detail="El canon, los personajes o el Lorebook del mundo cambiaron desde la copia. Para evitar mezclar versiones, restaura solo después de volver al mismo mundo."
+                detail="El canon, los personajes, el Lorebook o la cronología del mundo cambiaron desde la copia. Para evitar mezclar versiones, restaura solo después de volver a la misma versión del mundo."
             )
 
         conn.execute(

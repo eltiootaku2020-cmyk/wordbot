@@ -53,6 +53,29 @@ CREATE TABLE IF NOT EXISTS events (
   source_message_id TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(session_id, turn_id, external_ref)
 );
+CREATE TABLE IF NOT EXISTS world_timeline_events (
+  id TEXT PRIMARY KEY, world_id TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  external_uid TEXT NOT NULL, title TEXT NOT NULL, description TEXT NOT NULL,
+  scheduled_day INTEGER NOT NULL CHECK(scheduled_day >= 1),
+  scheduled_minute INTEGER NOT NULL CHECK(scheduled_minute BETWEEN 0 AND 1439),
+  location TEXT NOT NULL DEFAULT '', canon_status TEXT NOT NULL DEFAULT 'confirmed'
+    CHECK(canon_status IN ('confirmed','pending','rejected')),
+  enabled INTEGER NOT NULL DEFAULT 1 CHECK(enabled IN (0,1)),
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(world_id, external_uid)
+);
+CREATE TABLE IF NOT EXISTS session_timeline_events (
+  id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  world_event_id TEXT NOT NULL REFERENCES world_timeline_events(id) ON DELETE CASCADE,
+  scheduled_total_minutes INTEGER NOT NULL, fired_total_minutes INTEGER NOT NULL,
+  fired_day INTEGER NOT NULL, fired_minute INTEGER NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(session_id, world_event_id)
+);
+CREATE INDEX IF NOT EXISTS idx_world_timeline_due
+  ON world_timeline_events(world_id, enabled, canon_status, scheduled_day, scheduled_minute);
+CREATE INDEX IF NOT EXISTS idx_session_timeline_fired
+  ON session_timeline_events(session_id, fired_total_minutes);
 CREATE TABLE IF NOT EXISTS state_changes (
   id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   turn_id TEXT NOT NULL, external_ref TEXT NOT NULL, entity_id TEXT NOT NULL DEFAULT '',
