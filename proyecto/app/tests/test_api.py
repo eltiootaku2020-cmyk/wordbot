@@ -4640,3 +4640,236 @@ def test_event_continuity_columns_exist_after_fresh_database_initialization():
     with database.connection() as conn:
         columns = {row["name"] for row in conn.execute("PRAGMA table_info(events)").fetchall()}
     assert {"continuity", "importance"} <= columns
+
+
+
+def test_world_timeline_api_requires_approval_catches_up_and_restores_per_session_backup():
+    with TestClient(app) as client:
+        started = client.post(
+            "/api/worlds/start",
+            json={
+                "name": "Mundo de cronología integrada",
+                "canon_text": "Cronología de prueba.",
+                "protagonist_name": "Ari",
+                "session_name": "Partida principal",
+                "location": "Puerto",
+                "day": 1,
+                "minute_of_day": 480,
+            },
+        )
+        assert started.status_code == 200, started.text
+        world_id = started.json()["world_id"]
+        first_session_id = started.json()["session_id"]
+        protagonist_id = started.json()["protagonist_entity_id"]
+
+        invalid = client.post(
+            f"/api/worlds/{world_id}/timeline",
+            json={
+                "stable_key": "invalid-fixed",
+                "title": "Fecha ausente",
+                "description": "No debe guardarse.",
+                "activation_type": "fixed_time",
+            },
+        )
+        assert invalid.status_code == 422
+
+        created = client.post(
+            f"/api/worlds/{world_id}/timeline",
+            json={
+                "stable_key": "eruption-01",
+                "title": "Erupción del volcán",
+                "description": "El volcán entra en erupción en las montañas.",
+                "activation_type": "fixed_time",
+                "scheduled_day": 1,
+                "scheduled_minute": 480,
+                "scope_type": "location",
+                "location": "Montañas del Fin",
+                "consequences": {"ashfall": True, "roads_blocked": ["Paso occidental"]},
+            },
+        )
+        assert created.status_code == 200, created.text
+        event_id = created.json()["event"]["id"]
+        assert created.json()["event"]["approval_status"] == "pending"
+        assert created.json()["event"]["consequences"]["ashfall"] is True
+
+        listing = client.get(f"/api/worlds/{world_id}/timeline")
+        assert listing.status_code == 200
+        assert next(row for row in listing.json() if row["id"] == event_id)["fired_sessions"] == 0
+
+        approved = client.post(
+            f"/api/worlds/{world_id}/timeline/{event_id}/review",
+            json={"approval_status": "approved"},
+        )
+        assert approved.status_code == 200, approved.text
+        assert approved.json()["sessions_caught_up"] == 1
+        assert approved.json()["event"]["approval_status"] == "approved"
+
+        with database.connection() as conn:
+            first_runs = conn.execute(
+                "SELECT * FROM session_timeline_runs WHERE session_id=? AND scheduled_event_id=?",
+                (first_session_id, event_id),
+            ).fetchall()
+            record = json.loads(first_runs[0]["record_json"])
+        assert len(first_runs) == 1
+        assert record["consequences"]["roads_blocked"] == ["Paso occidental"]
+
+        second_session = client.post(
+            f"/api/worlds/{world_id}/sessions",
+            json={
+                "name": "Partida secundaria",
+                "location": "Puerto",
+                "day": 1,
+                "minute_of_day": 480,
+                "protagonist_entity_id": protagonist_id,
+            },
+        )
+        assert second_session.status_code == 200, second_session.text
+        second_session_id = second_session.json()["id"]
+        assert second_session.json()["timeline_events_caught_up"] == 1
+        with database.connection() as conn:
+            assert conn.execute(
+                "SELECT COUNT(*) FROM session_timeline_runs WHERE session_id=?",
+                (first_session_id,),
+            ).fetchone()[0] == 1
+            assert conn.execute(
+                "SELECT COUNT(*) FROM session_timeline_runs WHERE session_id=?",
+                (second_session_id,),
+            ).fetchone()[0] == 1
+
+        backup = client.post(f"/api/sessions/{first_session_id}/backup", json={})
+        assert backup.status_code == 200, backup.text
+        backup_name = backup.json()["backup_name"]
+        with database.transaction() as conn:
+            conn.execute(
+                "DELETE FROM session_timeline_runs WHERE session_id=? AND scheduled_event_id=?",
+                (first_session_id, event_id),
+            )
+        restored = client.post(
+            f"/api/sessions/{first_session_id}/restore",
+            json={"backup_name": backup_name, "confirmation": "RESTAURAR"},
+        )
+        assert restored.status_code == 200, restored.text
+        assert restored.json()["restored_tables"]["session_timeline_runs"] == 1
+        with database.connection() as conn:
+            assert conn.execute(
+                "SELECT COUNT(*) FROM session_timeline_runs WHERE session_id=?",
+                (first_session_id,),
+            ).fetchone()[0] == 1
+            assert conn.execute(
+                "SELECT COUNT(*) FROM session_timeline_runs WHERE session_id=?",
+                (second_session_id,),
+            ).fetchone()[0] == 1
+            assert not conn.execute("PRAGMA foreign_key_check").fetchall()
+
+        locked_edit = client.patch(
+            f"/api/worlds/{world_id}/timeline/{event_id}",
+            json={"title": "Historia reescrita"},
+        )
+        assert locked_edit.status_code == 409
+        locked_cancel = client.delete(
+            f"/api/worlds/{world_id}/timeline/{event_id}"
+        )
+        assert locked_cancel.status_code == 409
+
+        condition = client.post(
+            f"/api/worlds/{world_id}/timeline",
+            json={
+                "stable_key": "condition-only-01",
+                "title": "Señal de tormenta",
+                "description": "La tormenta depende de condiciones aún no evaluadas.",
+                "activation_type": "condition",
+                "condition": {"all": [{"field": "weather", "operator": "equals", "value": "storm"}]},
+                "scope_type": "world",
+                "consequences": {"roads_flooded": True},
+            },
+        )
+        assert condition.status_code == 200, condition.text
+        condition_id = condition.json()["event"]["id"]
+        condition_approved = client.post(
+            f"/api/worlds/{world_id}/timeline/{condition_id}/review",
+            json={"approval_status": "approved"},
+        )
+        assert condition_approved.status_code == 200, condition_approved.text
+        assert condition_approved.json()["sessions_caught_up"] == 0
+        with database.connection() as conn:
+            assert conn.execute(
+                "SELECT COUNT(*) FROM session_timeline_runs WHERE scheduled_event_id=?",
+                (condition_id,),
+            ).fetchone()[0] == 0
+
+        cancellable = client.post(
+            f"/api/worlds/{world_id}/timeline",
+            json={
+                "stable_key": "cancel-before-run",
+                "title": "Suceso cancelable",
+                "description": "Aún no aprobado.",
+                "activation_type": "fixed_time",
+                "scheduled_day": 9,
+                "scheduled_minute": 720,
+            },
+        )
+        assert cancellable.status_code == 200
+        cancellable_id = cancellable.json()["event"]["id"]
+        cancelled = client.delete(
+            f"/api/worlds/{world_id}/timeline/{cancellable_id}"
+        )
+        assert cancelled.status_code == 200
+        assert cancelled.json()["cancelled"] is True
+        rejected_review = client.post(
+            f"/api/worlds/{world_id}/timeline/{cancellable_id}/review",
+            json={"approval_status": "approved"},
+        )
+        assert rejected_review.status_code == 409
+
+
+def test_undo_restores_session_timeline_runs_with_clock_state():
+    with TestClient(app) as client:
+        started = client.post(
+            "/api/worlds/start",
+            json={
+                "name": "Mundo de deshacer cronología",
+                "protagonist_name": "Ari",
+                "session_name": "Partida reversible",
+                "location": "Puerto",
+                "day": 1,
+                "minute_of_day": 480,
+            },
+        )
+        assert started.status_code == 200, started.text
+        session_id = started.json()["session_id"]
+        world_id = started.json()["world_id"]
+
+        with database.transaction() as conn:
+            conn.execute(
+                "INSERT INTO world_timeline_events("
+                "id,world_id,stable_key,title,description,activation_type,scheduled_day,"
+                "scheduled_minute,condition_json,scope_type,location,consequences_json,"
+                "approval_status,lifecycle_status"
+                ") VALUES(?,?,?,?,?,'fixed_time',1,500,'{}','world','','{}','approved','active')",
+                ("undo-timeline-event", world_id, "undo-event", "Evento reversible",
+                 "Debe desaparecer al deshacer el turno."),
+            )
+            before = main_module.capture_turn_state(conn, session_id)
+            conn.execute(
+                "UPDATE sessions SET minute_of_day=510 WHERE id=?",
+                (session_id,),
+            )
+            fired = main_module.fire_crossed_events(
+                conn, session_id, "turn-to-undo", 1, 480, 1, 510
+            )
+            assert len(fired) == 1
+            assert conn.execute(
+                "SELECT COUNT(*) FROM session_timeline_runs WHERE session_id=?",
+                (session_id,),
+            ).fetchone()[0] == 1
+
+            main_module.restore_turn_state(conn, session_id, before)
+            restored_clock = conn.execute(
+                "SELECT day,minute_of_day FROM sessions WHERE id=?",
+                (session_id,),
+            ).fetchone()
+            assert (restored_clock["day"], restored_clock["minute_of_day"]) == (1, 480)
+            assert conn.execute(
+                "SELECT COUNT(*) FROM session_timeline_runs WHERE session_id=?",
+                (session_id,),
+            ).fetchone()[0] == 0
