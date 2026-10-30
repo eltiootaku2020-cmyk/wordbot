@@ -1182,6 +1182,24 @@ def write_event(
     if private_subject_ids is not None and event.entity_id and event.entity_id not in private_subject_ids:
         status = "pending"
 
+    for perception in event.perceptions:
+        observer_id = perception.observer_entity_id
+        claimed_id = perception.claimed_entity_id
+        if (
+            observer_id not in valid_ids
+            or observer_id not in proposed_witnesses
+            or (allowed_witnesses is not None and observer_id not in allowed_witnesses)
+            or (private_subject_ids is not None and observer_id not in private_subject_ids)
+        ):
+            status = "pending"
+        if perception.identity_assessment in {"suspected", "recognized"}:
+            if not claimed_id or claimed_id not in valid_ids:
+                status = "pending"
+        elif claimed_id:
+            # A description or an unidentified observation cannot quietly name
+            # an entity; the identity claim must be explicit and auditable.
+            status = "pending"
+
     source_knowledge = None
     if report_event:
         if (
@@ -1478,10 +1496,40 @@ def apply_narrator_result(
             )
         if status == "recorded":
             record_event_knowledge(conn, session["id"], event_id, event)
+            record_event_perceptions(conn, session["id"], event_id, event)
+        validated_witnesses = [
+            witness for witness in event.witness_ids
+            if witness in valid_ids
+            and (allowed_witnesses is None or witness in allowed_witnesses)
+        ]
         event_map[ref] = {
             "id": event_id, "status": status, "kind": event.kind,
-            "entity_id": event.entity_id, "description": event.description
+            "entity_id": event.entity_id, "description": event.description,
+            "witness_ids": validated_witnesses
         }
+
+    evidence_ref_counts: dict[str, int] = {}
+    for evidence in result.evidence:
+        evidence_ref_counts[evidence.ref] = evidence_ref_counts.get(evidence.ref, 0) + 1
+    seen_evidence_refs: set[str] = set()
+    for evidence in result.evidence:
+        if evidence.ref in seen_evidence_refs:
+            continue
+        seen_evidence_refs.add(evidence.ref)
+        if evidence_ref_counts[evidence.ref] > 1:
+            pending_notes.append(
+                f"Evidencia {evidence.ref} requiere revisión: referencia duplicada."
+            )
+            continue
+        accepted, reason = record_event_evidence(
+            conn, session["id"], evidence, event_map, valid_ids,
+            allowed_witnesses=allowed_witnesses,
+            private_subject_ids=private_subject_ids
+        )
+        if not accepted:
+            pending_notes.append(
+                f"Evidencia {evidence.ref} requiere revisión: {reason}."
+            )
 
     applied = []
     purchase_event_refs: set[str] = set()
