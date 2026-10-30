@@ -55,7 +55,8 @@ def fire_due_world_events(
                 "title": row["title"], "description": row["description"],
                 "location": row["location"], "scheduled_day": int(row["scheduled_day"]),
                 "scheduled_minute": int(row["scheduled_minute"]),
-                "fired_day": current_total_minutes // 1440 + 1,
-                "fired_minute": current_total_minutes % 1440,
+                # Record the scheduled world date, not the later catch-up processing time.
+                "fired_day": int(row["scheduled_day"]),
+                "fired_minute": int(row["scheduled_minute"]),
             })
     return fired
