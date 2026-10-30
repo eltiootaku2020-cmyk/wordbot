@@ -2,7 +2,8 @@ import json
 import sqlite3
 
 from canon_manager.db import SCHEMA
-from canon_manager.timeline import fire_crossed_events
+from canon_manager.main import capture_turn_state, restore_turn_state
+from canon_manager.timeline import fire_crossed_events, fire_due_events
 
 
 def make_database():
@@ -80,3 +81,58 @@ def test_timeline_isolated_per_session_and_rejects_clock_regression():
         assert "backwards" in str(exc)
     else:
         raise AssertionError("backwards time movement must be rejected")
+
+
+
+def test_catch_up_records_old_approved_fixed_events_but_not_pending_or_conditions():
+    conn = make_database()
+    add_event(conn, "already-due", 1, 400)
+    add_event(conn, "exact-now", 1, 480)
+    add_event(conn, "future", 2, 0)
+    add_event(conn, "pending-past", 1, 300, approval="pending")
+    add_event(conn, "condition-past", 1, 200, activation="condition")
+
+    caught = fire_due_events(conn, "s1", 1, 480)
+    assert [item["stable_key"] for item in caught] == ["already-due", "exact-now"]
+    rows = conn.execute(
+        "SELECT fired_turn_id,due_day,due_minute,reached_day,reached_minute "
+        "FROM session_timeline_runs ORDER BY due_day,due_minute"
+    ).fetchall()
+    assert [(row["fired_turn_id"], row["reached_day"], row["reached_minute"]) for row in rows] == [
+        ("system:timeline-catch-up", 1, 480),
+        ("system:timeline-catch-up", 1, 480),
+    ]
+    assert fire_due_events(conn, "s1", 1, 480) == []
+    assert len(fire_due_events(conn, "s1", 2, 0)) == 1
+    assert conn.execute("SELECT COUNT(*) FROM session_timeline_runs").fetchone()[0] == 3
+
+
+def test_catch_up_isolated_per_session_and_idempotent_with_clock_crossing():
+    conn = make_database()
+    conn.execute(
+        "INSERT INTO sessions(id,world_id,name,protagonist_entity_id) VALUES('s2','w1','Session 2','hero')"
+    )
+    add_event(conn, "due", 1, 470)
+    assert len(fire_due_events(conn, "s1", 1, 480)) == 1
+    assert len(fire_due_events(conn, "s1", 1, 480)) == 0
+    assert len(fire_due_events(conn, "s2", 1, 480)) == 1
+    assert fire_crossed_events(conn, "s1", "turn-later", 1, 470, 1, 500) == []
+    assert conn.execute("SELECT COUNT(*) FROM session_timeline_runs WHERE session_id='s1'").fetchone()[0] == 1
+    assert conn.execute("SELECT COUNT(*) FROM session_timeline_runs WHERE session_id='s2'").fetchone()[0] == 1
+
+
+def test_undo_restores_timeline_ledger_with_the_clock():
+    conn = make_database()
+    add_event(conn, "undoable", 1, 500)
+    before = capture_turn_state(conn, "s1")
+    conn.execute("UPDATE sessions SET minute_of_day=510 WHERE id='s1'")
+    fired = fire_crossed_events(conn, "s1", "turn-to-undo", 1, 480, 1, 510)
+    assert len(fired) == 1
+    assert conn.execute("SELECT COUNT(*) FROM session_timeline_runs WHERE session_id='s1'").fetchone()[0] == 1
+
+    restore_turn_state(conn, "s1", before)
+    current = conn.execute(
+        "SELECT day,minute_of_day FROM sessions WHERE id='s1'"
+    ).fetchone()
+    assert (current["day"], current["minute_of_day"]) == (1, 480)
+    assert conn.execute("SELECT COUNT(*) FROM session_timeline_runs WHERE session_id='s1'").fetchone()[0] == 0
