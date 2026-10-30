@@ -4,6 +4,9 @@
 **Estado:** validación estática en GitHub; importación y roleplay real aún deben probarse en SpicyChat.  
 **Rama:** docs/historias-organizadas · Lorebook: 77 entradas con UID único.
 
+## Módulo ampliado de mundo vivo
+- [Mundo vivo: reglas, variables, 50 especies, Psico-Eco, exploración, magia, rutas y comandos](mundo_vivo/README.md). Diseño modular nuevo; propuestas aún pendientes de aprobación y sin integración ejecutable.
+
 ## Archivos
 - [Configuración ligera](CONFIG_LIGERA.md)
 - [Cuadro de reglas prioritarias](CUADRO_REGLAS_PRIORITARIAS.md)
