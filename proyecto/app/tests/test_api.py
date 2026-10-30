@@ -4978,3 +4978,320 @@ def test_identification_requires_independent_observers_and_ai_cannot_confirm_gui
         assert "revisión explícita" in rows["confirmed-ivar"]["reason"]
         assert any("culpabilidad confirmada" in item.lower() or "requiere revisión" in item.lower()
                    for item in pending)
+
+
+
+def test_identified_attribution_rejects_two_observers_without_explicit_recognition():
+    with TestClient(app) as client:
+        started, entities = _create_state_ops_world(client)
+        session_id = started["session_id"]
+        protagonist_id = entities["Protagonista"]["id"]
+        maelis_id = entities["Maelis Orven"]["id"]
+        brina_id = entities["Brina Solcor"]["id"]
+        ivar_id = entities["Ivar Dalen"]["id"]
+
+        original = NarratorResponse(
+            narration="Se registra un incidente en el camino.",
+            events=[
+                EventProposal(
+                    ref="unrecognized-original",
+                    kind="observation",
+                    description="Una viajera fue atacada cerca del camino.",
+                    witness_ids=[protagonist_id, maelis_id, brina_id, ivar_id]
+                )
+            ]
+        )
+        source_turn, _, pending = _apply_synthetic_result(
+            session_id, "Registro el incidente.", original
+        )
+        assert not pending
+        with database.connection() as conn:
+            about_event_id = conn.execute(
+                "SELECT id FROM events WHERE session_id=? AND turn_id=? AND external_ref=?",
+                (session_id, source_turn, "unrecognized-original")
+            ).fetchone()["id"]
+
+        investigation = NarratorResponse(
+            narration="Dos testigos aportan observaciones, pero ninguno reconoce con certeza a Ivar.",
+            events=[
+                EventProposal(
+                    ref="unrecognized-clue-maelis",
+                    kind="observation",
+                    description="Maelis solo distingue una capa verde.",
+                    witness_ids=[protagonist_id, maelis_id],
+                    perceptions=[
+                        WitnessPerceptionProposal(
+                            observer_entity_id=maelis_id,
+                            modality="visual",
+                            observed_details="Solo distingue una capa verde a distancia.",
+                            identity_assessment="description_only"
+                        )
+                    ]
+                ),
+                EventProposal(
+                    ref="unrecognized-clue-brina",
+                    kind="observation",
+                    description="Brina sospecha que la figura podría ser Ivar.",
+                    witness_ids=[protagonist_id, brina_id],
+                    perceptions=[
+                        WitnessPerceptionProposal(
+                            observer_entity_id=brina_id,
+                            modality="visual",
+                            observed_details="Brina cree que la silueta podría ser Ivar, pero no está segura.",
+                            identity_assessment="suspected",
+                            claimed_entity_id=ivar_id
+                        )
+                    ]
+                )
+            ],
+            evidence=[
+                EvidenceProposal(
+                    ref="unrecognized-evidence-maelis",
+                    event_ref="unrecognized-clue-maelis",
+                    about_event_id=about_event_id,
+                    discovered_by_entity_id=maelis_id,
+                    evidence_kind="physical",
+                    effect="supports",
+                    description="Una observación visual parcial."
+                ),
+                EvidenceProposal(
+                    ref="unrecognized-evidence-brina",
+                    event_ref="unrecognized-clue-brina",
+                    about_event_id=about_event_id,
+                    discovered_by_entity_id=brina_id,
+                    evidence_kind="physical",
+                    effect="supports",
+                    description="Una observación visual incierta."
+                )
+            ],
+            attributions=[
+                AttributionProposal(
+                    ref="unrecognized-attribution-ivar",
+                    about_event_id=about_event_id,
+                    attribution_level="identified",
+                    subject_entity_id=ivar_id,
+                    description="No hay dos reconocimientos personales explícitos.",
+                    evidence_refs=["unrecognized-evidence-maelis", "unrecognized-evidence-brina"]
+                )
+            ]
+        )
+        _, _, pending = _apply_synthetic_result(
+            session_id, "Comparo las observaciones.", investigation
+        )
+        with database.connection() as conn:
+            attribution = conn.execute(
+                "SELECT status,reason FROM event_attributions WHERE session_id=? "
+                "AND external_ref='unrecognized-attribution-ivar'",
+                (session_id,)
+            ).fetchone()
+
+        assert attribution["status"] == "pending"
+        assert "recognized" in attribution["reason"] or "reconocido" in attribution["reason"]
+
+
+def test_social_evidence_perceptions_attribution_and_reputation_restore_together():
+    with TestClient(app) as client:
+        started, entities = _create_state_ops_world(client)
+        session_id = started["session_id"]
+        protagonist_id = entities["Protagonista"]["id"]
+        maelis_id = entities["Maelis Orven"]["id"]
+        brina_id = entities["Brina Solcor"]["id"]
+        ivar_id = entities["Ivar Dalen"]["id"]
+
+        original = NarratorResponse(
+            narration="El protagonista y Maelis registran una desaparición.",
+            events=[
+                EventProposal(
+                    ref="restore-social-original",
+                    kind="observation",
+                    description="Una bolsa desaparece del banco.",
+                    witness_ids=[protagonist_id, maelis_id]
+                )
+            ]
+        )
+        source_turn, _, pending = _apply_synthetic_result(
+            session_id, "Registro la desaparición.", original
+        )
+        assert not pending
+        with database.connection() as conn:
+            about_event_id = conn.execute(
+                "SELECT id FROM events WHERE session_id=? AND turn_id=? AND external_ref=?",
+                (session_id, source_turn, "restore-social-original")
+            ).fetchone()["id"]
+
+        investigation = NarratorResponse(
+            narration="Maelis encuentra una fibra y comparte una sospecha con Brina.",
+            events=[
+                EventProposal(
+                    ref="restore-social-clue",
+                    kind="observation",
+                    description="Maelis encuentra una fibra enganchada en una capa.",
+                    witness_ids=[protagonist_id, maelis_id],
+                    perceptions=[
+                        WitnessPerceptionProposal(
+                            observer_entity_id=maelis_id,
+                            modality="visual",
+                            observed_details="Maelis ve a Ivar cerca del lugar, sin poder concluir que tomó la bolsa.",
+                            identity_assessment="recognized",
+                            claimed_entity_id=ivar_id
+                        )
+                    ]
+                ),
+                EventProposal(
+                    ref="restore-social-report",
+                    kind="rumor",
+                    description="Maelis comunica a Brina que Ivar podría estar relacionado con la desaparición.",
+                    witness_ids=[maelis_id, brina_id],
+                    source_entity_id=maelis_id,
+                    about_event_id=about_event_id
+                )
+            ],
+            evidence=[
+                EvidenceProposal(
+                    ref="restore-social-evidence",
+                    event_ref="restore-social-clue",
+                    about_event_id=about_event_id,
+                    discovered_by_entity_id=maelis_id,
+                    evidence_kind="physical",
+                    effect="supports",
+                    description="Fibra similar a la de la bolsa encontrada en una capa."
+                )
+            ],
+            attributions=[
+                AttributionProposal(
+                    ref="restore-social-attribution",
+                    about_event_id=about_event_id,
+                    attribution_level="suspected",
+                    subject_entity_id=ivar_id,
+                    description="Ivar queda como sospechoso, no culpable confirmado.",
+                    evidence_refs=["restore-social-evidence"]
+                )
+            ],
+            reputation_changes=[
+                LocalReputationProposal(
+                    ref="restore-social-reputation",
+                    entity_id=ivar_id,
+                    scope_type="location",
+                    scope_key="Claro del bosque",
+                    delta=-1,
+                    attribution_ref="restore-social-attribution",
+                    awareness_event_ref="restore-social-report",
+                    reason="Brina recibe el rumor y empieza a desconfiar."
+                )
+            ]
+        )
+        _, applied, pending = _apply_synthetic_result(
+            session_id, "Maelis comparte una sospecha basada en la pista.", investigation
+        )
+        assert any("Reputación local" in item for item in applied)
+        assert not any("Reputación local" in item for item in pending)
+
+        table_names = (
+            "entity_knowledge", "event_perceptions", "event_evidence",
+            "event_attributions", "local_reputation", "local_reputation_history"
+        )
+        with database.connection() as conn:
+            before = {
+                table: [dict(row) for row in conn.execute(
+                    f"SELECT * FROM {table} WHERE session_id=? ORDER BY rowid", (session_id,)
+                ).fetchall()]
+                for table in table_names
+            }
+            maelis_context = build_context(
+                conn, session_row(conn, session_id), "¿Qué viste?", maelis_id,
+                "restore-social-context-maelis", visibility="scene"
+            )
+            brina_context = build_context(
+                conn, session_row(conn, session_id), "¿Qué sabe Brina?", brina_id,
+                "restore-social-context-brina", visibility="scene"
+            )
+        assert before["event_perceptions"]
+        assert before["event_evidence"]
+        assert before["event_attributions"]
+        assert before["local_reputation"]
+        assert before["local_reputation_history"]
+        assert any(item["observer_entity_id"] == maelis_id for item in maelis_context["known_perceptions"])
+        assert not any(item["observer_entity_id"] == maelis_id for item in brina_context["known_perceptions"])
+
+        backup = client.post(f"/api/sessions/{session_id}/backup", json={})
+        assert backup.status_code == 200, backup.text
+        backup_name = backup.json()["backup_name"]
+
+        later = NarratorResponse(
+            narration="Después, el protagonista observa una lámpara apagada.",
+            events=[
+                EventProposal(
+                    ref="restore-social-later",
+                    kind="observation",
+                    description="Una lámpara queda apagada.",
+                    witness_ids=[protagonist_id]
+                )
+            ]
+        )
+        _, _, pending = _apply_synthetic_result(
+            session_id, "Observo la lámpara.", later
+        )
+        assert not pending
+
+        restored = client.post(
+            f"/api/sessions/{session_id}/restore",
+            json={"backup_name": backup_name, "confirmation": "RESTAURAR"}
+        )
+        assert restored.status_code == 200, restored.text
+        for table in table_names:
+            assert restored.json()["restored_tables"][table] == len(before[table])
+
+        with database.connection() as conn:
+            after = {
+                table: [dict(row) for row in conn.execute(
+                    f"SELECT * FROM {table} WHERE session_id=? ORDER BY rowid", (session_id,)
+                ).fetchall()]
+                for table in table_names
+            }
+            assert not conn.execute("PRAGMA foreign_key_check").fetchall()
+        assert after == before
+
+
+def test_invalid_out_of_scene_witness_perception_remains_pending_and_is_not_stored():
+    with TestClient(app) as client:
+        started, entities = _create_state_ops_world(client)
+        session_id = started["session_id"]
+        protagonist_id = entities["Protagonista"]["id"]
+        maelis_id = entities["Maelis Orven"]["id"]
+        ivar_id = entities["Ivar Dalen"]["id"]
+
+        result = NarratorResponse(
+            narration="Se intenta atribuir una percepción a alguien que no estuvo presente.",
+            events=[
+                EventProposal(
+                    ref="invalid-social-observer",
+                    kind="observation",
+                    description="Una figura cruza el camino.",
+                    witness_ids=[protagonist_id, maelis_id],
+                    perceptions=[
+                        WitnessPerceptionProposal(
+                            observer_entity_id=ivar_id,
+                            modality="visual",
+                            observed_details="Ivar afirma haber visto al protagonista.",
+                            identity_assessment="recognized",
+                            claimed_entity_id=protagonist_id
+                        )
+                    ]
+                )
+            ]
+        )
+        turn_id, _, pending = _apply_synthetic_result(
+            session_id, "Registro lo que se vio.", result
+        )
+        with database.connection() as conn:
+            event = conn.execute(
+                "SELECT status FROM events WHERE session_id=? AND turn_id=? AND external_ref=?",
+                (session_id, turn_id, "invalid-social-observer")
+            ).fetchone()
+            count = conn.execute(
+                "SELECT COUNT(*) FROM event_perceptions WHERE session_id=?",
+                (session_id,)
+            ).fetchone()[0]
+        assert event["status"] == "pending"
+        assert count == 0
+        assert any("requiere revisión" in note for note in pending)
