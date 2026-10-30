@@ -178,3 +178,14 @@ El usuario eligió que las aldeas del Bosque de las Bestias estén repartidas en
 - En zonas profundas o especialmente peligrosas la presencia estable será muy escasa y requerirá justificación excepcional.
 - Las rutas pueden conectar comunidades, pero no implican una red continua de asentamientos.
 - Se aprueba el patrón general, no nombres, cantidades, población, coordenadas, facciones ni localizaciones concretas.
+
+## Decisión aprobada: sistema combinado de rutas
+
+Las conexiones del Bosque de las Bestias se organizarán en tres clases generales:
+
+- **Caminos principales:** relativamente estables, usados para conectar algunas aldeas, accesos y puntos de intercambio; no son necesariamente seguros.
+- **Senderos secundarios:** menos transitados y susceptibles a cambios por vegetación, clima, erosión, actividad de criaturas y acontecimientos.
+- **Rutas ocultas o temporales:** pueden ser conocidas solo por determinados habitantes, exploradores o criaturas, y cambiar de disponibilidad con el tiempo.
+
+No todas las comunidades tendrán conexión directa. Una ruta debe tener estado real, condiciones de tránsito y estado de conocimiento del protagonista separados. Esta decisión no fija trazados ni ubicaciones concretas.
+
