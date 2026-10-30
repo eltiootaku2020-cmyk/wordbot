@@ -74,3 +74,6 @@ Todo el contenido de esta carpeta es documentación y datos de diseño. No debe 
 
 
 - **Decisión aprobada:** ubicación repartida de las aldeas entre límites e interior del Bosque de las Bestias. La distribución será desigual, con mayor concentración relativa cerca de límites y accesos, algunas comunidades aisladas en el interior cuando la ecología y la seguridad lo permitan, y presencia estable muy escasa en zonas profundas/peligrosas. No se fijan nombres, cantidades, población, coordenadas, facciones ni ubicaciones concretas.
+
+- **Decisión aprobada:** sistema combinado de rutas del Bosque de las Bestias: caminos principales relativamente estables, senderos secundarios variables y rutas ocultas o temporales. No todas las aldeas estarán conectadas directamente; algunas comunidades interiores podrán quedar aisladas temporalmente. Se aprueba el patrón general, no trazados, distancias, tiempos ni ubicaciones concretas.
+
