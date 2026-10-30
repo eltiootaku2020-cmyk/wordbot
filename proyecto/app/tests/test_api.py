@@ -5295,3 +5295,232 @@ def test_invalid_out_of_scene_witness_perception_remains_pending_and_is_not_stor
         assert event["status"] == "pending"
         assert count == 0
         assert any("requiere revisión" in note for note in pending)
+
+
+def test_restore_preserves_entity_knowledge_and_rumor_source_chain():
+    with TestClient(app) as client:
+        started, entities = _create_state_ops_world(client)
+        session_id = started["session_id"]
+        protagonist_id = entities["Protagonista"]["id"]
+        maelis_id = entities["Maelis Orven"]["id"]
+        ivar_id = entities["Ivar Dalen"]["id"]
+        brina_id = entities["Brina Solcor"]["id"]
+
+        observation = NarratorResponse(
+            narration="El protagonista y Maelis presencian cómo cae una señal.",
+            events=[
+                EventProposal(
+                    ref="restore-knowledge-observation",
+                    kind="observation",
+                    description="Una señal de madera cae junto al camino.",
+                    witness_ids=[protagonist_id, maelis_id]
+                )
+            ]
+        )
+        observation_turn, _, pending = _apply_synthetic_result(
+            session_id, "Observo la señal con Maelis.", observation
+        )
+        assert not pending
+        with database.connection() as conn:
+            source_event = conn.execute(
+                "SELECT id FROM events WHERE session_id=? AND turn_id=? "
+                "AND external_ref=? AND status='recorded'",
+                (session_id, observation_turn, "restore-knowledge-observation")
+            ).fetchone()
+        assert source_event is not None
+        about_event_id = source_event["id"]
+
+        first_report = NarratorResponse(
+            narration="Maelis transmite una versión no confirmada a Ivar.",
+            events=[
+                EventProposal(
+                    ref="restore-knowledge-rumor",
+                    kind="rumor",
+                    description="Maelis dice que la señal pudo caer por actividad de criaturas.",
+                    witness_ids=[maelis_id, ivar_id],
+                    source_entity_id=maelis_id,
+                    about_event_id=about_event_id
+                )
+            ]
+        )
+        _, _, pending = _apply_synthetic_result(
+            session_id, "Maelis comparte lo que sabe.", first_report
+        )
+        assert not pending
+
+        second_report = NarratorResponse(
+            narration="Ivar repite el rumor a Brina.",
+            events=[
+                EventProposal(
+                    ref="restore-knowledge-relay",
+                    kind="testimony",
+                    description="Ivar repite que la señal pudo caer por actividad de criaturas.",
+                    witness_ids=[ivar_id, brina_id],
+                    source_entity_id=ivar_id,
+                    about_event_id=about_event_id
+                )
+            ]
+        )
+        _, _, pending = _apply_synthetic_result(
+            session_id, "Ivar se lo cuenta a Brina.", second_report
+        )
+        assert not pending
+
+        with database.connection() as conn:
+            before_records = [
+                dict(row) for row in conn.execute(
+                    "SELECT * FROM entity_knowledge WHERE session_id=? ORDER BY id",
+                    (session_id,)
+                ).fetchall()
+            ]
+            brina_before = [
+                dict(row) for row in conn.execute(
+                    "SELECT knowledge_kind,source_entity_id,source_knowledge_id "
+                    "FROM entity_knowledge WHERE session_id=? AND knower_entity_id=? "
+                    "AND about_event_id=?",
+                    (session_id, brina_id, about_event_id)
+                ).fetchall()
+            ]
+        assert {row["knower_entity_id"] for row in before_records} == {
+            protagonist_id, maelis_id, ivar_id, brina_id
+        }
+        assert any(row["knowledge_kind"] == "rumor" for row in brina_before)
+        assert brina_before[0]["source_knowledge_id"]
+
+        backup = client.post(f"/api/sessions/{session_id}/backup", json={})
+        assert backup.status_code == 200, backup.text
+        backup_name = backup.json()["backup_name"]
+
+        # Add a later event so the restore must remove newer knowledge as well.
+        later_event = NarratorResponse(
+            narration="El protagonista presencia un segundo suceso después de la copia.",
+            events=[
+                EventProposal(
+                    ref="restore-knowledge-after-backup",
+                    kind="observation",
+                    description="Una lámpara se apaga después de la copia.",
+                    witness_ids=[protagonist_id, ivar_id]
+                )
+            ]
+        )
+        _, _, pending = _apply_synthetic_result(
+            session_id, "Observo cómo se apaga la lámpara.", later_event
+        )
+        assert not pending
+        with database.connection() as conn:
+            later_count = conn.execute(
+                "SELECT COUNT(*) FROM entity_knowledge WHERE session_id=?",
+                (session_id,)
+            ).fetchone()[0]
+        assert later_count > len(before_records)
+
+        restored = client.post(
+            f"/api/sessions/{session_id}/restore",
+            json={"backup_name": backup_name, "confirmation": "RESTAURAR"}
+        )
+        assert restored.status_code == 200, restored.text
+        assert restored.json()["restored_tables"]["entity_knowledge"] == len(before_records)
+
+        with database.connection() as conn:
+            after_records = [
+                dict(row) for row in conn.execute(
+                    "SELECT * FROM entity_knowledge WHERE session_id=? ORDER BY id",
+                    (session_id,)
+                ).fetchall()
+            ]
+            broken_sources = conn.execute(
+                "SELECT COUNT(*) FROM entity_knowledge k "
+                "LEFT JOIN entity_knowledge source ON source.id=k.source_knowledge_id "
+                "WHERE k.session_id=? AND k.source_knowledge_id IS NOT NULL "
+                "AND source.id IS NULL",
+                (session_id,)
+            ).fetchone()[0]
+            foreign_key_errors = conn.execute("PRAGMA foreign_key_check").fetchall()
+            restored_event = conn.execute(
+                "SELECT 1 FROM events WHERE session_id=? AND external_ref=? AND status='recorded'",
+                (session_id, "restore-knowledge-after-backup")
+            ).fetchone()
+            session = session_row(conn, session_id)
+            brina_context = build_context(
+                conn, session, "¿Qué sabe Brina?", brina_id,
+                "restore-knowledge-brina-context", visibility="scene"
+            )
+
+        assert after_records == before_records
+        assert broken_sources == 0
+        assert not foreign_key_errors
+        assert restored_event is None
+        assert any(
+            item["knower_entity_id"] == brina_id
+            and item["knowledge_kind"] == "rumor"
+            and item["epistemic_note"] == "Rumor no confirmado; no presentarlo como hecho."
+            for item in brina_context["known_information"]
+        )
+
+
+def test_restore_accepts_legacy_backup_without_entity_knowledge_table():
+    import sqlite3
+
+    with TestClient(app) as client:
+        started, entities = _create_state_ops_world(client)
+        session_id = started["session_id"]
+        protagonist_id = entities["Protagonista"]["id"]
+        maelis_id = entities["Maelis Orven"]["id"]
+
+        observation = NarratorResponse(
+            narration="El protagonista y Maelis observan una huella.",
+            events=[
+                EventProposal(
+                    ref="legacy-knowledge-observation",
+                    kind="observation",
+                    description="Una huella reciente aparece junto al arroyo.",
+                    witness_ids=[protagonist_id, maelis_id]
+                )
+            ]
+        )
+        _, _, pending = _apply_synthetic_result(
+            session_id, "Observo la huella con Maelis.", observation
+        )
+        assert not pending
+
+        backup = client.post(f"/api/sessions/{session_id}/backup", json={})
+        assert backup.status_code == 200, backup.text
+        backup_name = backup.json()["backup_name"]
+        backup_path = database.path.parent / "backups" / backup_name
+
+        # Simulate a backup produced before entity_knowledge was introduced.
+        with sqlite3.connect(backup_path) as conn:
+            conn.execute("PRAGMA foreign_keys=OFF")
+            conn.execute("DROP TABLE entity_knowledge")
+            conn.commit()
+            assert conn.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
+
+        # Mutate current knowledge so restore must rebuild it from the old event rows.
+        with database.transaction() as conn:
+            conn.execute(
+                "DELETE FROM entity_knowledge WHERE session_id=?",
+                (session_id,)
+            )
+
+        restored = client.post(
+            f"/api/sessions/{session_id}/restore",
+            json={"backup_name": backup_name, "confirmation": "RESTAURAR"}
+        )
+        assert restored.status_code == 200, restored.text
+        assert restored.json()["restored_tables"]["entity_knowledge"] == 2
+
+        with database.connection() as conn:
+            rows = conn.execute(
+                "SELECT knower_entity_id,knowledge_kind,about_event_id "
+                "FROM entity_knowledge WHERE session_id=?",
+                (session_id,)
+            ).fetchall()
+            event = conn.execute(
+                "SELECT id FROM events WHERE session_id=? AND external_ref=? AND status='recorded'",
+                (session_id, "legacy-knowledge-observation")
+            ).fetchone()
+
+        assert event is not None
+        assert {row["knower_entity_id"] for row in rows} == {protagonist_id, maelis_id}
+        assert all(row["knowledge_kind"] == "direct_observation" for row in rows)
+        assert all(row["about_event_id"] == event["id"] for row in rows)
