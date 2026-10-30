@@ -102,3 +102,26 @@ El usuario aprobó tres clases generales de conexiones:
 
 No todas las aldeas estarán conectadas directamente; algunas comunidades interiores podrán quedar aisladas temporalmente. La decisión no fija trazados, distancias, tiempos ni ubicaciones concretas.
 
+
+### Coherencia contextual, reputación y relaciones
+
+El usuario aprobó que el mundo no tenga respuestas universales ni conocimiento omnisciente. Los hechos, observaciones, recuerdos, rumores y conocimiento del protagonista deben permanecer separados. La fama depende de testigos, evidencias, atribución y canales reales de difusión; las relaciones son individuales y mantienen ejes independientes. Un uso privado de Psico-Eco puede modificar el estado interno del objetivo sin alterar automáticamente la fama pública. Un fallo provoca incomodidad o inquietud en el objetivo, sin crear por sí solo rumores externos.
+
+- [11 — Reputación, relaciones, conocimiento y consecuencias sociales](11_REPUTACION_RELACIONES_Y_CONOCIMIENTO.md)
+
+### Viajes, transporte y caravanas
+
+Se aprobaron los criterios generales de desplazamiento, orientación, fuentes de información sobre rutas, acontecimientos dinámicos, interrupciones, paso del tiempo, descanso, carga, transporte organizado, servicios, caravanas, autonomía de sus integrantes, vida social y liderazgo contextual.
+
+- [12 — Viajes, transporte y caravanas](12_VIAJES_TRANSPORTE_Y_CARAVANAS.md)
+
+### Regla de diseño: menos microencuestas, más coherencia contextual
+
+No se preguntará por cada procedimiento menor. Las reglas generales deben permitir resolver situaciones según gravedad, contexto, información disponible, personajes, cultura, recursos, organización y estado actual del mundo. Las encuestas quedan reservadas para decisiones que cambien sustancialmente el diseño o el canon.
+
+## Estado tras la actualización del 30-10-2026
+
+- Documentación ampliada y enlazada.
+- Modelo JSON actualizado a la versión 0.2.0 y parseado correctamente.
+- No es implementación ejecutable: aún faltan motor de simulación, persistencia SQLite específica del mundo, servicios, API, interfaz y pruebas de campaña.
+- La rama main permanece fuera del alcance de esta entrega.
