@@ -302,7 +302,18 @@ class Database:
             # Rebuild the legacy table whose UNIQUE(observer, modality) key silently
             # discarded a later recognition from the same observer.
             perception_indexes = conn.execute("PRAGMA index_list(event_perceptions)").fetchall()
-            if any(bool(row["unique"]) for row in perception_indexes):
+            legacy_perception_key = False
+            for index in perception_indexes:
+                if not bool(index["unique"]):
+                    continue
+                index_name = str(index["name"]).replace('"', '""')
+                indexed_columns = tuple(
+                    row["name"] for row in conn.execute(f'PRAGMA index_info("{index_name}")').fetchall()
+                )
+                if indexed_columns == ("session_id", "event_id", "observer_entity_id", "modality"):
+                    legacy_perception_key = True
+                    break
+            if legacy_perception_key:
                 conn.execute("ALTER TABLE event_perceptions RENAME TO event_perceptions_legacy")
                 conn.execute(
                     "CREATE TABLE event_perceptions ("
