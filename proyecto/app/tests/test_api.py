@@ -15,7 +15,7 @@ from fastapi.testclient import TestClient
 
 import canon_manager.main as main_module
 from canon_manager.main import app, database, build_context, session_row, apply_narrator_result, relevance_terms
-from canon_manager.models import NarratorResponse, EventProposal, StateChangeProposal, InventoryOperation, MovementProposal, PowerUseProposal, ResourceOperation
+from canon_manager.models import NarratorResponse, EventProposal, WitnessPerceptionProposal, EvidenceProposal, StateChangeProposal, InventoryOperation, MovementProposal, PowerUseProposal, ResourceOperation
 
 
 @pytest.fixture(autouse=True)
@@ -4898,3 +4898,220 @@ def test_restore_accepts_legacy_backup_without_entity_knowledge_table():
         assert {row["knower_entity_id"] for row in rows} == {protagonist_id, maelis_id}
         assert all(row["knowledge_kind"] == "direct_observation" for row in rows)
         assert all(row["about_event_id"] == event["id"] for row in rows)
+
+
+def test_witness_perceptions_and_evidence_are_individual_and_do_not_confirm_guilt():
+    with TestClient(app) as client:
+        started, entities = _create_state_ops_world(client)
+        session_id = started["session_id"]
+        protagonist_id = entities["Protagonista"]["id"]
+        maelis_id = entities["Maelis Orven"]["id"]
+        ivar_id = entities["Ivar Dalen"]["id"]
+
+        original = NarratorResponse(
+            narration="El protagonista y Maelis descubren que alguien entró en el almacén.",
+            events=[
+                EventProposal(
+                    ref="perception-original-event",
+                    kind="observation",
+                    description="La puerta del almacén aparece forzada.",
+                    witness_ids=[protagonist_id, maelis_id]
+                )
+            ]
+        )
+        original_turn, _, pending = _apply_synthetic_result(
+            session_id, "Observo la puerta con Maelis.", original
+        )
+        assert not pending
+        with database.connection() as conn:
+            original_event = conn.execute(
+                "SELECT id FROM events WHERE session_id=? AND turn_id=? AND external_ref=?",
+                (session_id, original_turn, "perception-original-event")
+            ).fetchone()
+        related_event_id = original_event["id"]
+
+        discovery = NarratorResponse(
+            narration="Maelis encuentra un cuchillo y describe a quien vio a distancia.",
+            events=[
+                EventProposal(
+                    ref="perception-discovery-event",
+                    kind="observation",
+                    description="Maelis encuentra un cuchillo con manchas oscuras junto a la puerta.",
+                    witness_ids=[maelis_id],
+                    perceptions=[
+                        WitnessPerceptionProposal(
+                            observer_entity_id=maelis_id,
+                            modality="visual",
+                            observed_details="Vio una figura con capa verde; no pudo distinguir el rostro.",
+                            identity_assessment="description_only"
+                        )
+                    ]
+                )
+            ],
+            evidence=[
+                EvidenceProposal(
+                    ref="evidence-knife-001",
+                    discovery_event_ref="perception-discovery-event",
+                    related_event_id=related_event_id,
+                    discoverer_entity_id=maelis_id,
+                    evidence_type="physical_trace",
+                    description="Cuchillo con manchas oscuras en la hoja.",
+                    location="Almacén",
+                    condition="intact"
+                )
+            ]
+        )
+        _, _, pending = _apply_synthetic_result(
+            session_id, "Maelis registra lo que encontró.", discovery
+        )
+        assert not pending
+
+        with database.connection() as conn:
+            saved_perception = conn.execute(
+                "SELECT * FROM event_perceptions WHERE session_id=?",
+                (session_id,)
+            ).fetchone()
+            saved_evidence = conn.execute(
+                "SELECT * FROM event_evidence WHERE session_id=?",
+                (session_id,)
+            ).fetchone()
+            session = session_row(conn, session_id)
+            maelis_context = build_context(
+                conn, session, "¿Qué percibiste?", maelis_id,
+                "perception-context-maelis", visibility="scene"
+            )
+            ivar_context = build_context(
+                conn, session, "¿Qué vio Maelis?", ivar_id,
+                "perception-context-ivar", visibility="scene"
+            )
+
+        assert saved_perception is not None
+        assert saved_perception["observer_entity_id"] == maelis_id
+        assert saved_perception["identity_assessment"] == "description_only"
+        assert saved_perception["claimed_entity_id"] is None
+        assert saved_evidence is not None
+        assert saved_evidence["discoverer_entity_id"] == maelis_id
+        assert saved_evidence["related_event_id"] == related_event_id
+        assert any(
+            item["observer_entity_id"] == maelis_id
+            and item["identity_assessment"] == "description_only"
+            and "no identifica" in item["epistemic_note"].lower()
+            for item in maelis_context["known_perceptions"]
+        )
+        assert any(
+            item["discoverer_entity_id"] == maelis_id
+            and "no confirma" in item["epistemic_note"].lower()
+            for item in maelis_context["known_evidence"]
+        )
+        assert not any(
+            item["observer_entity_id"] == maelis_id
+            for item in ivar_context["known_perceptions"]
+        )
+        assert not any(
+            item["discoverer_entity_id"] == maelis_id
+            for item in ivar_context["known_evidence"]
+        )
+
+        # Backups preserve both tables as well as the events they reference.
+        backup = client.post(f"/api/sessions/{session_id}/backup", json={})
+        assert backup.status_code == 200, backup.text
+        backup_name = backup.json()["backup_name"]
+        with database.connection() as conn:
+            before_perceptions = [
+                dict(row) for row in conn.execute(
+                    "SELECT * FROM event_perceptions WHERE session_id=? ORDER BY id",
+                    (session_id,)
+                ).fetchall()
+            ]
+            before_evidence = [
+                dict(row) for row in conn.execute(
+                    "SELECT * FROM event_evidence WHERE session_id=? ORDER BY id",
+                    (session_id,)
+                ).fetchall()
+            ]
+
+        later = NarratorResponse(
+            narration="Después se apaga una lámpara.",
+            events=[
+                EventProposal(
+                    ref="perception-later-event",
+                    kind="observation",
+                    description="Una lámpara se apaga.",
+                    witness_ids=[protagonist_id]
+                )
+            ]
+        )
+        _, _, pending = _apply_synthetic_result(
+            session_id, "Observo la lámpara.", later
+        )
+        assert not pending
+
+        restored = client.post(
+            f"/api/sessions/{session_id}/restore",
+            json={"backup_name": backup_name, "confirmation": "RESTAURAR"}
+        )
+        assert restored.status_code == 200, restored.text
+        assert restored.json()["restored_tables"]["event_perceptions"] == len(before_perceptions)
+        assert restored.json()["restored_tables"]["event_evidence"] == len(before_evidence)
+        with database.connection() as conn:
+            after_perceptions = [
+                dict(row) for row in conn.execute(
+                    "SELECT * FROM event_perceptions WHERE session_id=? ORDER BY id",
+                    (session_id,)
+                ).fetchall()
+            ]
+            after_evidence = [
+                dict(row) for row in conn.execute(
+                    "SELECT * FROM event_evidence WHERE session_id=? ORDER BY id",
+                    (session_id,)
+                ).fetchall()
+            ]
+            assert not conn.execute("PRAGMA foreign_key_check").fetchall()
+        assert after_perceptions == before_perceptions
+        assert after_evidence == before_evidence
+
+
+def test_invalid_witness_perception_is_not_recorded_as_a_fact():
+    with TestClient(app) as client:
+        started, entities = _create_state_ops_world(client)
+        session_id = started["session_id"]
+        protagonist_id = entities["Protagonista"]["id"]
+        maelis_id = entities["Maelis Orven"]["id"]
+        ivar_id = entities["Ivar Dalen"]["id"]
+
+        result = NarratorResponse(
+            narration="Se presenta una identificación que el testigo no pudo realizar.",
+            events=[
+                EventProposal(
+                    ref="invalid-perception-event",
+                    kind="observation",
+                    description="Una figura huye entre los árboles.",
+                    witness_ids=[protagonist_id, maelis_id],
+                    perceptions=[
+                        WitnessPerceptionProposal(
+                            observer_entity_id=ivar_id,
+                            modality="visual",
+                            observed_details="Ivar asegura haber visto al protagonista.",
+                            identity_assessment="recognized",
+                            claimed_entity_id=protagonist_id
+                        )
+                    ]
+                )
+            ]
+        )
+        turn_id, _, pending = _apply_synthetic_result(
+            session_id, "Registro un testimonio.", result
+        )
+        with database.connection() as conn:
+            event = conn.execute(
+                "SELECT status FROM events WHERE session_id=? AND turn_id=? AND external_ref=?",
+                (session_id, turn_id, "invalid-perception-event")
+            ).fetchone()
+            count = conn.execute(
+                "SELECT COUNT(*) FROM event_perceptions WHERE session_id=?",
+                (session_id,)
+            ).fetchone()[0]
+
+        assert event["status"] == "pending"
+        assert count == 0
+        assert any("requiere revisión" in note for note in pending)
