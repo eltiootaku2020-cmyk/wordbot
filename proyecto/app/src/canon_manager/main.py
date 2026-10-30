@@ -18,7 +18,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from .db import Database
+from .db import Database, backfill_entity_knowledge
 from .models import ApprovalRequest, ContextPreviewRequest, EntityCreate, LocalCommandRequest, LocalSettingsUpdate, ManualPromptRequest, NarratorResponse, SessionCreate, SessionRestoreRequest, TurnRequest, WorldCreate, WorldStartCreate
 from .providers import ProviderError, build_manual_prompt, make_provider
 
@@ -3309,9 +3309,12 @@ RESTORE_SESSION_TABLES = (
     "ability_uses",
     "messages",
     "events",
+    # Knowledge rows reference both event rows and other knowledge rows.
+    "entity_knowledge",
     "state_changes",
     "snapshots",
 )
+RESTORE_OPTIONAL_TABLES = {"entity_knowledge"}
 RESTORE_REQUIRED_COLUMNS = {
     "session_presence": {"session_id", "entity_id", "location", "presence_status"},
     "inventory_items": {"id", "session_id", "item_key", "display_name", "quantity", "condition", "carrier_entity_id", "location"},
@@ -3320,6 +3323,10 @@ RESTORE_REQUIRED_COLUMNS = {
     "ability_uses": {"id", "session_id", "turn_id", "ability_key", "target_entity_id", "result"},
     "messages": {"id", "session_id", "turn_id", "turn_index", "role", "recipient_entity_id", "content", "provider", "generation_status"},
     "events": {"id", "session_id", "turn_id", "external_ref", "kind", "entity_id", "description", "witnesses_json", "status"},
+    "entity_knowledge": {
+        "id", "session_id", "knower_entity_id", "knowledge_kind", "about_event_id",
+        "transmission_event_id", "source_entity_id", "source_knowledge_id", "content", "created_at"
+    },
     "state_changes": {"id", "session_id", "turn_id", "external_ref", "entity_id", "field", "operation", "proposed_value_json", "status", "reason"},
     "snapshots": {"id", "session_id", "event_sequence", "state_json"},
 }
@@ -3378,7 +3385,10 @@ def _read_session_backup(backup_path: Path, session_id: str):
                 "SELECT name FROM sqlite_master WHERE type='table'"
             ).fetchall()
         }
-        missing_tables = [table for table in RESTORE_SESSION_TABLES if table not in source_tables]
+        missing_tables = [
+            table for table in RESTORE_SESSION_TABLES
+            if table not in source_tables and table not in RESTORE_OPTIONAL_TABLES
+        ]
         if missing_tables:
             raise HTTPException(
                 status_code=422,
@@ -3387,6 +3397,11 @@ def _read_session_backup(backup_path: Path, session_id: str):
 
         table_rows = {}
         for table in RESTORE_SESSION_TABLES:
+            # Backups created before the knowledge feature remain restorable.
+            # Missing knowledge is rebuilt from recorded direct witnesses below.
+            if table not in source_tables:
+                table_rows[table] = []
+                continue
             columns = _table_columns(source, table)
             required_columns = RESTORE_REQUIRED_COLUMNS[table]
             # Older backups stored location but not the derived presence_status.
@@ -3478,6 +3493,7 @@ def restore_session_from_backup(session_id: str, backup_path: Path) -> dict[str,
         for table in RESTORE_SESSION_TABLES:
             conn.execute(f"DELETE FROM {table} WHERE session_id=?", (session_id,))
 
+        pending_knowledge_sources = []
         for table in RESTORE_SESSION_TABLES:
             rows = table_rows[table]
             if not rows:
@@ -3490,12 +3506,34 @@ def restore_session_from_backup(session_id: str, backup_path: Path) -> dict[str,
                         status_code=422,
                         detail=f"No se puede restaurar la estructura de {table}; la transacción fue cancelada."
                     )
+
+                insert_row = row
+                if table == "entity_knowledge" and row.get("source_knowledge_id"):
+                    # The source chain can point to rows inserted later in this
+                    # result set. Restore the self-reference after all rows exist.
+                    insert_row = dict(row)
+                    pending_knowledge_sources.append(
+                        (row["id"], row["source_knowledge_id"])
+                    )
+                    insert_row["source_knowledge_id"] = None
+
                 placeholders = ",".join("?" for _ in columns)
                 column_sql = ",".join(columns)
                 conn.execute(
                     f"INSERT INTO {table} ({column_sql}) VALUES ({placeholders})",
-                    tuple(row[column] for column in columns)
+                    tuple(insert_row[column] for column in columns)
                 )
+
+        for knowledge_id, source_knowledge_id in pending_knowledge_sources:
+            conn.execute(
+                "UPDATE entity_knowledge SET source_knowledge_id=? "
+                "WHERE id=? AND session_id=?",
+                (source_knowledge_id, knowledge_id, session_id)
+            )
+
+        # Older backups predate the table entirely. Reconstruct only direct
+        # observations; never promote a legacy rumor/testimony event to a fact.
+        backfill_entity_knowledge(conn, session_id)
 
     with database.connection() as conn:
         state = load_state(conn, session_id)
