@@ -168,3 +168,33 @@ Los eventos ordinarios registrados generan automáticamente conocimiento directo
 El registro se consulta solo para el protagonista y el destinatario activo, evitando que el conocimiento privado de un PNJ se filtre a otro por compartir ubicación. La tabla conserva auditoría, pero una entrada deja de estar activa si el evento de transmisión o el acontecimiento original fue anulado/rechazado.
 
 **Fuera del alcance actual:** propagación automática entre ciudades y facciones, reputación pública, clasificación de evidencias y atribución forense. La IA no puede inventar estos resultados por prompt.
+
+
+## Percepción individual y hallazgos de evidencia
+
+`EventProposal` puede incluir una lista opcional `perceptions`. Cada elemento contiene:
+
+- `observer_entity_id`: entidad que percibió el evento.
+- `modality`: `visual`, `auditory`, `olfactory`, `tactile`, `magical` u `other`.
+- `observed_details`: detalles limitados a lo realmente percibido.
+- `identity_assessment`: `unidentified`, `description_only`, `suspected` o `recognized`.
+- `claimed_entity_id`: obligatorio solo cuando el observador declara una sospecha o reconocimiento; debe ser una entidad válida del mundo.
+
+Validaciones obligatorias:
+1. El observador debe figurar en `witness_ids` del mismo evento y dentro de la audiencia/alcance privado autorizado.
+2. Una percepción de un observador no autorizado deja el evento pendiente; no se registra como hecho.
+3. `description_only` no admite `claimed_entity_id`; una descripción no debe convertirse en identidad por inferencia.
+4. `suspected` registra una sospecha del observador, no una identificación segura.
+5. `recognized` registra que el observador afirma reconocer a una persona; no confirma culpabilidad.
+6. Ningún valor de percepción equivale a una atribución confirmada de delito.
+
+`NarratorResponse` admite además `evidence`, con:
+- `ref`: referencia única de la propuesta.
+- `discovery_event_ref`: evento de esta respuesta que describe el hallazgo; debe ser de tipo `observation` u `object` y quedar registrado.
+- `discoverer_entity_id`: descubridor que debe figurar como testigo autorizado del evento de hallazgo.
+- `related_event_id`: opcional; solo se acepta si el descubridor conoce activamente el evento relacionado y su fuente no es únicamente un rumor.
+- `evidence_type`, `description`, `location` y `condition`: descripción y estado material de la pista.
+
+Las evidencias se guardan en `event_evidence`; las percepciones en `event_perceptions`. El contexto puede incluir `known_perceptions` y `known_evidence`, filtrados por registros de conocimiento activo del protagonista y del destinatario. El contexto oculta el vínculo con un evento relacionado cuando el participante no conoce ese evento.
+
+Una pista no prueba automáticamente identidad ni culpabilidad. No inventar análisis, huellas identificadas, resultados de laboratorio, cadena de custodia ni atribución confirmada; quedan fuera de esta etapa. Las dos tablas se incluyen en backup/restore; las copias antiguas que carecen de ellas se restauran sin fabricar esos datos.

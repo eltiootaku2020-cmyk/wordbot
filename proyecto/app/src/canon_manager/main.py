@@ -932,6 +932,117 @@ def build_context(
                 "created_at": row["created_at"]
             })
 
+    # Detailed perceptions are personal records. A model sees only perceptions
+    # belonging to the protagonist or the active recipient, and only when that
+    # entity has an active knowledge path to the event.
+    known_perceptions = []
+    known_evidence = []
+    if knowledge_ids:
+        placeholders = ",".join("?" for _ in knowledge_ids)
+        perception_rows = conn.execute(
+            "SELECT p.event_id,p.observer_entity_id,observer.name AS observer_name,"
+            "p.modality,p.observed_details,p.identity_assessment,p.claimed_entity_id,"
+            "claimed.name AS claimed_entity_name,k.knowledge_kind "
+            "FROM event_perceptions p "
+            "JOIN events perceived_event ON perceived_event.id=p.event_id "
+            "JOIN entities observer ON observer.id=p.observer_entity_id "
+            "LEFT JOIN entities claimed ON claimed.id=p.claimed_entity_id "
+            "JOIN entity_knowledge k ON k.session_id=p.session_id "
+            "AND k.knower_entity_id=p.observer_entity_id "
+            "AND (k.about_event_id=p.event_id OR k.transmission_event_id=p.event_id) "
+            "JOIN events about_event ON about_event.id=k.about_event_id "
+            "JOIN events transmission_event ON transmission_event.id=k.transmission_event_id "
+            "WHERE p.session_id=? AND p.observer_entity_id IN (" + placeholders + ") "
+            "AND perceived_event.status='recorded' "
+            "AND about_event.status='recorded' AND transmission_event.status='recorded' "
+            "ORDER BY p.created_at DESC,p.id DESC LIMIT 60",
+            [session["id"], *knowledge_ids]
+        ).fetchall()
+        for row in perception_rows:
+            assessment = row["identity_assessment"]
+            if assessment == "description_only":
+                note = "Descripción parcial; no identifica por sí sola a una persona."
+            elif assessment == "suspected":
+                note = "Sospecha individual del observador; no equivale a identificación ni culpabilidad."
+            elif assessment == "recognized":
+                note = "El observador afirma reconocer a esa persona; esto no demuestra que cometiera el hecho."
+            else:
+                note = "El observador no identificó a ninguna persona."
+            if row["knowledge_kind"] == "rumor":
+                note += " El observador recibió esta versión como rumor."
+            elif row["knowledge_kind"] == "testimony":
+                note += " El observador recibió esta información mediante testimonio."
+            known_perceptions.append({
+                "event_id": row["event_id"],
+                "observer_entity_id": row["observer_entity_id"],
+                "observer_name": row["observer_name"],
+                "modality": row["modality"],
+                "observed_details": row["observed_details"][:600],
+                "identity_assessment": assessment,
+                "claimed_entity_id": row["claimed_entity_id"] or "",
+                "claimed_entity_name": row["claimed_entity_name"] or "",
+                "knowledge_kind": row["knowledge_kind"],
+                "epistemic_note": note
+            })
+
+        evidence_rows = conn.execute(
+            "SELECT evidence.id,evidence.discovery_event_id,evidence.related_event_id,"
+            "evidence.discoverer_entity_id,discoverer.name AS discoverer_name,"
+            "evidence.evidence_type,evidence.description,evidence.location,evidence.condition,"
+            "k.knower_entity_id,k.knowledge_kind "
+            "FROM event_evidence evidence "
+            "JOIN events discovery ON discovery.id=evidence.discovery_event_id "
+            "JOIN entities discoverer ON discoverer.id=evidence.discoverer_entity_id "
+            "JOIN entity_knowledge k ON k.session_id=evidence.session_id "
+            "AND k.knower_entity_id IN (" + placeholders + ") "
+            "AND (k.about_event_id=evidence.discovery_event_id "
+            "OR k.transmission_event_id=evidence.discovery_event_id) "
+            "JOIN events about_event ON about_event.id=k.about_event_id "
+            "JOIN events transmission_event ON transmission_event.id=k.transmission_event_id "
+            "WHERE evidence.session_id=? AND discovery.status='recorded' "
+            "AND about_event.status='recorded' AND transmission_event.status='recorded' "
+            "AND k.knowledge_kind IN ('direct_observation','testimony') "
+            "ORDER BY evidence.created_at DESC,evidence.id DESC LIMIT 60",
+            [*knowledge_ids, session["id"]]
+        ).fetchall()
+        for row in evidence_rows:
+            related_event_id = row["related_event_id"] or ""
+            related_event_description = ""
+            if related_event_id:
+                related_knowledge = find_entity_knowledge_source(
+                    conn, session["id"], row["knower_entity_id"], related_event_id
+                )
+                if related_knowledge is not None and related_knowledge["knowledge_kind"] != "rumor":
+                    related_row = conn.execute(
+                        "SELECT description FROM events WHERE id=? AND session_id=? AND status='recorded'",
+                        (related_event_id, session["id"])
+                    ).fetchone()
+                    related_event_description = related_row["description"] if related_row else ""
+                else:
+                    related_event_id = ""
+            epistemic_note = (
+                "Pista registrada; no confirma por sí sola la identidad ni la culpabilidad."
+            )
+            if row["knowledge_kind"] == "testimony":
+                epistemic_note = (
+                    "Relato de una fuente sobre una pista; no equivale a inspección ni prueba concluyente."
+                )
+            known_evidence.append({
+                "evidence_id": row["id"],
+                "knower_entity_id": row["knower_entity_id"],
+                "discovery_event_id": row["discovery_event_id"],
+                "discoverer_entity_id": row["discoverer_entity_id"],
+                "discoverer_name": row["discoverer_name"],
+                "evidence_type": row["evidence_type"],
+                "description": row["description"][:1000],
+                "location": row["location"],
+                "condition": row["condition"],
+                "related_event_id": related_event_id,
+                "related_event_description": related_event_description[:1000],
+                "knowledge_kind": row["knowledge_kind"],
+                "epistemic_note": epistemic_note
+            })
+
     eco_uses = [dict(row) for row in conn.execute(
         "SELECT target_entity_id,COUNT(*) AS attempts FROM ability_uses "
         "WHERE session_id=? AND ability_key IN ('eco','eco_humano','hipnosis') "
@@ -962,6 +1073,8 @@ def build_context(
         "recent_messages": recent,
         "recent_events": recent_events,
         "known_information": known_information,
+        "known_perceptions": known_perceptions,
+        "known_evidence": known_evidence,
         "relevant_lore": lore
     }
     context_chars = len(json.dumps(context, ensure_ascii=False))
@@ -1076,6 +1189,87 @@ def record_event_knowledge(conn, session_id: str, event_id: str, event) -> int:
     return inserted
 
 
+def record_event_perceptions(conn, session_id: str, event_id: str, event) -> int:
+    """Persist only the perceptions of valid witnesses of a recorded event."""
+    stored = conn.execute(
+        "SELECT witnesses_json,status FROM events WHERE id=? AND session_id=?",
+        (event_id, session_id)
+    ).fetchone()
+    if stored is None or stored["status"] != "recorded":
+        return 0
+    try:
+        witnesses = set(json.loads(stored["witnesses_json"] or "[]"))
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return 0
+
+    inserted = 0
+    for perception in event.perceptions:
+        observer_id = perception.observer_entity_id
+        claimed_id = perception.claimed_entity_id or None
+        if observer_id not in witnesses:
+            continue
+        cursor = conn.execute(
+            "INSERT OR IGNORE INTO event_perceptions("
+            "id,session_id,event_id,observer_entity_id,modality,observed_details,"
+            "identity_assessment,claimed_entity_id"
+            ") VALUES(?,?,?,?,?,?,?,?)",
+            (
+                new_id(), session_id, event_id, observer_id, perception.modality,
+                perception.observed_details, perception.identity_assessment, claimed_id
+            )
+        )
+        inserted += max(0, cursor.rowcount)
+    return inserted
+
+
+def record_event_evidence(
+    conn, session_id: str, evidence, event_map: dict[str, dict[str, Any]],
+    valid_ids: set[str], allowed_witnesses: set[str] | None = None,
+    private_subject_ids: set[str] | None = None,
+) -> tuple[bool, str]:
+    """Persist a discovered clue without treating it as proof of culpability."""
+    discovery = event_map.get(evidence.discovery_event_ref)
+    if not discovery or discovery["status"] != "recorded":
+        return False, "el evento de descubrimiento no está registrado"
+    if discovery["kind"] not in {"observation", "object"}:
+        return False, "la evidencia debe proceder de un evento de observación o hallazgo"
+    discoverer_id = evidence.discoverer_entity_id
+    if discoverer_id not in valid_ids:
+        return False, "la entidad que descubre la evidencia no pertenece al mundo"
+    if discoverer_id not in discovery["witness_ids"]:
+        return False, "quien descubre la evidencia no figura entre los testigos del hallazgo"
+    if allowed_witnesses is not None and discoverer_id not in allowed_witnesses:
+        return False, "quien descubre la evidencia está fuera de la audiencia autorizada"
+    if private_subject_ids is not None and discoverer_id not in private_subject_ids:
+        return False, "quien descubre la evidencia está fuera del alcance privado"
+
+    related_event_id = evidence.related_event_id or None
+    if related_event_id:
+        related = conn.execute(
+            "SELECT id,status FROM events WHERE id=? AND session_id=?",
+            (related_event_id, session_id)
+        ).fetchone()
+        if related is None or related["status"] != "recorded":
+            return False, "el acontecimiento relacionado no está registrado en esta partida"
+        source_knowledge = find_entity_knowledge_source(
+            conn, session_id, discoverer_id, related_event_id
+        )
+        if source_knowledge is None or source_knowledge["knowledge_kind"] == "rumor":
+            return False, "quien descubre la evidencia no tiene conocimiento suficiente del acontecimiento relacionado"
+
+    conn.execute(
+        "INSERT INTO event_evidence("
+        "id,session_id,discovery_event_id,related_event_id,discoverer_entity_id,"
+        "evidence_type,description,location,condition"
+        ") VALUES(?,?,?,?,?,?,?,?,?)",
+        (
+            new_id(), session_id, discovery["id"], related_event_id, discoverer_id,
+            evidence.evidence_type, evidence.description, evidence.location, evidence.condition
+        )
+    )
+    return True, ""
+
+
 def write_event(
     conn,
     session_id: str,
@@ -1100,6 +1294,24 @@ def write_event(
         status = "pending"
     if private_subject_ids is not None and event.entity_id and event.entity_id not in private_subject_ids:
         status = "pending"
+
+    for perception in event.perceptions:
+        observer_id = perception.observer_entity_id
+        claimed_id = perception.claimed_entity_id
+        if (
+            observer_id not in valid_ids
+            or observer_id not in proposed_witnesses
+            or (allowed_witnesses is not None and observer_id not in allowed_witnesses)
+            or (private_subject_ids is not None and observer_id not in private_subject_ids)
+        ):
+            status = "pending"
+        if perception.identity_assessment in {"suspected", "recognized"}:
+            if not claimed_id or claimed_id not in valid_ids:
+                status = "pending"
+        elif claimed_id:
+            # A description or an unidentified observation cannot quietly name
+            # an entity; the identity claim must be explicit and auditable.
+            status = "pending"
 
     source_knowledge = None
     if report_event:
@@ -1276,7 +1488,7 @@ def apply_narrator_result(
     if authorized_skip:
         # A time skip is a direct user command, not permission to invent loot,
         # relationships, powers or NPC movements while the protagonist is absent.
-        side_effect_fields = ("events", "state_changes", "movements", "inventory_ops", "resource_ops", "power_uses")
+        side_effect_fields = ("events", "evidence", "state_changes", "movements", "inventory_ops", "resource_ops", "power_uses")
         ignored = sum(len(getattr(result, field)) for field in side_effect_fields)
         pending = list(result.pending)
         if ignored:
@@ -1286,7 +1498,7 @@ def apply_narrator_result(
             else:
                 pending.append(note)
         result = result.model_copy(update={
-            "events": [], "state_changes": [], "movements": [],
+            "events": [], "evidence": [], "state_changes": [], "movements": [],
             "inventory_ops": [], "resource_ops": [], "power_uses": [],
             "elapsed_minutes": int(authorized_skip["minutes"]),
             "pending": pending
@@ -1397,10 +1609,40 @@ def apply_narrator_result(
             )
         if status == "recorded":
             record_event_knowledge(conn, session["id"], event_id, event)
+            record_event_perceptions(conn, session["id"], event_id, event)
+        validated_witnesses = [
+            witness for witness in event.witness_ids
+            if witness in valid_ids
+            and (allowed_witnesses is None or witness in allowed_witnesses)
+        ]
         event_map[ref] = {
             "id": event_id, "status": status, "kind": event.kind,
-            "entity_id": event.entity_id, "description": event.description
+            "entity_id": event.entity_id, "description": event.description,
+            "witness_ids": validated_witnesses
         }
+
+    evidence_ref_counts: dict[str, int] = {}
+    for evidence in result.evidence:
+        evidence_ref_counts[evidence.ref] = evidence_ref_counts.get(evidence.ref, 0) + 1
+    seen_evidence_refs: set[str] = set()
+    for evidence in result.evidence:
+        if evidence.ref in seen_evidence_refs:
+            continue
+        seen_evidence_refs.add(evidence.ref)
+        if evidence_ref_counts[evidence.ref] > 1:
+            pending_notes.append(
+                f"Evidencia {evidence.ref} requiere revisión: referencia duplicada."
+            )
+            continue
+        accepted, reason = record_event_evidence(
+            conn, session["id"], evidence, event_map, valid_ids,
+            allowed_witnesses=allowed_witnesses,
+            private_subject_ids=private_subject_ids
+        )
+        if not accepted:
+            pending_notes.append(
+                f"Evidencia {evidence.ref} requiere revisión: {reason}."
+            )
 
     applied = []
     purchase_event_refs: set[str] = set()
@@ -3309,12 +3551,14 @@ RESTORE_SESSION_TABLES = (
     "ability_uses",
     "messages",
     "events",
-    # Knowledge rows reference both event rows and other knowledge rows.
+    # These records depend on events but do not authorize global disclosure.
     "entity_knowledge",
+    "event_perceptions",
+    "event_evidence",
     "state_changes",
     "snapshots",
 )
-RESTORE_OPTIONAL_TABLES = {"entity_knowledge"}
+RESTORE_OPTIONAL_TABLES = {"entity_knowledge", "event_perceptions", "event_evidence"}
 RESTORE_REQUIRED_COLUMNS = {
     "session_presence": {"session_id", "entity_id", "location", "presence_status"},
     "inventory_items": {"id", "session_id", "item_key", "display_name", "quantity", "condition", "carrier_entity_id", "location"},
@@ -3326,6 +3570,14 @@ RESTORE_REQUIRED_COLUMNS = {
     "entity_knowledge": {
         "id", "session_id", "knower_entity_id", "knowledge_kind", "about_event_id",
         "transmission_event_id", "source_entity_id", "source_knowledge_id", "content", "created_at"
+    },
+    "event_perceptions": {
+        "id", "session_id", "event_id", "observer_entity_id", "modality",
+        "observed_details", "identity_assessment", "claimed_entity_id", "created_at"
+    },
+    "event_evidence": {
+        "id", "session_id", "discovery_event_id", "related_event_id", "discoverer_entity_id",
+        "evidence_type", "description", "location", "condition", "created_at"
     },
     "state_changes": {"id", "session_id", "turn_id", "external_ref", "entity_id", "field", "operation", "proposed_value_json", "status", "reason"},
     "snapshots": {"id", "session_id", "event_sequence", "state_json"},

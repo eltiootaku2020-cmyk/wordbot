@@ -7,6 +7,14 @@ class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
 
+class WitnessPerceptionProposal(StrictModel):
+    observer_entity_id: str = Field(min_length=1, max_length=120)
+    modality: Literal["visual", "auditory", "olfactory", "tactile", "magical", "other"]
+    observed_details: str = Field(min_length=1, max_length=600)
+    identity_assessment: Literal["unidentified", "description_only", "suspected", "recognized"] = "unidentified"
+    claimed_entity_id: str = Field(default="", max_length=120)
+
+
 class EventProposal(StrictModel):
     ref: str = Field(min_length=1, max_length=40)
     kind: Literal["dialogue", "reaction", "observation", "testimony", "rumor", "location", "object", "resource", "power", "major_change", "other"]
@@ -15,6 +23,20 @@ class EventProposal(StrictModel):
     witness_ids: list[Annotated[str, Field(max_length=120)]] = Field(default_factory=list, max_length=30)
     source_entity_id: str = Field(default="", max_length=120)
     about_event_id: str = Field(default="", max_length=80)
+    perceptions: list[WitnessPerceptionProposal] = Field(default_factory=list, max_length=30)
+
+
+class EvidenceProposal(StrictModel):
+    ref: str = Field(min_length=1, max_length=40)
+    discovery_event_ref: str = Field(min_length=1, max_length=40)
+    related_event_id: str = Field(default="", max_length=80)
+    discoverer_entity_id: str = Field(min_length=1, max_length=120)
+    evidence_type: Literal["physical_trace", "object", "document", "biological_trace", "magical_trace", "other"]
+    description: str = Field(min_length=1, max_length=1000)
+    location: str = Field(default="", max_length=180)
+    condition: Literal["unknown", "intact", "damaged", "contaminated"] = "unknown"
+
+
 
 
 class StateChangeProposal(StrictModel):
@@ -80,6 +102,7 @@ PendingNote = Annotated[str, Field(min_length=1, max_length=500)]
 class NarratorResponse(StrictModel):
     narration: str = Field(min_length=1, max_length=12000)
     events: list[EventProposal] = Field(default_factory=list, max_length=30)
+    evidence: list[EvidenceProposal] = Field(default_factory=list, max_length=30)
     state_changes: list[StateChangeProposal] = Field(default_factory=list, max_length=40)
     elapsed_minutes: int = Field(default=1, ge=0, le=10080)
     movements: list[MovementProposal] = Field(default_factory=list, max_length=20)

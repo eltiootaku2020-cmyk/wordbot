@@ -70,6 +70,36 @@ CREATE INDEX IF NOT EXISTS idx_entity_knowledge_knower_time
   ON entity_knowledge(session_id,knower_entity_id,created_at);
 CREATE INDEX IF NOT EXISTS idx_entity_knowledge_source
   ON entity_knowledge(session_id,source_entity_id,about_event_id);
+CREATE TABLE IF NOT EXISTS event_perceptions (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  observer_entity_id TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  modality TEXT NOT NULL CHECK(modality IN ('visual','auditory','olfactory','tactile','magical','other')),
+  observed_details TEXT NOT NULL,
+  identity_assessment TEXT NOT NULL CHECK(identity_assessment IN ('unidentified','description_only','suspected','recognized')),
+  claimed_entity_id TEXT REFERENCES entities(id) ON DELETE SET NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(session_id,event_id,observer_entity_id,modality)
+);
+CREATE INDEX IF NOT EXISTS idx_event_perceptions_observer
+  ON event_perceptions(session_id,observer_entity_id,event_id);
+CREATE TABLE IF NOT EXISTS event_evidence (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  discovery_event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  related_event_id TEXT REFERENCES events(id) ON DELETE SET NULL,
+  discoverer_entity_id TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  evidence_type TEXT NOT NULL CHECK(evidence_type IN ('physical_trace','object','document','biological_trace','magical_trace','other')),
+  description TEXT NOT NULL,
+  location TEXT NOT NULL DEFAULT '',
+  condition TEXT NOT NULL CHECK(condition IN ('unknown','intact','damaged','contaminated')),
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE INDEX IF NOT EXISTS idx_event_evidence_discovery
+  ON event_evidence(session_id,discovery_event_id,discoverer_entity_id);
+CREATE INDEX IF NOT EXISTS idx_event_evidence_related
+  ON event_evidence(session_id,related_event_id);
 CREATE TABLE IF NOT EXISTS state_changes (
   id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   turn_id TEXT NOT NULL, external_ref TEXT NOT NULL, entity_id TEXT NOT NULL DEFAULT '',
