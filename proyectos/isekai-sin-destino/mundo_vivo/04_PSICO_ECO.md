@@ -174,3 +174,28 @@ Nunca convertir una intención en resultado. Si no se sabe, registrar `No regist
 - ¿Qué alcance tiene el modo biológico y qué riesgos son permanentes?
 
 No fijar valores numéricos ni respuestas hasta revisarlas con el usuario.
+
+
+## 8. Decisión aprobada: efectos privados y consecuencias sociales separadas
+
+La aplicación de Psico-Eco debe respetar la separación entre estado interno del objetivo, percepción de testigos, información difundida y fama pública.
+
+- Una intervención exitosa y privada puede modificar los ejes internos que realmente alcanzó (por ejemplo, cariño o atracción). Si nadie la presencia, no deja evidencia y el objetivo no la comunica, la fama pública del protagonista no cambia por ese uso.
+- El aumento de cariño no equivale automáticamente a confianza, lealtad, obediencia, consentimiento, recuerdos compartidos ni disposición a abandonar objetivos propios.
+- Un personaje puede experimentar afecto intenso y al mismo tiempo conservar desconfianza, miedo, sospecha, reservas o voluntad independiente.
+- Un intento fallido debe dejar incomodidad, inquietud o perturbación en el objetivo. La intensidad y la interpretación dependen de la resistencia, el modo, la personalidad y el contexto. El objetivo puede sentir que algo no encaja sin comprender qué ocurrió ni identificar al responsable.
+- La reacción interna del objetivo no se convierte automáticamente en fama, rumor o conocimiento de terceros. Para ello se necesita testigo, evidencia, comunicación o alguna vía plausible de descubrimiento.
+- Si alguien observa la intervención, solo conoce lo que pudo percibir. No obtiene automáticamente el modo, alcance ni intención exacta del uso.
+- Las contradicciones, recuerdos ajenos, pruebas externas y cambios de conducta pueden permitir detectar una alteración, pero no garantizan que se descubra.
+
+El registro de cada uso debe distinguir el efecto mental confirmado, reacción del objetivo, testigos, evidencia disponible, conocimiento de terceros y cambios sociales atribuidos.
+
+### Pruebas de aceptación
+
+1. Éxito privado que aumenta cariño: cambia el eje afectado del objetivo y no la fama pública sin testigos/evidencia/difusión.
+2. Éxito que aumenta cariño: no aumenta automáticamente confianza, obediencia ni lealtad.
+3. Fallo: registra incomodidad o inquietud del objetivo incluso si no identifica el origen.
+4. Fallo privado sin testigos: no genera por sí solo un rumor público.
+5. Intervención presenciada: la reacción de cada testigo depende de lo que realmente pudo observar.
+
+Estos puntos amplían la especificación; costes, duración, magnitudes y umbrales siguen pendientes y no se inventan aquí.
