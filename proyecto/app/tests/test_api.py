@@ -5643,6 +5643,53 @@ def test_suspicion_requires_evidence_candidate_to_match_attributed_entity():
         assert not any("Reputación local de" in item for item in applied)
 
 
+def test_pending_event_approval_fails_closed_without_a_verifiable_original_audience():
+    with TestClient(app) as client:
+        started, _ = _create_state_ops_world(client)
+        session_id = started["session_id"]
+        legacy_event_id = uuid.uuid4().hex
+        missing_audience_event_id = uuid.uuid4().hex
+        source_message_id = uuid.uuid4().hex
+        with database.transaction() as conn:
+            turn_index = int(conn.execute(
+                "SELECT COALESCE(MAX(turn_index),0)+1 AS n FROM messages WHERE session_id=?",
+                (session_id,)
+            ).fetchone()["n"])
+            conn.execute(
+                "INSERT INTO messages(id,session_id,turn_id,turn_index,role,content,provider,generation_status,metadata_json) "
+                "VALUES(?,?,?,?,?,?,?,?,?)",
+                (
+                    source_message_id, session_id, "legacy-source-turn", turn_index, "user",
+                    "Mensaje histórico sin audiencia", "mock", "complete", "{}"
+                )
+            )
+            conn.executemany(
+                "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,"
+                "witnesses_json,status,source_message_id) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                [
+                    (
+                        legacy_event_id, session_id, "legacy-turn", "legacy-pending",
+                        "major_change", "", "Evento sin mensaje fuente", "[]", "pending", ""
+                    ),
+                    (
+                        missing_audience_event_id, session_id, "missing-audience-turn", "missing-audience",
+                        "major_change", "", "Evento sin audiencia verificable", "[]", "pending", source_message_id
+                    )
+                ]
+            )
+
+        for event_id in (legacy_event_id, missing_audience_event_id):
+            response = client.post(
+                f"/api/sessions/{session_id}/events/{event_id}/approve", json={}
+            )
+            assert response.status_code == 422
+            with database.connection() as conn:
+                status = conn.execute(
+                    "SELECT status FROM events WHERE id=?", (event_id,)
+                ).fetchone()["status"]
+            assert status == "pending"
+
+
 def test_restore_preserves_entity_knowledge_and_rumor_source_chain():
     with TestClient(app) as client:
         started, entities = _create_state_ops_world(client)
