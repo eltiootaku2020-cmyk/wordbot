@@ -4649,9 +4649,20 @@ def test_rumor_requires_a_knowledgeable_source_and_never_becomes_confirmed_on_re
                 "SELECT knowledge_kind FROM entity_knowledge WHERE id=?",
                 (brina_record["source_knowledge_id"],)
             ).fetchone()
+            session = session_row(conn, session_id)
+            brina_context = build_context(
+                conn, session, "¿Qué sabe Brina?", brina_id,
+                "knowledge-context-brina", visibility="scene"
+            )
 
         assert rumor_status == "recorded"
         assert relay_status == "recorded"
         assert brina_record["knowledge_kind"] == "rumor"
         assert brina_record["source_entity_id"] == ivar_id
         assert source_chain["knowledge_kind"] == "rumor"
+        assert any(
+            item["knower_entity_id"] == brina_id
+            and item["knowledge_kind"] == "rumor"
+            and item["epistemic_note"] == "Rumor no confirmado; no presentarlo como hecho."
+            for item in brina_context["known_information"]
+        )
