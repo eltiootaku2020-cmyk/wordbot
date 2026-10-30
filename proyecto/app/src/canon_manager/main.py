@@ -19,7 +19,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .db import Database
-from .models import ApprovalRequest, ContextPreviewRequest, EntityCreate, LocalCommandRequest, LocalSettingsUpdate, ManualPromptRequest, NarratorResponse, SessionCreate, SessionRestoreRequest, TurnRequest, WorldCreate, WorldStartCreate, WorldTimelineEventCreate
+from .models import ApprovalRequest, ContextPreviewRequest, EntityCreate, LocalCommandRequest, LocalSettingsUpdate, ManualPromptRequest, NarratorResponse, SessionCreate, SessionRestoreRequest, TurnRequest, WorldCreate, WorldStartCreate, WorldTimelineEventCreate, WorldTimelineEventUpdate
 from .providers import ProviderError, build_manual_prompt, make_provider
 from .timeline import fire_due_world_events
 
@@ -2271,6 +2271,94 @@ def list_world_timeline_events(world_id: str):
             "canon_status,enabled FROM world_timeline_events WHERE world_id=? "
             "ORDER BY scheduled_day,scheduled_minute,title", (world_id,)
         ).fetchall()]
+
+
+@app.patch("/api/worlds/{world_id}/timeline/{event_id}")
+def update_world_timeline_event(
+    world_id: str, event_id: str, payload: WorldTimelineEventUpdate
+):
+    changes = payload.model_dump(exclude_unset=True)
+    if not changes or any(value is None for value in changes.values()):
+        raise HTTPException(status_code=422, detail="Indica al menos un campo válido para actualizar.")
+
+    with database.transaction() as conn:
+        event = conn.execute(
+            "SELECT * FROM world_timeline_events WHERE id=? AND world_id=?",
+            (event_id, world_id),
+        ).fetchone()
+        if event is None:
+            raise HTTPException(status_code=404, detail="Acontecimiento mundial no encontrado.")
+
+        already_fired = conn.execute(
+            "SELECT 1 FROM session_timeline_events WHERE world_event_id=? LIMIT 1",
+            (event_id,),
+        ).fetchone()
+        if already_fired:
+            raise HTTPException(
+                status_code=409,
+                detail=(
+                    "El acontecimiento ya ocurrió en al menos una partida. "
+                    "No se puede editar ni cancelar retroactivamente; crea otro suceso para una nueva versión."
+                ),
+            )
+
+        allowed_columns = {
+            "title", "description", "scheduled_day", "scheduled_minute", "location", "enabled"
+        }
+        if not set(changes).issubset(allowed_columns):
+            raise HTTPException(status_code=422, detail="Campo de actualización no permitido.")
+
+        assignments = ", ".join(f"{column}=?" for column in changes)
+        conn.execute(
+            f"UPDATE world_timeline_events SET {assignments} WHERE id=? AND world_id=?",
+            (*changes.values(), event_id, world_id),
+        )
+
+        updated = conn.execute(
+            "SELECT * FROM world_timeline_events WHERE id=? AND world_id=?",
+            (event_id, world_id),
+        ).fetchone()
+        caught_up = 0
+        if bool(updated["enabled"]):
+            sessions = conn.execute(
+                "SELECT id,day,minute_of_day FROM sessions WHERE world_id=?",
+                (world_id,),
+            ).fetchall()
+            for session_item in sessions:
+                current_total = (int(session_item["day"]) - 1) * 1440 + int(session_item["minute_of_day"])
+                caught_up += len(fire_due_world_events(
+                    conn, session_item["id"], current_total, current_total
+                ))
+        return {
+            "updated": True,
+            "event": dict(updated),
+            "sessions_caught_up": caught_up,
+        }
+
+
+@app.delete("/api/worlds/{world_id}/timeline/{event_id}")
+def delete_world_timeline_event(world_id: str, event_id: str):
+    with database.transaction() as conn:
+        event = conn.execute(
+            "SELECT id FROM world_timeline_events WHERE id=? AND world_id=?",
+            (event_id, world_id),
+        ).fetchone()
+        if event is None:
+            raise HTTPException(status_code=404, detail="Acontecimiento mundial no encontrado.")
+        already_fired = conn.execute(
+            "SELECT 1 FROM session_timeline_events WHERE world_event_id=? LIMIT 1",
+            (event_id,),
+        ).fetchone()
+        if already_fired:
+            raise HTTPException(
+                status_code=409,
+                detail="El acontecimiento ya ocurrió en al menos una partida; no se puede borrar del historial."
+            )
+        conn.execute(
+            "DELETE FROM world_timeline_events WHERE id=? AND world_id=?",
+            (event_id, world_id),
+        )
+    return {"deleted": True, "event_id": event_id}
 
 
 @app.get("/api/worlds/{world_id}/entities")
