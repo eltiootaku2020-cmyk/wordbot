@@ -189,3 +189,30 @@ Las conexiones del Bosque de las Bestias se organizarán en tres clases generale
 
 No todas las comunidades tendrán conexión directa. Una ruta debe tener estado real, condiciones de tránsito y estado de conocimiento del protagonista separados. Esta decisión no fija trazados ni ubicaciones concretas.
 
+
+
+## Decisión aprobada: coherencia contextual y ausencia de respuestas universales
+
+El mundo debe reaccionar a los hechos según su gravedad, contexto, conocimiento disponible, cultura, leyes, intereses, recursos y momento. No debe existir una respuesta automática idéntica para todas las ciudades, facciones, personajes o caravanas.
+
+- El hecho real, la percepción individual, el recuerdo, el rumor y el conocimiento del protagonista son capas distintas.
+- Un personaje no conoce hechos que no presenció, dedujo razonablemente o recibió por una fuente.
+- Una acción no altera fama o reputación pública si no existe testigo, evidencia descubierta o comunicación atribuible.
+- Una reacción puede ser distinta entre dos personajes que conocen partes diferentes del mismo acontecimiento.
+- Los NPC conservan objetivos, necesidades, personalidad, memoria, relaciones e intereses propios; no esperan instrucciones del protagonista ni le obedecen por ser protagonista.
+- Las consecuencias se producen también fuera de escena cuando existan causas y agentes que puedan producirlas, pero el protagonista solo conoce lo que descubre.
+- Las reacciones deben ser proporcionales y explicables. Un delito desconocido no provoca que los guardias traten al protagonista como criminal conocido; una acusación no equivale a culpabilidad confirmada.
+
+La especificación detallada de testigos, atribución, reputación, vínculos y Psico-Eco social está en [11 — Reputación, relaciones, conocimiento y consecuencias sociales](11_REPUTACION_RELACIONES_Y_CONOCIMIENTO.md).
+
+## Decisión aprobada: viajes y caravanas como sistemas vivos
+
+Los viajes consumen tiempo y recursos según distancia, terreno, clima, hora, estado del viajero, carga, método y acontecimientos. Los servicios, rutas y caravanas tienen disponibilidad y seguridad variables. Sus integrantes mantienen actividades, relaciones y objetivos propios; el protagonista puede participar, separarse o buscar un reencuentro, pero no obtiene autoridad automática ni convierte al grupo en un accesorio narrativo.
+
+Los detalles aprobados de orientación, rutas, desplazamiento, descanso, carga, transporte, caravanas, vida social y liderazgo están en [12 — Viajes, transporte y caravanas](12_VIAJES_TRANSPORTE_Y_CARAVANAS.md).
+
+## Regla de diseño aprobada: no fragmentar el mundo en microencuestas
+
+No preguntar al usuario por cada trámite, plazo, excepción o procedimiento administrativo menor. Las reglas generales aprobadas deben permitir que la situación se resuelva según gravedad, contexto, información, personas involucradas, cultura, organización y panorama actual.
+
+Las encuestas se reservan para decisiones que cambien de forma sustancial el diseño, el canon o el comportamiento general del mundo, especialmente cuando existan alternativas realmente incompatibles. «Sistema combinado» no debe convertirse en una respuesta mecánica: el objetivo es modelar variaciones contextuales justificadas, no mezclar opciones indiscriminadamente ni fijar un único procedimiento universal.
