@@ -886,6 +886,52 @@ def build_context(
     recent_events.reverse()
     selected_events_debug.reverse()
 
+    # Give the narrator only information explicitly recorded for the active
+    # participants. A rumor remains a rumor; its source event is not disclosed
+    # as a confirmed fact to someone who only heard the report.
+    # The active narrative context may include the protagonist and one addressed
+    # NPC, never every bystander in the scene. This prevents one NPC's private
+    # knowledge from leaking merely because another NPC shares the location.
+    knowledge_ids = [session["protagonist_entity_id"]]
+    if recipient_id and recipient_id != session["protagonist_entity_id"]:
+        knowledge_ids.append(recipient_id)
+    known_information = []
+    if knowledge_ids:
+        placeholders = ",".join("?" for _ in knowledge_ids)
+        knowledge_rows = conn.execute(
+            "SELECT k.knower_entity_id,knower.name AS knower_name,k.knowledge_kind,"
+            "k.about_event_id,k.transmission_event_id,k.source_entity_id,"
+            "source.name AS source_name,k.content,k.created_at "
+            "FROM entity_knowledge k "
+            "JOIN entities knower ON knower.id=k.knower_entity_id "
+            "JOIN events about_event ON about_event.id=k.about_event_id "
+            "JOIN events transmission_event ON transmission_event.id=k.transmission_event_id "
+            "LEFT JOIN entities source ON source.id=k.source_entity_id "
+            "WHERE k.session_id=? AND k.knower_entity_id IN (" + placeholders + ") "
+            "AND about_event.status='recorded' AND transmission_event.status='recorded' "
+            "ORDER BY k.created_at DESC,k.id DESC LIMIT 60",
+            [session["id"], *knowledge_ids]
+        ).fetchall()
+        for row in knowledge_rows:
+            if row["knowledge_kind"] == "rumor":
+                epistemic_note = "Rumor no confirmado; no presentarlo como hecho."
+            elif row["knowledge_kind"] == "testimony":
+                epistemic_note = "Testimonio de una fuente; no equivale por sí solo a prueba."
+            else:
+                epistemic_note = "Observación directa registrada; limitarse a lo que describe."
+            known_information.append({
+                "knower_entity_id": row["knower_entity_id"],
+                "knower_name": row["knower_name"],
+                "knowledge_kind": row["knowledge_kind"],
+                "about_event_id": row["about_event_id"],
+                "transmission_event_id": row["transmission_event_id"],
+                "source_entity_id": row["source_entity_id"],
+                "source_name": row["source_name"] or "",
+                "content": (row["content"] or "")[:MAX_EVENT_DESCRIPTION_CHARS],
+                "epistemic_note": epistemic_note,
+                "created_at": row["created_at"]
+            })
+
     eco_uses = [dict(row) for row in conn.execute(
         "SELECT target_entity_id,COUNT(*) AS attempts FROM ability_uses "
         "WHERE session_id=? AND ability_key IN ('eco','eco_humano','hipnosis') "
@@ -915,6 +961,7 @@ def build_context(
         "human_eco_attempts_by_target": eco_uses,
         "recent_messages": recent,
         "recent_events": recent_events,
+        "known_information": known_information,
         "relevant_lore": lore
     }
     context_chars = len(json.dumps(context, ensure_ascii=False))
@@ -932,6 +979,7 @@ def build_context(
         "excluded_events": excluded_events_debug,
         "recent_messages_selected": len(recent),
         "recent_events_selected": len(recent_events),
+        "known_information_selected": len(known_information),
         "messages_excluded_count": len(excluded_messages_debug),
         "events_excluded_count": len(excluded_events_debug),
         "messages_recovered_by_relevance": sum(1 for item in selected_messages_debug if "recuperado por relevancia" in item["reason"]),
@@ -955,6 +1003,79 @@ def build_context(
     return context
 
 
+def find_entity_knowledge_source(conn, session_id: str, source_entity_id: str, about_event_id: str):
+    """Return the strongest active knowledge record the source has about an event."""
+    return conn.execute(
+        "SELECT k.id,k.knowledge_kind FROM entity_knowledge k "
+        "JOIN events about_event ON about_event.id=k.about_event_id "
+        "JOIN events transmission_event ON transmission_event.id=k.transmission_event_id "
+        "WHERE k.session_id=? AND k.knower_entity_id=? AND k.about_event_id=? "
+        "AND about_event.status='recorded' AND transmission_event.status='recorded' "
+        "ORDER BY CASE k.knowledge_kind "
+        "WHEN 'direct_observation' THEN 0 WHEN 'testimony' THEN 1 ELSE 2 END, "
+        "k.created_at ASC,k.id ASC LIMIT 1",
+        (session_id, source_entity_id, about_event_id)
+    ).fetchone()
+
+
+def record_event_knowledge(conn, session_id: str, event_id: str, event) -> int:
+    """Persist what each validated witness learned, preserving rumor provenance."""
+    stored = conn.execute(
+        "SELECT witnesses_json,status FROM events WHERE id=? AND session_id=?",
+        (event_id, session_id)
+    ).fetchone()
+    if stored is None or stored["status"] != "recorded":
+        return 0
+    try:
+        witnesses = json.loads(stored["witnesses_json"] or "[]")
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return 0
+    if not isinstance(witnesses, list):
+        return 0
+
+    knowledge_kind = "direct_observation"
+    about_event_id = event_id
+    source_entity_id = None
+    source_knowledge_id = None
+    if event.kind in {"testimony", "rumor"}:
+        source_entity_id = event.source_entity_id
+        about_event_id = event.about_event_id
+        source = find_entity_knowledge_source(
+            conn, session_id, source_entity_id, about_event_id
+        )
+        if source is None:
+            # write_event should already have rejected this; fail closed if the
+            # record disappeared or changed before this derived write.
+            return 0
+        source_knowledge_id = source["id"]
+        knowledge_kind = (
+            "rumor"
+            if event.kind == "rumor" or source["knowledge_kind"] == "rumor"
+            else "testimony"
+        )
+
+    inserted = 0
+    for knower_id in witnesses:
+        if not isinstance(knower_id, str) or not knower_id:
+            continue
+        # The speaker already has the source knowledge record; only listeners
+        # receive a new testimony/rumor record from this transmission.
+        if source_entity_id and knower_id == source_entity_id:
+            continue
+        cursor = conn.execute(
+            "INSERT OR IGNORE INTO entity_knowledge("
+            "id,session_id,knower_entity_id,knowledge_kind,about_event_id,"
+            "transmission_event_id,source_entity_id,source_knowledge_id,content"
+            ") VALUES(?,?,?,?,?,?,?,?,?)",
+            (
+                new_id(), session_id, knower_id, knowledge_kind, about_event_id,
+                event_id, source_entity_id, source_knowledge_id, event.description
+            )
+        )
+        inserted += max(0, cursor.rowcount)
+    return inserted
+
+
 def write_event(
     conn,
     session_id: str,
@@ -968,6 +1089,7 @@ def write_event(
     event_id = new_id()
     status = "recorded"
     proposed_witnesses = [w for w in event.witness_ids if w]
+    report_event = event.kind in {"testimony", "rumor"}
     if event.kind == "major_change":
         status = "pending"
     if event.entity_id and event.entity_id not in valid_ids:
@@ -977,6 +1099,27 @@ def write_event(
     if allowed_witnesses is not None and any(witness not in allowed_witnesses for witness in proposed_witnesses):
         status = "pending"
     if private_subject_ids is not None and event.entity_id and event.entity_id not in private_subject_ids:
+        status = "pending"
+
+    source_knowledge = None
+    if report_event:
+        if (
+            not event.source_entity_id
+            or event.source_entity_id not in valid_ids
+            or not event.about_event_id
+            or event.source_entity_id not in proposed_witnesses
+        ):
+            status = "pending"
+        elif private_subject_ids is not None and event.source_entity_id not in private_subject_ids:
+            status = "pending"
+        else:
+            source_knowledge = find_entity_knowledge_source(
+                conn, session_id, event.source_entity_id, event.about_event_id
+            )
+            if source_knowledge is None:
+                status = "pending"
+    elif event.source_entity_id or event.about_event_id:
+        # Provenance fields are meaningful only for a testimony or rumor event.
         status = "pending"
 
     # Never store out-of-scope characters as witnesses, even if the model
@@ -992,7 +1135,6 @@ def write_event(
          event.description, json.dumps(witnesses, ensure_ascii=False), status, source_message_id)
     )
     return event.ref, event_id, status
-
 
 def save_change(conn, session_id, turn_id, ref, entity_id, field, operation,
                 old_value, proposed_value, accepted_value, status, reason, event_id=None):
@@ -1253,6 +1395,8 @@ def apply_narrator_result(
             pending_notes.append(
                 f"Evento {event.ref} requiere revisión: entidad o testigo fuera del alcance autorizado."
             )
+        if status == "recorded":
+            record_event_knowledge(conn, session["id"], event_id, event)
         event_map[ref] = {
             "id": event_id, "status": status, "kind": event.kind,
             "entity_id": event.entity_id, "description": event.description

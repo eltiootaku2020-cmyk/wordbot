@@ -140,3 +140,58 @@ def test_failed_backup_removes_temporary_archive(tmp_path: Path, monkeypatch):
 
     assert not target.exists()
     assert not target.with_name(target.name + ".tmp").exists()
+
+
+def test_database_backfills_recorded_event_knowledge_idempotently(tmp_path: Path):
+    db = Database(str(tmp_path / "knowledge-migration.sqlite3"))
+    db.initialize()
+
+    with db.transaction() as conn:
+        conn.execute(
+            "INSERT INTO worlds(id,name,canon_text) VALUES(?,?,?)",
+            ("knowledge-world", "Knowledge world", "")
+        )
+        conn.executemany(
+            "INSERT INTO entities(id,world_id,name,kind) VALUES(?,?,?,?)",
+            [
+                ("knowledge-hero", "knowledge-world", "Protagonista", "protagonist"),
+                ("knowledge-npc", "knowledge-world", "Maelis", "character")
+            ]
+        )
+        conn.execute(
+            "INSERT INTO sessions(id,world_id,name,current_location,protagonist_entity_id) "
+            "VALUES(?,?,?,?,?)",
+            ("knowledge-session", "knowledge-world", "Partida", "Claro", "knowledge-hero")
+        )
+        conn.execute(
+            "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,"
+            "witnesses_json,status,source_message_id) VALUES(?,?,?,?,?,?,?,?,?,?)",
+            (
+                "knowledge-event", "knowledge-session", "turn-old", "old-event",
+                "observation", "", "Una huella aparece en el barro.",
+                '["knowledge-hero","knowledge-npc"]', "recorded", ""
+            )
+        )
+
+    # The first startup after the schema update backfills historical witnesses.
+    db.initialize()
+    with db.connection() as conn:
+        rows = conn.execute(
+            "SELECT knower_entity_id,knowledge_kind,about_event_id,transmission_event_id "
+            "FROM entity_knowledge WHERE session_id='knowledge-session'"
+        ).fetchall()
+    assert {row["knower_entity_id"] for row in rows} == {
+        "knowledge-hero", "knowledge-npc"
+    }
+    assert all(row["knowledge_kind"] == "direct_observation" for row in rows)
+    assert all(row["about_event_id"] == "knowledge-event" for row in rows)
+    assert all(row["transmission_event_id"] == "knowledge-event" for row in rows)
+
+    # Re-running initialization must not duplicate historical knowledge.
+    db.initialize()
+    with db.connection() as conn:
+        count = conn.execute(
+            "SELECT COUNT(*) AS n FROM entity_knowledge "
+            "WHERE session_id='knowledge-session'"
+        ).fetchone()["n"]
+    assert count == 2
