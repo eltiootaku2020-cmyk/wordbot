@@ -121,6 +121,64 @@ CREATE INDEX IF NOT EXISTS idx_lore_world_priority ON lore_entries(world_id, pri
 """
 
 
+def backfill_entity_knowledge(conn, session_id: str | None = None) -> int:
+    """Rebuild missing direct-observation knowledge from recorded legacy events.
+
+    This is safe to run repeatedly: the unique key and INSERT OR IGNORE keep the
+    migration idempotent. Rumor/testimony events are deliberately excluded because
+    their claims must never be upgraded to direct observations.
+    """
+    query = (
+        "SELECT id,session_id,kind,witnesses_json,description,created_at "
+        "FROM events WHERE status='recorded'"
+    )
+    params: tuple[str, ...] = ()
+    if session_id is not None:
+        query += " AND session_id=?"
+        params = (session_id,)
+
+    inserted = 0
+    for event in conn.execute(query, params).fetchall():
+        if event["kind"] in {"testimony", "rumor"}:
+            continue
+        try:
+            witnesses = json.loads(event["witnesses_json"] or "[]")
+        except (TypeError, ValueError):
+            continue
+        if not isinstance(witnesses, list):
+            continue
+
+        session_world = conn.execute(
+            "SELECT world_id FROM sessions WHERE id=?",
+            (event["session_id"],)
+        ).fetchone()
+        if session_world is None:
+            continue
+
+        for knower_id in witnesses:
+            if not isinstance(knower_id, str) or not knower_id:
+                continue
+            known_entity = conn.execute(
+                "SELECT 1 FROM entities WHERE id=? AND world_id=?",
+                (knower_id, session_world["world_id"])
+            ).fetchone()
+            if known_entity is None:
+                continue
+            cursor = conn.execute(
+                "INSERT OR IGNORE INTO entity_knowledge("
+                "id,session_id,knower_entity_id,knowledge_kind,about_event_id,"
+                "transmission_event_id,source_entity_id,source_knowledge_id,content,created_at"
+                ") VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (
+                    uuid.uuid4().hex, event["session_id"], knower_id,
+                    "direct_observation", event["id"], event["id"], None, None,
+                    event["description"], event["created_at"]
+                )
+            )
+            inserted += max(0, cursor.rowcount)
+    return inserted
+
+
 class Database:
     def __init__(self, path: str):
         self.path = Path(path).expanduser()
@@ -149,49 +207,8 @@ class Database:
                 "ON snapshots(session_id,turn_id) WHERE turn_id<>''"
             )
 
-            # Backfill per-entity knowledge from previously recorded events.
-            # Stored witness lists were already restricted to the turn's authorized audience.
-            legacy_events = conn.execute(
-                "SELECT id,session_id,kind,witnesses_json,description,created_at "
-                "FROM events WHERE status='recorded'"
-            ).fetchall()
-            for event in legacy_events:
-                # A report event gives listeners testimony/rumor knowledge through
-                # its explicit provenance; do not also treat its claim as direct fact.
-                if event["kind"] in {"testimony", "rumor"}:
-                    continue
-                try:
-                    witnesses = json.loads(event["witnesses_json"] or "[]")
-                except (TypeError, ValueError, json.JSONDecodeError):
-                    continue
-                if not isinstance(witnesses, list):
-                    continue
-                session_world = conn.execute(
-                    "SELECT world_id FROM sessions WHERE id=?",
-                    (event["session_id"],)
-                ).fetchone()
-                if session_world is None:
-                    continue
-                for knower_id in witnesses:
-                    if not isinstance(knower_id, str) or not knower_id:
-                        continue
-                    known_entity = conn.execute(
-                        "SELECT 1 FROM entities WHERE id=? AND world_id=?",
-                        (knower_id, session_world["world_id"])
-                    ).fetchone()
-                    if known_entity is None:
-                        continue
-                    conn.execute(
-                        "INSERT OR IGNORE INTO entity_knowledge("
-                        "id,session_id,knower_entity_id,knowledge_kind,about_event_id,"
-                        "transmission_event_id,source_entity_id,source_knowledge_id,content,created_at"
-                        ") VALUES(?,?,?,?,?,?,?,?,?,?)",
-                        (
-                            uuid.uuid4().hex, event["session_id"], knower_id,
-                            "direct_observation", event["id"], event["id"], None, None,
-                            event["description"], event["created_at"]
-                        )
-                    )
+            # Backfill direct observations for databases created before per-entity knowledge.
+            backfill_entity_knowledge(conn)
 
             # Older local databases may predate presence_status/updated_at. Add
             # these columns in place so the existing session and its cast survive.
