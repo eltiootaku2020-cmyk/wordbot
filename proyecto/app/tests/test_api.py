@@ -4713,6 +4713,14 @@ def test_world_timeline_api_requires_approval_catches_up_and_restores_per_sessio
         assert len(first_runs) == 1
         assert record["consequences"]["roads_blocked"] == ["Paso occidental"]
 
+        first_state = client.get(f"/api/sessions/{first_session_id}/state")
+        assert first_state.status_code == 200, first_state.text
+        assert any(
+            item["stable_key"] == "eruption-01"
+            and item["record"]["consequences"]["ashfall"] is True
+            for item in first_state.json()["world_timeline"]
+        )
+
         second_session = client.post(
             f"/api/worlds/{world_id}/sessions",
             json={
