@@ -3864,8 +3864,21 @@ def restore_session_from_backup(session_id: str, backup_path: Path) -> dict[str,
                     tuple(row[column] for column in columns)
                 )
 
+        # World definitions are shared across sessions and are deliberately not
+        # rolled back by a per-session backup. Reconcile any approved event that
+        # became due after the backup was taken.
+        fire_due_events(
+            conn, session_id,
+            int(backup_session["day"]), int(backup_session["minute_of_day"]),
+            fired_turn_id=f"system:timeline-restore:{session_id}"
+        )
+
     with database.connection() as conn:
         state = load_state(conn, session_id)
+        restored_counts["session_timeline_runs"] = conn.execute(
+            "SELECT COUNT(*) FROM session_timeline_runs WHERE session_id=?",
+            (session_id,)
+        ).fetchone()[0]
     return {"restored_tables": restored_counts, "state": state}
 
 
