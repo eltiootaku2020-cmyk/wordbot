@@ -9,10 +9,12 @@ class StrictModel(BaseModel):
 
 class EventProposal(StrictModel):
     ref: str = Field(min_length=1, max_length=40)
-    kind: Literal["dialogue", "reaction", "observation", "rumor", "location", "object", "resource", "power", "major_change", "other"]
+    kind: Literal["dialogue", "reaction", "observation", "testimony", "rumor", "location", "object", "resource", "power", "major_change", "other"]
     entity_id: str = Field(default="", max_length=120)
     description: str = Field(min_length=1, max_length=1000)
     witness_ids: list[Annotated[str, Field(max_length=120)]] = Field(default_factory=list, max_length=30)
+    source_entity_id: str = Field(default="", max_length=120)
+    about_event_id: str = Field(default="", max_length=80)
 
 
 class StateChangeProposal(StrictModel):
