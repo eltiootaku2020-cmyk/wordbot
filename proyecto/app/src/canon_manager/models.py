@@ -1,4 +1,4 @@
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -87,6 +87,35 @@ class NarratorResponse(StrictModel):
     resource_ops: list[ResourceOperation] = Field(default_factory=list, max_length=30)
     power_uses: list[PowerUseProposal] = Field(default_factory=list, max_length=20)
     pending: list[PendingNote] = Field(default_factory=list, max_length=30)
+
+
+class WorldTimelineEventCreate(StrictModel):
+    stable_key: str = Field(min_length=1, max_length=120)
+    title: str = Field(min_length=1, max_length=160)
+    description: str = Field(min_length=1, max_length=2000)
+    activation_type: Literal["fixed_time", "condition"] = "fixed_time"
+    scheduled_day: int | None = Field(default=None, ge=1)
+    scheduled_minute: int | None = Field(default=None, ge=0, le=1439)
+    condition: dict[str, Any] = Field(default_factory=dict)
+    scope_type: Literal["world", "location"] = "world"
+    location: str = Field(default="", max_length=180)
+    consequences: dict[str, Any] = Field(default_factory=dict)
+
+
+class WorldTimelineEventUpdate(StrictModel):
+    title: str | None = Field(default=None, min_length=1, max_length=160)
+    description: str | None = Field(default=None, min_length=1, max_length=2000)
+    activation_type: Literal["fixed_time", "condition"] | None = None
+    scheduled_day: int | None = Field(default=None, ge=1)
+    scheduled_minute: int | None = Field(default=None, ge=0, le=1439)
+    condition: dict[str, Any] | None = None
+    scope_type: Literal["world", "location"] | None = None
+    location: str | None = Field(default=None, max_length=180)
+    consequences: dict[str, Any] | None = None
+
+
+class WorldTimelineEventReview(StrictModel):
+    approval_status: Literal["approved", "rejected"]
 
 
 class WorldCreate(StrictModel):

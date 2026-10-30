@@ -53,6 +53,48 @@ CREATE TABLE IF NOT EXISTS events (
   source_message_id TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(session_id, turn_id, external_ref)
 );
+
+CREATE TABLE IF NOT EXISTS world_timeline_events (
+  id TEXT PRIMARY KEY,
+  world_id TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  stable_key TEXT NOT NULL,
+  title TEXT NOT NULL,
+  description TEXT NOT NULL,
+  activation_type TEXT NOT NULL CHECK(activation_type IN ('fixed_time','condition')),
+  scheduled_day INTEGER CHECK(scheduled_day IS NULL OR scheduled_day >= 1),
+  scheduled_minute INTEGER CHECK(scheduled_minute IS NULL OR scheduled_minute BETWEEN 0 AND 1439),
+  condition_json TEXT NOT NULL DEFAULT '{}',
+  scope_type TEXT NOT NULL DEFAULT 'world' CHECK(scope_type IN ('world','location')),
+  location TEXT NOT NULL DEFAULT '',
+  consequences_json TEXT NOT NULL DEFAULT '{}',
+  approval_status TEXT NOT NULL DEFAULT 'pending' CHECK(approval_status IN ('pending','approved','rejected')),
+  lifecycle_status TEXT NOT NULL DEFAULT 'active' CHECK(lifecycle_status IN ('active','cancelled','superseded')),
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(world_id, stable_key),
+  CHECK(
+    (activation_type='fixed_time' AND scheduled_day IS NOT NULL AND scheduled_minute IS NOT NULL)
+    OR
+    (activation_type='condition' AND scheduled_day IS NULL AND scheduled_minute IS NULL)
+  )
+);
+CREATE TABLE IF NOT EXISTS session_timeline_runs (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  scheduled_event_id TEXT NOT NULL REFERENCES world_timeline_events(id) ON DELETE CASCADE,
+  fired_turn_id TEXT NOT NULL,
+  due_day INTEGER NOT NULL,
+  due_minute INTEGER NOT NULL,
+  reached_day INTEGER NOT NULL,
+  reached_minute INTEGER NOT NULL,
+  record_json TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(session_id, scheduled_event_id)
+);
+CREATE INDEX IF NOT EXISTS idx_timeline_world_due
+  ON world_timeline_events(world_id, lifecycle_status, approval_status, scheduled_day, scheduled_minute);
+CREATE INDEX IF NOT EXISTS idx_timeline_runs_session
+  ON session_timeline_runs(session_id, reached_day, reached_minute);
+
 CREATE TABLE IF NOT EXISTS state_changes (
   id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   turn_id TEXT NOT NULL, external_ref TEXT NOT NULL, entity_id TEXT NOT NULL DEFAULT '',
