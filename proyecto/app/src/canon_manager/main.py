@@ -3534,6 +3534,10 @@ def restore_session_from_backup(session_id: str, backup_path: Path) -> dict[str,
         # Older backups predate the table entirely. Reconstruct only direct
         # observations; never promote a legacy rumor/testimony event to a fact.
         backfill_entity_knowledge(conn, session_id)
+        restored_counts["entity_knowledge"] = conn.execute(
+            "SELECT COUNT(*) FROM entity_knowledge WHERE session_id=?",
+            (session_id,)
+        ).fetchone()[0]
 
     with database.connection() as conn:
         state = load_state(conn, session_id)
