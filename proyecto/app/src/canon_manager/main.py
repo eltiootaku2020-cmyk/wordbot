@@ -936,6 +936,58 @@ def build_context(
                 "created_at": row["created_at"]
             })
 
+    # A perception is personal testimony by an observer, not a world-wide truth.
+    # Only expose records belonging to the protagonist or active recipient and
+    # only when that observer has a recorded knowledge path to the event.
+    known_perceptions = []
+    if knowledge_ids:
+        placeholders = ",".join("?" for _ in knowledge_ids)
+        perception_rows = conn.execute(
+            "SELECT p.event_id,p.observer_entity_id,observer.name AS observer_name,"
+            "p.modality,p.observed_details,p.identity_assessment,p.claimed_entity_id,"
+            "claimed.name AS claimed_entity_name,k.knowledge_kind "
+            "FROM event_perceptions p "
+            "JOIN events perceived_event ON perceived_event.id=p.event_id "
+            "JOIN entities observer ON observer.id=p.observer_entity_id "
+            "LEFT JOIN entities claimed ON claimed.id=p.claimed_entity_id "
+            "JOIN entity_knowledge k ON k.session_id=p.session_id "
+            "AND k.knower_entity_id=p.observer_entity_id "
+            "AND (k.about_event_id=p.event_id OR k.transmission_event_id=p.event_id) "
+            "JOIN events about_event ON about_event.id=k.about_event_id "
+            "JOIN events transmission_event ON transmission_event.id=k.transmission_event_id "
+            "WHERE p.session_id=? AND p.observer_entity_id IN (" + placeholders + ") "
+            "AND perceived_event.status='recorded' "
+            "AND about_event.status='recorded' AND transmission_event.status='recorded' "
+            "ORDER BY p.created_at DESC,p.id DESC LIMIT 60",
+            [session["id"], *knowledge_ids]
+        ).fetchall()
+        for row in perception_rows:
+            assessment = row["identity_assessment"]
+            if assessment == "description_only":
+                note = "Descripción parcial; no identifica por sí sola a una persona."
+            elif assessment == "suspected":
+                note = "Sospecha individual del observador; no equivale a identificación ni culpabilidad."
+            elif assessment == "recognized":
+                note = "El observador afirma reconocer a esa persona; esto no demuestra que cometiera el hecho."
+            else:
+                note = "El observador no identificó a ninguna persona."
+            if row["knowledge_kind"] == "rumor":
+                note += " El observador recibió esta versión como rumor."
+            elif row["knowledge_kind"] == "testimony":
+                note += " El observador recibió esta información mediante testimonio."
+            known_perceptions.append({
+                "event_id": row["event_id"],
+                "observer_entity_id": row["observer_entity_id"],
+                "observer_name": row["observer_name"],
+                "modality": row["modality"],
+                "observed_details": (row["observed_details"] or "")[:600],
+                "identity_assessment": assessment,
+                "claimed_entity_id": row["claimed_entity_id"] or "",
+                "claimed_entity_name": row["claimed_entity_name"] or "",
+                "knowledge_kind": row["knowledge_kind"],
+                "epistemic_note": note
+            })
+
     reputation_ids = sorted(participant_ids | {session["protagonist_entity_id"]})
     reputation_placeholders = ",".join("?" for _ in reputation_ids) or "?"
     local_reputation = [dict(row) for row in conn.execute(
@@ -977,6 +1029,7 @@ def build_context(
         "recent_messages": recent,
         "recent_events": recent_events,
         "known_information": known_information,
+        "known_perceptions": known_perceptions,
         "local_reputation": local_reputation,
         "relevant_lore": lore
     }
@@ -996,6 +1049,7 @@ def build_context(
         "recent_messages_selected": len(recent),
         "recent_events_selected": len(recent_events),
         "known_information_selected": len(known_information),
+        "known_perceptions_selected": len(known_perceptions),
         "messages_excluded_count": len(excluded_messages_debug),
         "events_excluded_count": len(excluded_events_debug),
         "messages_recovered_by_relevance": sum(1 for item in selected_messages_debug if "recuperado por relevancia" in item["reason"]),
@@ -1117,6 +1171,23 @@ def write_event(
     if private_subject_ids is not None and event.entity_id and event.entity_id not in private_subject_ids:
         status = "pending"
 
+    for perception in event.perceptions:
+        observer_id = perception.observer_entity_id
+        claimed_id = perception.claimed_entity_id
+        if (
+            observer_id not in valid_ids
+            or observer_id not in proposed_witnesses
+            or (allowed_witnesses is not None and observer_id not in allowed_witnesses)
+            or (private_subject_ids is not None and observer_id not in private_subject_ids)
+        ):
+            status = "pending"
+        if perception.identity_assessment in {"suspected", "recognized"}:
+            if not claimed_id or claimed_id not in valid_ids:
+                status = "pending"
+        elif claimed_id:
+            # Descriptions and unidentified observations cannot quietly name an entity.
+            status = "pending"
+
     source_knowledge = None
     if report_event:
         if (
@@ -1151,6 +1222,39 @@ def write_event(
          event.description, json.dumps(witnesses, ensure_ascii=False), status, source_message_id)
     )
     return event.ref, event_id, status
+
+
+def record_event_perceptions(conn, session_id: str, event_id: str, event) -> int:
+    """Persist only perceptions belonging to valid witnesses of a recorded event."""
+    stored = conn.execute(
+        "SELECT witnesses_json,status FROM events WHERE id=? AND session_id=?",
+        (event_id, session_id)
+    ).fetchone()
+    if stored is None or stored["status"] != "recorded":
+        return 0
+    try:
+        witnesses = set(json.loads(stored["witnesses_json"] or "[]"))
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return 0
+
+    inserted = 0
+    for perception in event.perceptions:
+        observer_id = perception.observer_entity_id
+        claimed_id = perception.claimed_entity_id or None
+        if observer_id not in witnesses:
+            continue
+        cursor = conn.execute(
+            "INSERT OR IGNORE INTO event_perceptions("
+            "id,session_id,event_id,observer_entity_id,modality,observed_details,"
+            "identity_assessment,claimed_entity_id"
+            ") VALUES(?,?,?,?,?,?,?,?)",
+            (
+                new_id(), session_id, event_id, observer_id, perception.modality,
+                perception.observed_details, perception.identity_assessment, claimed_id
+            )
+        )
+        inserted += max(0, cursor.rowcount)
+    return inserted
 
 
 def persist_evidence_proposals(conn, session_id, result, event_map, valid_ids, pending_notes):
@@ -1243,6 +1347,7 @@ def persist_evidence_proposals(conn, session_id, result, event_map, valid_ids, p
             pending_notes.append(f"Evidencia {item.ref} requiere revisión: {reason}")
         evidence_map[item.ref] = {
             "id": evidence_id, "status": status, "about_event_id": item.about_event_id,
+            "evidence_event_id": source_row["id"] if source_row else "",
             "discovered_by_entity_id": item.discovered_by_entity_id,
             "evidence_kind": item.evidence_kind, "effect": item.effect,
             "source_knowledge_kind": knowledge_kind, "reason": reason
@@ -1285,15 +1390,29 @@ def persist_event_attributions(conn, session_id, turn_id, result, evidence_map, 
             elif not any(entry["effect"] == "supports" for entry in selected):
                 status, reason = "pending", "La sospecha necesita al menos un indicio que apoye esa hipótesis."
         elif item.attribution_level == "identified":
-            independent_observers = {
-                entry["discovered_by_entity_id"] for entry in selected
-                if entry["effect"] == "supports"
-                and entry["source_knowledge_kind"] == "direct_observation"
-            }
+            independent_observers = set()
+            for entry in selected:
+                if (
+                    entry["effect"] != "supports"
+                    or entry["source_knowledge_kind"] != "direct_observation"
+                    or not entry.get("evidence_event_id")
+                ):
+                    continue
+                recognized = conn.execute(
+                    "SELECT 1 FROM event_perceptions WHERE session_id=? AND event_id=? "
+                    "AND observer_entity_id=? AND identity_assessment='recognized' "
+                    "AND claimed_entity_id=? LIMIT 1",
+                    (
+                        session_id, entry["evidence_event_id"],
+                        entry["discovered_by_entity_id"], item.subject_entity_id
+                    )
+                ).fetchone()
+                if recognized:
+                    independent_observers.add(entry["discovered_by_entity_id"])
             if item.subject_entity_id not in valid_ids:
                 status, reason = "pending", "La persona identificada no pertenece a este mundo."
             elif len(independent_observers) < 2:
-                status, reason = "pending", "La identificación requiere dos observadores independientes con conocimiento directo registrado."
+                status, reason = "pending", "La identificación requiere dos observadores independientes que hayan reconocido explícitamente a esa misma persona durante observaciones directas registradas."
         elif item.attribution_level == "confirmed":
             status, reason = "pending", "La culpabilidad confirmada requiere revisión explícita; el narrador no puede confirmarla por sí solo."
 
@@ -1683,6 +1802,7 @@ def apply_narrator_result(
             )
         if status == "recorded":
             record_event_knowledge(conn, session["id"], event_id, event)
+            record_event_perceptions(conn, session["id"], event_id, event)
         event_map[ref] = {
             "id": event_id, "status": status, "kind": event.kind,
             "entity_id": event.entity_id, "description": event.description,
@@ -3639,9 +3759,19 @@ RESTORE_SESSION_TABLES = (
     "ability_uses",
     "messages",
     "events",
+    "entity_knowledge",
+    "event_perceptions",
+    "event_evidence",
+    "event_attributions",
+    "local_reputation",
+    "local_reputation_history",
     "state_changes",
     "snapshots",
 )
+RESTORE_OPTIONAL_TABLES = {
+    "entity_knowledge", "event_perceptions", "event_evidence",
+    "event_attributions", "local_reputation", "local_reputation_history"
+}
 RESTORE_REQUIRED_COLUMNS = {
     "session_presence": {"session_id", "entity_id", "location", "presence_status"},
     "inventory_items": {"id", "session_id", "item_key", "display_name", "quantity", "condition", "carrier_entity_id", "location"},
@@ -3650,6 +3780,32 @@ RESTORE_REQUIRED_COLUMNS = {
     "ability_uses": {"id", "session_id", "turn_id", "ability_key", "target_entity_id", "result"},
     "messages": {"id", "session_id", "turn_id", "turn_index", "role", "recipient_entity_id", "content", "provider", "generation_status"},
     "events": {"id", "session_id", "turn_id", "external_ref", "kind", "entity_id", "description", "witnesses_json", "status"},
+    "entity_knowledge": {
+        "id", "session_id", "knower_entity_id", "knowledge_kind", "about_event_id",
+        "transmission_event_id", "source_entity_id", "source_knowledge_id", "content", "created_at"
+    },
+    "event_perceptions": {
+        "id", "session_id", "event_id", "observer_entity_id", "modality",
+        "observed_details", "identity_assessment", "claimed_entity_id", "created_at"
+    },
+    "event_evidence": {
+        "id", "session_id", "about_event_id", "evidence_event_id", "discovered_by_entity_id",
+        "evidence_kind", "effect", "source_knowledge_id", "source_knowledge_kind",
+        "description", "status", "reason", "created_at"
+    },
+    "event_attributions": {
+        "id", "session_id", "turn_id", "external_ref", "about_event_id", "subject_entity_id",
+        "attribution_level", "description", "evidence_ids_json", "status", "reason", "created_at"
+    },
+    "local_reputation": {
+        "session_id", "entity_id", "location_key", "location_label", "value",
+        "last_attribution_id", "last_awareness_event_id", "updated_at"
+    },
+    "local_reputation_history": {
+        "id", "session_id", "turn_id", "external_ref", "entity_id", "location_key",
+        "location_label", "delta", "old_value", "new_value", "attribution_id",
+        "awareness_event_id", "reason", "status", "created_at"
+    },
     "state_changes": {"id", "session_id", "turn_id", "external_ref", "entity_id", "field", "operation", "proposed_value_json", "status", "reason"},
     "snapshots": {"id", "session_id", "event_sequence", "state_json"},
 }
@@ -3708,7 +3864,10 @@ def _read_session_backup(backup_path: Path, session_id: str):
                 "SELECT name FROM sqlite_master WHERE type='table'"
             ).fetchall()
         }
-        missing_tables = [table for table in RESTORE_SESSION_TABLES if table not in source_tables]
+        missing_tables = [
+            table for table in RESTORE_SESSION_TABLES
+            if table not in source_tables and table not in RESTORE_OPTIONAL_TABLES
+        ]
         if missing_tables:
             raise HTTPException(
                 status_code=422,
@@ -3717,6 +3876,9 @@ def _read_session_backup(backup_path: Path, session_id: str):
 
         table_rows = {}
         for table in RESTORE_SESSION_TABLES:
+            if table not in source_tables:
+                table_rows[table] = []
+                continue
             columns = _table_columns(source, table)
             required_columns = RESTORE_REQUIRED_COLUMNS[table]
             # Older backups stored location but not the derived presence_status.
@@ -3808,6 +3970,7 @@ def restore_session_from_backup(session_id: str, backup_path: Path) -> dict[str,
         for table in RESTORE_SESSION_TABLES:
             conn.execute(f"DELETE FROM {table} WHERE session_id=?", (session_id,))
 
+        pending_knowledge_sources = []
         for table in RESTORE_SESSION_TABLES:
             rows = table_rows[table]
             if not rows:
@@ -3820,12 +3983,24 @@ def restore_session_from_backup(session_id: str, backup_path: Path) -> dict[str,
                         status_code=422,
                         detail=f"No se puede restaurar la estructura de {table}; la transacción fue cancelada."
                     )
+                insert_row = row
+                if table == "entity_knowledge" and row.get("source_knowledge_id"):
+                    # Restore the self-reference after the complete knowledge chain exists.
+                    insert_row = dict(row)
+                    pending_knowledge_sources.append((row["id"], row["source_knowledge_id"]))
+                    insert_row["source_knowledge_id"] = None
                 placeholders = ",".join("?" for _ in columns)
                 column_sql = ",".join(columns)
                 conn.execute(
                     f"INSERT INTO {table} ({column_sql}) VALUES ({placeholders})",
-                    tuple(row[column] for column in columns)
+                    tuple(insert_row[column] for column in columns)
                 )
+
+        for knowledge_id, source_knowledge_id in pending_knowledge_sources:
+            conn.execute(
+                "UPDATE entity_knowledge SET source_knowledge_id=? WHERE id=? AND session_id=?",
+                (source_knowledge_id, knowledge_id, session_id)
+            )
 
     with database.connection() as conn:
         state = load_state(conn, session_id)
