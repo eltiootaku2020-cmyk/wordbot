@@ -2083,6 +2083,20 @@ def load_state(conn, session_id: str) -> dict[str, Any]:
     ).fetchall()]
     for item in continuity_records:
         item["witness_ids"] = json.loads(item.pop("witnesses_json") or "[]")
+    world_timeline = [dict(row) for row in conn.execute(
+        "SELECT w.stable_key,w.title,w.description,w.scope_type,w.location,"
+        "w.scheduled_day,w.scheduled_minute,w.approval_status,w.lifecycle_status,"
+        "r.fired_turn_id,r.due_day,r.due_minute,r.reached_day,r.reached_minute,r.record_json "
+        "FROM session_timeline_runs r "
+        "JOIN world_timeline_events w ON w.id=r.scheduled_event_id "
+        "WHERE r.session_id=? ORDER BY r.reached_day DESC,r.reached_minute DESC LIMIT 100",
+        (session_id,)
+    ).fetchall()]
+    for item in world_timeline:
+        try:
+            item["record"] = json.loads(item.pop("record_json") or "{}")
+        except (TypeError, ValueError, json.JSONDecodeError):
+            item["record"] = {}
     return {
         "session": {"id": session["id"], "name": session["name"], "world_id": session["world_id"], "protagonist_entity_id": session["protagonist_entity_id"]},
         "state": {
@@ -2093,7 +2107,7 @@ def load_state(conn, session_id: str) -> dict[str, Any]:
         "participants": participants, "inventory": inventory, "resources": resources,
         "relationships": relationships, "continuity_records": continuity_records,
         "eco_uses": eco, "pending_changes": pending,
-        "pending_events": pending_events
+        "pending_events": pending_events, "world_timeline": world_timeline
     }
 
 
@@ -2707,9 +2721,14 @@ def create_isekai_preset_session():
                  json.dumps([str(k) for k in keywords], ensure_ascii=False), content, int(entry.get("order", 100)))
             )
             imported += 1
+        timeline_caught_up = len(fire_due_events(
+            conn, session_id, 1, 480,
+            fired_turn_id=f"system:isekai-preset:{session_id}"
+        ))
     return {
         "world_id": world_id, "session_id": session_id, "session_name": session_name,
         "participants": len(entity_ids), "lore_entries": imported, "inventory_items": len(item_seed),
+        "timeline_events_caught_up": timeline_caught_up,
         "provider": settings.default_provider
     }
 
