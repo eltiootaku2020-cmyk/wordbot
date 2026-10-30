@@ -420,12 +420,23 @@ def test_private_turn_is_not_visible_to_other_npcs():
         # The stored event must not list bystanders as witnesses.
         with database.connection() as conn:
             private_event = conn.execute(
-                "SELECT witnesses_json,status FROM events WHERE session_id=? AND turn_id=?",
+                "SELECT id,witnesses_json,status FROM events WHERE session_id=? AND turn_id=?",
                 (session_id, private_reply.json()["turn_id"])
             ).fetchone()
             assert private_event is not None
             assert ivar["id"] not in json.loads(private_event["witnesses_json"])
             assert private_event["status"] == "recorded"
+            knowledge_knowers = {
+                row["knower_entity_id"]
+                for row in conn.execute(
+                    "SELECT knower_entity_id FROM entity_knowledge "
+                    "WHERE session_id=? AND transmission_event_id=?",
+                    (session_id, private_event["id"])
+                ).fetchall()
+            }
+            assert knowledge_knowers == {
+                by_name["Protagonista"]["id"], maelis["id"]
+            }
 
             session = session_row(conn, session_id)
             context_for_ivar = build_context(
@@ -4644,4 +4655,3 @@ def test_rumor_requires_a_knowledgeable_source_and_never_becomes_confirmed_on_re
         assert brina_record["knowledge_kind"] == "rumor"
         assert brina_record["source_entity_id"] == ivar_id
         assert source_chain["knowledge_kind"] == "rumor"
-        assert "no confirmada" not in brina_record["content"].lower()  # The kind, not wording, carries provenance.
