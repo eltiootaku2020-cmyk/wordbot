@@ -206,3 +206,31 @@ La inicialización de SQLite crea la tabla e índices sin destruir partidas. Una
 ### Límites de esta etapa
 
 Esto resuelve almacenamiento y procedencia básica del conocimiento individual, pero no implementa aún fama por región/facción, una red autónoma de difusión, un sistema de evidencias físicas, identificación forense o atribución validada de delitos. Los testimonios y rumores deben proponerse mediante eventos; no se simula todavía que todo PNJ difunda información automáticamente.
+
+
+## 11. Evidencia, atribución y reputación local
+
+La capa de evidencia no sustituye los acontecimientos: cada pieza debe enlazarse a un evento de descubrimiento del mismo turno y a un acontecimiento investigado ya registrado. La persona que aporta la pieza debe figurar entre los testigos autorizados y tener conocimiento persistente del hallazgo. Los rumores no son evidencia.
+
+Se separan cuatro niveles epistemológicos:
+- **description:** descripción de una persona desconocida, sin ID atribuido.
+- **suspected:** una entidad queda como sospechosa por al menos un indicio de apoyo.
+- **identified:** requiere dos observadores distintos con conocimiento directo registrado.
+- **confirmed:** la IA no puede confirmarlo; siempre queda pendiente de revisión explícita.
+
+La reputación se almacena por entidad y ubicación, no como una puntuación universal. Solo se actualiza con una atribución validada y una transmisión registrada del mismo acontecimiento a un PNJ distinto del protagonista, del sospechoso y del hablante. Un rumor puede difundir una sospecha; no puede difundir una identificación ni convertirla en culpabilidad. Los cambios automáticos son pequeños: hasta 1 punto para una sospecha y hasta 2 para una identificación.
+
+Los valores de reputación y su historial se incluyen en los snapshots y se restauran al deshacer un turno. El historial de evidencias/atribuciones conserva auditoría. En esta fase solo está habilitado el ámbito de ubicación actual; gremios, facciones y caravanas requieren primero un registro verificable de membresías. No existe todavía difusión automática entre lugares.
+
+
+## 12. Evidencia, percepción individual y reputación localizada
+
+La percepción de un testigo se almacena separada del acontecimiento. El registro indica modalidad, detalles observados y si el testigo no identificó a nadie, solo pudo describir, sospecha o afirma reconocer a alguien. Estos registros son personales: la recuperación del contexto solo muestra las percepciones de entidades con un camino de conocimiento activo, normalmente el protagonista y el destinatario actual.
+
+La clasificación de evidencia conserva tanto el evento que descubre una pista como el acontecimiento investigado, además del descubridor, efecto a favor/en contra/neutro y procedencia de su conocimiento. El uso de una pista exige que el descubridor la haya percibido por una fuente registrada que no sea únicamente un rumor.
+
+La atribución de una persona no se deriva solo de que estuviera cerca ni de que dos PNJ hayan presenciado el mismo suceso. Para el nivel `identified`, se exigen dos descubridores independientes con observación directa y una percepción individual `recognized` de cada uno que señale al mismo sujeto. El nivel `confirmed` queda pendiente de revisión explícita.
+
+La reputación se calcula por ubicación y se modifica únicamente cuando una atribución validada se comunica a terceros mediante un evento registrado de testimonio o rumor. El registro conserva historial y causa; los actos secretos sin oyentes externos no alteran reputación pública. Los rumores solo pueden difundir sospechas. No hay fama global ni reputación de gremio/facción sin membresías registradas.
+
+Las copias de seguridad incluyen todas las tablas implicadas y restauran las referencias en orden de dependencias. Se mantiene compatibilidad con copias anteriores: las tablas nuevas ausentes se tratan como vacías y las cadenas autorreferenciales de conocimiento se restauran en dos fases para conservar su procedencia.

@@ -70,6 +70,78 @@ CREATE INDEX IF NOT EXISTS idx_entity_knowledge_knower_time
   ON entity_knowledge(session_id,knower_entity_id,created_at);
 CREATE INDEX IF NOT EXISTS idx_entity_knowledge_source
   ON entity_knowledge(session_id,source_entity_id,about_event_id);
+CREATE TABLE IF NOT EXISTS event_perceptions (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  observer_entity_id TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  modality TEXT NOT NULL CHECK(modality IN ('visual','auditory','olfactory','tactile','magical','other')),
+  observed_details TEXT NOT NULL,
+  identity_assessment TEXT NOT NULL CHECK(identity_assessment IN ('unidentified','description_only','suspected','recognized')),
+  claimed_entity_id TEXT REFERENCES entities(id) ON DELETE SET NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(session_id,event_id,observer_entity_id,modality)
+);
+CREATE INDEX IF NOT EXISTS idx_event_perceptions_observer
+  ON event_perceptions(session_id,observer_entity_id,event_id);
+CREATE TABLE IF NOT EXISTS event_evidence (
+  id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  about_event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  evidence_event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  discovered_by_entity_id TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  evidence_kind TEXT NOT NULL CHECK(evidence_kind IN ('physical','testimonial','circumstantial','alibi','other')),
+  effect TEXT NOT NULL CHECK(effect IN ('supports','contradicts','neutral')),
+  source_knowledge_id TEXT REFERENCES entity_knowledge(id) ON DELETE SET NULL,
+  source_knowledge_kind TEXT NOT NULL DEFAULT 'unknown',
+  description TEXT NOT NULL,
+  status TEXT NOT NULL CHECK(status IN ('recorded','pending','rejected')),
+  reason TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(session_id,evidence_event_id,discovered_by_entity_id,about_event_id,evidence_kind)
+);
+CREATE INDEX IF NOT EXISTS idx_event_evidence_about
+  ON event_evidence(session_id,about_event_id,status);
+CREATE TABLE IF NOT EXISTS event_attributions (
+  id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  turn_id TEXT NOT NULL, external_ref TEXT NOT NULL,
+  about_event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  subject_entity_id TEXT REFERENCES entities(id) ON DELETE SET NULL,
+  attribution_level TEXT NOT NULL CHECK(attribution_level IN ('description','suspected','identified','confirmed')),
+  description TEXT NOT NULL,
+  evidence_ids_json TEXT NOT NULL DEFAULT '[]',
+  status TEXT NOT NULL CHECK(status IN ('recorded','pending','rejected')),
+  reason TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(session_id,turn_id,external_ref)
+);
+CREATE INDEX IF NOT EXISTS idx_event_attributions_about
+  ON event_attributions(session_id,about_event_id,status);
+CREATE TABLE IF NOT EXISTS local_reputation (
+  session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  entity_id TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  location_key TEXT NOT NULL,
+  location_label TEXT NOT NULL,
+  value INTEGER NOT NULL DEFAULT 0 CHECK(value BETWEEN -100 AND 100),
+  last_attribution_id TEXT REFERENCES event_attributions(id) ON DELETE SET NULL,
+  last_awareness_event_id TEXT REFERENCES events(id) ON DELETE SET NULL,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY(session_id,entity_id,location_key)
+);
+CREATE TABLE IF NOT EXISTS local_reputation_history (
+  id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  turn_id TEXT NOT NULL, external_ref TEXT NOT NULL,
+  entity_id TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  location_key TEXT NOT NULL, location_label TEXT NOT NULL,
+  delta INTEGER NOT NULL, old_value INTEGER NOT NULL, new_value INTEGER NOT NULL,
+  attribution_id TEXT NOT NULL REFERENCES event_attributions(id) ON DELETE CASCADE,
+  awareness_event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  reason TEXT NOT NULL,
+  status TEXT NOT NULL CHECK(status IN ('accepted','pending','rejected')),
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(session_id,turn_id,external_ref)
+);
+CREATE INDEX IF NOT EXISTS idx_local_reputation_location
+  ON local_reputation(session_id,location_key,value);
 CREATE TABLE IF NOT EXISTS state_changes (
   id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   turn_id TEXT NOT NULL, external_ref TEXT NOT NULL, entity_id TEXT NOT NULL DEFAULT '',
@@ -121,6 +193,66 @@ CREATE INDEX IF NOT EXISTS idx_lore_world_priority ON lore_entries(world_id, pri
 """
 
 
+
+def backfill_entity_knowledge(conn, session_id: str | None = None) -> int:
+    """Rebuild missing direct-observation knowledge from recorded legacy events.
+
+    This is safe to run repeatedly: the unique key and INSERT OR IGNORE keep the
+    migration idempotent. Rumor/testimony events are deliberately excluded because
+    their claims must never be upgraded to direct observations.
+    """
+    query = (
+        "SELECT id,session_id,kind,witnesses_json,description,created_at "
+        "FROM events WHERE status='recorded'"
+    )
+    params: tuple[str, ...] = ()
+    if session_id is not None:
+        query += " AND session_id=?"
+        params = (session_id,)
+
+    inserted = 0
+    for event in conn.execute(query, params).fetchall():
+        if event["kind"] in {"testimony", "rumor"}:
+            continue
+        try:
+            witnesses = json.loads(event["witnesses_json"] or "[]")
+        except (TypeError, ValueError, json.JSONDecodeError):
+            continue
+        if not isinstance(witnesses, list):
+            continue
+
+        session_world = conn.execute(
+            "SELECT world_id FROM sessions WHERE id=?",
+            (event["session_id"],)
+        ).fetchone()
+        if session_world is None:
+            continue
+
+        for knower_id in witnesses:
+            if not isinstance(knower_id, str) or not knower_id:
+                continue
+            known_entity = conn.execute(
+                "SELECT 1 FROM entities WHERE id=? AND world_id=?",
+                (knower_id, session_world["world_id"])
+            ).fetchone()
+            if known_entity is None:
+                continue
+            cursor = conn.execute(
+                "INSERT OR IGNORE INTO entity_knowledge("
+                "id,session_id,knower_entity_id,knowledge_kind,about_event_id,"
+                "transmission_event_id,source_entity_id,source_knowledge_id,content,created_at"
+                ") VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (
+                    uuid.uuid4().hex, event["session_id"], knower_id,
+                    "direct_observation", event["id"], event["id"], None, None,
+                    event["description"], event["created_at"]
+                )
+            )
+            inserted += max(0, cursor.rowcount)
+    return inserted
+
+
+
 class Database:
     def __init__(self, path: str):
         self.path = Path(path).expanduser()
@@ -149,49 +281,8 @@ class Database:
                 "ON snapshots(session_id,turn_id) WHERE turn_id<>''"
             )
 
-            # Backfill per-entity knowledge from previously recorded events.
-            # Stored witness lists were already restricted to the turn's authorized audience.
-            legacy_events = conn.execute(
-                "SELECT id,session_id,kind,witnesses_json,description,created_at "
-                "FROM events WHERE status='recorded'"
-            ).fetchall()
-            for event in legacy_events:
-                # A report event gives listeners testimony/rumor knowledge through
-                # its explicit provenance; do not also treat its claim as direct fact.
-                if event["kind"] in {"testimony", "rumor"}:
-                    continue
-                try:
-                    witnesses = json.loads(event["witnesses_json"] or "[]")
-                except (TypeError, ValueError, json.JSONDecodeError):
-                    continue
-                if not isinstance(witnesses, list):
-                    continue
-                session_world = conn.execute(
-                    "SELECT world_id FROM sessions WHERE id=?",
-                    (event["session_id"],)
-                ).fetchone()
-                if session_world is None:
-                    continue
-                for knower_id in witnesses:
-                    if not isinstance(knower_id, str) or not knower_id:
-                        continue
-                    known_entity = conn.execute(
-                        "SELECT 1 FROM entities WHERE id=? AND world_id=?",
-                        (knower_id, session_world["world_id"])
-                    ).fetchone()
-                    if known_entity is None:
-                        continue
-                    conn.execute(
-                        "INSERT OR IGNORE INTO entity_knowledge("
-                        "id,session_id,knower_entity_id,knowledge_kind,about_event_id,"
-                        "transmission_event_id,source_entity_id,source_knowledge_id,content,created_at"
-                        ") VALUES(?,?,?,?,?,?,?,?,?,?)",
-                        (
-                            uuid.uuid4().hex, event["session_id"], knower_id,
-                            "direct_observation", event["id"], event["id"], None, None,
-                            event["description"], event["created_at"]
-                        )
-                    )
+            # Backfill direct observations for databases created before per-entity knowledge.
+            backfill_entity_knowledge(conn)
 
             # Older local databases may predate presence_status/updated_at. Add
             # these columns in place so the existing session and its cast survive.
