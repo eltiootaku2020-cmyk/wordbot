@@ -573,6 +573,10 @@ def capture_turn_state(conn, session_id: str) -> dict[str, Any]:
         ).fetchall()],
         "ability_uses": [dict(row) for row in conn.execute(
             "SELECT * FROM ability_uses WHERE session_id=? ORDER BY created_at,id", (session_id,)
+        ).fetchall()],
+        "timeline_events": [dict(row) for row in conn.execute(
+            "SELECT * FROM session_timeline_events WHERE session_id=? ORDER BY scheduled_total_minutes,world_event_id",
+            (session_id,)
         ).fetchall()]
     }
 
@@ -608,7 +612,9 @@ def restore_turn_state(conn, session_id: str, state: dict[str, Any]) -> None:
         ("inventory_items", state.get("inventory", [])),
         ("resources", state.get("resources", [])),
         ("relationships", state.get("relationships", [])),
-        ("ability_uses", state.get("ability_uses", []))
+        ("ability_uses", state.get("ability_uses", [])),
+        # Firing records are mutable session state: undo must rewind them with the clock.
+        ("session_timeline_events", state.get("timeline_events", []))
     ]
     for table, rows in table_rows:
         conn.execute(f"DELETE FROM {table} WHERE session_id=?", (session_id,))
@@ -3439,6 +3445,7 @@ RESTORE_SESSION_TABLES = (
     "resources",
     "relationships",
     "ability_uses",
+    "session_timeline_events",
     "messages",
     "events",
     "state_changes",
@@ -3450,6 +3457,7 @@ RESTORE_REQUIRED_COLUMNS = {
     "resources": {"id", "session_id", "resource_key", "display_name", "quantity", "unit"},
     "relationships": {"id", "session_id", "from_entity_id", "to_entity_id", "axis", "value"},
     "ability_uses": {"id", "session_id", "turn_id", "ability_key", "target_entity_id", "result"},
+    "session_timeline_events": {"id", "session_id", "world_event_id", "scheduled_total_minutes", "fired_total_minutes", "fired_day", "fired_minute"},
     "messages": {"id", "session_id", "turn_id", "turn_index", "role", "recipient_entity_id", "content", "provider", "generation_status"},
     "events": {"id", "session_id", "turn_id", "external_ref", "kind", "entity_id", "description", "witnesses_json", "status"},
     "state_changes": {"id", "session_id", "turn_id", "external_ref", "entity_id", "field", "operation", "proposed_value_json", "status", "reason"},
@@ -3510,7 +3518,11 @@ def _read_session_backup(backup_path: Path, session_id: str):
                 "SELECT name FROM sqlite_master WHERE type='table'"
             ).fetchall()
         }
-        missing_tables = [table for table in RESTORE_SESSION_TABLES if table not in source_tables]
+        optional_tables = {"session_timeline_events"}
+        missing_tables = [
+            table for table in RESTORE_SESSION_TABLES
+            if table not in source_tables and table not in optional_tables
+        ]
         if missing_tables:
             raise HTTPException(
                 status_code=422,
@@ -3519,6 +3531,10 @@ def _read_session_backup(backup_path: Path, session_id: str):
 
         table_rows = {}
         for table in RESTORE_SESSION_TABLES:
+            if table not in source_tables:
+                # Backups created before the world timeline feature have no firing ledger.
+                table_rows[table] = []
+                continue
             columns = _table_columns(source, table)
             required_columns = RESTORE_REQUIRED_COLUMNS[table]
             # Older backups stored location but not the derived presence_status.
