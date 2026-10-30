@@ -2438,11 +2438,21 @@ def load_state(conn, session_id: str) -> dict[str, Any]:
     for item in pending:
         item["proposed_value"] = json.loads(item.pop("proposed_value_json"))
     pending_events = [dict(row) for row in conn.execute(
-        "SELECT id,turn_id,kind,entity_id,description,witnesses_json,created_at FROM events "
-        "WHERE session_id=? AND status='pending' ORDER BY created_at DESC LIMIT 100", (session_id,)
+        "SELECT ev.id,ev.turn_id,ev.kind,ev.entity_id,ev.description,ev.witnesses_json,"
+        "ev.source_entity_id,source.name AS source_entity_name,ev.about_event_id,"
+        "about_event.description AS about_description,ev.perceptions_json,ev.created_at "
+        "FROM events ev "
+        "LEFT JOIN entities source ON source.id=ev.source_entity_id "
+        "LEFT JOIN events about_event ON about_event.id=ev.about_event_id "
+        "WHERE ev.session_id=? AND ev.status='pending' ORDER BY ev.created_at DESC LIMIT 100",
+        (session_id,)
     ).fetchall()]
     for event in pending_events:
-        event["witness_ids"] = json.loads(event.pop("witnesses_json"))
+        event["witness_ids"] = json.loads(event.pop("witnesses_json") or "[]")
+        try:
+            event["perceptions"] = json.loads(event.pop("perceptions_json") or "[]")
+        except (TypeError, ValueError, json.JSONDecodeError):
+            event["perceptions"] = []
     eco = [dict(row) for row in conn.execute(
         "SELECT target_entity_id,COUNT(*) AS attempts FROM ability_uses "
         "WHERE session_id=? AND ability_key IN ('eco','eco_humano','hipnosis') GROUP BY target_entity_id",
@@ -2451,12 +2461,14 @@ def load_state(conn, session_id: str) -> dict[str, Any]:
     evidence_records = [dict(row) for row in conn.execute(
         "SELECT ev.id,ev.about_event_id,about_event.description AS about_description,"
         "ev.evidence_event_id,discovery.description AS discovery_description,"
-        "ev.discovered_by_entity_id,e.name AS discovered_by_name,ev.evidence_kind,ev.effect,"
-        "ev.source_knowledge_kind,ev.description,ev.status,ev.reason,ev.created_at "
+        "ev.discovered_by_entity_id,e.name AS discovered_by_name,"
+        "ev.candidate_entity_id,candidate.name AS candidate_entity_name,"
+        "ev.evidence_kind,ev.effect,ev.source_knowledge_kind,ev.description,ev.status,ev.reason,ev.created_at "
         "FROM event_evidence ev "
         "LEFT JOIN events about_event ON about_event.id=ev.about_event_id "
         "LEFT JOIN events discovery ON discovery.id=ev.evidence_event_id "
         "LEFT JOIN entities e ON e.id=ev.discovered_by_entity_id "
+        "LEFT JOIN entities candidate ON candidate.id=ev.candidate_entity_id "
         "WHERE ev.session_id=? ORDER BY ev.created_at DESC LIMIT 100",
         (session_id,)
     ).fetchall()]
