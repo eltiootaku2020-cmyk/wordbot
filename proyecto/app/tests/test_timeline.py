@@ -164,3 +164,48 @@ def test_undo_snapshot_restores_timeline_firing_ledger_and_allows_replay(tmp_pat
         restore_turn_state(conn, "session-a", before_turn)
         replay = fire_due_world_events(conn, "session-a", 480, 481)
         assert [item["external_uid"] for item in replay] == ["event-one"]
+
+
+
+def test_undo_restores_session_ledger_but_keeps_world_timeline_edits_and_creations(tmp_path):
+    database = make_world_session(tmp_path)
+    with database.transaction() as conn:
+        add_event(conn, "event-one", "event-one", 1, 481)
+        before_turn = capture_turn_state(conn, "session-a")
+
+        # World chronology edits are authored outside the turn and must not be
+        # rolled back with a session snapshot.
+        conn.execute(
+            "UPDATE world_timeline_events SET title=?,scheduled_minute=? WHERE id=?",
+            ("Suceso corregido", 490, "event-one"),
+        )
+        add_event(conn, "event-two", "event-two", 1, 491)
+
+        conn.execute(
+            "UPDATE sessions SET day=1,minute_of_day=495 WHERE id='session-a'"
+        )
+        fired = fire_due_world_events(conn, "session-a", 480, 495)
+        assert [item["external_uid"] for item in fired] == ["event-one", "event-two"]
+
+        # Undo returns the per-session clock and activation ledger to the
+        # snapshot, while preserving shared world-level definitions.
+        restore_turn_state(conn, "session-a", before_turn)
+        clock = conn.execute(
+            "SELECT day,minute_of_day FROM sessions WHERE id='session-a'"
+        ).fetchone()
+        assert (clock["day"], clock["minute_of_day"]) == (1, 480)
+        assert conn.execute(
+            "SELECT COUNT(*) FROM session_timeline_events WHERE session_id='session-a'"
+        ).fetchone()[0] == 0
+
+        definitions = conn.execute(
+            "SELECT external_uid,title,scheduled_minute FROM world_timeline_events "
+            "WHERE world_id='world-a' ORDER BY external_uid"
+        ).fetchall()
+        assert [(row["external_uid"], row["title"], row["scheduled_minute"]) for row in definitions] == [
+            ("event-one", "Suceso corregido", 490),
+            ("event-two", "Suceso event-two", 491),
+        ]
+
+        replay = fire_due_world_events(conn, "session-a", 480, 491)
+        assert [item["external_uid"] for item in replay] == ["event-one", "event-two"]
