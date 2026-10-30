@@ -886,6 +886,47 @@ def build_context(
     recent_events.reverse()
     selected_events_debug.reverse()
 
+    # Give the narrator only information explicitly recorded for the active
+    # participants. A rumor remains a rumor; its source event is not disclosed
+    # as a confirmed fact to someone who only heard the report.
+    knowledge_ids = sorted({item["id"] for item in participants if item.get("id")})
+    known_information = []
+    if knowledge_ids:
+        placeholders = ",".join("?" for _ in knowledge_ids)
+        knowledge_rows = conn.execute(
+            "SELECT k.knower_entity_id,knower.name AS knower_name,k.knowledge_kind,"
+            "k.about_event_id,k.transmission_event_id,k.source_entity_id,"
+            "source.name AS source_name,k.content,k.created_at "
+            "FROM entity_knowledge k "
+            "JOIN entities knower ON knower.id=k.knower_entity_id "
+            "JOIN events about_event ON about_event.id=k.about_event_id "
+            "JOIN events transmission_event ON transmission_event.id=k.transmission_event_id "
+            "LEFT JOIN entities source ON source.id=k.source_entity_id "
+            "WHERE k.session_id=? AND k.knower_entity_id IN (" + placeholders + ") "
+            "AND about_event.status='recorded' AND transmission_event.status='recorded' "
+            "ORDER BY k.created_at DESC,k.id DESC LIMIT 60",
+            [session["id"], *knowledge_ids]
+        ).fetchall()
+        for row in knowledge_rows:
+            if row["knowledge_kind"] == "rumor":
+                epistemic_note = "Rumor no confirmado; no presentarlo como hecho."
+            elif row["knowledge_kind"] == "testimony":
+                epistemic_note = "Testimonio de una fuente; no equivale por sí solo a prueba."
+            else:
+                epistemic_note = "Observación directa registrada; limitarse a lo que describe."
+            known_information.append({
+                "knower_entity_id": row["knower_entity_id"],
+                "knower_name": row["knower_name"],
+                "knowledge_kind": row["knowledge_kind"],
+                "about_event_id": row["about_event_id"],
+                "transmission_event_id": row["transmission_event_id"],
+                "source_entity_id": row["source_entity_id"],
+                "source_name": row["source_name"] or "",
+                "content": (row["content"] or "")[:MAX_EVENT_DESCRIPTION_CHARS],
+                "epistemic_note": epistemic_note,
+                "created_at": row["created_at"]
+            })
+
     eco_uses = [dict(row) for row in conn.execute(
         "SELECT target_entity_id,COUNT(*) AS attempts FROM ability_uses "
         "WHERE session_id=? AND ability_key IN ('eco','eco_humano','hipnosis') "
@@ -915,6 +956,7 @@ def build_context(
         "human_eco_attempts_by_target": eco_uses,
         "recent_messages": recent,
         "recent_events": recent_events,
+        "known_information": known_information,
         "relevant_lore": lore
     }
     context_chars = len(json.dumps(context, ensure_ascii=False))
@@ -932,6 +974,7 @@ def build_context(
         "excluded_events": excluded_events_debug,
         "recent_messages_selected": len(recent),
         "recent_events_selected": len(recent_events),
+        "known_information_selected": len(known_information),
         "messages_excluded_count": len(excluded_messages_debug),
         "events_excluded_count": len(excluded_events_debug),
         "messages_recovered_by_relevance": sum(1 for item in selected_messages_debug if "recuperado por relevancia" in item["reason"]),
