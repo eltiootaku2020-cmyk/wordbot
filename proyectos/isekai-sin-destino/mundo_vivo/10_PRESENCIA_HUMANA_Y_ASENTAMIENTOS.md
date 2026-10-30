@@ -131,3 +131,14 @@ La plantilla es conceptual; no es todavía un esquema JSON validado ni una tabla
 - Esta decisión fija el patrón general de distribución, no nombres, cantidades, población, coordenadas, facciones ni localizaciones concretas.
 
 La propuesta espacial anterior queda refinada por esta decisión: los límites tienen mayor peso relativo, pero el interior no queda vacío.
+
+## 6.3. Decisión aprobada: sistema combinado de rutas
+
+**Decisión del usuario:** las conexiones del Bosque de las Bestias seguirán un sistema combinado.
+
+- **Caminos principales:** relativamente estables y capaces de conectar algunas aldeas, accesos y puntos de intercambio. Su estabilidad no significa que sean siempre seguros ni que todos los asentamientos estén conectados.
+- **Senderos secundarios:** menos transitados y más variables; pueden cambiar, quedar cubiertos o desaparecer por vegetación, clima, erosión, actividad de criaturas y acontecimientos.
+- **Rutas ocultas o temporales:** pueden ser conocidas solo por habitantes, exploradores o criaturas concretas. Pueden aparecer, bloquearse o dejar de ser transitables según las condiciones.
+- No todas las aldeas tendrán conexión directa. Algunas comunidades interiores podrán depender de senderos difíciles o quedar aisladas durante ciertos periodos.
+- La existencia, trazado, estado y conocimiento de cada ruta concreta siguen pendientes. Esta decisión aprueba la estructura general, no un mapa definitivo ni ubicaciones concretas.
+
