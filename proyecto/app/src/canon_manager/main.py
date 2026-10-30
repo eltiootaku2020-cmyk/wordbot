@@ -2228,6 +2228,244 @@ def create_world(payload: WorldCreate):
     return {"id": world_id, "name": payload.name.strip()}
 
 
+
+
+def _validate_timeline_definition(
+    activation_type: str,
+    scheduled_day: int | None,
+    scheduled_minute: int | None,
+    scope_type: str,
+    location: str,
+) -> None:
+    if activation_type == "fixed_time":
+        if scheduled_day is None or scheduled_minute is None:
+            raise HTTPException(
+                status_code=422,
+                detail="Un evento fixed_time necesita día y minuto programados."
+            )
+    elif activation_type == "condition":
+        if scheduled_day is not None or scheduled_minute is not None:
+            raise HTTPException(
+                status_code=422,
+                detail="Un evento condition no debe incluir fecha ni hora fija."
+            )
+    if scope_type == "location" and not (location or "").strip():
+        raise HTTPException(
+            status_code=422,
+            detail="Un evento de ámbito location necesita una ubicación."
+        )
+
+
+def _timeline_event_payload(row) -> dict[str, Any]:
+    item = dict(row)
+    for column, public_name in (
+        ("condition_json", "condition"),
+        ("consequences_json", "consequences"),
+    ):
+        raw = item.pop(column, "{}")
+        try:
+            value = json.loads(raw or "{}")
+            item[public_name] = value if isinstance(value, dict) else {}
+        except (TypeError, ValueError, json.JSONDecodeError):
+            item[public_name] = {}
+    return item
+
+
+def _catch_up_world_timeline(conn, world_id: str, trigger_id: str) -> int:
+    sessions = conn.execute(
+        "SELECT id,day,minute_of_day FROM sessions WHERE world_id=? ORDER BY id",
+        (world_id,)
+    ).fetchall()
+    caught_up = 0
+    for session in sessions:
+        caught_up += len(fire_due_events(
+            conn, session["id"], int(session["day"]), int(session["minute_of_day"]),
+            fired_turn_id=trigger_id
+        ))
+    return caught_up
+
+
+@app.post("/api/worlds/{world_id}/timeline")
+def create_world_timeline_event(world_id: str, payload: WorldTimelineEventCreate):
+    _validate_timeline_definition(
+        payload.activation_type, payload.scheduled_day, payload.scheduled_minute,
+        payload.scope_type, payload.location
+    )
+    event_id = new_id()
+    with database.transaction() as conn:
+        if conn.execute("SELECT 1 FROM worlds WHERE id=?", (world_id,)).fetchone() is None:
+            raise HTTPException(status_code=404, detail="Mundo no encontrado.")
+        try:
+            conn.execute(
+                "INSERT INTO world_timeline_events("
+                "id,world_id,stable_key,title,description,activation_type,scheduled_day,"
+                "scheduled_minute,condition_json,scope_type,location,consequences_json,"
+                "approval_status,lifecycle_status"
+                ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,'pending','active')",
+                (
+                    event_id, world_id, payload.stable_key, payload.title, payload.description,
+                    payload.activation_type, payload.scheduled_day, payload.scheduled_minute,
+                    json.dumps(payload.condition, ensure_ascii=False, sort_keys=True),
+                    payload.scope_type, payload.location.strip(),
+                    json.dumps(payload.consequences, ensure_ascii=False, sort_keys=True)
+                )
+            )
+        except sqlite3.IntegrityError as exc:
+            raise HTTPException(
+                status_code=409,
+                detail="Ya existe un acontecimiento con esa clave estable en este mundo."
+            ) from exc
+        row = conn.execute(
+            "SELECT * FROM world_timeline_events WHERE id=?", (event_id,)
+        ).fetchone()
+    return {"created": True, "event": _timeline_event_payload(row)}
+
+
+@app.get("/api/worlds/{world_id}/timeline")
+def list_world_timeline_events(world_id: str):
+    with database.connection() as conn:
+        if conn.execute("SELECT 1 FROM worlds WHERE id=?", (world_id,)).fetchone() is None:
+            raise HTTPException(status_code=404, detail="Mundo no encontrado.")
+        rows = conn.execute(
+            "SELECT w.*, (SELECT COUNT(*) FROM session_timeline_runs r "
+            "WHERE r.scheduled_event_id=w.id) AS fired_sessions "
+            "FROM world_timeline_events w WHERE w.world_id=? "
+            "ORDER BY CASE WHEN w.scheduled_day IS NULL THEN 1 ELSE 0 END,"
+            "w.scheduled_day,w.scheduled_minute,w.stable_key",
+            (world_id,)
+        ).fetchall()
+        return [_timeline_event_payload(row) for row in rows]
+
+
+@app.patch("/api/worlds/{world_id}/timeline/{event_id}")
+def update_world_timeline_event(
+    world_id: str, event_id: str, payload: WorldTimelineEventUpdate
+):
+    changes = payload.model_dump(exclude_unset=True)
+    if not changes or any(value is None for value in changes.values()):
+        raise HTTPException(status_code=422, detail="Indica al menos un campo válido; no se aceptan valores null.")
+    field_map = {
+        "title": "title",
+        "description": "description",
+        "scheduled_day": "scheduled_day",
+        "scheduled_minute": "scheduled_minute",
+        "condition": "condition_json",
+        "scope_type": "scope_type",
+        "location": "location",
+        "consequences": "consequences_json",
+    }
+    with database.transaction() as conn:
+        event = conn.execute(
+            "SELECT * FROM world_timeline_events WHERE id=? AND world_id=?",
+            (event_id, world_id)
+        ).fetchone()
+        if event is None:
+            raise HTTPException(status_code=404, detail="Acontecimiento mundial no encontrado.")
+        if conn.execute(
+            "SELECT 1 FROM session_timeline_runs WHERE scheduled_event_id=? LIMIT 1",
+            (event_id,)
+        ).fetchone():
+            raise HTTPException(
+                status_code=409,
+                detail="El acontecimiento ya se ejecutó en una partida; no puede reescribirse retroactivamente."
+            )
+        _validate_timeline_definition(
+            event["activation_type"],
+            changes.get("scheduled_day", event["scheduled_day"]),
+            changes.get("scheduled_minute", event["scheduled_minute"]),
+            changes.get("scope_type", event["scope_type"]),
+            changes.get("location", event["location"]),
+        )
+        assignments = []
+        values = []
+        for key, value in changes.items():
+            column = field_map[key]
+            if key in {"condition", "consequences"}:
+                value = json.dumps(value, ensure_ascii=False, sort_keys=True)
+            elif key == "location":
+                value = value.strip()
+            assignments.append(f"{column}=?")
+            values.append(value)
+        conn.execute(
+            f"UPDATE world_timeline_events SET {', '.join(assignments)} WHERE id=? AND world_id=?",
+            (*values, event_id, world_id)
+        )
+        updated = conn.execute(
+            "SELECT * FROM world_timeline_events WHERE id=? AND world_id=?",
+            (event_id, world_id)
+        ).fetchone()
+        caught_up = 0
+        if updated["approval_status"] == "approved" and updated["lifecycle_status"] == "active":
+            caught_up = _catch_up_world_timeline(conn, world_id, f"system:timeline-edit:{event_id}")
+    return {
+        "updated": True,
+        "event": _timeline_event_payload(updated),
+        "sessions_caught_up": caught_up
+    }
+
+
+@app.post("/api/worlds/{world_id}/timeline/{event_id}/review")
+def review_world_timeline_event(
+    world_id: str, event_id: str, payload: WorldTimelineEventReview
+):
+    with database.transaction() as conn:
+        event = conn.execute(
+            "SELECT * FROM world_timeline_events WHERE id=? AND world_id=?",
+            (event_id, world_id)
+        ).fetchone()
+        if event is None:
+            raise HTTPException(status_code=404, detail="Acontecimiento mundial no encontrado.")
+        if event["lifecycle_status"] != "active":
+            raise HTTPException(status_code=409, detail="Un acontecimiento cancelado o sustituido no puede aprobarse.")
+        if conn.execute(
+            "SELECT 1 FROM session_timeline_runs WHERE scheduled_event_id=? LIMIT 1",
+            (event_id,)
+        ).fetchone():
+            raise HTTPException(status_code=409, detail="El acontecimiento ya se ejecutó y su aprobación es inmutable.")
+        conn.execute(
+            "UPDATE world_timeline_events SET approval_status=? WHERE id=? AND world_id=?",
+            (payload.approval_status, event_id, world_id)
+        )
+        caught_up = 0
+        if payload.approval_status == "approved":
+            caught_up = _catch_up_world_timeline(
+                conn, world_id, f"system:timeline-approved:{event_id}"
+            )
+        updated = conn.execute(
+            "SELECT * FROM world_timeline_events WHERE id=? AND world_id=?",
+            (event_id, world_id)
+        ).fetchone()
+    return {
+        "reviewed": True,
+        "event": _timeline_event_payload(updated),
+        "sessions_caught_up": caught_up
+    }
+
+
+@app.delete("/api/worlds/{world_id}/timeline/{event_id}")
+def cancel_world_timeline_event(world_id: str, event_id: str):
+    with database.transaction() as conn:
+        event = conn.execute(
+            "SELECT id,lifecycle_status FROM world_timeline_events WHERE id=? AND world_id=?",
+            (event_id, world_id)
+        ).fetchone()
+        if event is None:
+            raise HTTPException(status_code=404, detail="Acontecimiento mundial no encontrado.")
+        if conn.execute(
+            "SELECT 1 FROM session_timeline_runs WHERE scheduled_event_id=? LIMIT 1",
+            (event_id,)
+        ).fetchone():
+            raise HTTPException(
+                status_code=409,
+                detail="El acontecimiento ya ocurrió en alguna partida y no puede cancelarse retroactivamente."
+            )
+        conn.execute(
+            "UPDATE world_timeline_events SET lifecycle_status='cancelled' WHERE id=? AND world_id=?",
+            (event_id, world_id)
+        )
+    return {"cancelled": True, "event_id": event_id}
+
+
 @app.get("/api/worlds/{world_id}/entities")
 def list_entities(world_id: str):
     with database.connection() as conn:
