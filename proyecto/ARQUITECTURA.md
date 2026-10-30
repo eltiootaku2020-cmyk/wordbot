@@ -206,3 +206,21 @@ La inicialización de SQLite crea la tabla e índices sin destruir partidas. Una
 ### Límites de esta etapa
 
 Esto resuelve almacenamiento y procedencia básica del conocimiento individual, pero no implementa aún fama por región/facción, una red autónoma de difusión, un sistema de evidencias físicas, identificación forense o atribución validada de delitos. Los testimonios y rumores deben proponerse mediante eventos; no se simula todavía que todo PNJ difunda información automáticamente.
+
+
+## 11. Percepción individual y registro de evidencias
+
+La implementación añade dos registros separados del hecho narrativo:
+
+- `event_perceptions`: almacena qué percibió cada testigo autorizado, mediante qué modalidad y qué nivel de identificación afirma haber alcanzado.
+- `event_evidence`: conserva pistas descubiertas, quién las encontró, en qué evento de hallazgo, ubicación y estado de conservación; puede vincularlas a un acontecimiento que el descubridor ya conoce por una fuente que no sea solo un rumor.
+
+La identificación del testigo usa cuatro estados: `unidentified`, `description_only`, `suspected` y `recognized`. «Recognized» significa que la persona afirma reconocer a alguien; no confirma que esa persona cometiera el hecho. Una descripción parcial no admite una entidad identificada.
+
+El descubridor de una evidencia debe figurar entre los testigos autorizados del evento de observación/hallazgo. Si se relaciona la pista con un acontecimiento previo, el descubridor debe tener conocimiento activo de ese acontecimiento y no puede basarse únicamente en un rumor.
+
+El contexto del narrador consulta estas tablas solo a través de conocimiento activo del protagonista o del destinatario. No entrega automáticamente las percepciones privadas de otros PNJ. Una pista aparece con la advertencia de que no confirma por sí sola identidad ni culpabilidad.
+
+Las dos tablas forman parte de las copias y restauraciones de partida. Las copias anteriores a su creación siguen siendo válidas: no se inventan percepciones o evidencias históricas que nunca fueron registradas.
+
+**Límites:** esta etapa aún no implementa cadena de custodia, análisis forense, pruebas de laboratorio, investigación por etapas ni un sistema que confirme culpabilidad. Tampoco asigna automáticamente reputación al protagonista. Esos sistemas requieren fuentes, controles y reglas posteriores.
