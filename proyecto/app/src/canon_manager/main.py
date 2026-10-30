@@ -18,7 +18,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from .db import Database
+from .db import Database, backfill_entity_knowledge
 from .models import ApprovalRequest, AttributionProposal, ContextPreviewRequest, EntityCreate, EvidenceProposal, LocalCommandRequest, LocalReputationProposal, LocalSettingsUpdate, ManualPromptRequest, NarratorResponse, SessionCreate, SessionRestoreRequest, TurnRequest, WorldCreate, WorldStartCreate
 from .providers import ProviderError, build_manual_prompt, make_provider
 
@@ -4001,6 +4001,14 @@ def restore_session_from_backup(session_id: str, backup_path: Path) -> dict[str,
                 "UPDATE entity_knowledge SET source_knowledge_id=? WHERE id=? AND session_id=?",
                 (source_knowledge_id, knowledge_id, session_id)
             )
+
+        # Older backups predate entity_knowledge. Reconstruct only recorded direct
+        # observations; rumor and testimony claims are never upgraded to facts.
+        backfill_entity_knowledge(conn, session_id)
+        restored_counts["entity_knowledge"] = conn.execute(
+            "SELECT COUNT(*) FROM entity_knowledge WHERE session_id=?",
+            (session_id,)
+        ).fetchone()[0]
 
     with database.connection() as conn:
         state = load_state(conn, session_id)
