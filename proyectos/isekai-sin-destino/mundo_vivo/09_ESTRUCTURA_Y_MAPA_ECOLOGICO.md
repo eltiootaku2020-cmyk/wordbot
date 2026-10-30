@@ -126,3 +126,15 @@ La distribución global de aldeas, campamentos, ruinas y escondites será **equi
 - La categoría equilibrada es una pauta de diseño global, no una probabilidad o garantía de encuentro para el protagonista.
 
 No se fijan cantidades ni localizaciones concretas. La decisión no modifica el principio de descubrimiento gradual.
+
+## Decisión aprobada: sistema combinado de rutas y conexiones
+
+El usuario eligió un sistema combinado para conectar lugares del Bosque de las Bestias:
+
+- **Caminos principales:** relativamente estables; conectan algunas aldeas, accesos y puntos de intercambio, sin garantizar seguridad ni conexión universal.
+- **Senderos secundarios:** menos transitados y variables; la vegetación, el clima, la erosión, las criaturas y los acontecimientos pueden alterarlos o hacerlos desaparecer.
+- **Rutas ocultas o temporales:** conocidas por habitantes, exploradores o criaturas concretas; pueden aparecer, bloquearse o dejar de ser transitables.
+- No todas las aldeas estarán conectadas directamente. Algunas comunidades interiores podrán depender de senderos difíciles o quedar aisladas temporalmente.
+- La decisión define categorías y comportamiento general, no nombres, trazados, distancias, tiempos, ubicaciones ni conexiones concretas.
+- El motor futuro deberá distinguir existencia real, transitabilidad actual y conocimiento del protagonista para cada conexión.
+
