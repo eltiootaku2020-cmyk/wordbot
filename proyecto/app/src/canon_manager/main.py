@@ -1156,9 +1156,13 @@ def write_event(
 def persist_evidence_proposals(conn, session_id, result, event_map, valid_ids, pending_notes):
     """Persist evidence only when its discoverer has recorded knowledge of its discovery."""
     counts = {}
+    signatures = {}
     for item in result.evidence:
         counts[item.ref] = counts.get(item.ref, 0) + 1
+        signature = (item.event_ref, item.about_event_id, item.discovered_by_entity_id, item.evidence_kind)
+        signatures[signature] = signatures.get(signature, 0) + 1
     duplicates = {ref for ref, count in counts.items() if count > 1}
+    duplicate_signatures = {key for key, count in signatures.items() if count > 1}
     evidence_map = {}
     for item in result.evidence:
         source = event_map.get(item.event_ref)
@@ -1173,8 +1177,9 @@ def persist_evidence_proposals(conn, session_id, result, event_map, valid_ids, p
         reason = ""
         knowledge = None
         status = "recorded"
-        if item.ref in duplicates:
-            status, reason = "pending", "La referencia de evidencia está duplicada."
+        signature = (item.event_ref, item.about_event_id, item.discovered_by_entity_id, item.evidence_kind)
+        if item.ref in duplicates or signature in duplicate_signatures:
+            status, reason = "pending", "La referencia o la pieza de evidencia está duplicada."
         elif source_row is None or source_row["status"] != "recorded":
             status, reason = "pending", "El acontecimiento que descubre la evidencia no está registrado."
         elif about is None or about["status"] != "recorded":
@@ -1320,9 +1325,11 @@ def persist_event_attributions(conn, session_id, turn_id, result, evidence_map, 
 def apply_local_reputation_proposals(conn, session, turn_id, result, event_map, attribution_map, pending_notes, applied):
     """Update only location-scoped reputation after another character receives a report."""
     counts = {}
+    ref_counts = {}
     for item in result.reputation_changes:
         key = (item.entity_id, item.scope_type, item.scope_key.strip().casefold())
         counts[key] = counts.get(key, 0) + 1
+        ref_counts[item.ref] = ref_counts.get(item.ref, 0) + 1
     for item in result.reputation_changes:
         key = (item.entity_id, item.scope_type, item.scope_key.strip().casefold())
         attribution = attribution_map.get(item.attribution_ref)
@@ -1332,8 +1339,8 @@ def apply_local_reputation_proposals(conn, session, turn_id, result, event_map, 
             (awareness["id"], session["id"])
         ).fetchone() if awareness else None
         reason = ""
-        if counts[key] > 1:
-            reason = "Hay varias propuestas para la misma reputación local en un turno; todas quedan pendientes."
+        if counts[key] > 1 or ref_counts.get(item.ref, 0) > 1:
+            reason = "Hay propuestas duplicadas para la misma reputación local en un turno; todas quedan pendientes."
         elif key[1] != "location" or key[2] != (session["current_location"] or "").strip().casefold():
             reason = "El ámbito debe coincidir con la ubicación actual; los ámbitos de gremio/facción/caravana requieren membresías registradas."
         elif item.entity_id not in world_entity_ids(conn, session["world_id"]):
@@ -1365,7 +1372,7 @@ def apply_local_reputation_proposals(conn, session, turn_id, result, event_map, 
 
         if reason:
             pending_notes.append(f"Reputación local de {item.entity_id} requiere revisión: {reason}")
-            if attribution and attribution.get("id") and awareness_row:
+            if ref_counts.get(item.ref, 0) == 1 and attribution and attribution.get("id") and awareness_row:
                 conn.execute(
                     "INSERT INTO local_reputation_history("
                     "id,session_id,turn_id,external_ref,entity_id,location_key,location_label,"
@@ -2290,6 +2297,39 @@ def load_state(conn, session_id: str) -> dict[str, Any]:
         "WHERE session_id=? AND ability_key IN ('eco','eco_humano','hipnosis') GROUP BY target_entity_id",
         (session_id,)
     ).fetchall()]
+    evidence_records = [dict(row) for row in conn.execute(
+        "SELECT ev.id,ev.about_event_id,about_event.description AS about_description,"
+        "ev.evidence_event_id,discovery.description AS discovery_description,"
+        "ev.discovered_by_entity_id,e.name AS discovered_by_name,ev.evidence_kind,ev.effect,"
+        "ev.source_knowledge_kind,ev.description,ev.status,ev.reason,ev.created_at "
+        "FROM event_evidence ev "
+        "LEFT JOIN events about_event ON about_event.id=ev.about_event_id "
+        "LEFT JOIN events discovery ON discovery.id=ev.evidence_event_id "
+        "LEFT JOIN entities e ON e.id=ev.discovered_by_entity_id "
+        "WHERE ev.session_id=? ORDER BY ev.created_at DESC LIMIT 100",
+        (session_id,)
+    ).fetchall()]
+    attributions = [dict(row) for row in conn.execute(
+        "SELECT a.id,a.about_event_id,ev.description AS about_description,a.subject_entity_id,"
+        "e.name AS subject_name,a.attribution_level,a.description,a.evidence_ids_json,a.status,"
+        "a.reason,a.created_at FROM event_attributions a "
+        "LEFT JOIN events ev ON ev.id=a.about_event_id "
+        "LEFT JOIN entities e ON e.id=a.subject_entity_id "
+        "WHERE a.session_id=? ORDER BY a.created_at DESC LIMIT 100",
+        (session_id,)
+    ).fetchall()]
+    for attribution in attributions:
+        try:
+            attribution["evidence_ids"] = json.loads(attribution.pop("evidence_ids_json") or "[]")
+        except (TypeError, ValueError, json.JSONDecodeError):
+            attribution["evidence_ids"] = []
+            attribution.pop("evidence_ids_json", None)
+    local_reputation = [dict(row) for row in conn.execute(
+        "SELECT r.entity_id,e.name AS entity_name,r.location_label,r.value,r.updated_at "
+        "FROM local_reputation r JOIN entities e ON e.id=r.entity_id "
+        "WHERE r.session_id=? ORDER BY r.location_key,e.name",
+        (session_id,)
+    ).fetchall()]
     return {
         "session": {"id": session["id"], "name": session["name"], "world_id": session["world_id"], "protagonist_entity_id": session["protagonist_entity_id"]},
         "state": {
@@ -2299,7 +2339,8 @@ def load_state(conn, session_id: str) -> dict[str, Any]:
         },
         "participants": participants, "inventory": inventory, "resources": resources,
         "relationships": relationships, "eco_uses": eco, "pending_changes": pending,
-        "pending_events": pending_events
+        "pending_events": pending_events, "evidence": evidence_records,
+        "attributions": attributions, "local_reputation": local_reputation
     }
 
 
