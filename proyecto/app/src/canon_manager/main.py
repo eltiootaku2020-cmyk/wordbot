@@ -3623,6 +3623,17 @@ def _read_session_backup(backup_path: Path, session_id: str):
                 "SELECT name FROM sqlite_master WHERE type='table'"
             ).fetchall()
         }
+        timeline_tables = {"world_timeline_events", "session_timeline_events"}
+        present_timeline_tables = timeline_tables.intersection(source_tables)
+        if present_timeline_tables and present_timeline_tables != timeline_tables:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "La copia contiene un esquema de cronología incompleto; "
+                    "no se modificó la partida."
+                ),
+            )
+
         optional_tables = {"session_timeline_events"}
         missing_tables = [
             table for table in RESTORE_SESSION_TABLES
