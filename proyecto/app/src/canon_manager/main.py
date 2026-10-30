@@ -19,7 +19,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .db import Database
-from .models import ApprovalRequest, ContextPreviewRequest, EntityCreate, LocalCommandRequest, LocalSettingsUpdate, ManualPromptRequest, NarratorResponse, SessionCreate, SessionRestoreRequest, TurnRequest, WorldCreate, WorldStartCreate
+from .models import ApprovalRequest, AttributionProposal, ContextPreviewRequest, EntityCreate, EvidenceProposal, LocalCommandRequest, LocalReputationProposal, LocalSettingsUpdate, ManualPromptRequest, NarratorResponse, SessionCreate, SessionRestoreRequest, TurnRequest, WorldCreate, WorldStartCreate
 from .providers import ProviderError, build_manual_prompt, make_provider
 
 BASE_DIR = Path(__file__).resolve().parents[2]
@@ -469,7 +469,7 @@ def restore_turn_state(conn, session_id: str, state: dict[str, Any]) -> None:
         ("inventory_items", state.get("inventory", [])),
         ("resources", state.get("resources", [])),
         ("relationships", state.get("relationships", [])),
-        ("ability_uses", state.get("ability_uses", []))
+        ("ability_uses", state.get("ability_uses", [])),\n        ("local_reputation", state.get("local_reputation", []))
     ]
     for table, rows in table_rows:
         conn.execute(f"DELETE FROM {table} WHERE session_id=?", (session_id,))
@@ -932,6 +932,17 @@ def build_context(
                 "created_at": row["created_at"]
             })
 
+    reputation_ids = sorted(participant_ids | {session["protagonist_entity_id"]})
+    reputation_placeholders = ",".join("?" for _ in reputation_ids) or "?"
+    local_reputation = [dict(row) for row in conn.execute(
+        "SELECT r.entity_id,e.name AS entity_name,r.location_label,r.value "
+        "FROM local_reputation r JOIN entities e ON e.id=r.entity_id "
+        "WHERE r.session_id=? AND r.location_key=? "
+        "AND r.entity_id IN (" + reputation_placeholders + ") "
+        "ORDER BY r.value DESC,e.name LIMIT 40",
+        (session["id"], (session["current_location"] or "").strip().casefold(), *reputation_ids)
+    ).fetchall()]
+
     eco_uses = [dict(row) for row in conn.execute(
         "SELECT target_entity_id,COUNT(*) AS attempts FROM ability_uses "
         "WHERE session_id=? AND ability_key IN ('eco','eco_humano','hipnosis') "
@@ -1135,6 +1146,269 @@ def write_event(
          event.description, json.dumps(witnesses, ensure_ascii=False), status, source_message_id)
     )
     return event.ref, event_id, status
+
+
+def persist_evidence_proposals(conn, session_id, result, event_map, valid_ids, pending_notes):
+    """Persist evidence only when its discoverer has recorded knowledge of its discovery."""
+    counts = {}
+    for item in result.evidence:
+        counts[item.ref] = counts.get(item.ref, 0) + 1
+    duplicates = {ref for ref, count in counts.items() if count > 1}
+    evidence_map = {}
+    for item in result.evidence:
+        source = event_map.get(item.event_ref)
+        about = conn.execute(
+            "SELECT id,status FROM events WHERE id=? AND session_id=?",
+            (item.about_event_id, session_id)
+        ).fetchone()
+        source_row = conn.execute(
+            "SELECT id,kind,witnesses_json,status FROM events WHERE id=? AND session_id=?",
+            (source["id"], session_id)
+        ).fetchone() if source else None
+        reason = ""
+        knowledge = None
+        status = "recorded"
+        if item.ref in duplicates:
+            status, reason = "pending", "La referencia de evidencia está duplicada."
+        elif source_row is None or source_row["status"] != "recorded":
+            status, reason = "pending", "El acontecimiento que descubre la evidencia no está registrado."
+        elif about is None or about["status"] != "recorded":
+            status, reason = "pending", "El acontecimiento investigado no existe o no está registrado."
+        elif item.discovered_by_entity_id not in valid_ids:
+            status, reason = "pending", "Quien descubre la evidencia no pertenece a este mundo."
+        else:
+            try:
+                witnesses = json.loads(source_row["witnesses_json"] or "[]")
+            except (TypeError, ValueError, json.JSONDecodeError):
+                witnesses = []
+            if item.discovered_by_entity_id not in witnesses:
+                status, reason = "pending", "La persona indicada no figura entre los testigos autorizados del hallazgo."
+            else:
+                knowledge = conn.execute(
+                    "SELECT id,knowledge_kind FROM entity_knowledge "
+                    "WHERE session_id=? AND knower_entity_id=? AND transmission_event_id=? "
+                    "ORDER BY created_at,id LIMIT 1",
+                    (session_id, item.discovered_by_entity_id, source_row["id"])
+                ).fetchone()
+                if source_row["kind"] == "rumor" or (knowledge and knowledge["knowledge_kind"] == "rumor"):
+                    status, reason = "pending", "Un rumor no puede registrarse como evidencia."
+                elif item.evidence_kind == "testimonial":
+                    if source_row["kind"] != "testimony" or not knowledge or knowledge["knowledge_kind"] != "testimony":
+                        status, reason = "pending", "La evidencia testimonial requiere un testimonio registrado y recibido por quien lo aporta."
+                elif source_row["kind"] != "observation" or not knowledge or knowledge["knowledge_kind"] != "direct_observation":
+                    status, reason = "pending", "La evidencia física o circunstancial requiere una observación directa registrada."
+
+        evidence_id = ""
+        if about is not None and source_row is not None:
+            evidence_id = new_id()
+            conn.execute(
+                "INSERT OR IGNORE INTO event_evidence("
+                "id,session_id,about_event_id,evidence_event_id,discovered_by_entity_id,"
+                "evidence_kind,effect,source_knowledge_id,source_knowledge_kind,description,status,reason"
+                ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    evidence_id, session_id, item.about_event_id, source_row["id"],
+                    item.discovered_by_entity_id, item.evidence_kind, item.effect,
+                    knowledge["id"] if knowledge else None,
+                    knowledge["knowledge_kind"] if knowledge else "unknown",
+                    item.description, status, reason
+                )
+            )
+            existing = conn.execute(
+                "SELECT id,status,source_knowledge_kind FROM event_evidence "
+                "WHERE session_id=? AND evidence_event_id=? AND discovered_by_entity_id=? "
+                "AND about_event_id=? AND evidence_kind=?",
+                (session_id, source_row["id"], item.discovered_by_entity_id,
+                 item.about_event_id, item.evidence_kind)
+            ).fetchone()
+            if existing:
+                evidence_id = existing["id"]
+                status = existing["status"]
+                knowledge_kind = existing["source_knowledge_kind"]
+            else:
+                knowledge_kind = knowledge["knowledge_kind"] if knowledge else "unknown"
+        else:
+            knowledge_kind = knowledge["knowledge_kind"] if knowledge else "unknown"
+        if status == "pending":
+            pending_notes.append(f"Evidencia {item.ref} requiere revisión: {reason}")
+        evidence_map[item.ref] = {
+            "id": evidence_id, "status": status, "about_event_id": item.about_event_id,
+            "discovered_by_entity_id": item.discovered_by_entity_id,
+            "evidence_kind": item.evidence_kind, "effect": item.effect,
+            "source_knowledge_kind": knowledge_kind, "reason": reason
+        }
+    return evidence_map
+
+
+def persist_event_attributions(conn, session_id, turn_id, result, evidence_map, valid_ids, pending_notes):
+    """Store descriptions, suspicions and identifications as separate epistemic levels."""
+    counts = {}
+    for item in result.attributions:
+        counts[item.ref] = counts.get(item.ref, 0) + 1
+    duplicates = {ref for ref, count in counts.items() if count > 1}
+    attribution_map = {}
+    for item in result.attributions:
+        about = conn.execute(
+            "SELECT id,status FROM events WHERE id=? AND session_id=?",
+            (item.about_event_id, session_id)
+        ).fetchone()
+        refs = list(item.evidence_refs)
+        selected = [evidence_map.get(ref) for ref in refs]
+        reason = ""
+        status = "recorded"
+        if item.ref in duplicates:
+            status, reason = "pending", "La referencia de atribución está duplicada."
+        elif about is None or about["status"] != "recorded":
+            status, reason = "pending", "El acontecimiento investigado no está registrado."
+        elif not refs or len(set(refs)) != len(refs) or any(not entry for entry in selected):
+            status, reason = "pending", "La atribución requiere referencias de evidencia válidas y no repetidas."
+        elif any(entry["status"] != "recorded" or entry["about_event_id"] != item.about_event_id for entry in selected):
+            status, reason = "pending", "La evidencia está pendiente o pertenece a otro acontecimiento."
+        elif item.attribution_level == "description":
+            if item.subject_entity_id:
+                status, reason = "pending", "Una descripción sin identificación no puede señalar una entidad concreta."
+            elif not any(entry["effect"] in {"supports", "neutral"} for entry in selected):
+                status, reason = "pending", "La descripción necesita evidencia útil para describir a una persona desconocida."
+        elif item.attribution_level == "suspected":
+            if item.subject_entity_id not in valid_ids:
+                status, reason = "pending", "La persona sospechosa no pertenece a este mundo."
+            elif not any(entry["effect"] == "supports" for entry in selected):
+                status, reason = "pending", "La sospecha necesita al menos un indicio que apoye esa hipótesis."
+        elif item.attribution_level == "identified":
+            independent_observers = {
+                entry["discovered_by_entity_id"] for entry in selected
+                if entry["effect"] == "supports"
+                and entry["source_knowledge_kind"] == "direct_observation"
+            }
+            if item.subject_entity_id not in valid_ids:
+                status, reason = "pending", "La persona identificada no pertenece a este mundo."
+            elif len(independent_observers) < 2:
+                status, reason = "pending", "La identificación requiere dos observadores independientes con conocimiento directo registrado."
+        elif item.attribution_level == "confirmed":
+            status, reason = "pending", "La culpabilidad confirmada requiere revisión explícita; el narrador no puede confirmarla por sí solo."
+
+        attribution_id = ""
+        if about is not None:
+            attribution_id = new_id()
+            evidence_ids = [entry["id"] for entry in selected if entry and entry.get("id")]
+            conn.execute(
+                "INSERT INTO event_attributions("
+                "id,session_id,turn_id,external_ref,about_event_id,subject_entity_id,"
+                "attribution_level,description,evidence_ids_json,status,reason"
+                ") VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    attribution_id, session_id, turn_id, item.ref, item.about_event_id,
+                    item.subject_entity_id or None, item.attribution_level, item.description,
+                    json.dumps(evidence_ids, ensure_ascii=False), status, reason
+                )
+            )
+        if status == "pending":
+            pending_notes.append(f"Atribución {item.ref} ({item.attribution_level}) requiere revisión: {reason}")
+        attribution_map[item.ref] = {
+            "id": attribution_id, "status": status, "about_event_id": item.about_event_id,
+            "subject_entity_id": item.subject_entity_id, "attribution_level": item.attribution_level,
+            "reason": reason
+        }
+    return attribution_map
+
+
+def apply_local_reputation_proposals(conn, session, turn_id, result, event_map, attribution_map, pending_notes, applied):
+    """Update only location-scoped reputation after another character receives a report."""
+    counts = {}
+    for item in result.reputation_changes:
+        key = (item.entity_id, item.scope_type, item.scope_key.strip().casefold())
+        counts[key] = counts.get(key, 0) + 1
+    for item in result.reputation_changes:
+        key = (item.entity_id, item.scope_type, item.scope_key.strip().casefold())
+        attribution = attribution_map.get(item.attribution_ref)
+        awareness = event_map.get(item.awareness_event_ref)
+        awareness_row = conn.execute(
+            "SELECT id,kind,witnesses_json,status FROM events WHERE id=? AND session_id=?",
+            (awareness["id"], session["id"])
+        ).fetchone() if awareness else None
+        reason = ""
+        if counts[key] > 1:
+            reason = "Hay varias propuestas para la misma reputación local en un turno; todas quedan pendientes."
+        elif key[1] != "location" or key[2] != (session["current_location"] or "").strip().casefold():
+            reason = "El ámbito debe coincidir con la ubicación actual; los ámbitos de gremio/facción/caravana requieren membresías registradas."
+        elif item.entity_id not in world_entity_ids(conn, session["world_id"]):
+            reason = "La entidad no pertenece a este mundo."
+        elif not attribution or attribution["status"] != "recorded":
+            reason = "La atribución de origen no está validada."
+        elif attribution["subject_entity_id"] != item.entity_id or attribution["attribution_level"] not in {"suspected", "identified"}:
+            reason = "La reputación debe corresponder a una sospecha o identificación validada de esa misma entidad."
+        elif not awareness_row or awareness_row["status"] != "recorded" or awareness_row["kind"] not in {"testimony", "rumor"}:
+            reason = "La reputación requiere una transmisión registrada de testimonio o rumor."
+        elif awareness.get("about_event_id") != attribution["about_event_id"]:
+            reason = "La transmisión no se refiere al acontecimiento de la atribución."
+        else:
+            try:
+                witnesses = json.loads(awareness_row["witnesses_json"] or "[]")
+            except (TypeError, ValueError, json.JSONDecodeError):
+                witnesses = []
+            listeners = set(witnesses) - {
+                item.entity_id, session["protagonist_entity_id"], awareness.get("source_entity_id", "")
+            }
+            if not listeners:
+                reason = "Ningún personaje ajeno al protagonista y al hablante recibió la información."
+            elif awareness_row["kind"] == "rumor" and attribution["attribution_level"] != "suspected":
+                reason = "Un rumor solo puede difundir una sospecha; no una identificación."
+            elif abs(item.delta) > (1 if attribution["attribution_level"] == "suspected" else 2):
+                reason = "El cambio supera el límite permitido para este nivel de atribución."
+            elif item.delta == 0:
+                reason = "El cambio de reputación debe ser distinto de cero."
+
+        if reason:
+            pending_notes.append(f"Reputación local de {item.entity_id} requiere revisión: {reason}")
+            if attribution and attribution.get("id") and awareness_row:
+                conn.execute(
+                    "INSERT INTO local_reputation_history("
+                    "id,session_id,turn_id,external_ref,entity_id,location_key,location_label,"
+                    "delta,old_value,new_value,attribution_id,awareness_event_id,reason,status"
+                    ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (
+                        new_id(), session["id"], turn_id, item.ref, item.entity_id,
+                        key[2], item.scope_key.strip(), item.delta, 0, 0,
+                        attribution["id"], awareness_row["id"], reason, "pending"
+                    )
+                )
+            continue
+
+        old = conn.execute(
+            "SELECT value FROM local_reputation WHERE session_id=? AND entity_id=? AND location_key=?",
+            (session["id"], item.entity_id, key[2])
+        ).fetchone()
+        old_value = int(old["value"]) if old else 0
+        new_value = old_value + item.delta
+        if not -100 <= new_value <= 100:
+            reason = "El resultado superaría el rango permitido de reputación local (-100 a 100)."
+            pending_notes.append(f"Reputación local de {item.entity_id} requiere revisión: {reason}")
+            continue
+        attribution_id = attribution["id"]
+        awareness_id = awareness_row["id"]
+        conn.execute(
+            "INSERT INTO local_reputation_history("
+            "id,session_id,turn_id,external_ref,entity_id,location_key,location_label,"
+            "delta,old_value,new_value,attribution_id,awareness_event_id,reason,status"
+            ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (
+                new_id(), session["id"], turn_id, item.ref, item.entity_id, key[2],
+                session["current_location"], item.delta, old_value, new_value,
+                attribution_id, awareness_id, item.reason, "accepted"
+            )
+        )
+        conn.execute(
+            "INSERT INTO local_reputation("
+            "session_id,entity_id,location_key,location_label,value,last_attribution_id,last_awareness_event_id"
+            ") VALUES(?,?,?,?,?,?,?) ON CONFLICT(session_id,entity_id,location_key) DO UPDATE SET "
+            "location_label=excluded.location_label,value=excluded.value,"
+            "last_attribution_id=excluded.last_attribution_id,"
+            "last_awareness_event_id=excluded.last_awareness_event_id,updated_at=CURRENT_TIMESTAMP",
+            (session["id"], item.entity_id, key[2], session["current_location"],
+             new_value, attribution_id, awareness_id)
+        )
+        applied.append(f"Reputación local de {item.entity_id} en {session['current_location']}: {old_value} → {new_value}.")
+
 
 def save_change(conn, session_id, turn_id, ref, entity_id, field, operation,
                 old_value, proposed_value, accepted_value, status, reason, event_id=None):
@@ -1403,6 +1677,15 @@ def apply_narrator_result(
         }
 
     applied = []
+    evidence_map = persist_evidence_proposals(
+        conn, session["id"], result, event_map, valid_ids, pending_notes
+    )
+    attribution_map = persist_event_attributions(
+        conn, session["id"], turn_id, result, evidence_map, valid_ids, pending_notes
+    )
+    apply_local_reputation_proposals(
+        conn, session, turn_id, result, event_map, attribution_map, pending_notes, applied
+    )
     purchase_event_refs: set[str] = set()
     change_ref_counts: dict[str, int] = {}
     for change in result.state_changes:
