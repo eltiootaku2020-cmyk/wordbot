@@ -3551,12 +3551,14 @@ RESTORE_SESSION_TABLES = (
     "ability_uses",
     "messages",
     "events",
-    # Knowledge rows reference both event rows and other knowledge rows.
+    # These records depend on events but do not authorize global disclosure.
     "entity_knowledge",
+    "event_perceptions",
+    "event_evidence",
     "state_changes",
     "snapshots",
 )
-RESTORE_OPTIONAL_TABLES = {"entity_knowledge"}
+RESTORE_OPTIONAL_TABLES = {"entity_knowledge", "event_perceptions", "event_evidence"}
 RESTORE_REQUIRED_COLUMNS = {
     "session_presence": {"session_id", "entity_id", "location", "presence_status"},
     "inventory_items": {"id", "session_id", "item_key", "display_name", "quantity", "condition", "carrier_entity_id", "location"},
@@ -3568,6 +3570,14 @@ RESTORE_REQUIRED_COLUMNS = {
     "entity_knowledge": {
         "id", "session_id", "knower_entity_id", "knowledge_kind", "about_event_id",
         "transmission_event_id", "source_entity_id", "source_knowledge_id", "content", "created_at"
+    },
+    "event_perceptions": {
+        "id", "session_id", "event_id", "observer_entity_id", "modality",
+        "observed_details", "identity_assessment", "claimed_entity_id", "created_at"
+    },
+    "event_evidence": {
+        "id", "session_id", "discovery_event_id", "related_event_id", "discoverer_entity_id",
+        "evidence_type", "description", "location", "condition", "created_at"
     },
     "state_changes": {"id", "session_id", "turn_id", "external_ref", "entity_id", "field", "operation", "proposed_value_json", "status", "reason"},
     "snapshots": {"id", "session_id", "event_sequence", "state_json"},
