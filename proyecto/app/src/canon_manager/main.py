@@ -3751,32 +3751,41 @@ def _validated_event_proposal_for_approval(conn, session, event, valid_ids):
     if any(witness not in valid_ids for witness in witnesses):
         raise HTTPException(status_code=422, detail="Hay testigos no registrados; el evento no puede confirmarse.")
 
-    source_visibility = ""
-    recipient_id = ""
-    allowed_witnesses = None
-    if event["source_message_id"]:
-        source_message = conn.execute(
-            "SELECT recipient_entity_id,metadata_json FROM messages "
-            "WHERE id=? AND session_id=? AND role='user'",
-            (event["source_message_id"], session["id"])
-        ).fetchone()
-        if source_message is None:
-            raise HTTPException(status_code=422, detail="No se puede comprobar la audiencia del mensaje fuente; el evento permanece pendiente.")
-        recipient_id = source_message["recipient_entity_id"] or ""
-        try:
-            metadata = json.loads(source_message["metadata_json"] or "{}")
-        except (TypeError, ValueError, json.JSONDecodeError) as exc:
-            raise HTTPException(status_code=422, detail="La audiencia del mensaje original está dañada; no se aprobó el evento.") from exc
-        if not isinstance(metadata, dict):
-            raise HTTPException(status_code=422, detail="La audiencia del mensaje original no es válida; no se aprobó el evento.")
-        source_visibility = metadata.get("visibility") or ""
-        raw_audience = metadata.get("audience_ids")
-        if raw_audience is not None:
-            if not isinstance(raw_audience, list) or any(not isinstance(value, str) for value in raw_audience):
-                raise HTTPException(status_code=422, detail="La audiencia original no es válida; no se aprobó el evento.")
-            allowed_witnesses = set(raw_audience)
-        elif source_visibility == "private":
-            allowed_witnesses = {session["protagonist_entity_id"], recipient_id}
+    if not event["source_message_id"]:
+        raise HTTPException(
+            status_code=422,
+            detail="El evento no conserva un mensaje fuente verificable; no se puede reconstruir su audiencia y permanece pendiente."
+        )
+    source_message = conn.execute(
+        "SELECT recipient_entity_id,metadata_json FROM messages "
+        "WHERE id=? AND session_id=? AND role='user'",
+        (event["source_message_id"], session["id"])
+    ).fetchone()
+    if source_message is None:
+        raise HTTPException(status_code=422, detail="No se puede comprobar la audiencia del mensaje fuente; el evento permanece pendiente.")
+    recipient_id = source_message["recipient_entity_id"] or ""
+    try:
+        metadata = json.loads(source_message["metadata_json"] or "{}")
+    except (TypeError, ValueError, json.JSONDecodeError) as exc:
+        raise HTTPException(status_code=422, detail="La audiencia del mensaje original está dañada; no se aprobó el evento.") from exc
+    if not isinstance(metadata, dict):
+        raise HTTPException(status_code=422, detail="La audiencia del mensaje original no es válida; no se aprobó el evento.")
+    source_visibility = metadata.get("visibility") or ""
+    if source_visibility not in {"scene", "private"}:
+        raise HTTPException(status_code=422, detail="El alcance original no se puede validar; el evento permanece pendiente.")
+    raw_audience = metadata.get("audience_ids")
+    if (
+        not isinstance(raw_audience, list)
+        or any(not isinstance(value, str) or not value or value not in valid_ids for value in raw_audience)
+        or len(set(raw_audience)) != len(raw_audience)
+    ):
+        raise HTTPException(status_code=422, detail="La audiencia original falta o contiene entidades no válidas; el evento permanece pendiente.")
+    allowed_witnesses = set(raw_audience)
+    if session["protagonist_entity_id"] not in allowed_witnesses:
+        raise HTTPException(status_code=422, detail="La audiencia original no incluye al protagonista; el evento permanece pendiente.")
+    if source_visibility == "private":
+        if not recipient_id or recipient_id not in valid_ids or recipient_id not in allowed_witnesses:
+            raise HTTPException(status_code=422, detail="El destinatario privado no coincide con la audiencia original; el evento permanece pendiente.")
 
     if allowed_witnesses is not None and any(witness not in allowed_witnesses for witness in witnesses):
         raise HTTPException(status_code=422, detail="El evento incluye testigos fuera de la audiencia original.")
