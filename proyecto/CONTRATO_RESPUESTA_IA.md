@@ -175,7 +175,7 @@ El registro se consulta solo para el protagonista y el destinatario activo, evit
 La respuesta puede incluir tres listas opcionales: `evidence`, `attributions` y `reputation_changes`.
 
 ### Evidencia
-Cada pieza identifica `event_ref` (evento de descubrimiento del turno actual), `about_event_id` (acontecimiento investigado ya registrado), `discovered_by_entity_id`, `evidence_kind`, `effect` y descripción. Quien la aporta debe ser testigo autorizado del hallazgo y tener una observación directa o un testimonio recibido y persistido. El rumor no sirve como evidencia.
+Cada pieza identifica `event_ref` (evento de descubrimiento del turno actual), `about_event_id` (acontecimiento investigado ya registrado), `discovered_by_entity_id`, `candidate_entity_id` (opcional para pistas generales; obligatorio para evidencia usada para sospechar o identificar a una persona), `evidence_kind`, `effect` y descripción. Quien la aporta debe ser testigo autorizado del hallazgo y tener una observación directa o un testimonio recibido y persistido. El rumor no sirve como evidencia. El servidor comprueba que `candidate_entity_id` coincida con el sujeto de la atribución.
 
 ### Atribución
 Los niveles son distintos y no intercambiables:
@@ -184,7 +184,7 @@ Los niveles son distintos y no intercambiables:
 - `identified`: exige dos observadores independientes con conocimiento directo registrado.
 - `confirmed`: siempre queda pendiente; la IA no puede declarar culpabilidad confirmada.
 
-Una identificación no es un veredicto. Los indicios contradictorios pueden quedar registrados sin borrar silenciosamente evidencia previa.
+Una identificación no es un veredicto. Los indicios contradictorios pueden quedar registrados sin borrar silenciosamente evidencia previa. Una evidencia que apoye una sospecha o identificación debe nombrar estructuralmente a la entidad candidata mediante `candidate_entity_id`; una coincidencia solo textual no es suficiente.
 
 ### Reputación local
 `reputation_changes` enlaza la entidad, el nivel de atribución, el evento de transmisión y el ámbito. Esta versión solo acepta `scope_type="location"` y exige que `scope_key` coincida con la ubicación actual. El evento de transmisión debe ser `testimony` o `rumor` y llegar al menos a un PNJ que no sea el protagonista, el hablante ni la entidad señalada. Un rumor solo puede difundir una sospecha. El cambio máximo es 1 punto para sospecha y 2 para identificación; los valores se mantienen entre −100 y 100.
@@ -199,8 +199,8 @@ Un evento puede incluir `perceptions`, una lista de registros personales del tes
 
 `EvidenceProposal` conserva la relación entre evento investigado y evento de descubrimiento, la entidad descubridora, clase de evidencia, efecto (`supports`, `contradicts`, `neutral`), procedencia del conocimiento y descripción. Una pista no confirma una identidad ni culpabilidad por sí sola. Los rumores nunca pueden usarse como evidencia.
 
-Los niveles de atribución son `description`, `suspected`, `identified` y `confirmed`. Una identificación requiere al menos dos observadores distintos con conocimiento directo y una percepción `recognized` de cada uno que nombre al mismo sujeto. Si falta ese reconocimiento explícito, la atribución queda pendiente. `confirmed` siempre exige revisión explícita y nunca puede aceptarse solo por la respuesta de la IA.
+Los niveles de atribución son `description`, `suspected`, `identified` y `confirmed`. Una sospecha requiere al menos una evidencia de apoyo cuyo `candidate_entity_id` coincida con el sujeto. Una identificación requiere además al menos dos observadores distintos con conocimiento directo, evidencia vinculada al mismo sujeto y una percepción `recognized` de cada uno que nombre a esa persona. Si falta ese reconocimiento explícito o el vínculo de evidencia, la atribución queda pendiente. `confirmed` siempre exige revisión explícita y nunca puede aceptarse solo por la respuesta de la IA.
 
 La reputación se conserva por ubicación, no como fama mundial. Solo cambia cuando una atribución `suspected` o `identified` válida se transmite mediante testimonio/rumor registrado a oyentes externos al protagonista y al hablante. Un rumor solo difunde sospecha y los cambios automáticos están limitados a 1 punto para sospecha y 2 para identificación.
 
-Las tablas de conocimiento, percepciones, evidencia, atribuciones y reputación se incluyen en las copias/restauraciones. Las copias antiguas que no tienen alguna de estas tablas se aceptan como datos vacíos para esa función; el conocimiento individual faltante se reconstruye solo a partir de eventos registrados y testigos válidos, nunca inventando percepciones, pistas o atribuciones históricas.
+Las tablas de conocimiento, percepciones, evidencia, atribuciones y reputación se incluyen en las copias/restauraciones. Las copias antiguas que no tienen alguna de estas tablas se aceptan como datos vacíos para esa función; el conocimiento individual faltante se reconstruye solo a partir de eventos registrados y testigos válidos, nunca inventando percepciones, pistas o atribuciones históricas. Los eventos pendientes conservan la fuente, el acontecimiento de origen y las percepciones propuestas; la aprobación vuelve a validar la audiencia y la procedencia y crea conocimiento/percepciones en la misma transacción. Las percepciones múltiples del mismo observador y modalidad se conservan si describen observaciones distintas; los duplicados exactos se eliminan de forma explícita.
