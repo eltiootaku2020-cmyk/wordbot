@@ -4450,3 +4450,198 @@ def test_cancelled_provider_generation_marks_turn_failed_and_allows_same_request
             message for message in messages_after
             if message["role"] == "assistant" and message["turn_id"] == failed_user["turn_id"]
         ]) == 1
+
+
+
+def test_entity_knowledge_is_scoped_to_the_witness_and_active_recipient():
+    with TestClient(app) as client:
+        started, entities = _create_state_ops_world(client)
+        session_id = started["session_id"]
+        protagonist_id = entities["Protagonista"]["id"]
+        maelis_id = entities["Maelis Orven"]["id"]
+        ivar_id = entities["Ivar Dalen"]["id"]
+        result = NarratorResponse(
+            narration="Maelis y el protagonista presencian un suceso; Ivar no lo ve.",
+            events=[
+                EventProposal(
+                    ref="knowledge-observation-1",
+                    kind="observation",
+                    entity_id=maelis_id,
+                    description="Maelis encuentra una marca reciente en la puerta.",
+                    witness_ids=[protagonist_id, maelis_id]
+                )
+            ]
+        )
+        turn_id, _, pending = _apply_synthetic_result(
+            session_id, "Observo la marca con Maelis.", result
+        )
+        assert not pending
+
+        with database.connection() as conn:
+            event = conn.execute(
+                "SELECT id,status FROM events WHERE session_id=? AND turn_id=? AND external_ref=?",
+                (session_id, turn_id, "knowledge-observation-1")
+            ).fetchone()
+            records = conn.execute(
+                "SELECT knower_entity_id,knowledge_kind,about_event_id,transmission_event_id "
+                "FROM entity_knowledge WHERE session_id=? AND about_event_id=?",
+                (session_id, event["id"])
+            ).fetchall()
+            session = session_row(conn, session_id)
+            maelis_context = build_context(
+                conn, session, "¿Qué sabe Maelis?", maelis_id,
+                "knowledge-context-maelis", visibility="scene"
+            )
+            ivar_context = build_context(
+                conn, session, "¿Qué sabe Ivar?", ivar_id,
+                "knowledge-context-ivar", visibility="scene"
+            )
+
+        assert event["status"] == "recorded"
+        assert {row["knower_entity_id"] for row in records} == {protagonist_id, maelis_id}
+        assert all(row["knowledge_kind"] == "direct_observation" for row in records)
+        assert all(row["about_event_id"] == event["id"] for row in records)
+        assert any(
+            item["knower_entity_id"] == maelis_id
+            and item["knowledge_kind"] == "direct_observation"
+            for item in maelis_context["known_information"]
+        )
+        # Ivar can receive the protagonist's own knowledge, but must not inherit
+        # Maelis's private knowledge just because he is standing in the same scene.
+        assert not any(
+            item["knower_entity_id"] == maelis_id
+            for item in ivar_context["known_information"]
+        )
+        assert not any(
+            item["knower_entity_id"] == ivar_id
+            for item in ivar_context["known_information"]
+        )
+
+
+def test_rumor_requires_a_knowledgeable_source_and_never_becomes_confirmed_on_relay():
+    with TestClient(app) as client:
+        started, entities = _create_state_ops_world(client)
+        session_id = started["session_id"]
+        protagonist_id = entities["Protagonista"]["id"]
+        maelis_id = entities["Maelis Orven"]["id"]
+        ivar_id = entities["Ivar Dalen"]["id"]
+        brina_id = entities["Brina Solcor"]["id"]
+
+        original = NarratorResponse(
+            narration="El protagonista y Maelis ven cómo cae una señal de madera.",
+            events=[
+                EventProposal(
+                    ref="knowledge-source-event",
+                    kind="observation",
+                    description="Una señal de madera cae junto al camino.",
+                    witness_ids=[protagonist_id, maelis_id]
+                )
+            ]
+        )
+        source_turn, _, source_pending = _apply_synthetic_result(
+            session_id, "Veo caer la señal.", original
+        )
+        assert not source_pending
+        with database.connection() as conn:
+            source_event = conn.execute(
+                "SELECT id FROM events WHERE session_id=? AND turn_id=? AND external_ref=?",
+                (session_id, source_turn, "knowledge-source-event")
+            ).fetchone()
+        about_event_id = source_event["id"]
+
+        # Brina cannot pass on an event she never learned about.
+        invalid_report = NarratorResponse(
+            narration="Brina intenta contar algo que no conoce.",
+            events=[
+                EventProposal(
+                    ref="knowledge-invalid-rumor",
+                    kind="rumor",
+                    description="Brina afirma que la señal cayó por culpa de un viajero.",
+                    witness_ids=[brina_id, ivar_id],
+                    source_entity_id=brina_id,
+                    about_event_id=about_event_id
+                )
+            ]
+        )
+        invalid_turn, _, invalid_pending = _apply_synthetic_result(
+            session_id, "Brina intenta difundir un rumor.", invalid_report
+        )
+        with database.connection() as conn:
+            invalid_status = conn.execute(
+                "SELECT status FROM events WHERE session_id=? AND turn_id=? AND external_ref=?",
+                (session_id, invalid_turn, "knowledge-invalid-rumor")
+            ).fetchone()["status"]
+            brina_knowledge = conn.execute(
+                "SELECT COUNT(*) AS n FROM entity_knowledge WHERE session_id=? "
+                "AND knower_entity_id=? AND about_event_id=?",
+                (session_id, brina_id, about_event_id)
+            ).fetchone()["n"]
+        assert invalid_status == "pending"
+        assert brina_knowledge == 0
+        assert any("requiere revisión" in note for note in invalid_pending)
+
+        # Maelis knows the source event directly and can relay it as a rumor.
+        first_report = NarratorResponse(
+            narration="Maelis comparte una versión no confirmada con Ivar.",
+            events=[
+                EventProposal(
+                    ref="knowledge-rumor-from-maelis",
+                    kind="rumor",
+                    description="Maelis dice que la señal pudo caer por actividad de criaturas.",
+                    witness_ids=[maelis_id, ivar_id],
+                    source_entity_id=maelis_id,
+                    about_event_id=about_event_id
+                )
+            ]
+        )
+        first_turn, _, first_pending = _apply_synthetic_result(
+            session_id, "Maelis cuenta lo que vio.", first_report
+        )
+        assert not first_pending
+
+        # Ivar only has a rumor, so relaying it as testimony cannot upgrade it.
+        second_report = NarratorResponse(
+            narration="Ivar repite la versión a Brina como si fuera un testimonio.",
+            events=[
+                EventProposal(
+                    ref="knowledge-rumor-relayed",
+                    kind="testimony",
+                    description="Ivar cuenta que la señal cayó por actividad de criaturas.",
+                    witness_ids=[ivar_id, brina_id],
+                    source_entity_id=ivar_id,
+                    about_event_id=about_event_id
+                )
+            ]
+        )
+        second_turn, _, second_pending = _apply_synthetic_result(
+            session_id, "Ivar se lo cuenta a Brina.", second_report
+        )
+        assert not second_pending
+
+        with database.connection() as conn:
+            rumor_status = conn.execute(
+                "SELECT status FROM events WHERE session_id=? AND turn_id=? AND external_ref=?",
+                (session_id, first_turn, "knowledge-rumor-from-maelis")
+            ).fetchone()["status"]
+            relay_status = conn.execute(
+                "SELECT status FROM events WHERE session_id=? AND turn_id=? AND external_ref=?",
+                (session_id, second_turn, "knowledge-rumor-relayed")
+            ).fetchone()["status"]
+            brina_record = conn.execute(
+                "SELECT knowledge_kind,source_entity_id,source_knowledge_id,content "
+                "FROM entity_knowledge WHERE session_id=? AND knower_entity_id=? "
+                "AND about_event_id=? AND transmission_event_id IN "
+                "(SELECT id FROM events WHERE session_id=? AND turn_id=?)",
+                (session_id, brina_id, about_event_id, session_id, second_turn)
+            ).fetchone()
+            source_chain = conn.execute(
+                "SELECT knowledge_kind FROM entity_knowledge WHERE id=?",
+                (brina_record["source_knowledge_id"],)
+            ).fetchone()
+
+        assert rumor_status == "recorded"
+        assert relay_status == "recorded"
+        assert brina_record["knowledge_kind"] == "rumor"
+        assert brina_record["source_entity_id"] == ivar_id
+        assert source_chain["knowledge_kind"] == "rumor"
+        assert "no confirmada" not in brina_record["content"].lower()  # The kind, not wording, carries provenance.
