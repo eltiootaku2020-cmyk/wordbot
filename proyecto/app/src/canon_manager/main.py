@@ -134,7 +134,8 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 
 RELATION_AXES = {
     "confidence", "suspicion", "friendship", "respect", "rivalry",
-    "resentment", "fear", "gratitude_debt", "cooperation", "attraction"
+    "resentment", "fear", "gratitude_debt", "cooperation", "attraction",
+    "affection", "discomfort", "loyalty"
 }
 MAX_AUTO_RELATION_DELTA = 3
 MAX_LORE_ENTRIES = 8
