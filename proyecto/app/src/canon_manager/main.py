@@ -434,6 +434,9 @@ def capture_turn_state(conn, session_id: str) -> dict[str, Any]:
         ).fetchall()],
         "ability_uses": [dict(row) for row in conn.execute(
             "SELECT * FROM ability_uses WHERE session_id=? ORDER BY created_at,id", (session_id,)
+        ).fetchall()],
+        "local_reputation": [dict(row) for row in conn.execute(
+            "SELECT * FROM local_reputation WHERE session_id=? ORDER BY entity_id,location_key", (session_id,)
         ).fetchall()]
     }
 
@@ -469,7 +472,8 @@ def restore_turn_state(conn, session_id: str, state: dict[str, Any]) -> None:
         ("inventory_items", state.get("inventory", [])),
         ("resources", state.get("resources", [])),
         ("relationships", state.get("relationships", [])),
-        ("ability_uses", state.get("ability_uses", [])),\n        ("local_reputation", state.get("local_reputation", []))
+        ("ability_uses", state.get("ability_uses", [])),
+        ("local_reputation", state.get("local_reputation", []))
     ]
     for table, rows in table_rows:
         conn.execute(f"DELETE FROM {table} WHERE session_id=?", (session_id,))
@@ -973,6 +977,7 @@ def build_context(
         "recent_messages": recent,
         "recent_events": recent_events,
         "known_information": known_information,
+        "local_reputation": local_reputation,
         "relevant_lore": lore
     }
     context_chars = len(json.dumps(context, ensure_ascii=False))
@@ -1673,7 +1678,8 @@ def apply_narrator_result(
             record_event_knowledge(conn, session["id"], event_id, event)
         event_map[ref] = {
             "id": event_id, "status": status, "kind": event.kind,
-            "entity_id": event.entity_id, "description": event.description
+            "entity_id": event.entity_id, "description": event.description,
+            "source_entity_id": event.source_entity_id, "about_event_id": event.about_event_id
         }
 
     applied = []
