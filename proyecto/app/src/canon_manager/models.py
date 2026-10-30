@@ -18,7 +18,7 @@ class EventProposal(StrictModel):
 class StateChangeProposal(StrictModel):
     ref: str = Field(min_length=1, max_length=40)
     entity_id: str = Field(max_length=120)
-    field: Literal["confidence", "suspicion", "friendship", "respect", "rivalry", "resentment", "fear", "gratitude_debt", "cooperation", "attraction", "impression"]
+    field: Literal["confidence", "suspicion", "friendship", "respect", "rivalry", "resentment", "fear", "gratitude_debt", "cooperation", "attraction", "affection", "discomfort", "loyalty", "impression"]
     operation: Literal["delta", "set", "note"]
     numeric_value: int = Field(default=0, ge=-1000, le=1000)
     text_value: str = Field(default="", max_length=1000)
