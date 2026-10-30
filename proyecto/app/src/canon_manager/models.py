@@ -17,6 +17,36 @@ class EventProposal(StrictModel):
     about_event_id: str = Field(default="", max_length=80)
 
 
+class EvidenceProposal(StrictModel):
+    ref: str = Field(min_length=1, max_length=40)
+    event_ref: str = Field(min_length=1, max_length=40)
+    about_event_id: str = Field(min_length=1, max_length=80)
+    discovered_by_entity_id: str = Field(min_length=1, max_length=120)
+    evidence_kind: Literal["physical", "testimonial", "circumstantial", "alibi", "other"]
+    effect: Literal["supports", "contradicts", "neutral"]
+    description: str = Field(min_length=1, max_length=800)
+
+
+class AttributionProposal(StrictModel):
+    ref: str = Field(min_length=1, max_length=40)
+    about_event_id: str = Field(min_length=1, max_length=80)
+    attribution_level: Literal["description", "suspected", "identified", "confirmed"]
+    subject_entity_id: str = Field(default="", max_length=120)
+    description: str = Field(min_length=1, max_length=800)
+    evidence_refs: list[Annotated[str, Field(max_length=40)]] = Field(default_factory=list, max_length=10)
+
+
+class LocalReputationProposal(StrictModel):
+    ref: str = Field(min_length=1, max_length=40)
+    entity_id: str = Field(min_length=1, max_length=120)
+    scope_type: Literal["location"]
+    scope_key: str = Field(min_length=1, max_length=180)
+    delta: int = Field(ge=-2, le=2)
+    attribution_ref: str = Field(min_length=1, max_length=40)
+    awareness_event_ref: str = Field(min_length=1, max_length=40)
+    reason: str = Field(min_length=1, max_length=600)
+
+
 class StateChangeProposal(StrictModel):
     ref: str = Field(min_length=1, max_length=40)
     entity_id: str = Field(max_length=120)
@@ -80,6 +110,9 @@ PendingNote = Annotated[str, Field(min_length=1, max_length=500)]
 class NarratorResponse(StrictModel):
     narration: str = Field(min_length=1, max_length=12000)
     events: list[EventProposal] = Field(default_factory=list, max_length=30)
+    evidence: list[EvidenceProposal] = Field(default_factory=list, max_length=40)
+    attributions: list[AttributionProposal] = Field(default_factory=list, max_length=30)
+    reputation_changes: list[LocalReputationProposal] = Field(default_factory=list, max_length=30)
     state_changes: list[StateChangeProposal] = Field(default_factory=list, max_length=40)
     elapsed_minutes: int = Field(default=1, ge=0, le=10080)
     movements: list[MovementProposal] = Field(default_factory=list, max_length=20)
