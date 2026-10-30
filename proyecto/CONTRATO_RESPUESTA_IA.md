@@ -143,3 +143,27 @@ Reglas semánticas:
 5. Isekai sin Destino comienza con 0 monedas, en coherencia con el canon inicial sin dinero.
 
 El proveedor simulado y las pruebas automáticas verifican compra suficiente, insuficiente y recompensa. Falta probar estos casos con un proveedor API real.
+
+## Ejes sociales admitidos por el contrato actual
+
+Los campos relacionales son independientes y se almacenan como relación dirigida entre dos entidades por partida. El modelo Pydantic y el validador del prototipo admiten actualmente:
+
+- confidence: confianza.
+- suspicion: sospecha.
+- friendship: amistad.
+- affection: cariño/afecto.
+- discomfort: incomodidad.
+- respect: respeto.
+- rivalry: rivalidad.
+- resentment: resentimiento.
+- fear: miedo.
+- gratitude_debt: gratitud/deuda.
+- cooperation: cooperación.
+- loyalty: lealtad.
+- attraction: atracción.
+
+El modelo acepta el nombre del eje, pero no autoriza por sí solo su cambio. Se mantienen las validaciones existentes: entidad válida, evento fuente registrado, ausencia de propuestas contradictorias para el mismo eje y valor inicial confirmado. Los cambios automáticos pequeños siguen sujetos al límite del prototipo; los demás quedan pendientes.
+
+No colapsar cariño, confianza, atracción, obediencia, lealtad o cooperación en una sola puntuación. El contrato actual no deduce automáticamente unas de otras.
+
+**Límite explícito:** estos ejes permiten registrar cambios narrativos propuestos y validados. Todavía no implementan por sí solos la causalidad completa de Psico-Eco, el subsistema de fama, testigos con percepción parcial ni la propagación de rumores.

@@ -113,7 +113,7 @@ El validador comprueba si esa consecuencia encaja con la regla del mundo. Si la 
 
 ## 5. Modelo de relación
 
-No existe una sola puntuación que defina toda relación. Las dimensiones son independientes: confianza, sospecha, amistad, respeto, rivalidad, resentimiento, miedo, gratitud/deuda, cooperación y atracción, si corresponde.
+No existe una sola puntuación que defina toda relación. Las dimensiones son independientes: confianza, sospecha, amistad, cariño/afecto, incomodidad, respeto, rivalidad, resentimiento, miedo, gratitud/deuda, cooperación, lealtad y atracción, si corresponde. El prototipo acepta ahora los ejes affection, discomfort y loyalty además de los anteriores; cada eje conserva su propio valor e historial.
 
 Los valores representan intensidad y deben tener causa e historial. La etiqueta «me considera atrevido» no es equivalente a una baja permanente de confianza. Una emoción o impresión puntual puede quedar como evento separado.
 
@@ -186,3 +186,26 @@ El código actual incluye:
 - En el preset Isekai, monedas iniciales = 0.
 
 CI aprobada: 38 pruebas Python y sintaxis JavaScript, https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/40890138277. La prueba usa el narrador simulado. El undo del último turno restaura estado y deja auditoría; falta ampliar pruebas de rollback para relaciones/poderes, verificar el navegador en Windows, probar APIs reales y realizar campaña larga.
+
+## 9. Alcance social actual y límites verificados
+
+El prototipo ya tiene una base parcial para proteger el conocimiento de los PNJ:
+
+- Los eventos almacenan una lista de testigos.
+- La recuperación de contexto filtra eventos por testigos, audiencia y alcance de conversaciones; eventos pendientes/rechazados o con metadatos inválidos no se entregan como hechos.
+- Los turnos privados limitan la audiencia al protagonista y al destinatario, y no aceptan testigos fuera de ese alcance.
+- Las relaciones se guardan por partida, par dirigido de entidades y eje independiente.
+- Los ejes de relación admitidos incluyen ahora cariño (affection), incomodidad (discomfort) y lealtad (loyalty), además de confianza, sospecha, amistad, respeto, rivalidad, resentimiento, miedo, gratitud/deuda, cooperación y atracción.
+- Un cambio de relación requiere un evento fuente registrado, entidad válida y valor inicial confirmado; los deltas automáticos siguen limitados por la política del prototipo.
+
+**Límites que siguen abiertos:**
+
+- No existe todavía un sistema de fama/reputación localizado por ciudad, facción, gremio o caravana.
+- No existe una red persistente de propagación de rumores entre entidades y regiones.
+- La lista de testigos no contiene todavía una percepción individual detallada (qué vio, cuánto identificó, qué no pudo percibir).
+- El motor no calcula todavía atribución de delitos ni calidad de evidencias.
+- El contexto de relación de una escena sigue centrado en el protagonista y el destinatario activo; falta recuperar relaciones entre PNJ para simulación social grupal.
+- Añadir el eje discomfort no significa que el programa genere automáticamente incomodidad al fallar Psico-Eco. Esa causalidad aún requiere lógica específica y pruebas.
+- Los efectos privados de Psico-Eco no se propagan a fama porque no existe todavía el subsistema de fama; el filtrado actual de eventos privados sí evita revelar sus eventos a participantes fuera de audiencia/testigos.
+
+No confundir estos cimientos verificables con el sistema social completo descrito en el módulo de mundo vivo. La implementación futura necesita procedencia de información, observaciones por entidad, testimonios, rumores, atribución, reputación localizada y pruebas de aislamiento.

@@ -4450,3 +4450,87 @@ def test_cancelled_provider_generation_marks_turn_failed_and_allows_same_request
             message for message in messages_after
             if message["role"] == "assistant" and message["turn_id"] == failed_user["turn_id"]
         ]) == 1
+
+
+def test_affection_discomfort_and_loyalty_axes_are_persisted_independently():
+    with TestClient(app) as client:
+        started, entities = _create_state_ops_world(client)
+        session_id = started["session_id"]
+        protagonist_id = entities["Protagonista"]["id"]
+        maelis_id = entities["Maelis Orven"]["id"]
+        witnesses = [
+            entities[name]["id"]
+            for name in ("Protagonista", "Maelis Orven", "Ivar Dalen", "Brina Solcor")
+        ]
+        axes = ("affection", "discomfort", "loyalty")
+        with database.transaction() as conn:
+            for axis in axes:
+                conn.execute(
+                    "INSERT INTO relationships(id,session_id,from_entity_id,to_entity_id,axis,value,reason) "
+                    "VALUES(?,?,?,?,?,?,?)",
+                    (
+                        uuid.uuid4().hex, session_id, protagonist_id, maelis_id,
+                        axis, 50, f"Valor inicial confirmado de {axis}."
+                    )
+                )
+
+        result = NarratorResponse(
+            narration="La interacción provoca cambios diferenciados en el vínculo.",
+            events=[
+                EventProposal(
+                    ref="social-axes-event",
+                    kind="reaction",
+                    entity_id=maelis_id,
+                    description="Maelis reacciona a la interacción con el protagonista.",
+                    witness_ids=witnesses
+                )
+            ],
+            state_changes=[
+                StateChangeProposal(
+                    ref=f"social-axis-{axis}",
+                    entity_id=maelis_id,
+                    field=axis,
+                    operation="delta",
+                    numeric_value=2,
+                    text_value="",
+                    reason=f"La escena justifica un cambio pequeño en {axis}.",
+                    event_ref="social-axes-event",
+                    requires_approval=False
+                )
+                for axis in axes
+            ]
+        )
+        turn_id, applied, pending = _apply_synthetic_result(
+            session_id,
+            "Hablo con Maelis y la interacción cambia nuestro vínculo.",
+            result
+        )
+
+        with database.connection() as conn:
+            values = {
+                row["axis"]: row["value"]
+                for row in conn.execute(
+                    "SELECT axis,value FROM relationships WHERE session_id=? AND from_entity_id=? AND to_entity_id=?",
+                    (session_id, protagonist_id, maelis_id)
+                ).fetchall()
+            }
+            statuses = {
+                row["field"]: row["status"]
+                for row in conn.execute(
+                    "SELECT field,status FROM state_changes WHERE session_id=? AND turn_id=?",
+                    (session_id, turn_id)
+                ).fetchall()
+            }
+
+        assert {axis: values[axis] for axis in axes} == {
+            "affection": 52.0,
+            "discomfort": 52.0,
+            "loyalty": 52.0
+        }
+        assert {axis: statuses[axis] for axis in axes} == {
+            "affection": "accepted",
+            "discomfort": "accepted",
+            "loyalty": "accepted"
+        }
+        assert not pending
+        assert len([item for item in applied if "→" in item]) == 3
