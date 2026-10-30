@@ -1,5 +1,7 @@
+import json
 import os
 import sqlite3
+import uuid
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Iterator
@@ -51,6 +53,23 @@ CREATE TABLE IF NOT EXISTS events (
   source_message_id TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(session_id, turn_id, external_ref)
 );
+CREATE TABLE IF NOT EXISTS entity_knowledge (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  knower_entity_id TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  knowledge_kind TEXT NOT NULL CHECK(knowledge_kind IN ('direct_observation','testimony','rumor')),
+  about_event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  transmission_event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  source_entity_id TEXT REFERENCES entities(id) ON DELETE SET NULL,
+  source_knowledge_id TEXT REFERENCES entity_knowledge(id) ON DELETE SET NULL,
+  content TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(session_id,knower_entity_id,knowledge_kind,about_event_id,transmission_event_id)
+);
+CREATE INDEX IF NOT EXISTS idx_entity_knowledge_knower_time
+  ON entity_knowledge(session_id,knower_entity_id,created_at);
+CREATE INDEX IF NOT EXISTS idx_entity_knowledge_source
+  ON entity_knowledge(session_id,source_entity_id,about_event_id);
 CREATE TABLE IF NOT EXISTS state_changes (
   id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   turn_id TEXT NOT NULL, external_ref TEXT NOT NULL, entity_id TEXT NOT NULL DEFAULT '',
@@ -129,6 +148,34 @@ class Database:
                 "CREATE UNIQUE INDEX IF NOT EXISTS idx_snapshots_session_turn "
                 "ON snapshots(session_id,turn_id) WHERE turn_id<>''"
             )
+
+            # Backfill per-entity knowledge from previously recorded events.
+            # Stored witness lists were already restricted to the turn's authorized audience.
+            legacy_events = conn.execute(
+                "SELECT id,session_id,witnesses_json,description,created_at "
+                "FROM events WHERE status='recorded'"
+            ).fetchall()
+            for event in legacy_events:
+                try:
+                    witnesses = json.loads(event["witnesses_json"] or "[]")
+                except (TypeError, ValueError, json.JSONDecodeError):
+                    continue
+                if not isinstance(witnesses, list):
+                    continue
+                for knower_id in witnesses:
+                    if not isinstance(knower_id, str) or not knower_id:
+                        continue
+                    conn.execute(
+                        "INSERT OR IGNORE INTO entity_knowledge("
+                        "id,session_id,knower_entity_id,knowledge_kind,about_event_id,"
+                        "transmission_event_id,source_entity_id,source_knowledge_id,content,created_at"
+                        ") VALUES(?,?,?,?,?,?,?,?,?,?)",
+                        (
+                            uuid.uuid4().hex, event["session_id"], knower_id,
+                            "direct_observation", event["id"], event["id"], None, None,
+                            event["description"], event["created_at"]
+                        )
+                    )
 
             # Older local databases may predate presence_status/updated_at. Add
             # these columns in place so the existing session and its cast survive.
