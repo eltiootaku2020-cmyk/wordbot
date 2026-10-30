@@ -214,12 +214,33 @@ def test_pending_major_event_can_be_approved_or_rejected():
         approved_id = uuid.uuid4().hex
         rejected_id = uuid.uuid4().hex
         change_id = uuid.uuid4().hex
+        approved_turn_id = "test-turn-a"
+        approved_message_id = uuid.uuid4().hex
         with database.transaction() as conn:
+            audience_ids = [
+                row["entity_id"] for row in conn.execute(
+                    "SELECT entity_id FROM session_presence WHERE session_id=? AND presence_status='present'",
+                    (session_id,)
+                ).fetchall()
+            ]
+            turn_index = int(conn.execute(
+                "SELECT COALESCE(MAX(turn_index),0)+1 AS n FROM messages WHERE session_id=?",
+                (session_id,)
+            ).fetchone()["n"])
             conn.execute(
-                "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,witnesses_json,status) "
+                "INSERT INTO messages(id,session_id,turn_id,turn_index,role,content,provider,generation_status,metadata_json) "
                 "VALUES(?,?,?,?,?,?,?,?,?)",
-                (approved_id, session_id, "test-turn-a", "e-a", "major_change", maelis["id"],
-                 "Evento de alto impacto de prueba", "[]", "pending")
+                (
+                    approved_message_id, session_id, approved_turn_id, turn_index, "user",
+                    "Evento de prueba", "mock", "complete",
+                    json.dumps({"visibility": "scene", "audience_ids": audience_ids}, ensure_ascii=False)
+                )
+            )
+            conn.execute(
+                "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,witnesses_json,status,source_message_id) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (approved_id, session_id, approved_turn_id, "e-a", "major_change", maelis["id"],
+                 "Evento de alto impacto de prueba", "[]", "pending", approved_message_id)
             )
             conn.execute(
                 "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,witnesses_json,status) "
@@ -509,6 +530,7 @@ def _create_state_ops_world(client):
 
 def _apply_synthetic_result(session_id, user_text, result):
     turn_id = uuid.uuid4().hex
+    source_message_id = uuid.uuid4().hex
     with database.transaction() as conn:
         session = session_row(conn, session_id)
         audience_ids = [
@@ -517,8 +539,21 @@ def _apply_synthetic_result(session_id, user_text, result):
                 (session_id,)
             ).fetchall()
         ]
+        turn_index = int(conn.execute(
+            "SELECT COALESCE(MAX(turn_index),0)+1 AS n FROM messages WHERE session_id=?",
+            (session_id,)
+        ).fetchone()["n"])
+        conn.execute(
+            "INSERT INTO messages(id,session_id,turn_id,turn_index,role,content,provider,generation_status,metadata_json) "
+            "VALUES(?,?,?,?,?,?,?,?,?)",
+            (
+                source_message_id, session_id, turn_id, turn_index, "user", user_text,
+                "mock", "complete",
+                json.dumps({"visibility": "scene", "audience_ids": audience_ids}, ensure_ascii=False)
+            )
+        )
         applied, pending = apply_narrator_result(
-            conn, session, turn_id, "", user_text, result, None,
+            conn, session, turn_id, source_message_id, user_text, result, None,
             visibility="scene", audience_ids=audience_ids
         )
     return turn_id, applied, pending
