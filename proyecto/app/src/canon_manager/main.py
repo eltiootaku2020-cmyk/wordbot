@@ -21,6 +21,7 @@ from fastapi.staticfiles import StaticFiles
 from .db import Database
 from .models import ApprovalRequest, ContextPreviewRequest, EntityCreate, LocalCommandRequest, LocalSettingsUpdate, ManualPromptRequest, NarratorResponse, SessionCreate, SessionRestoreRequest, TurnRequest, WorldCreate, WorldStartCreate
 from .providers import ProviderError, build_manual_prompt, make_provider
+from .timeline import fire_crossed_events
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 load_dotenv(BASE_DIR / ".env")
@@ -1994,6 +1995,18 @@ def apply_narrator_result(
             conn.execute(
                 "UPDATE sessions SET day=?,minute_of_day=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
                 (new_day, new_minute, session["id"])
+            )
+        # Fire only approved fixed-time world events crossed by this clock advance.
+        # The ledger write shares the turn transaction, so retries cannot duplicate it.
+        timeline_events = fire_crossed_events(
+            conn, session["id"], turn_id,
+            int(session["day"]), int(session["minute_of_day"]),
+            new_day, new_minute,
+        )
+        for timeline_event in timeline_events:
+            applied.append(
+                "Acontecimiento programado registrado en la cronología del mundo "
+                f"(no implica que el protagonista lo conozca): {timeline_event['title']}."
             )
     return applied, pending_notes
 
