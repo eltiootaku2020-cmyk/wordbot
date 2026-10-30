@@ -143,3 +143,28 @@ Reglas semánticas:
 5. Isekai sin Destino comienza con 0 monedas, en coherencia con el canon inicial sin dinero.
 
 El proveedor simulado y las pruebas automáticas verifican compra suficiente, insuficiente y recompensa. Falta probar estos casos con un proveedor API real.
+
+
+## Procedencia de testimonios y rumores
+
+El contrato de eventos admite ahora los campos opcionales:
+
+- `source_entity_id`: entidad que transmite el relato.
+- `about_event_id`: ID persistente del acontecimiento que el hablante dice conocer.
+
+El tipo de evento puede ser `testimony` o `rumor`. En ambos casos:
+
+1. El hablante debe existir en el mundo y figurar entre los testigos autorizados del evento de transmisión.
+2. El acontecimiento citado debe existir en la misma partida y continuar registrado.
+3. El hablante debe tener un registro activo de conocimiento sobre ese acontecimiento. No basta con que el modelo afirme que lo sabe.
+4. La audiencia/los oyentes se limita a los testigos autorizados de la transmisión.
+5. Si el registro de origen es `rumor`, la información recibida sigue siendo `rumor`, aunque el evento nuevo se haya etiquetado como `testimony`.
+6. Un rumor o testimonio nunca transforma el evento original en un hecho nuevo ni confirma automáticamente la identidad de un responsable.
+
+El contexto incluye `known_information` con `knower_entity_id`, `knowledge_kind`, `about_event_id`, `transmission_event_id`, fuente, contenido y una nota epistemológica. Para el narrador, `rumor` significa «no confirmado» y `testimony` significa «relato de una fuente, no prueba por sí solo». El contenido de un rumor no se presenta como descripción del acontecimiento original.
+
+Los eventos ordinarios registrados generan automáticamente conocimiento directo para sus testigos. Los eventos `rumor` y `testimony` generan registros de transmisión únicamente para sus oyentes; el hablante conserva su registro de origen y no recibe un duplicado de sí mismo.
+
+El registro se consulta solo para el protagonista y el destinatario activo, evitando que el conocimiento privado de un PNJ se filtre a otro por compartir ubicación. La tabla conserva auditoría, pero una entrada deja de estar activa si el evento de transmisión o el acontecimiento original fue anulado/rechazado.
+
+**Fuera del alcance actual:** propagación automática entre ciudades y facciones, reputación pública, clasificación de evidencias y atribución forense. La IA no puede inventar estos resultados por prompt.
