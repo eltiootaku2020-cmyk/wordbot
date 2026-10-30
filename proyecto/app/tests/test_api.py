@@ -4738,6 +4738,87 @@ def test_world_timeline_can_be_edited_cancelled_and_locked_after_firing():
 
 
 
+def test_world_timeline_mutations_are_blocked_while_any_turn_in_world_is_processing():
+    with TestClient(app) as client:
+        started = client.post(
+            "/api/worlds/start",
+            json={
+                "name": "Mundo cronología estable " + uuid.uuid4().hex,
+                "protagonist_name": "Ari",
+                "session_name": "Partida cronología estable",
+                "location": "Aldea",
+                "day": 1,
+                "minute_of_day": 480,
+            },
+        )
+        assert started.status_code == 200, started.text
+        world_id, session_id = started.json()["world_id"], started.json()["session_id"]
+        event = client.post(
+            f"/api/worlds/{world_id}/timeline",
+            json={
+                "external_uid": "stable-existing",
+                "title": "Festival previsto",
+                "description": "El festival comienza más tarde.",
+                "scheduled_day": 5,
+                "scheduled_minute": 600,
+            },
+        )
+        assert event.status_code == 200, event.text
+        event_id = event.json()["id"]
+
+        # This is the durable marker submit_turn leaves while the provider runs
+        # outside the SQLite write transaction.
+        processing_turn_id = "world-timeline-processing-" + uuid.uuid4().hex
+        with database.transaction() as conn:
+            next_index = conn.execute(
+                "SELECT COALESCE(MAX(turn_index),0)+1 AS n FROM messages WHERE session_id=?",
+                (session_id,),
+            ).fetchone()["n"]
+            conn.execute(
+                "INSERT INTO messages(id,session_id,turn_id,client_request_id,turn_index,role,"
+                "recipient_entity_id,content,provider,generation_status,metadata_json) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    uuid.uuid4().hex, session_id, processing_turn_id,
+                    "world-timeline-processing-" + uuid.uuid4().hex, next_index, "user", "",
+                    "Acción en curso", "mock", "processing", "{}",
+                ),
+            )
+
+        try:
+            created_during_turn = client.post(
+                f"/api/worlds/{world_id}/timeline",
+                json={
+                    "external_uid": "stable-created-during-turn",
+                    "title": "Nuevo suceso",
+                    "description": "No debe entrar durante la generación.",
+                    "scheduled_day": 6,
+                    "scheduled_minute": 600,
+                },
+            )
+            changed_during_turn = client.patch(
+                f"/api/worlds/{world_id}/timeline/{event_id}",
+                json={"title": "Título cambiado a mitad del turno"},
+            )
+            deleted_during_turn = client.delete(
+                f"/api/worlds/{world_id}/timeline/{event_id}"
+            )
+            assert created_during_turn.status_code == 409, created_during_turn.text
+            assert changed_during_turn.status_code == 409, changed_during_turn.text
+            assert deleted_during_turn.status_code == 409, deleted_during_turn.text
+            assert "turno en curso en este mundo" in created_during_turn.json()["detail"].casefold()
+            listing = client.get(f"/api/worlds/{world_id}/timeline").json()
+            assert len(listing) == 1
+            assert listing[0]["id"] == event_id
+            assert listing[0]["title"] == "Festival previsto"
+        finally:
+            with database.transaction() as conn:
+                conn.execute(
+                    "DELETE FROM messages WHERE session_id=? AND turn_id=?",
+                    (session_id, processing_turn_id),
+                )
+
+
 def test_backup_restore_rewinds_world_timeline_firing_ledger():
     import sqlite3
 
