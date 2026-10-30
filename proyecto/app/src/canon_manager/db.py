@@ -162,8 +162,20 @@ class Database:
                     continue
                 if not isinstance(witnesses, list):
                     continue
+                session_world = conn.execute(
+                    "SELECT world_id FROM sessions WHERE id=?",
+                    (event["session_id"],)
+                ).fetchone()
+                if session_world is None:
+                    continue
                 for knower_id in witnesses:
                     if not isinstance(knower_id, str) or not knower_id:
+                        continue
+                    known_entity = conn.execute(
+                        "SELECT 1 FROM entities WHERE id=? AND world_id=?",
+                        (knower_id, session_world["world_id"])
+                    ).fetchone()
+                    if known_entity is None:
                         continue
                     conn.execute(
                         "INSERT OR IGNORE INTO entity_knowledge("
