@@ -548,6 +548,23 @@ def ensure_no_turn_in_progress(conn, session_id: str) -> None:
         )
 
 
+def ensure_world_no_turn_in_progress(conn, world_id: str) -> None:
+    """Keep shared world chronology stable while any session in that world is generating."""
+    in_progress = conn.execute(
+        "SELECT 1 FROM messages m JOIN sessions s ON s.id=m.session_id "
+        "WHERE s.world_id=? AND m.role='user' AND m.generation_status='processing' LIMIT 1",
+        (world_id,)
+    ).fetchone()
+    if in_progress:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Hay un turno en curso en este mundo. Espera a que termine antes de "
+                "modificar la cronología compartida; el contexto narrativo debe mantenerse estable."
+            )
+        )
+
+
 def capture_turn_state(conn, session_id: str) -> dict[str, Any]:
     """Capture the mutable, authoritative game state before a turn."""
     session = conn.execute(
@@ -2235,6 +2252,7 @@ def create_world_timeline_event(world_id: str, payload: WorldTimelineEventCreate
     with database.transaction() as conn:
         if conn.execute("SELECT 1 FROM worlds WHERE id=?", (world_id,)).fetchone() is None:
             raise HTTPException(status_code=404, detail="Mundo no encontrado.")
+        ensure_world_no_turn_in_progress(conn, world_id)
         try:
             conn.execute(
                 "INSERT INTO world_timeline_events(id,world_id,external_uid,title,description,"
@@ -2288,6 +2306,7 @@ def update_world_timeline_event(
         ).fetchone()
         if event is None:
             raise HTTPException(status_code=404, detail="Acontecimiento mundial no encontrado.")
+        ensure_world_no_turn_in_progress(conn, world_id)
 
         already_fired = conn.execute(
             "SELECT 1 FROM session_timeline_events WHERE world_event_id=? LIMIT 1",
@@ -2345,6 +2364,7 @@ def delete_world_timeline_event(world_id: str, event_id: str):
         ).fetchone()
         if event is None:
             raise HTTPException(status_code=404, detail="Acontecimiento mundial no encontrado.")
+        ensure_world_no_turn_in_progress(conn, world_id)
         already_fired = conn.execute(
             "SELECT 1 FROM session_timeline_events WHERE world_event_id=? LIMIT 1",
             (event_id,),
