@@ -4735,3 +4735,166 @@ def test_world_timeline_can_be_edited_cancelled_and_locked_after_firing():
         removed = client.delete(f"/api/worlds/{world_id}/timeline/{removable_id}")
         assert removed.status_code == 200, removed.text
 
+
+
+
+def test_backup_restore_rewinds_world_timeline_firing_ledger():
+    import sqlite3
+
+    with TestClient(app) as client:
+        started = client.post(
+            "/api/worlds/start",
+            json={
+                "name": "Mundo respaldo cronología",
+                "protagonist_name": "Ari",
+                "session_name": "Partida respaldo cronología",
+                "location": "Puerto",
+                "day": 1,
+                "minute_of_day": 480,
+            },
+        )
+        assert started.status_code == 200, started.text
+        world_id = started.json()["world_id"]
+        session_id = started.json()["session_id"]
+        created = client.post(
+            f"/api/worlds/{world_id}/timeline",
+            json={
+                "external_uid": "backup-eruption",
+                "title": "Erupción",
+                "description": "El volcán entra en erupción.",
+                "scheduled_day": 1,
+                "scheduled_minute": 540,
+                "location": "Montañas",
+            },
+        )
+        assert created.status_code == 200, created.text
+
+        backup = client.post(f"/api/sessions/{session_id}/backup", json={})
+        assert backup.status_code == 200, backup.text
+        backup_data = backup.json()
+        with sqlite3.connect(backup_data["path"]) as backup_db:
+            assert backup_db.execute(
+                "SELECT COUNT(*) FROM session_timeline_events WHERE session_id=?",
+                (session_id,),
+            ).fetchone()[0] == 0
+
+        # Simulate reaching the event after the backup has been created.
+        with database.transaction() as conn:
+            conn.execute(
+                "UPDATE sessions SET day=1,minute_of_day=540 WHERE id=?",
+                (session_id,),
+            )
+            fired = main_module.fire_due_world_events(conn, session_id, 480, 540)
+            assert [event["external_uid"] for event in fired] == ["backup-eruption"]
+        with database.connection() as conn:
+            assert conn.execute(
+                "SELECT COUNT(*) FROM session_timeline_events WHERE session_id=?",
+                (session_id,),
+            ).fetchone()[0] == 1
+
+        restored = client.post(
+            f"/api/sessions/{session_id}/restore",
+            json={"backup_name": backup_data["backup_name"], "confirmation": "RESTAURAR"},
+        )
+        assert restored.status_code == 200, restored.text
+        assert restored.json()["state"]["state"]["time_label"].endswith("08:00")
+        with database.connection() as conn:
+            ledger_count = conn.execute(
+                "SELECT COUNT(*) FROM session_timeline_events WHERE session_id=?",
+                (session_id,),
+            ).fetchone()[0]
+        assert ledger_count == 0
+
+
+def test_restore_rejects_backup_when_world_timeline_definition_changed():
+    with TestClient(app) as client:
+        started = client.post(
+            "/api/worlds/start",
+            json={
+                "name": "Mundo firma cronológica",
+                "protagonist_name": "Ari",
+                "session_name": "Partida firma cronológica",
+                "location": "Puerto",
+                "day": 1,
+                "minute_of_day": 480,
+            },
+        )
+        assert started.status_code == 200, started.text
+        world_id = started.json()["world_id"]
+        session_id = started.json()["session_id"]
+        created = client.post(
+            f"/api/worlds/{world_id}/timeline",
+            json={
+                "external_uid": "backup-signature",
+                "title": "Festival",
+                "description": "Comienza el festival.",
+                "scheduled_day": 5,
+                "scheduled_minute": 600,
+            },
+        )
+        assert created.status_code == 200, created.text
+        event_id = created.json()["id"]
+        backup = client.post(f"/api/sessions/{session_id}/backup", json={})
+        assert backup.status_code == 200, backup.text
+
+        changed = client.patch(
+            f"/api/worlds/{world_id}/timeline/{event_id}",
+            json={"title": "Festival cancelado"},
+        )
+        assert changed.status_code == 200, changed.text
+
+        restore = client.post(
+            f"/api/sessions/{session_id}/restore",
+            json={"backup_name": backup.json()["backup_name"], "confirmation": "RESTAURAR"},
+        )
+        assert restore.status_code == 409, restore.text
+        assert "cronología" in restore.json()["detail"].casefold()
+        listing = client.get(f"/api/worlds/{world_id}/timeline").json()
+        assert next(row for row in listing if row["id"] == event_id)["title"] == "Festival cancelado"
+
+
+def test_restore_accepts_legacy_backup_without_world_timeline_tables():
+    import sqlite3
+
+    with TestClient(app) as client:
+        started = client.post(
+            "/api/worlds/start",
+            json={
+                "name": "Mundo copia antigua",
+                "protagonist_name": "Ari",
+                "session_name": "Partida copia antigua",
+                "location": "Aldea",
+                "day": 1,
+                "minute_of_day": 480,
+            },
+        )
+        assert started.status_code == 200, started.text
+        session_id = started.json()["session_id"]
+        backup = client.post(f"/api/sessions/{session_id}/backup", json={})
+        assert backup.status_code == 200, backup.text
+        backup_data = backup.json()
+
+        # Model a pre-timeline SQLite backup by removing both tables introduced by PR #21.
+        with sqlite3.connect(backup_data["path"]) as old_db:
+            old_db.execute("PRAGMA foreign_keys=OFF")
+            old_db.execute("DROP TABLE session_timeline_events")
+            old_db.execute("DROP TABLE world_timeline_events")
+            old_db.commit()
+
+        with database.transaction() as conn:
+            conn.execute(
+                "UPDATE sessions SET day=2,minute_of_day=600 WHERE id=?",
+                (session_id,),
+            )
+        restored = client.post(
+            f"/api/sessions/{session_id}/restore",
+            json={"backup_name": backup_data["backup_name"], "confirmation": "RESTAURAR"},
+        )
+        assert restored.status_code == 200, restored.text
+        assert restored.json()["state"]["state"]["time_label"].endswith("08:00")
+        with database.connection() as conn:
+            assert conn.execute(
+                "SELECT COUNT(*) FROM session_timeline_events WHERE session_id=?",
+                (session_id,),
+            ).fetchone()[0] == 0
+
