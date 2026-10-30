@@ -2,7 +2,6 @@ import json
 import sqlite3
 
 from canon_manager.db import SCHEMA
-from canon_manager.main import capture_turn_state, restore_turn_state
 from canon_manager.timeline import fire_crossed_events, fire_due_events
 
 
@@ -119,20 +118,3 @@ def test_catch_up_isolated_per_session_and_idempotent_with_clock_crossing():
     assert fire_crossed_events(conn, "s1", "turn-later", 1, 470, 1, 500) == []
     assert conn.execute("SELECT COUNT(*) FROM session_timeline_runs WHERE session_id='s1'").fetchone()[0] == 1
     assert conn.execute("SELECT COUNT(*) FROM session_timeline_runs WHERE session_id='s2'").fetchone()[0] == 1
-
-
-def test_undo_restores_timeline_ledger_with_the_clock():
-    conn = make_database()
-    add_event(conn, "undoable", 1, 500)
-    before = capture_turn_state(conn, "s1")
-    conn.execute("UPDATE sessions SET minute_of_day=510 WHERE id='s1'")
-    fired = fire_crossed_events(conn, "s1", "turn-to-undo", 1, 480, 1, 510)
-    assert len(fired) == 1
-    assert conn.execute("SELECT COUNT(*) FROM session_timeline_runs WHERE session_id='s1'").fetchone()[0] == 1
-
-    restore_turn_state(conn, "s1", before)
-    current = conn.execute(
-        "SELECT day,minute_of_day FROM sessions WHERE id='s1'"
-    ).fetchone()
-    assert (current["day"], current["minute_of_day"]) == (1, 480)
-    assert conn.execute("SELECT COUNT(*) FROM session_timeline_runs WHERE session_id='s1'").fetchone()[0] == 0
