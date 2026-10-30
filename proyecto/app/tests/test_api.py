@@ -4898,3 +4898,66 @@ def test_restore_accepts_legacy_backup_without_world_timeline_tables():
                 (session_id,),
             ).fetchone()[0] == 0
 
+
+
+
+def test_restore_rejects_backup_with_only_one_world_timeline_table():
+    import sqlite3
+
+    with TestClient(app) as client:
+        started = client.post(
+            "/api/worlds/start",
+            json={
+                "name": "Mundo copia incompleta",
+                "protagonist_name": "Ari",
+                "session_name": "Partida copia incompleta",
+                "location": "Puerto",
+                "day": 1,
+                "minute_of_day": 480,
+            },
+        )
+        assert started.status_code == 200, started.text
+        world_id = started.json()["world_id"]
+        session_id = started.json()["session_id"]
+        event = client.post(
+            f"/api/worlds/{world_id}/timeline",
+            json={
+                "external_uid": "partial-backup-event",
+                "title": "Suceso programado",
+                "description": "Suceso de prueba.",
+                "scheduled_day": 4,
+                "scheduled_minute": 500,
+            },
+        )
+        assert event.status_code == 200, event.text
+        backup = client.post(f"/api/sessions/{session_id}/backup", json={})
+        assert backup.status_code == 200, backup.text
+
+        # A partial migration cannot be mistaken for a genuine pre-feature backup.
+        with sqlite3.connect(backup.json()["path"]) as backup_db:
+            backup_db.execute("PRAGMA foreign_keys=OFF")
+            backup_db.execute("DROP TABLE session_timeline_events")
+            backup_db.commit()
+
+        with database.transaction() as conn:
+            conn.execute(
+                "UPDATE sessions SET day=2,minute_of_day=700 WHERE id=?",
+                (session_id,),
+            )
+        rejected = client.post(
+            f"/api/sessions/{session_id}/restore",
+            json={"backup_name": backup.json()["backup_name"], "confirmation": "RESTAURAR"},
+        )
+        assert rejected.status_code == 422, rejected.text
+        assert "esquema de cronología incompleto" in rejected.json()["detail"].casefold()
+        with database.connection() as conn:
+            clock = conn.execute(
+                "SELECT day,minute_of_day FROM sessions WHERE id=?",
+                (session_id,),
+            ).fetchone()
+            assert (clock["day"], clock["minute_of_day"]) == (2, 700)
+            assert conn.execute(
+                "SELECT COUNT(*) FROM world_timeline_events WHERE world_id=?",
+                (world_id,),
+            ).fetchone()[0] == 1
+
