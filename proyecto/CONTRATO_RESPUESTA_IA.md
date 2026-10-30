@@ -168,3 +168,25 @@ Los eventos ordinarios registrados generan automáticamente conocimiento directo
 El registro se consulta solo para el protagonista y el destinatario activo, evitando que el conocimiento privado de un PNJ se filtre a otro por compartir ubicación. La tabla conserva auditoría, pero una entrada deja de estar activa si el evento de transmisión o el acontecimiento original fue anulado/rechazado.
 
 **Fuera del alcance actual:** propagación automática entre ciudades y facciones, reputación pública, clasificación de evidencias y atribución forense. La IA no puede inventar estos resultados por prompt.
+
+
+## Evidencia, atribución y reputación local
+
+La respuesta puede incluir tres listas opcionales: `evidence`, `attributions` y `reputation_changes`.
+
+### Evidencia
+Cada pieza identifica `event_ref` (evento de descubrimiento del turno actual), `about_event_id` (acontecimiento investigado ya registrado), `discovered_by_entity_id`, `evidence_kind`, `effect` y descripción. Quien la aporta debe ser testigo autorizado del hallazgo y tener una observación directa o un testimonio recibido y persistido. El rumor no sirve como evidencia.
+
+### Atribución
+Los niveles son distintos y no intercambiables:
+- `description`: descripción sin identificar una entidad.
+- `suspected`: entidad sospechosa, con al menos un indicio de apoyo.
+- `identified`: exige dos observadores independientes con conocimiento directo registrado.
+- `confirmed`: siempre queda pendiente; la IA no puede declarar culpabilidad confirmada.
+
+Una identificación no es un veredicto. Los indicios contradictorios pueden quedar registrados sin borrar silenciosamente evidencia previa.
+
+### Reputación local
+`reputation_changes` enlaza la entidad, el nivel de atribución, el evento de transmisión y el ámbito. Esta versión solo acepta `scope_type="location"` y exige que `scope_key` coincida con la ubicación actual. El evento de transmisión debe ser `testimony` o `rumor` y llegar al menos a un PNJ que no sea el protagonista, el hablante ni la entidad señalada. Un rumor solo puede difundir una sospecha. El cambio máximo es 1 punto para sospecha y 2 para identificación; los valores se mantienen entre −100 y 100.
+
+Un crimen secreto sin oyentes externos no genera reputación local. La reputación no es global: el valor de una ciudad/ubicación no se copia a otra. Los ámbitos de gremio, facción y caravana quedan pendientes hasta implementar membresías verificables y su propagación.

@@ -206,3 +206,18 @@ La inicialización de SQLite crea la tabla e índices sin destruir partidas. Una
 ### Límites de esta etapa
 
 Esto resuelve almacenamiento y procedencia básica del conocimiento individual, pero no implementa aún fama por región/facción, una red autónoma de difusión, un sistema de evidencias físicas, identificación forense o atribución validada de delitos. Los testimonios y rumores deben proponerse mediante eventos; no se simula todavía que todo PNJ difunda información automáticamente.
+
+
+## 11. Evidencia, atribución y reputación local
+
+La capa de evidencia no sustituye los acontecimientos: cada pieza debe enlazarse a un evento de descubrimiento del mismo turno y a un acontecimiento investigado ya registrado. La persona que aporta la pieza debe figurar entre los testigos autorizados y tener conocimiento persistente del hallazgo. Los rumores no son evidencia.
+
+Se separan cuatro niveles epistemológicos:
+- **description:** descripción de una persona desconocida, sin ID atribuido.
+- **suspected:** una entidad queda como sospechosa por al menos un indicio de apoyo.
+- **identified:** requiere dos observadores distintos con conocimiento directo registrado.
+- **confirmed:** la IA no puede confirmarlo; siempre queda pendiente de revisión explícita.
+
+La reputación se almacena por entidad y ubicación, no como una puntuación universal. Solo se actualiza con una atribución validada y una transmisión registrada del mismo acontecimiento a un PNJ distinto del protagonista, del sospechoso y del hablante. Un rumor puede difundir una sospecha; no puede difundir una identificación ni convertirla en culpabilidad. Los cambios automáticos son pequeños: hasta 1 punto para una sospecha y hasta 2 para una identificación.
+
+Los valores de reputación y su historial se incluyen en los snapshots y se restauran al deshacer un turno. El historial de evidencias/atribuciones conserva auditoría. En esta fase solo está habilitado el ámbito de ubicación actual; gremios, facciones y caravanas requieren primero un registro verificable de membresías. No existe todavía difusión automática entre lugares.

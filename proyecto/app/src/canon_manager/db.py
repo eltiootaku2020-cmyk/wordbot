@@ -70,6 +70,64 @@ CREATE INDEX IF NOT EXISTS idx_entity_knowledge_knower_time
   ON entity_knowledge(session_id,knower_entity_id,created_at);
 CREATE INDEX IF NOT EXISTS idx_entity_knowledge_source
   ON entity_knowledge(session_id,source_entity_id,about_event_id);
+CREATE TABLE IF NOT EXISTS event_evidence (
+  id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  about_event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  evidence_event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  discovered_by_entity_id TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  evidence_kind TEXT NOT NULL CHECK(evidence_kind IN ('physical','testimonial','circumstantial','alibi','other')),
+  effect TEXT NOT NULL CHECK(effect IN ('supports','contradicts','neutral')),
+  source_knowledge_id TEXT REFERENCES entity_knowledge(id) ON DELETE SET NULL,
+  source_knowledge_kind TEXT NOT NULL DEFAULT 'unknown',
+  description TEXT NOT NULL,
+  status TEXT NOT NULL CHECK(status IN ('recorded','pending','rejected')),
+  reason TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(session_id,evidence_event_id,discovered_by_entity_id,about_event_id,evidence_kind)
+);
+CREATE INDEX IF NOT EXISTS idx_event_evidence_about
+  ON event_evidence(session_id,about_event_id,status);
+CREATE TABLE IF NOT EXISTS event_attributions (
+  id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  turn_id TEXT NOT NULL, external_ref TEXT NOT NULL,
+  about_event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  subject_entity_id TEXT REFERENCES entities(id) ON DELETE SET NULL,
+  attribution_level TEXT NOT NULL CHECK(attribution_level IN ('description','suspected','identified','confirmed')),
+  description TEXT NOT NULL,
+  evidence_ids_json TEXT NOT NULL DEFAULT '[]',
+  status TEXT NOT NULL CHECK(status IN ('recorded','pending','rejected')),
+  reason TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(session_id,turn_id,external_ref)
+);
+CREATE INDEX IF NOT EXISTS idx_event_attributions_about
+  ON event_attributions(session_id,about_event_id,status);
+CREATE TABLE IF NOT EXISTS local_reputation (
+  session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  entity_id TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  location_key TEXT NOT NULL,
+  location_label TEXT NOT NULL,
+  value INTEGER NOT NULL DEFAULT 0 CHECK(value BETWEEN -100 AND 100),
+  last_attribution_id TEXT REFERENCES event_attributions(id) ON DELETE SET NULL,
+  last_awareness_event_id TEXT REFERENCES events(id) ON DELETE SET NULL,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY(session_id,entity_id,location_key)
+);
+CREATE TABLE IF NOT EXISTS local_reputation_history (
+  id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  turn_id TEXT NOT NULL, external_ref TEXT NOT NULL,
+  entity_id TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  location_key TEXT NOT NULL, location_label TEXT NOT NULL,
+  delta INTEGER NOT NULL, old_value INTEGER NOT NULL, new_value INTEGER NOT NULL,
+  attribution_id TEXT NOT NULL REFERENCES event_attributions(id) ON DELETE CASCADE,
+  awareness_event_id TEXT NOT NULL REFERENCES events(id) ON DELETE CASCADE,
+  reason TEXT NOT NULL,
+  status TEXT NOT NULL CHECK(status IN ('accepted','pending','rejected')),
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(session_id,turn_id,external_ref)
+);
+CREATE INDEX IF NOT EXISTS idx_local_reputation_location
+  ON local_reputation(session_id,location_key,value);
 CREATE TABLE IF NOT EXISTS state_changes (
   id TEXT PRIMARY KEY, session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   turn_id TEXT NOT NULL, external_ref TEXT NOT NULL, entity_id TEXT NOT NULL DEFAULT '',
