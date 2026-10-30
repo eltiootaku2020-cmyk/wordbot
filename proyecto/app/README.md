@@ -41,7 +41,13 @@ No necesitas activar una API para utilizar el chat web normal de tu cuenta. En e
 4. Copia la respuesta completa que devolvió el chat y pégala en **Respuesta completa del chat (JSON)**.
 5. Pulsa **Validar y guardar turno**. El programa valida el contrato y las reglas de la partida antes de aplicar cambios.
 
-Si el chat agrega explicaciones o devuelve un JSON incompleto, pídele que responda solo con el objeto JSON completo. El parser admite un bloque JSON entre triple comilla invertida, pero no acepta texto externo al objeto.
+Si la respuesta se corta a mitad de una frase o del JSON y ChatGPT muestra el botón **Continuar**, úsalo para terminar esa misma generación antes de copiar. No envíes una nueva acción narrativa mientras el turno anterior siga incompleto. Si no aparece el botón, responde en esa misma conversación: «Continúa exactamente desde donde se cortó, sin repetir lo anterior, y termina el mismo objeto JSON válido. No agregues texto fuera del JSON». Después comprueba que el objeto esté completo y pega el resultado final. Si la narración/JSON ya terminó correctamente y lo que buscas es que la historia avance, no uses Continuar: envía una acción nueva o elige una opción del panel. El parser admite un bloque JSON entre triple comilla invertida, pero no acepta texto externo al objeto.
+
+## Interacción enfocada, elecciones y lugares
+
+En el panel **Interacción individual**, selecciona un único personaje. La aplicación cambia el alcance a privado para que el contexto de ese turno se centre en el protagonista y ese destinatario, sin mezclar las respuestas de todo el grupo. Las elecciones rápidas (hablar, preguntar opciones, pedir una pista o cerrar la conversación) solo rellenan el cuadro de texto; el usuario revisa y pulsa Enviar. No se envían acciones automáticamente.
+
+El panel **Lugares registrados** ofrece accesos a ubicaciones que ya figuran en el estado de la partida. Elegir un lugar prepara una intención de viaje y pregunta por ruta, duración y riesgos; no cambia la ubicación ni teletransporta al protagonista. Es un índice interactivo de lugares conocidos, todavía no un mapa geográfico con coordenadas ni rutas verificadas. El mapa espacial real requiere datos explícitos de posición y conexiones del mundo; no se deben inventar distancias o caminos.
 
 **Privacidad:** el prompt puede incluir estado, mensajes recientes, personajes y entradas Lorebook. Revísalo antes de copiarlo. La aplicación no inicia sesión por ti, no lee tu pestaña ni extrae la respuesta automáticamente. No pegues contraseñas ni claves API en el chat.
 

@@ -14,6 +14,13 @@ main{display:grid;grid-template-columns:minmax(0,1fr) 315px;gap:14px;padding:14p
 .toolbar{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;align-items:center}
 select,button,input,textarea{font:inherit;color:var(--text);background:#171920;border:1px solid var(--line);border-radius:8px;padding:8px 10px}
 button{cursor:pointer}button:hover{border-color:var(--accent)}button.primary{background:#314574;border-color:#5e7fc6}button:disabled{opacity:.5;cursor:wait}
+.guided-tools{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0 12px}
+.guided-box{border:1px solid var(--line);border-radius:10px;padding:10px;background:#191b22;min-width:0}
+.guided-row{display:flex;flex-wrap:wrap;gap:7px;margin-top:7px}
+.guided-row button{font-size:13px}
+.guided-row button.active{border-color:var(--accent);background:#29334a}
+.guided-note{font-size:12px;color:var(--muted);margin:5px 0}
+@media(max-width:650px){.guided-tools{grid-template-columns:1fr}}
 #chat{display:flex;flex-direction:column;gap:10px;min-height:320px;max-height:62vh;overflow:auto;padding:4px 2px 12px}
 .message{padding:10px 12px;border-radius:10px;white-space:pre-wrap;overflow-wrap:anywhere}.message.user{background:#29334a;align-self:flex-end;max-width:92%}.message.assistant{background:#191b22;border:1px solid var(--line);align-self:stretch}.message.error{color:var(--bad);border-color:#8f4242}
 form{display:flex;gap:8px;align-items:stretch}textarea{flex:1;resize:vertical;min-height:62px}
@@ -88,6 +95,19 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}label{font-size:13px;
       <input id="loreFile" type="file" accept=".json,application/json" style="max-width:230px">
       <button id="importLore">Importar</button>
     </div>
+    <section class="guided-tools" aria-label="Acciones guiadas">
+      <div class="guided-box">
+        <h2>Interacción individual</h2>
+        <p class="guided-note">Elige un personaje. Las acciones rápidas preparan un turno privado con esa persona; no se envían solas.</p>
+        <div id="focusCharacters" class="guided-row"></div>
+        <div id="guidedChoices" class="guided-row"><span class="guided-note">Selecciona un personaje para ver opciones.</span></div>
+      </div>
+      <div class="guided-box">
+        <h2>Lugares registrados</h2>
+        <p class="guided-note">Puntos conocidos por el registro de la partida. Seleccionar un lugar solo prepara una intención; no mueve al protagonista.</p>
+        <div id="knownPlaces" class="guided-row"></div>
+      </div>
+    </section>
     <div id="chat" aria-live="polite"></div>
     <form id="sendForm">
       <textarea id="messageInput" required maxlength="8000" placeholder="Escribe tu acción o diálogo… (por ejemplo: Hola, linda)"></textarea>
@@ -286,6 +306,77 @@ async function loadMessages() {
     }
   }
 }
+function putGuidedAction(text) {
+  el("messageInput").value = text;
+  el("messageInput").focus();
+  setStatus("Elección preparada. Revísala y pulsa Enviar para avanzar.", true);
+}
+function renderGuidedTools(payload, presentParticipants) {
+  const focus = el("focusCharacters");
+  const choices = el("guidedChoices");
+  const places = el("knownPlaces");
+  if (!focus || !choices || !places) return;
+  clearChildren(focus);
+  clearChildren(choices);
+  clearChildren(places);
+  presentParticipants.forEach(person => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = person.name;
+    const selected = el("recipientSelect").value === person.id;
+    if (selected) button.classList.add("active");
+    button.addEventListener("click", () => {
+      el("recipientSelect").value = person.id;
+      el("visibilitySelect").value = "private";
+      renderGuidedTools(lastState, presentParticipants);
+      renderStateFocusChoices(person);
+      setStatus("Foco individual: " + person.name + ". Solo esa persona recibirá el turno privado.", true);
+    });
+    focus.appendChild(button);
+  });
+  const selectedPerson = presentParticipants.find(person => person.id === el("recipientSelect").value);
+  if (selectedPerson) renderStateFocusChoices(selectedPerson);
+  else {
+    const note = document.createElement("span");
+    note.className = "guided-note";
+    note.textContent = "Todavía no hay un personaje seleccionado.";
+    choices.appendChild(note);
+  }
+  const known = new Map();
+  [payload.state.location, ...(payload.participants || []).map(person => person.location)]
+    .filter(Boolean).forEach(location => {
+      const key = String(location).trim().toLocaleLowerCase();
+      if (key && !known.has(key)) known.set(key, String(location).trim());
+    });
+  Array.from(known.values()).sort((a,b) => a.localeCompare(b, "es")).forEach(location => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = (location.toLocaleLowerCase() === payload.state.location.toLocaleLowerCase() ? "● " : "○ ") + location;
+    button.title = "Preparar una intención de viaje; no cambia la ubicación";
+    button.addEventListener("click", () => putGuidedAction(
+      "Quiero dirigirme a " + location + ". Antes de moverme, explícame las rutas, el tiempo aproximado y los riesgos conocidos. No adelantes mi viaje ni cambies mi ubicación hasta que lo confirme."
+    ));
+    places.appendChild(button);
+  });
+}
+function renderStateFocusChoices(person) {
+  const choices = el("guidedChoices");
+  if (!choices) return;
+  clearChildren(choices);
+  const actions = [
+    ["1 · Hablar", "Hablo con " + person.name + " sobre la situación actual y escucho su respuesta."],
+    ["2 · Preguntar opciones", "Le pregunto a " + person.name + ": «¿Qué opciones concretas tenemos ahora para avanzar?»"],
+    ["3 · Pedir una pista", "Le pregunto a " + person.name + " si conoce una pista, tarea o lugar cercano que podamos investigar."],
+    ["4 · Cerrar y avanzar", "Me despido de " + person.name + " y paso a decidir mi siguiente acción."]
+  ];
+  actions.forEach(([label, text]) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = label;
+    button.addEventListener("click", () => putGuidedAction(text));
+    choices.appendChild(button);
+  });
+}
 function renderState(payload) {
   lastState = payload;
   clearChildren(el("state"));
@@ -303,6 +394,7 @@ function renderState(payload) {
   if (presentParticipants.some(p => p.id === previousRecipient)) {
     el("recipientSelect").value = previousRecipient;
   }
+  renderGuidedTools(payload, presentParticipants);
   const protagonistId = payload.session.protagonist_entity_id;
   const trackedObjects = payload.inventory.length ? payload.inventory.map(item => {
     let holder = "";
@@ -675,6 +767,14 @@ el("sendForm").onsubmit = async event => {
   const success = await sendTurn(request);
   if (success) el("messageInput").value = "";
 };
+el("recipientSelect").addEventListener("change", () => {
+  if (el("recipientSelect").value) el("visibilitySelect").value = "private";
+  else el("visibilitySelect").value = "scene";
+  if (lastState) {
+    const present = lastState.participants.filter(p => p.kind !== "protagonist" && p.presence_status === "present");
+    renderGuidedTools(lastState, present);
+  }
+});
 el("providerSelect").onchange = () => {
   const provider = el("providerSelect").value;
   const manual = ["chatgpt_web", "gemini_web"].includes(provider);
