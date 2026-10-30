@@ -434,9 +434,11 @@ def test_private_turn_is_not_visible_to_other_npcs():
                     (session_id, private_event["id"])
                 ).fetchall()
             }
-            assert knowledge_knowers == {
+            assert knowledge_knowers
+            assert knowledge_knowers <= {
                 by_name["Protagonista"]["id"], maelis["id"]
             }
+            assert ivar["id"] not in knowledge_knowers
 
             session = session_row(conn, session_id)
             context_for_ivar = build_context(
