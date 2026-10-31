@@ -169,3 +169,14 @@ El conflicto sobre la cantidad de integrantes del primer encuentro deja de estar
 - Se aplica a protagonistas, aventureros, PNJ, aliados, antagonistas y criaturas representadas como personajes.
 - Las referencias externas de Brina, Maelis y Sera quedan como orientación, no como imágenes finales. Cualquier adaptación debe reinterpretarse en estilo anime 2D.
 - Ver [17 — Referencias visuales externas del reparto](17_REFERENCIAS_VISUALES_DEL_REPARTO.md).
+
+
+## Decisión confirmada el 31-10-2026 — entidad demoníaca de PSICHO-Eco
+
+- Existe una entidad pequeña y demoníaca vinculada a PSICHO-Eco; es el origen directo del poder del protagonista y se alía con él.
+- El protagonista es el tercer portador de ese poder. Los dos portadores anteriores murieron después de confiarse y no desarrollar el poder hasta su potencial.
+- La entidad quiere evitar que el protagonista repita ese destino; funcionará como presencia/eco/guía vinculada al poder, con detalles de manifestación y capacidades todavía abiertos.
+- La diosa chibi sigue siendo quien entrega PSICHO-Eco. La relación exacta entre ella y la entidad no se ha decidido.
+- No confundir los tres portadores con el antiguo límite de tres intentos de la versión anterior de Eco.
+- **Pendiente:** nombre, diseño visual completo, forma de comunicación, momento de primera manifestación, personalidad detallada, límites/conocimientos de la entidad, mecanismo exacto del vínculo con la diosa e identidad/circunstancias de los dos portadores anteriores.
+- Documento de referencia: [25_ENTIDAD_DEMONIACA_PSICHO_ECO_PROPUESTA.md](25_ENTIDAD_DEMONIACA_PSICHO_ECO_PROPUESTA.md).

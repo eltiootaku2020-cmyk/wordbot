@@ -50,3 +50,17 @@ Este puente es una solución de continuidad para el borrador: mantiene el claro 
 - El protagonista no comienza con todas las ramas desbloqueadas, control perfecto ni conocimiento técnico de sus límites.
 - El recuerdo de la iglesia amplía la memoria de la conversación con la diosa; no significa que el poder se obtenga por primera vez en la iglesia.
 - El grupo inicial no identifica PSICHO-Eco automáticamente. La maga puede notar anomalías si observa un efecto, pero no conoce su origen solo por mirar al protagonista.
+
+
+## 13. Entidad asociada a PSICHO-Eco — concepto confirmado el 31-10-2026
+
+Junto con PSICHO-Eco llega una **entidad pequeña de naturaleza demoníaca**. Es el origen directo del poder que el protagonista utiliza y acaba aliándose con él. No se trata solo de una mascota que aparece después: su existencia está conectada al origen y al desarrollo del poder.
+
+- El protagonista es el **tercer portador** de ese poder.
+- Los dos portadores anteriores murieron tras confiarse y no desarrollar el poder hasta su potencial.
+- La entidad no quiere que el protagonista repita ese destino. Su alianza busca acompañarlo, advertirle y ayudarlo a comprender y desarrollar PSICHO-Eco.
+- Puede funcionar como el «Eco» del poder: una presencia/voz/guía asociada a PSICHO-Eco. Los detalles de cómo se comunica y se manifiesta siguen sin registrarse.
+
+**Continuidad con la diosa:** la diosa chibi sigue siendo quien entrega PSICHO-Eco durante la escena divina. La entidad es el origen directo del poder y viene asociada a él. La mecánica exacta que conecta a la diosa con la entidad no está definida; no asumir que la diosa la creó, capturó, invocó, selló o transformó.
+
+No se ha fijado cuándo se manifiesta por primera vez ante el protagonista, su nombre, apariencia completa, personalidad detallada, voz, género, capacidades propias, ni la identidad e historia de los dos portadores anteriores. La ficha de diseño está en [25 — Entidad demoníaca vinculada a PSICHO-Eco](25_ENTIDAD_DEMONIACA_PSICHO_ECO_PROPUESTA.md).
