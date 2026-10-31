@@ -51,7 +51,7 @@ Se mantienen las cinco fichas del reparto y los UID originales; no se renumera n
 
 ## Pendientes que faltan antes de desplegar
 
-1. Composición inicial del grupo: tres o cinco presentes.
+1. Composición inicial del grupo: resuelta; Brina, Maelis y Sera están presentes en el primer encuentro. Ivar y Timo conservan sus fichas y no están allí.
 2. Edad exacta del protagonista, si se desea fijarla.
 3. Lista real de objetos terrestres adicionales, si los llevaba.
 4. Heridas, estado del celular (batería, señal, daños) y estado de caja/figura tras accidente y traslado.
@@ -63,3 +63,7 @@ Se mantienen las cinco fichas del reparto y los UID originales; no se renumera n
 ## Regla de despliegue
 
 No importar a SpicyChat hasta resolver los pendientes narrativos y probar activación de keywords, continuidad del inventario, flashback, reloj, guardado y reanudación.
+
+## Decisión confirmada el 31-10-2026 — grupo inicial de tres
+
+El primer encuentro está formado por Brina Solcor (guerrera), Maelis Orven (maga) y Sera Linde (arquera). Las cinco fichas permanecen íntegras en Lorebook y JSON. Ivar Dalen (lancero) y Timo Venn (provisiones/logística) pertenecen al reparto, pero no están presentes en el claro. La aparición posterior de ambos debe tener causa, ubicación y momento coherentes; no se fija aquí el día ni la circunstancia concreta.
