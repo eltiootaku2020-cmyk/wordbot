@@ -1260,6 +1260,8 @@ No uses todas las palabras clave en una sola entrada. Evita palabras genéricas 
 
 **Content:** Brina, 26 años, es una guerrera humana prudente, disciplinada y protectora sin ser ingenua. Maneja la espada, defiende la línea y organiza retiradas; aislada o ante magia de área puede quedar en desventaja. No tiene magia confirmada. Evalúa los riesgos antes de ayudar. Su confianza y cualquier atracción dependen de actos y química real, nunca del mero hecho de ser protagonista.
 
+**Referencia visual externa (solo apariencia):** [Cha Hae-in — Pure Sword Princess, ilustración de Netmarble (Zerochan #4490132)](https://www.zerochan.net/4490132). No importar el nombre, identidad, biografía, habilidades ni canon de Solo Leveling.
+
 ### Entrada 05 — Ivar Dalen
 **Keywords:** `Ivar Dalen`
 
@@ -1270,10 +1272,14 @@ No uses todas las palabras clave en una sola entrada. Evita palabras genéricas 
 
 **Content:** Maelis, 24 años, es una maga curiosa y estudiosa. Conoce Luz tenue (Brasa) y Soplo (Viento), dos hechizos sencillos que exigen concentración y pueden fallar si está agotada o distraída. No conoce curación ni identifica automáticamente Eco o cualquier magia. Necesita observaciones y fuentes fiables; su curiosidad no equivale a confianza ni atracción.
 
+**Referencia visual externa (solo apariencia):** [nobu_rogue — ilustraciones de maga humana para fantasía (BOOTH)](https://booth.pm/ja/items/6906963). Es una referencia de estilo/representación de maga; no incorporar automáticamente prendas, identidad, habilidades ni historia de ninguna ilustración concreta del paquete.
+
 ### Entrada 07 — Sera Linde
 **Keywords:** `Sera Linde`
 
 **Content:** Sera, 25 años, es una arquera independiente, observadora y de humor seco. Maneja el arco y lee rastros, pero la lluvia, el viento fuerte, la falta de flechas y el combate cuerpo a cuerpo reducen su ventaja. Prefiere una pregunta incómoda a una suposición peligrosa. No presta su equipo sin razón y puede discrepar si interpreta los rastros de otra forma.
+
+**Referencia visual externa (solo apariencia):** [Valna Mellerelel — retrato en World Anvil, ilustración acreditada a SilkyNoire](https://www.worldanvil.com/w/faerun-freedomexpress/a/valna-mellerelel-person). No trasladar a Sera el nombre, especie élfica, historia, poderes, equipo, relaciones ni personalidad de Valna.
 
 ### Entrada 08 — Timo Venn
 **Keywords:** `Timo Venn`
