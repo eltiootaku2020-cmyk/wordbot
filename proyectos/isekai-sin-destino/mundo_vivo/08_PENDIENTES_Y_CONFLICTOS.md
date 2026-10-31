@@ -160,3 +160,12 @@ El conflicto sobre la cantidad de integrantes del primer encuentro deja de estar
 - **Aprobado como referencia visual externa:** Brina — Cha Hae-in / Netmarble (Zerochan #4490132); Maelis — paquete de ilustraciones de maga humana de nobu_rogue (BOOTH); Sera — retrato de Valna Mellerelel (World Anvil, acreditado a SilkyNoire).
 - **Alcance limitado:** orientación visual, no canon de identidad, especie, biografía, personalidad, habilidades, equipo o vestuario exacto. Las fichas actuales siguen siendo la fuente de canon.
 - Ver [17 — Referencias visuales externas del reparto](17_REFERENCIAS_VISUALES_DEL_REPARTO.md).
+
+
+### Regla visual de personajes — aprobada el 31-10-2026
+
+- **Aprobado:** todas las imágenes representativas de personajes deben ser ilustraciones 2D de estilo anime.
+- Se permite generación con IA siempre que el resultado sea anime; se descartan fotorealismo, hiperrealismo, fotografía y renders 3D realistas o inquietantes.
+- Se aplica a protagonistas, aventureros, PNJ, aliados, antagonistas y criaturas representadas como personajes.
+- Las referencias externas de Brina, Maelis y Sera quedan como orientación, no como imágenes finales. Cualquier adaptación debe reinterpretarse en estilo anime 2D.
+- Ver [17 — Referencias visuales externas del reparto](17_REFERENCIAS_VISUALES_DEL_REPARTO.md).
