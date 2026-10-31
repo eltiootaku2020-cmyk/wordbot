@@ -131,16 +131,14 @@ No debe conceder una victoria automática por una intervención mental.
 
 ## 5. Objetivos, intentos y contadores
 
-Regla histórica existente: máximo tres intentos por persona, contando fallos, sin recarga automática. Esta regla se conserva para objetivos humanos hasta que el usuario la revise.
+Regla de la versión antigua de Eco documentada para SpicyChat: máximo tres intentos por persona humana, contando fallos, sin recarga automática. Esa regla pertenece al preset anterior y **no se traslada automáticamente** al PSICHO-Eco nuevo que la diosa entrega al protagonista.
 
-No extrapolar automáticamente el mismo contador a:
-- Animales.
-- Monstruos.
-- Plantas.
-- Organismos internos.
-- Autointervención.
-
-Los límites para esas categorías están pendientes. Cada intento debe registrarse con un ID único y objetivo concreto.
+PSICHO-Eco es una versión incompleta que evoluciona con el usuario y tiene ramas más amplias. Hasta reconciliar el balance:
+- No codificar tres intentos como límite universal de todas las ramas/objetivos del nuevo PSICHO-Eco.
+- Tampoco asumir usos ilimitados, recarga automática ni control perfecto.
+- Mantener la regla antigua de tres intentos solo en la Lorebook antigua hasta su actualización coordinada.
+- Definir límites separados para humanos, animales, monstruos, plantas, objetos y autointervención.
+- Registrar cada intento con ID único, objetivo, modo, intención, coste si está definido, resultado, resistencia y consecuencias.
 
 ## 6. Registro obligatorio por uso
 
