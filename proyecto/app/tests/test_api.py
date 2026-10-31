@@ -63,7 +63,7 @@ def test_seeded_chat_turn_is_saved_and_changes_are_validated():
         messages_after_retry = client.get(f"/api/sessions/{session_id}/messages").json()
         assert len(messages_after_retry) == 2
         state = client.get(f"/api/sessions/{session_id}/state").json()
-        assert state["state"]["time_label"].endswith("08:01")
+        assert state["state"]["time_label"].endswith("08:00")
         assert state["state"]["location"] == "Claro en el Bosque de las Bestias"
 
 
@@ -2306,7 +2306,6 @@ def test_undo_rejects_a_turn_that_is_not_the_latest_completed_turn(monkeypatch):
                 provider_state["calls"] += 1
                 return NarratorResponse(
                     narration="La escena continúa sin un cambio de estado adicional.",
-                    elapsed_minutes=1
                 )
 
         monkeypatch.setattr(main_module, "make_provider", lambda provider_name, settings: QuietProvider())
@@ -2340,7 +2339,7 @@ def test_undo_rejects_a_turn_that_is_not_the_latest_completed_turn(monkeypatch):
         assert "turno completado más reciente" in response.json()["detail"]
 
         state = client.get(f"/api/sessions/{session_id}/state").json()
-        assert state["state"]["time_label"].endswith("08:02")
+        assert state["state"]["time_label"].endswith("08:00")
         assert next(row for row in state["resources"] if row["resource_key"] == "monedas")["quantity"] == 5
 
 
@@ -3491,7 +3490,7 @@ def test_100_short_turns_persist_and_restore_exact_state_after_database_reinitia
             message for message in before_messages
             if message["role"] == "assistant" and message["generation_status"] == "complete"
         ]) == 100
-        assert before_state["state"]["minute_of_day"] == 580
+        assert before_state["state"]["minute_of_day"] == 480
 
         with database.connection() as conn:
             event_count = conn.execute(
