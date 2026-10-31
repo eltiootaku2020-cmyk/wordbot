@@ -197,3 +197,20 @@ El registro de cada uso debe distinguir el efecto mental confirmado, reacción d
 5. Intervención presenciada: la reacción de cada testigo depende de lo que realmente pudo observar.
 
 Estos puntos amplían la especificación; costes, duración, magnitudes y umbrales siguen pendientes y no se inventan aquí.
+
+
+## 9. Entidad demoníaca vinculada a PSICHO-Eco — concepto confirmado
+
+**Concepto base confirmado por el usuario el 31-10-2026.** La ficha ampliada y sus límites de continuidad están en [25 — Entidad demoníaca vinculada a PSICHO-Eco](25_ENTIDAD_DEMONIACA_PSICHO_ECO_PROPUESTA.md).
+
+- Existe una entidad pequeña de naturaleza demoníaca que llegó vinculada a PSICHO-Eco.
+- La entidad es el origen directo del poder que utiliza el protagonista; no es simplemente un familiar decorativo ni una mascota sin relación mecánica.
+- El protagonista es el **tercer portador** que utiliza el poder de esta entidad. Hubo dos portadores anteriores y ambos murieron después de confiarse y no desarrollar el poder hasta su potencial.
+- La entidad decide aliarse con el protagonista. Quiere advertirlo, acompañarlo y evitar que repita el destino de los anteriores; su interés es que comprenda y desarrolle el poder en vez de confiarse en una versión incompleta.
+- Su función de «Eco» puede servir como presencia/voz/guía asociada al poder. No se han fijado todavía el modo de manifestación, la comunicación ni el alcance de sus consejos.
+
+Continuidad:
+- La diosa chibi sigue siendo quien entrega PSICHO-Eco en el origen confirmado del protagonista.
+- La entidad es el origen directo del poder y llega asociada a él. La relación exacta entre la diosa y la entidad (por ejemplo, cómo quedó vinculada al poder o cómo fue transferida) todavía no está definida; no elegir una explicación sin aprobación.
+- «Tercer portador» es la cantidad de personas que han utilizado ese poder a través de la entidad. **No** significa tres intentos, tres cargas, tres vidas ni el antiguo límite de tres usos por objetivo de la versión vieja de Eco.
+- La entidad puede guiar y advertir, pero no desbloquea automáticamente todo el poder, no garantiza el éxito y no elimina el riesgo de muerte.
