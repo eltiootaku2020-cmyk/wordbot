@@ -27,3 +27,26 @@ El protagonista no recuerda completa la conversación divina. Más adelante, al 
 - La versión antigua que lo hacía aparecer en el bosque sin celular ni pertenencias queda reemplazada.
 - La ubicación exacta tras el encuentro divino y la llegada al bosque requieren reconciliarse con el grupo inicial anterior.
 - No sincronizar automáticamente este cambio con el Lorebook de SpicyChat, que mantiene un comienzo previo contradictorio.
+
+
+## 11. Puente con el inicio anterior del mundo — continuidad conservada
+
+El nuevo origen divino y la llegada desde la Tierra sustituyen el antiguo inventario sin celular, pero **no eliminan automáticamente el lugar ni el encuentro inicial ya escritos**. Para evitar crear un vacío entre la despedida de la diosa y el comienzo de la aventura, se conserva como transición provisional el inicio previo compatible:
+
+- Después de la despedida divina, el protagonista llega al mundo físico en un claro del **Bosque de los Siete Ecos**, franja exterior del Bosque de las Bestias.
+- La configuración previa usa Día 1, 08:00 y suelo húmedo/bruma como marco inicial. Esta hora y condiciones se conservan como continuidad heredada, sujetas a la revisión de la escena final.
+- El lugar no aparece como una segunda llegada ni como un accidente nuevo: es el primer punto físico en el mundo fantástico después del encuentro con la diosa.
+- Los cinco aventureros del inicio anterior están viajando por la zona y pueden encontrarlo. El encuentro no garantiza rescate, reclutamiento ni amistad.
+- El protagonista conserva sus pertenencias terrestres confirmadas: ropa normal, celular y la caja de cereal/figura vinculada al gag con la diosa. No se duplica ningún objeto. El estado físico de la caja, el cereal y la figura se registra una sola vez y se determina por la narración.
+- El pañuelo gastado, bolsita de tela vacía y cordel de cáñamo de la versión anterior no se agregan automáticamente; solo se conservan si se confirma que formaban parte de las cosas que llevaba desde la Tierra.
+- No agregar dinero, comida, agua, mochila, arma, armadura ni equipo de aventura sin adquisición o pertenencia confirmada.
+
+Este puente es una solución de continuidad para el borrador: mantiene el claro del bosque y el encuentro exploratorio existentes, pero no modifica los hechos nuevos de supermercado/diosa/PSICHO-Eco. Si una futura definición del usuario fija otra ubicación de llegada, este puente se adapta sin alterar el origen divino.
+
+## 12. Memoria inicial de PSICHO-Eco
+
+- El poder ya fue entregado antes de la llegada física al bosque.
+- El nombre **PSICHO-Eco** puede quedar como un fragmento recordado; el protagonista no conserva la explicación completa ni el catálogo de funciones.
+- El protagonista no comienza con todas las ramas desbloqueadas, control perfecto ni conocimiento técnico de sus límites.
+- El recuerdo de la iglesia amplía la memoria de la conversación con la diosa; no significa que el poder se obtenga por primera vez en la iglesia.
+- El grupo inicial no identifica PSICHO-Eco automáticamente. La maga puede notar anomalías si observa un efecto, pero no conoce su origen solo por mirar al protagonista.
