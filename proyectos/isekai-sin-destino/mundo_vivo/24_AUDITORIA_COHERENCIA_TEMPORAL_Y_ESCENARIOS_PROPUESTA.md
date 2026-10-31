@@ -71,7 +71,7 @@ En el código consultado:
 - `NarratorResponse.elapsed_minutes` permite de 0 a 10.080 minutos, pero su valor por defecto es 1.
 - El prompt de sistema del narrador no proporciona una regla para decidir la duración de una acción ni indica cuándo devolver 0.
 - El proveedor de prueba devuelve explícitamente `elapsed_minutes=1`.
-- Al aplicar la respuesta, el motor acepta automáticamente un valor entre 0 y 15 minutos. Un valor mayor queda pendiente de autorización, salvo que exista un salto autorizado.
+- Al aplicar la respuesta, el motor acepta automáticamente un valor entre 0 y 15 minutos. Un valor mayor no avanza el reloj y agrega una nota de pendiente que explica que faltó autorización; esa nota no es por sí misma una operación de aprobación persistida. El salto explícitamente autorizado es la ruta que permite un avance mayor.
 - El comando local `/salto` acepta saltos explícitos desde 1 minuto hasta 7 días.
 
 **Riesgo:** el valor por defecto puede consumir un minuto en cada turno narrativo incluso cuando el turno solo continúa una conversación, responde una frase, confirma una decisión o no inicia una acción temporal nueva. El comportamiento exacto de cada proveedor depende de su respuesta, pero la ausencia de una política temporal explícita deja el resultado indeterminado.
