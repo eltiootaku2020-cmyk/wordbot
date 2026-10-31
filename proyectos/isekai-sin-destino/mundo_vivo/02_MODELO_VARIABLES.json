@@ -1,0 +1,306 @@
+{
+  "schema_version": "0.2.0",
+  "status": "design_proposal_not_runtime",
+  "scales": {
+    "common_numeric": {
+      "min": 0,
+      "max": 100,
+      "meaning": "intensity_or_magnitude_not_probability"
+    },
+    "missing_value": "not_registered",
+    "change_record": [
+      "previous_value",
+      "new_value",
+      "cause",
+      "evidence",
+      "timestamp_or_world_time"
+    ]
+  },
+  "world_state": {
+    "world_id": "isekai_sin_destino",
+    "day": null,
+    "time_block": null,
+    "exact_time": null,
+    "region_id": null,
+    "subzone_id": null,
+    "weather": null,
+    "visibility": null,
+    "terrain_conditions": [],
+    "ambient_magic": null,
+    "active_events": [],
+    "known_rumors": [],
+    "information_networks": {
+      "channels": [
+        "travellers",
+        "merchants",
+        "letters",
+        "messengers",
+        "notice_boards",
+        "authorities",
+        "guilds",
+        "direct_conversations"
+      ],
+      "propagation_events": [],
+      "scope": "regional_and_group_specific",
+      "no_instant_global_knowledge": true
+    }
+  },
+  "entity_common": {
+    "entity_id": "unique_stable_id",
+    "entity_type": [
+      "person",
+      "animal",
+      "monster",
+      "plant",
+      "object",
+      "group",
+      "phenomenon"
+    ],
+    "name": null,
+    "species_id": null,
+    "current_location": null,
+    "last_confirmed_location": null,
+    "alive_or_active_status": "unknown",
+    "needs": {
+      "hunger": null,
+      "thirst": null,
+      "fatigue": null,
+      "sleep": null
+    },
+    "condition": {
+      "health": null,
+      "wounds": [],
+      "pain": null,
+      "poisoning": null,
+      "magical_effects": []
+    },
+    "behavior": {
+      "temperament": null,
+      "alertness": null,
+      "aggression": null,
+      "fear": null,
+      "curiosity": null
+    },
+    "cognition": {
+      "goals": [],
+      "memories": [],
+      "knowledge_sources": [],
+      "suspicions": [],
+      "observations": [],
+      "testimonies": [],
+      "known_facts": [],
+      "rumors": [],
+      "beliefs_and_interpretations": []
+    },
+    "relationships": [],
+    "abilities": [],
+    "resistances": [],
+    "inventory_or_carried_items": [],
+    "history_events": [],
+    "variables_applicable": [],
+    "unknown_fields_policy": "No registrado; never infer zero or neutral",
+    "social_state": {
+      "personal_relationships": [],
+      "reputation_by_group_or_region": [],
+      "publicly_attributed_events": [],
+      "relationship_axes": [
+        "affection",
+        "trust",
+        "romantic_attraction",
+        "respect",
+        "fear",
+        "discomfort",
+        "suspicion",
+        "resentment",
+        "loyalty_or_cooperation"
+      ],
+      "unknown_value_policy": "not_registered"
+    }
+  },
+  "ecology": {
+    "biome_id": "forest_of_beasts",
+    "species_catalog_file": "03_CATALOGO_50_ESPECIES.json",
+    "population_estimates": "unknown_until_defined",
+    "habitat_rules": [],
+    "encounter_factors": [
+      "subzone",
+      "time",
+      "weather",
+      "visibility",
+      "season_if_defined",
+      "population",
+      "tracks",
+      "noise",
+      "food",
+      "predator_prey_state",
+      "recent_events",
+      "player_actions"
+    ],
+    "valid_outcomes": [
+      "creature",
+      "trace",
+      "sound",
+      "object_or_resource",
+      "hazard",
+      "weather_event",
+      "nothing"
+    ]
+  },
+  "psico_eco": {
+    "modes": [
+      "information",
+      "influence",
+      "memory",
+      "perception",
+      "biological",
+      "self_intervention",
+      "individual_specialization"
+    ],
+    "attempts_by_target": {
+      "human": "historical_rule_max_3_attempts_including_failures",
+      "animal": "not_defined",
+      "plant": "not_defined",
+      "self": "not_defined"
+    },
+    "target_specific_resistance": true,
+    "biological_constraints": true,
+    "record_each_use": true,
+    "private_effect_public_reputation": "no_public_change_without_witness_evidence_or_plausible_communication",
+    "failed_attempt_target_reaction": "discomfort_or_unease_recorded_with_contextual_intensity"
+  },
+  "exploration": {
+    "action_pipeline": [
+      "intent",
+      "method",
+      "execution",
+      "target_response",
+      "validated_outcome",
+      "persistent_consequences"
+    ],
+    "hidden_threats_require_detection_check": true,
+    "search_does_not_guarantee_discovery": true
+  },
+  "narrative_choices": {
+    "suggested_choices": 3,
+    "always_include_free_input": "Otro",
+    "suggestions_are_nonbinding": true
+  },
+  "endings": {
+    "volcano_day": 12,
+    "main_endings": [
+      "hero",
+      "villain",
+      "monarch",
+      "coward",
+      "tragic_hero"
+    ],
+    "final_selection": "emerges_from_persistent_decisions_not_menu_selection"
+  },
+  "persistence": {
+    "required_records": [
+      "world_state",
+      "entity_states",
+      "inventory",
+      "relationships",
+      "memories_and_knowledge_sources",
+      "psico_eco_uses",
+      "events",
+      "deaths",
+      "routes",
+      "random_generation_trace",
+      "witnesses_and_observations",
+      "event_attribution",
+      "rumors_and_propagation",
+      "reputation_by_group_or_region",
+      "individual_relationship_axes",
+      "private_psico_eco_effects",
+      "travel_estimates_and_actual_duration",
+      "route_knowledge_and_condition",
+      "caravan_membership_and_state"
+    ],
+    "update_only_after_validated_outcome": true
+  },
+  "knowledge_and_social_rules": {
+    "separate_layers": [
+      "objective_event",
+      "individual_observation",
+      "individual_memory_and_interpretation",
+      "communicated_information",
+      "rumor",
+      "protagonist_knowledge"
+    ],
+    "witness_records": [
+      "event_id",
+      "observer_id",
+      "perceived_details",
+      "identification_confidence",
+      "source",
+      "timestamp"
+    ],
+    "attribution_requires_plausible_evidence": true,
+    "reputation_scope": "group_or_region_specific",
+    "global_omniscient_reputation": false,
+    "rumor_can_be_incomplete_or_distorted": true,
+    "relationship_axes_are_independent": true
+  },
+  "travel": {
+    "duration_estimate_separate_from_actual": true,
+    "travel_factors": [
+      "distance",
+      "terrain",
+      "weather",
+      "time_of_day",
+      "visibility",
+      "path_condition",
+      "traveler_condition",
+      "load",
+      "movement_method",
+      "obstacles_and_events"
+    ],
+    "orientation_methods": [
+      "natural_references",
+      "maps",
+      "compass",
+      "trail_signs",
+      "local_knowledge"
+    ],
+    "orientation_guaranteed": false,
+    "route_information_can_be_stale_or_wrong": true,
+    "events": {
+      "contextual_and_dynamic": true,
+      "encounter_required_every_trip": false,
+      "world_continues_without_protagonist": true
+    },
+    "rest_factors": [
+      "shelter",
+      "safety",
+      "sleep",
+      "food",
+      "injuries",
+      "weather",
+      "fatigue"
+    ],
+    "load_dimensions": [
+      "weight",
+      "volume",
+      "distribution",
+      "container",
+      "movement_and_combat_impact"
+    ],
+    "transport_modes": [
+      "walking",
+      "mounts",
+      "pack_animals",
+      "carts_or_vehicles",
+      "caravans",
+      "commercial_services"
+    ],
+    "caravan": {
+      "availability_and_security": "contextual",
+      "threat_response": "adaptive",
+      "member_autonomy": true,
+      "protagonist_authority_is_not_automatic": true,
+      "social_life_and_conflicts_continue_without_protagonist": true
+    }
+  }
+}
