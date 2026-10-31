@@ -52,6 +52,8 @@ La representación absoluta puede calcularse como:
 
 La hora del día debe estar entre 00:00 y 23:59. El siguiente minuto después de Día 1, 23:59 es Día 2, 00:00.
 
+Para no convertir las acciones de menos de un minuto en acciones gratuitas, la partida debe conservar un remanente de segundos. Cada acción breve aporta su duración a ese remanente; al acumular 60 segundos, el reloj principal avanza un minuto y conserva el sobrante. Si en el futuro un acontecimiento debe ordenarse con precisión dentro de un mismo minuto, el sistema tendrá que migrar a segundos absolutos antes de implementarlo; no debe resolver ese empate de forma arbitraria.
+
 El proyecto ya tiene una función temporal que convierte día y minuto en minutos absolutos para evaluar acontecimientos programados. Esta propuesta amplía el uso narrativo del reloj; no reemplaza ese mecanismo.
 
 ### 3.2 Bloques horarios de presentación
@@ -317,6 +319,7 @@ Cada acción temporal debería guardar:
 | intent | Intención registrada |
 | location_start / location_end | Ubicaciones confirmadas |
 | start_total_minutes | Instante global de inicio |
+| subminute_remainder_seconds | Remanente de segundos de la partida para acumular acciones breves |
 | estimated_min_minutes | Límite inferior de estimación |
 | estimated_max_minutes | Límite superior de estimación |
 | actual_duration_minutes | Duración finalmente consumida |
