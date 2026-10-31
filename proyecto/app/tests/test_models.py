@@ -78,3 +78,9 @@ def test_narrator_elapsed_minutes_accepts_the_maximum_supported_time_skip():
 
     response = NarratorResponse(narration="Transcurren dos días.", elapsed_minutes=2880)
     assert response.elapsed_minutes == 2880
+
+
+
+def test_narrator_response_defaults_to_zero_elapsed_minutes():
+    response = NarratorResponse(narration="La conversación continúa.")
+    assert response.elapsed_minutes == 0
