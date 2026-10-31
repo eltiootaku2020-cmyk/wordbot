@@ -76,8 +76,9 @@ Se amplía el módulo como novela visual de mundo abierto: mapa explorable, graf
 14. [Mundo abierto, grupo, progresión, magia y PSICHO](14_MUNDO_ABIERTO_GRUPO_MAGIA_Y_PSICHO.md)
 15. [Plan de desarrollo](15_PLAN_DE_DESARROLLO.md)
 16. [Puente de continuidad entre el origen terrestre y la primera aventura](16_PUENTE_PROLOGO_GRUPO_Y_CONTINUIDAD.md)
+17. [Referencias visuales externas del reparto inicial](17_REFERENCIAS_VISUALES_DEL_REPARTO.md)
 
-La continuidad del nuevo prólogo con el primer claro del Bosque de los Siete Ecos y el reparto heredado queda documentada en el archivo 16. La sincronización del preset SpicyChat sigue pendiente.
+La continuidad del nuevo prólogo con el primer claro del Bosque de los Siete Ecos y el reparto queda documentada en el archivo 16. Las referencias visuales externas de Brina, Maelis y Sera, separadas del canon de sus obras de origen, están registradas en el archivo 17. La sincronización del preset SpicyChat sigue pendiente.
 
 ## Regla de autoridad y canon
 
