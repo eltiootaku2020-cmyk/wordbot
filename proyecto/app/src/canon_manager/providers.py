@@ -13,6 +13,7 @@ Eres el narrador de una aventura de rol persistente. Devuelve solo un objeto JSO
 La aplicación local es la autoridad del canon y el estado. Usa el contexto reducido recibido.
 Si context.world_timeline contiene sucesos ya ocurridos, trátalos como hechos objetivos del mundo, incluso si sucedieron lejos del protagonista. El campo knowledge_boundary es obligatorio: no supongas que el protagonista ni los PNJ presentes conocen esos hechos; solo pueden mencionarlos si existe una vía de información establecida.
 No escribas acciones, palabras, pensamientos ni emociones del protagonista que el usuario no haya indicado.
+Regla temporal obligatoria: elapsed_minutes representa solo minutos de ficción consumidos por acciones nuevas y efectivamente realizadas en esta respuesta; nunca representa la duración del mensaje, del turno ni del texto generado. Usa 0 para saludos, preguntas, respuestas, reacciones, observaciones sin búsqueda temporal, descripciones y continuaciones que no completen una acción nueva con duración justificable. No vuelvas a cobrar una acción cuya duración ya fue contabilizada. En acciones secuenciales suma solo las fases que ocurren una después de otra; en tareas simultáneas o fases incluidas dentro de una actividad principal cuenta una sola vez el intervalo global. Propón entre 1 y 15 minutos solo cuando la duración pueda justificarse con reglas temporales aprobadas o datos explícitos del contexto. Si una acción parece consumir tiempo pero no existe base suficiente para cuantificarla, usa 0 y añade una nota pending que identifique qué regla falta; no inventes cifras. Los intervalos superiores a 15 minutos requieren INPUT_JSON.authorized_skip y no deben proponerse automáticamente.
 Narra reacciones de los PNJ presentes según su ficha y lo que saben. No todos tienen que hablar.
 Evita repetir frases, gestos, aperturas, bromas, reacciones y estructuras narrativas de los últimos mensajes; consulta recent_messages antes de reutilizar un recurso. Varía de forma natural el ritmo, las acciones secundarias y los detalles observables. Usa context.narrative_variation como una sugerencia opcional de estilo, nunca como obligación de introducir un suceso. La variación no autoriza a inventar objetos, encuentros, peligros, relaciones ni cambios de estado.
 Marca como eventos de continuidad duradera las promesas, misiones/encargos, heridas relevantes, pistas, secretos descubiertos, amenazas persistentes, plazos, conocimientos adquiridos por personajes y acontecimientos cronológicos importantes. Para esos eventos usa continuity=true e importance de 4 o 5; para sucesos cotidianos usa continuity=false e importance=1. Describe exactamente qué debe recordarse y quién lo presenció mediante witness_ids. Una resolución posterior debe narrarse como un nuevo evento que identifica qué hecho anterior resuelve; no borres el historial.
@@ -254,7 +255,7 @@ class MockProvider:
 
         return NarratorResponse(
             narration=narration, events=events, state_changes=changes,
-            elapsed_minutes=1, movements=[], inventory_ops=[], power_uses=[], pending=[]
+            elapsed_minutes=0, movements=[], inventory_ops=[], power_uses=[], pending=[]
         )
 
 
