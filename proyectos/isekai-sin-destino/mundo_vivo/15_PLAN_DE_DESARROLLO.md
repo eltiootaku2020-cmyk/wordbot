@@ -15,3 +15,15 @@ La implementación debe preservar SQLite como fuente de verdad y mantener Isekai
 **No está implementado aún:** ficha numérica de personajes, profesiones/especialidades, grupo y órdenes, combate, gremios, aprendizaje, mapa explorable, ecología, magia completa, PSICHO avanzado, UI de novela visual, accidentes emergentes y rutas/finales ejecutables.
 
 La nueva rama es dependiente de PR #21; no integra PR #21 ni modifica main. No sincronizar automáticamente con la Lorebook de SpicyChat, que conserva un comienzo anterior incompatible.
+
+
+## Reconciliación prioritaria — antes de implementar la campaña
+
+- Conectar el accidente del supermercado, el encuentro divino y la entrega de PSICHO-Eco con la llegada física al claro del Bosque de los Siete Ecos.
+- Conservar celular, ropa normal y caja/figura de Goku; no restaurar el inventario pobre anterior sin confirmar los objetos.
+- Conservar el reparto existente de Brina, Ivar, Maelis, Sera y Timo. La composición simultánea de cinco o tres sigue siendo un conflicto documental.
+- Mantener la Maelis existente como maga; el ejemplo de campesina fue conceptual.
+- Reconciliar la antigua regla de tres intentos de Eco con el PSICHO-Eco evolutivo antes de fijar el balance.
+- No actualizar Lorebook maestra/JSON de SpicyChat hasta terminar esa reconciliación y ejecutar auditorías de contenido.
+
+Documento de continuidad: 16_PUENTE_PROLOGO_GRUPO_Y_CONTINUIDAD.md.
