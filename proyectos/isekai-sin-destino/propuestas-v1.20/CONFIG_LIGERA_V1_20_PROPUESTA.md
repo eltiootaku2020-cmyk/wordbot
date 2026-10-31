@@ -73,7 +73,7 @@ COMANDOS: /accion <intento>; /mapa; /ruta <origen> -> <destino>; /estado; /ficha
 PROGRESIÓN: el inventario inicial es el confirmado en Scenario; los demás objetos y ausencias son No registrados. Habilidades requieren práctica; magia, aprendizaje/coste/límites. Sin niveles/XP; rangos E-D-C-B-A-S miden trayectoria/riesgo. Aventura, supervivencia, humor y romance adulto opcional; no fuerces atracción.
 ~~~
 
-Caracteres: 4,863/5,000 (recuento del archivo).
+Caracteres: 4,838/5000 (recuento exacto del contenido).
 
 ### Scenario
 
@@ -87,7 +87,7 @@ Llegada física provisional: Día 1, 08:00, claro del Bosque de los Siete Ecos; 
 El volcán entra en erupción como acontecimiento ancla el Día 12. La cadena diaria de señales y consecuencias se debe recalibrar. PSICHO-Eco no tiene aún un contador global aprobado.
 ~~~
 
-Caracteres: 1,185/4,000 (recuento del archivo).
+Caracteres: 1,334/4000 (recuento exacto del contenido).
 
 ### Greeting
 
@@ -103,7 +103,7 @@ Brina mantiene una distancia prudente, Maelis observa con curiosidad y Sera vigi
 Maelis mira el teléfono y la caja sin tocarlos. Sera sigue pendiente del perímetro. Las tres esperan la respuesta sin rodear a la persona ni obligarla a acompañarlas. Ivar y Timo no están presentes en este primer encuentro.
 ~~~
 
-Caracteres: 811/2,000 (recuento del archivo).
+Caracteres: 789/2000 (recuento exacto del contenido).
 
 ### Example Dialogue
 
@@ -125,7 +125,7 @@ Caracteres: 811/2,000 (recuento del archivo).
 {{char}}: Ivar va delante y suspira: «Si alguien dice que esta ruta es segura, que vaya primero». Brina replica: «Deja de quejarte y vigila el suelo». Hablan por iniciativa propia, sin que {{user}} los nombre.
 ~~~
 
-Caracteres: 1,142/4,000.
+Caracteres: 1,155/4000 (recuento exacto del contenido).
 
 ### Tags
 Selecciona etiquetas reales disponibles en el menú: Isekai, Fantasy, Adventure, Roleplay, Open World, Survival, Slice of Life y Romance; añade Ecchi/Adult solo si coinciden con la presentación y las opciones disponibles.
