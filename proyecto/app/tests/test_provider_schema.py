@@ -42,5 +42,5 @@ def test_manual_chat_parser_rejects_multiple_json_objects_as_ambiguous():
 
 
 def test_narrator_schema_marks_zero_as_the_neutral_elapsed_default():
-    schema = normalized_schema(NarratorResponse, resolve_refs=False)
+    schema = NarratorResponse.model_json_schema()
     assert schema["properties"]["elapsed_minutes"]["default"] == 0
