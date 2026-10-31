@@ -135,3 +135,16 @@ La premisa nueva sustituye el inicio anterior sin celular ni pertenencias terres
 - Controles de contenido adulto con advertencias previas, personajes adultos y consentimiento explícito; PSICHO no equivale a consentimiento sexual y la diosa chibi queda excluida del contenido adulto.
 
 No se han definido todavía escalas, fórmulas, costes, balance, capacidad de grupo ni reglas cuantitativas.
+
+
+## Reconciliación del prólogo y del grupo — 30-10-2026
+
+- **Continuidad provisional:** se conserva el claro del Bosque de los Siete Ecos (franja exterior del Bosque de las Bestias) como primer punto físico de llegada, después de la escena divina. La configuración heredada lo sitúa en Día 1, 08:00, con bruma y suelo húmedo; no se vuelve a mostrar el accidente del supermercado.
+- **Inventario actualizado:** ropa normal contemporánea, celular y la caja promocional de cereal/figura de Goku vinculada a la escena divina. El estado exacto de los objetos y teléfono queda pendiente. No agregar automáticamente pañuelo, bolsa, cordel, dinero, comida, armas, mochila ni equipo que pertenecía a la versión anterior.
+- **Grupo heredado:** la Lorebook documenta a Brina Solcor (26), Ivar Dalen (27), Maelis Orven (24), Sera Linde (25) y Timo Venn (22). Se conserva a los cinco como reparto documentado; la presencia simultánea de todos en el primer encuentro queda pendiente porque hay notas históricas de una posible composición de tres.
+- **Maelis:** la Maelis de la ficha actual es maga. El ejemplo anterior de «Maelis aventurera/campesina» se considera ilustrativo de que las profesiones cambian capacidades; no crea una Maelis campesina ni altera la ficha existente.
+- **PSICHO-Eco:** la regla histórica de tres intentos por persona humana pertenece a la versión antigua de Eco de la Lorebook. No se traslada automáticamente como regla universal al PSICHO-Eco evolutivo nuevo. Tampoco se supone uso ilimitado; costes, intentos y progreso quedan pendientes.
+- **Flashback:** la visita posterior a una iglesia revela mejor la conversación divina. No es la primera adquisición del poder; PSICHO-Eco ya fue entregado antes del primer despertar físico.
+
+Ver [16 — Puente de continuidad entre el origen terrestre y la primera aventura](16_PUENTE_PROLOGO_GRUPO_Y_CONTINUIDAD.md).
+
