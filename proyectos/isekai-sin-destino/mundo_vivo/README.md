@@ -75,6 +75,9 @@ Se amplía el módulo como novela visual de mundo abierto: mapa explorable, graf
 13. [Origen del protagonista y primer encuentro divino](13_ORIGEN_PROTAGONISTA.md)
 14. [Mundo abierto, grupo, progresión, magia y PSICHO](14_MUNDO_ABIERTO_GRUPO_MAGIA_Y_PSICHO.md)
 15. [Plan de desarrollo](15_PLAN_DE_DESARROLLO.md)
+16. [Puente de continuidad entre el origen terrestre y la primera aventura](16_PUENTE_PROLOGO_GRUPO_Y_CONTINUIDAD.md)
+
+La continuidad del nuevo prólogo con el primer claro del Bosque de los Siete Ecos y el reparto heredado queda documentada en el archivo 16. La sincronización del preset SpicyChat sigue pendiente.
 
 ## Regla de autoridad y canon
 
