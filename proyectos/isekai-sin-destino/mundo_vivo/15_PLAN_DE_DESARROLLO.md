@@ -21,7 +21,7 @@ La nueva rama es dependiente de PR #21; no integra PR #21 ni modifica main. No s
 
 - Conectar el accidente del supermercado, el encuentro divino y la entrega de PSICHO-Eco con la llegada física al claro del Bosque de los Siete Ecos.
 - Conservar celular, ropa normal y caja/figura de Goku; no restaurar el inventario pobre anterior sin confirmar los objetos.
-- Conservar el reparto existente de Brina, Ivar, Maelis, Sera y Timo. La composición simultánea de cinco o tres sigue siendo un conflicto documental.
+- Decisión confirmada (31-10-2026): primer encuentro con Brina, Maelis y Sera. Conservar las cinco fichas; Ivar y Timo no están presentes y se introducirán más adelante mediante escenas coherentes.
 - Mantener la Maelis existente como maga; el ejemplo de campesina fue conceptual.
 - Reconciliar la antigua regla de tres intentos de Eco con el PSICHO-Eco evolutivo antes de fijar el balance.
 - No actualizar Lorebook maestra/JSON de SpicyChat hasta terminar esa reconciliación y ejecutar auditorías de contenido.
