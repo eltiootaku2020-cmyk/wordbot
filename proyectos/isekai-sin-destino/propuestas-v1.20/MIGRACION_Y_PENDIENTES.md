@@ -11,7 +11,7 @@
 - El poder viejo Eco establece tres intentos por persona, incluso con fallo. La especificación nueva dice expresamente que esta regla no se traslada automáticamente a PSICHO-Eco.
 - El JSON UID 12 y múltiples bloques de la Lorebook fijan la erupción como máximo en Día 7. La documentación nueva del mundo vivo fija el acontecimiento ancla en Día 12.
 - Personality y Scenario siguen repitiendo el inventario viejo y el Día 7.
-- La escena de inicio y Greeting fijan a los cinco aventureros presentes, mientras que el nuevo puente registra conflicto abierto entre una composición inicial de tres y una de cinco.
+- La versión original fijaba cinco aventureros en escena; la propuesta v1.20 ya aplica la decisión confirmada de tres presentes (Brina, Maelis y Sera), conservando las cinco fichas.
 
 ## Texto maestro que debe sustituir la sección 2
 
@@ -58,7 +58,7 @@ Se mantienen las cinco fichas del reparto y los UID originales; no se renumera n
 5. Qué recuerda al inicio y qué parte exacta revela la iglesia.
 6. Primer efecto disponible de PSICHO-Eco, objetivos permitidos, costes, alcance, duración, resistencia, riesgos y progresión.
 7. Recalendario completo: Día 12 es el ancla; los días 7–11 requieren hitos si se desean y las consecuencias posteriores deben comprobarse contra otros eventos, incluida la Feria del Día 15.
-8. Nuevo Greeting, una vez resuelto el grupo y la secuencia del primer encuentro.
+8. Probar el Greeting actualizado: solo Brina, Maelis y Sera intervienen; Ivar y Timo no deben hablar ni actuar hasta su entrada posterior.
 
 ## Regla de despliegue
 
