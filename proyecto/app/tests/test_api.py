@@ -4881,3 +4881,178 @@ def test_undo_restores_session_timeline_runs_with_clock_state():
                 "SELECT COUNT(*) FROM session_timeline_runs WHERE session_id=?",
                 (session_id,),
             ).fetchone()[0] == 0
+
+
+def test_timeline_patch_can_switch_between_fixed_time_and_condition():
+    with TestClient(app) as client:
+        started = client.post(
+            "/api/worlds/start",
+            json={
+                "name": "Mundo de conversión de cronología",
+                "protagonist_name": "Ari",
+                "session_name": "Partida de conversión",
+                "location": "Puerto",
+                "day": 1,
+                "minute_of_day": 480,
+            },
+        )
+        assert started.status_code == 200, started.text
+        world_id = started.json()["world_id"]
+
+        created = client.post(
+            f"/api/worlds/{world_id}/timeline",
+            json={
+                "stable_key": "convertible-event",
+                "title": "Suceso convertible",
+                "description": "Puede pasar de fecha fija a condición.",
+                "activation_type": "fixed_time",
+                "scheduled_day": 5,
+                "scheduled_minute": 600,
+            },
+        )
+        assert created.status_code == 200, created.text
+        event_id = created.json()["event"]["id"]
+
+        to_condition = client.patch(
+            f"/api/worlds/{world_id}/timeline/{event_id}",
+            json={"activation_type": "condition", "condition": {"all": []}},
+        )
+        assert to_condition.status_code == 200, to_condition.text
+        conditional = to_condition.json()["event"]
+        assert conditional["activation_type"] == "condition"
+        assert conditional["scheduled_day"] is None
+        assert conditional["scheduled_minute"] is None
+
+        missing_schedule = client.patch(
+            f"/api/worlds/{world_id}/timeline/{event_id}",
+            json={"activation_type": "fixed_time"},
+        )
+        assert missing_schedule.status_code == 422, missing_schedule.text
+
+        to_fixed = client.patch(
+            f"/api/worlds/{world_id}/timeline/{event_id}",
+            json={
+                "activation_type": "fixed_time",
+                "scheduled_day": 6,
+                "scheduled_minute": 720,
+            },
+        )
+        assert to_fixed.status_code == 200, to_fixed.text
+        fixed = to_fixed.json()["event"]
+        assert fixed["activation_type"] == "fixed_time"
+        assert fixed["scheduled_day"] == 6
+        assert fixed["scheduled_minute"] == 720
+
+        null_title = client.patch(
+            f"/api/worlds/{world_id}/timeline/{event_id}",
+            json={"title": None},
+        )
+        assert null_title.status_code == 422, null_title.text
+
+
+def test_global_timeline_mutations_are_blocked_while_any_world_session_is_processing():
+    with TestClient(app) as client:
+        started = client.post(
+            "/api/worlds/start",
+            json={
+                "name": "Mundo con turno en curso",
+                "protagonist_name": "Ari",
+                "session_name": "Partida principal",
+                "location": "Puerto",
+                "day": 1,
+                "minute_of_day": 480,
+            },
+        )
+        assert started.status_code == 200, started.text
+        world_id = started.json()["world_id"]
+        protagonist_id = started.json()["protagonist_entity_id"]
+
+        second = client.post(
+            f"/api/worlds/{world_id}/sessions",
+            json={
+                "name": "Partida secundaria",
+                "location": "Aldea",
+                "day": 1,
+                "minute_of_day": 480,
+                "protagonist_entity_id": protagonist_id,
+            },
+        )
+        assert second.status_code == 200, second.text
+        second_session_id = second.json()["id"]
+
+        due_event = client.post(
+            f"/api/worlds/{world_id}/timeline",
+            json={
+                "stable_key": "due-event-during-generation",
+                "title": "Suceso pendiente",
+                "description": "Debe permanecer pendiente mientras otra partida genera.",
+                "activation_type": "fixed_time",
+                "scheduled_day": 1,
+                "scheduled_minute": 400,
+            },
+        )
+        assert due_event.status_code == 200, due_event.text
+        event_id = due_event.json()["event"]["id"]
+
+        processing_turn_id = "world-timeline-processing-" + uuid.uuid4().hex
+        with database.transaction() as conn:
+            conn.execute(
+                "INSERT INTO messages(id,session_id,turn_id,client_request_id,turn_index,role,"
+                "recipient_entity_id,content,provider,generation_status,metadata_json) "
+                "VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    uuid.uuid4().hex, second_session_id, processing_turn_id,
+                    processing_turn_id, 1, "user", "",
+                    "Turno simulado en proceso", "mock", "processing",
+                    json.dumps({"visibility": "scene", "audience_ids": [protagonist_id]}),
+                ),
+            )
+
+        create_during_turn = client.post(
+            f"/api/worlds/{world_id}/timeline",
+            json={
+                "stable_key": "blocked-create",
+                "title": "No debe crearse",
+                "description": "La generación debe mantener estable la cronología.",
+                "activation_type": "fixed_time",
+                "scheduled_day": 2,
+                "scheduled_minute": 500,
+            },
+        )
+        assert create_during_turn.status_code == 409, create_during_turn.text
+
+        edit_during_turn = client.patch(
+            f"/api/worlds/{world_id}/timeline/{event_id}",
+            json={"title": "No debe editarse"},
+        )
+        assert edit_during_turn.status_code == 409, edit_during_turn.text
+
+        approve_during_turn = client.post(
+            f"/api/worlds/{world_id}/timeline/{event_id}/review",
+            json={"approval_status": "approved"},
+        )
+        assert approve_during_turn.status_code == 409, approve_during_turn.text
+
+        cancel_during_turn = client.delete(
+            f"/api/worlds/{world_id}/timeline/{event_id}"
+        )
+        assert cancel_during_turn.status_code == 409, cancel_during_turn.text
+
+        with database.connection() as conn:
+            saved = conn.execute(
+                "SELECT title,approval_status,lifecycle_status FROM world_timeline_events WHERE id=?",
+                (event_id,),
+            ).fetchone()
+            blocked_create_count = conn.execute(
+                "SELECT COUNT(*) FROM world_timeline_events WHERE world_id=? AND stable_key='blocked-create'",
+                (world_id,),
+            ).fetchone()[0]
+            run_count = conn.execute(
+                "SELECT COUNT(*) FROM session_timeline_runs WHERE scheduled_event_id=?",
+                (event_id,),
+            ).fetchone()[0]
+        assert saved["title"] == "Suceso pendiente"
+        assert saved["approval_status"] == "pending"
+        assert saved["lifecycle_status"] == "active"
+        assert blocked_create_count == 0
+        assert run_count == 0
