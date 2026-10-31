@@ -141,3 +141,10 @@ No se preguntará por cada procedimiento menor. Las reglas generales deben permi
 - Modelo JSON actualizado a la versión 0.2.0 y parseado correctamente.
 - No es implementación ejecutable: aún faltan motor de simulación, persistencia SQLite específica del mundo, servicios, API, interfaz y pruebas de campaña.
 - La rama main permanece fuera del alcance de esta entrega.
+
+
+### Entidad demoníaca vinculada a PSICHO-Eco — 31-10-2026
+
+Se añadió una entidad pequeña y demoníaca que es el origen directo del poder del protagonista y se alía con él como su «Eco»/guía. El protagonista es el tercer portador; los dos anteriores murieron después de confiarse y no desarrollar el poder hasta su potencial. La idea base está confirmada; los detalles de ficha y el vínculo exacto con la diosa chibi siguen pendientes.
+
+- [25 — Entidad demoníaca vinculada a PSICHO-Eco](25_ENTIDAD_DEMONIACA_PSICHO_ECO_PROPUESTA.md)
