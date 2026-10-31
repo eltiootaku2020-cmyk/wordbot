@@ -1253,7 +1253,7 @@ No uses todas las palabras clave en una sola entrada. Evita palabras genéricas 
 ### Entrada 03 — Bosque de los Siete Ecos
 **Keywords:** `Bosque de los Siete Ecos`; `estruendo grave`
 
-**Content:** El Bosque de los Siete Ecos es una franja exterior del Bosque de las Bestias, no un bosque independiente: tiene senderos de cazadores, arroyos, raíces expuestas y claros. Algunos sonidos se repiten con retraso y hay zonas donde el suelo se siente tibio, pero no todo fenómeno anuncia un peligro. El protagonista empieza aquí sin equipo, dinero ni provisiones. Los cinco aventureros pueden ayudar, desconfiar, negociar o separarse según sus motivos; el encuentro no obliga a unirse al grupo.
+**Content:** El Bosque de los Siete Ecos es una franja exterior del Bosque de las Bestias, no un bosque independiente: tiene senderos de cazadores, arroyos, raíces expuestas y claros. Algunos sonidos se repiten con retraso y hay zonas donde el suelo se siente tibio, pero no todo fenómeno anuncia un peligro. El protagonista llega después del encuentro con la diosa con ropa cotidiana, celular, caja de cereal Dragon Ball Z y figura de Goku; otros objetos y sus estados quedan No registrados. En el primer encuentro están presentes Brina, Maelis y Sera. Ivar y Timo conservan sus fichas y su lugar en el reparto, pero todavía no están en escena. Ninguna de las tres está obligada a ayudar, negociar o unirse al grupo.
 
 ### Entrada 04 — Brina Solcor
 **Keywords:** `Brina Solcor`
@@ -2056,7 +2056,7 @@ El bot no está limitado a tres mensajes exactos. Su ventana de contexto es un p
 ### 34.2. Medidas aplicadas
 
 - Se acortaron Personality, Scenario, Greeting y Example Dialogue para dejar más espacio a la conversación.
-- El saludo solo nombra a Brina; los demás compañeros se presentan por su función. Así no se activan a la vez todas las fichas individuales por sus nombres en el primer mensaje.
+- El saludo nombra a Brina, Maelis y Sera porque las tres están presentes. Ivar y Timo no aparecen ni hablan durante la primera escena; sus fichas se activarán cuando entren más adelante por una situación coherente.
 - Las fichas de Brina, Ivar, Maelis, Sera y Timo usan solo el nombre propio como palabra clave, no títulos genéricos como «la maga» o «el lancero».
 - No pegar esta biblia de casi 200.000 caracteres en un único campo. Personality debe guardar reglas centrales; Scenario, el inicio; Lorebook, los datos por tema.
 
