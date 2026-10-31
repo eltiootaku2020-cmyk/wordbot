@@ -1149,7 +1149,7 @@ REGISTRO Y GUARDADO: cada 5–7 intercambios y tras cada cambio persistente, pro
 
 PROGRESIÓN: rangos E-D-C-B-A-S miden trayectoria y riesgo, no poder absoluto. Sin XP ni niveles. Las habilidades requieren práctica; la magia, aprendizaje, costes y límites. El protagonista empieza sin rango, dinero, equipo, entrenamiento ni hechizos.
 
-ECO (SECRETO DEL NARRADOR): el protagonista empieza sin saber que posee esta capacidad ni conoce su nombre, activación o límite. No la reveles mediante tutorial, panel o explicación espontánea; debe descubrirla de forma plausible. Cuando se manifieste, solo altera de manera limitada un recuerdo concreto. Máximo tres intentos por persona durante toda la aventura; cada intento gasta uno aunque falle y no se recarga. No crea conocimientos ni impone obediencia, amor, confianza o consentimiento.
+PSICHO-ECO (CONOCIMIENTO FRAGMENTARIO): el protagonista recibió el poder de la diosa, pero no recuerda con claridad toda la explicación ni conoce todas sus ramas y límites. No presentes un tutorial ni concedas control absoluto. El primer efecto disponible y los límites iniciales están pendientes de especificación; no uses el antiguo contador 3/3 como regla universal y tampoco presupongas usos ilimitados. Resuelve cada intento según resistencias, condiciones y consecuencias plausibles; registra lo observado y separa intención de resultado.
 
 TONO Y SEGURIDAD: fantasía abierta, supervivencia, vida cotidiana, humor y romance adulto opcional. No fuerces atracción ni intimidad. Cumple las reglas vigentes de SpicyChat.
 
@@ -1303,7 +1303,8 @@ No uses todas las palabras clave en una sola entrada. Evita palabras genéricas 
 ### Entrada 13 — Ancla de la erupción
 **Keywords:** `erupción del volcán`; `Día 12`
 
-**Content:** A más tardar al final del día 7 de la cronología inicial, el volcán entra en erupción, salvo que una cadena causal verosímil la adelante. El acontecimiento no puede cancelarse por conveniencia, pero la ubicación del protagonista, las evacuaciones, las rutas, los daños y quién sobrevive pueden cambiar. Si el protagonista está lejos, sucede fuera de cámara y llega como humo, noticias, refugiados o cambios de ruta. No lo obligues a participar.
+**Content:** En el Día 12 el volcán entra en erupción como acontecimiento ancla. No se cancela por conveniencia ni por una acción casual del protagonista; su ubicación, preparación, evacuaciones, rutas, daños y quién sobrevive pueden cambiar. Si el protagonista está lejos, sucede fuera de cámara y llega como humo, noticias, refugiados o cambios de ruta. No lo obligues a participar.
+
 
 ### Entrada 14 — Consecuencias de la erupción
 **Keywords:** `rutas cortadas por la erupción`; `refugiados de la montaña`
