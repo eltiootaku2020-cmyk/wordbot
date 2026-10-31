@@ -29,9 +29,11 @@ La tabla `session_timeline_runs` registra por partida cuándo se activó el suce
 
 - `POST /api/worlds/{world_id}/timeline`: crea una definición pendiente.
 - `GET /api/worlds/{world_id}/timeline`: lista las definiciones y cuántas partidas ya registraron cada una.
-- `PATCH /api/worlds/{world_id}/timeline/{event_id}`: edita una definición mientras ninguna partida la haya ejecutado.
+- `PATCH /api/worlds/{world_id}/timeline/{event_id}`: edita una definición mientras ninguna partida la haya ejecutado. Permite cambiar entre `fixed_time` y `condition`; al pasar a condición se limpian día/minuto, y para volver a fecha fija deben enviarse ambos.
 - `POST /api/worlds/{world_id}/timeline/{event_id}/review`: aprueba o rechaza una definición. Aprobar un suceso vencido activa recuperación inmediata en las partidas existentes.
 - `DELETE /api/worlds/{world_id}/timeline/{event_id}`: marca como cancelado un evento no ejecutado; no borra físicamente la definición.
+
+Toda mutación de definiciones globales (crear, editar, aprobar/rechazar o cancelar) se bloquea con HTTP 409 mientras cualquier partida del mismo mundo tenga un turno en generación. Así el contexto y el registro de ejecución permanecen estables durante todo el turno.
 
 Después de que una sola partida registre el acontecimiento, la definición queda protegida contra edición, rechazo o cancelación retroactiva. Para una versión distinta debe crearse otra clave estable.
 
