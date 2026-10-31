@@ -2305,7 +2305,7 @@ def test_undo_rejects_a_turn_that_is_not_the_latest_completed_turn(monkeypatch):
             async def generate(self, payload):
                 provider_state["calls"] += 1
                 return NarratorResponse(
-                    narration="La escena continúa sin un cambio de estado adicional.",
+                    narration="La escena continúa sin un cambio de estado adicional."
                 )
 
         monkeypatch.setattr(main_module, "make_provider", lambda provider_name, settings: QuietProvider())
@@ -3806,7 +3806,8 @@ def test_mixed_50_turn_continuity_campaign_with_retries_privacy_and_restore(monk
             m for m in final_messages
             if m["role"] == "assistant" and m["generation_status"] == "complete"
         ]) == 50
-        assert final_state["state"]["minute_of_day"] == 530
+        # Twelve purchase/pickup turns have no calibrated duration; only 38 turns advance one minute.
+        assert final_state["state"]["minute_of_day"] == 518
         assert any(item["display_name"] == "Piedra" and item["quantity"] >= 1 for item in final_state["inventory"])
         assert any(item["display_name"] == "Manzana" and item["quantity"] >= 3 for item in final_state["inventory"])
         assert next(r["quantity"] for r in final_state["resources"] if r["resource_key"] == "monedas") == 90
