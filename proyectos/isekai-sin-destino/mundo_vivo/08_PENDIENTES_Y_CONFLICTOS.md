@@ -6,6 +6,7 @@ Este documento evita que una propuesta nueva sobrescriba silenciosamente datos a
 
 - La erupción del volcán pasa a estar fijada para el Día 12.
 - Hay cinco finales principales: héroe, villano, monarca, cobarde y héroe trágico.
+- **Decisión aprobada el 31-10-2026:** el primer encuentro tendrá tres aventureras: Brina, Maelis y Sera. Ivar y Timo mantienen sus fichas y aparecen en una etapa posterior.
 - El mundo debe ser abierto, con rutas ramificadas y opción de acción libre.
 - El primer bioma debe aspirar a unas 50 especies variadas.
 - Criaturas y personajes tienen estados y comportamientos propios.
@@ -24,10 +25,10 @@ Este documento evita que una propuesta nueva sobrescriba silenciosamente datos a
 - Decisión nueva: Día 12.
 - Resolución propuesta: Día 12 sustituye la fecha antigua para la planificación nueva. Falta actualizar la configuración ligera, cuadro de reglas, Lorebook maestra y JSON de importación de forma coordinada.
 
-### 2. Grupo principal
-- Documentos antiguos mencionan a Brina, Ivar, Maelis, Sera y Timo.
-- Conversaciones previas también redujeron un grupo de inicio a Brina, Maelis y Sera.
-- No se debe asumir que Ivar y Timo fueron eliminados de todo el mundo. Pendiente decidir si son compañeros iniciales, secundarios, encuentros opcionales o personajes de otra etapa.
+### 2. Grupo principal — RESUELTO el 31-10-2026
+- El primer encuentro incluye tres aventureras: **Brina Solcor, Maelis Orven y Sera Linde**.
+- Se conservan las cinco fichas originales, sin eliminar ni modificar las identidades de **Ivar Dalen** y **Timo Venn**.
+- Ivar y Timo no están presentes en el claro inicial; su entrada se reserva para una escena posterior con causa y ubicación coherentes. El momento exacto todavía no está fijado.
 
 ### 3. Nombres y personalidades
 - Brina, Ivar, Maelis, Sera y Timo ya tienen datos en Lorebook antigua.
@@ -35,9 +36,9 @@ Este documento evita que una propuesta nueva sobrescriba silenciosamente datos a
 - Los nombres propuestos en el catálogo de especies son provisionales.
 
 ### 4. Psico-Eco
-- Documento anterior limita tres intentos por persona y describe Eco vegetal como mecanismo incierto.
-- Las nuevas aplicaciones incluyen memoria de personas, influencia, control limitado, usos biológicos y autointervención.
-- Mantener tres intentos por persona humana como regla histórica; no extender el contador a animales, plantas, procesos internos o autointervención sin confirmación.
+- La versión anterior de SpicyChat limitaba tres intentos por persona y describía Eco vegetal como mecanismo incierto.
+- PSICHO-Eco es el nuevo poder incompleto que evoluciona con el usuario; la regla antigua no se traslada automáticamente a sus ramas, especies ni objetivos.
+- Tampoco se consideran ilimitados los usos nuevos: coste, alcance, duración, resistencia y progresión deben definirse por separado.
 - El ejemplo de los linfocitos B se modela como ficción mágica inspirada en memoria inmunológica, no como biología literal.
 
 ### 5. Inventario inicial
@@ -148,3 +149,7 @@ No se han definido todavía escalas, fórmulas, costes, balance, capacidad de gr
 
 Ver [16 — Puente de continuidad entre el origen terrestre y la primera aventura](16_PUENTE_PROLOGO_GRUPO_Y_CONTINUIDAD.md).
 
+
+
+### Decisión de grupo incorporada el 31-10-2026
+El conflicto sobre la cantidad de integrantes del primer encuentro deja de estar pendiente. Brina, Maelis y Sera son las tres presentes. Ivar y Timo se conservan en el reparto de cinco fichas y su primera aparición posterior queda por diseñar.
