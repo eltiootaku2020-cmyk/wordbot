@@ -2285,6 +2285,24 @@ def _timeline_event_payload(row) -> dict[str, Any]:
     return item
 
 
+def ensure_no_world_turn_in_progress(conn, world_id: str) -> None:
+    """Keep shared timeline definitions stable while any session in this world is generating."""
+    in_progress = conn.execute(
+        "SELECT s.id,s.name FROM sessions s "
+        "JOIN messages m ON m.session_id=s.id "
+        "WHERE s.world_id=? AND m.role='user' AND m.generation_status='processing' "
+        "LIMIT 1",
+        (world_id,)
+    ).fetchone()
+    if in_progress:
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Hay un turno en curso en alguna partida de este mundo. "
+                "Espera a que termine antes de modificar la cronología global."
+            )
+        )
+
 def _catch_up_world_timeline(conn, world_id: str, trigger_id: str) -> int:
     sessions = conn.execute(
         "SELECT id,day,minute_of_day FROM sessions WHERE world_id=? ORDER BY id",
@@ -2309,6 +2327,7 @@ def create_world_timeline_event(world_id: str, payload: WorldTimelineEventCreate
     with database.transaction() as conn:
         if conn.execute("SELECT 1 FROM worlds WHERE id=?", (world_id,)).fetchone() is None:
             raise HTTPException(status_code=404, detail="Mundo no encontrado.")
+        ensure_no_world_turn_in_progress(conn, world_id)
         try:
             conn.execute(
                 "INSERT INTO world_timeline_events("
@@ -2356,11 +2375,15 @@ def update_world_timeline_event(
     world_id: str, event_id: str, payload: WorldTimelineEventUpdate
 ):
     changes = payload.model_dump(exclude_unset=True)
-    if not changes or any(value is None for value in changes.values()):
-        raise HTTPException(status_code=422, detail="Indica al menos un campo válido; no se aceptan valores null.")
+    nullable_fields = {"scheduled_day", "scheduled_minute"}
+    if not changes or any(
+        value is None and key not in nullable_fields for key, value in changes.items()
+    ):
+        raise HTTPException(status_code=422, detail="Indica al menos un campo válido; null solo se admite para limpiar día y minuto.")
     field_map = {
         "title": "title",
         "description": "description",
+        "activation_type": "activation_type",
         "scheduled_day": "scheduled_day",
         "scheduled_minute": "scheduled_minute",
         "condition": "condition_json",
@@ -2375,6 +2398,7 @@ def update_world_timeline_event(
         ).fetchone()
         if event is None:
             raise HTTPException(status_code=404, detail="Acontecimiento mundial no encontrado.")
+        ensure_no_world_turn_in_progress(conn, world_id)
         if conn.execute(
             "SELECT 1 FROM session_timeline_runs WHERE scheduled_event_id=? LIMIT 1",
             (event_id,)
@@ -2383,8 +2407,13 @@ def update_world_timeline_event(
                 status_code=409,
                 detail="El acontecimiento ya se ejecutó en una partida; no puede reescribirse retroactivamente."
             )
+        new_activation_type = changes.get("activation_type", event["activation_type"])
+        if new_activation_type == "condition" and event["activation_type"] != "condition":
+            # A conditional definition has no fixed timestamp.
+            changes.setdefault("scheduled_day", None)
+            changes.setdefault("scheduled_minute", None)
         _validate_timeline_definition(
-            event["activation_type"],
+            new_activation_type,
             changes.get("scheduled_day", event["scheduled_day"]),
             changes.get("scheduled_minute", event["scheduled_minute"]),
             changes.get("scope_type", event["scope_type"]),
@@ -2429,6 +2458,7 @@ def review_world_timeline_event(
         ).fetchone()
         if event is None:
             raise HTTPException(status_code=404, detail="Acontecimiento mundial no encontrado.")
+        ensure_no_world_turn_in_progress(conn, world_id)
         if event["lifecycle_status"] != "active":
             raise HTTPException(status_code=409, detail="Un acontecimiento cancelado o sustituido no puede aprobarse.")
         if conn.execute(
@@ -2465,6 +2495,7 @@ def cancel_world_timeline_event(world_id: str, event_id: str):
         ).fetchone()
         if event is None:
             raise HTTPException(status_code=404, detail="Acontecimiento mundial no encontrado.")
+        ensure_no_world_turn_in_progress(conn, world_id)
         if conn.execute(
             "SELECT 1 FROM session_timeline_runs WHERE scheduled_event_id=? LIMIT 1",
             (event_id,)
