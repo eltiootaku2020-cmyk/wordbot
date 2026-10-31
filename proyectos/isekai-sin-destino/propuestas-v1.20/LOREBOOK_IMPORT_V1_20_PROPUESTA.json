@@ -1,6 +1,6 @@
 {
   "name": "Isekai sin Destino",
-  "description": "v1.20 propuesta: origen terrestre, PSICHO-Eco y continuidad",
+  "description": "v1.20 propuesta: origen terrestre, primer encuentro de tres aventureras, PSICHO-Eco y continuidad",
   "entries": {
     "0": {
       "uid": 0,
@@ -54,8 +54,8 @@
         "estruendo grave"
       ],
       "keysecondary": [],
-      "comment": "Bosque de los Siete Ecos",
-      "content": "El Bosque de los Siete Ecos es una franja exterior del Bosque de las Bestias, no un bosque independiente: hay senderos, arroyos, raíces y claros. El protagonista llega aquí después del encuentro con la diosa; el claro y el marco Día 1, 08:00, bruma y suelo húmedo se conservan provisionalmente de la escena anterior. Lleva ropa cotidiana, celular y los objetos terrestres confirmados. La caja de cereal y la figura de Goku son los mismos objetos del accidente. La presencia simultánea de tres o cinco aventureros en el primer encuentro sigue pendiente.",
+      "comment": "Bosque de los Siete Ecos y primer encuentro de tres",
+      "content": "El Bosque de los Siete Ecos es una franja exterior del Bosque de las Bestias. El protagonista llega aquí después del encuentro con la diosa; el claro y el marco Día 1, 08:00, bruma y suelo húmedo se conservan provisionalmente. Lleva ropa cotidiana, celular, la caja promocional de cereal Dragon Ball Z y la figura Goku vinculadas al accidente. El estado de esos objetos y otras pertenencias queda No registrado. En el primer encuentro están presentes solo Brina (guerrera), Maelis (maga) y Sera (arquera). Ivar y Timo conservan sus fichas y pertenecen al reparto, pero no están en esta escena; su presentación posterior no tiene fecha fijada.",
       "constant": false,
       "selective": false,
       "order": 30,
@@ -1644,7 +1644,7 @@
       ],
       "keysecondary": [],
       "comment": "Objetos cotidianos, inventario y hallazgos",
-      "content": "Inventario inicial confirmado: ropa cotidiana de la Tierra y teléfono celular; además, la caja promocional de cereal Dragon Ball Z y la figura de Goku vinculadas al accidente. La caja y la figura no se duplican entre el supermercado, la escena de la diosa y la llegada. Estado del teléfono (batería, señal, daños), estado de la caja/figura y otros objetos personales: No registrados. No inventes mochila, armas, armadura, dinero, comida, agua ni equipo de aventura; tampoco declares su ausencia hasta confirmar qué llevaba realmente. Los futuros objetos requieren hallazgo, compra, intercambio o regalo confirmado. Registra cantidad, condición, portador y ubicación.",
+      "content": "Inventario inicial confirmado: ropa cotidiana de la Tierra y teléfono celular; además, la caja promocional de cereal Dragon Ball Z y la figura de Goku vinculadas al accidente. La caja y la figura no se duplican entre supermercado, escena de la diosa y llegada. Estado del teléfono (batería, señal, daños), estado de la caja/figura y otros objetos personales: No registrados. No inventes mochila, armas, armadura, dinero, comida, agua ni equipo de aventura; tampoco declares su ausencia hasta confirmar qué llevaba realmente. Los futuros objetos requieren hallazgo, compra, intercambio o regalo confirmado. Registra cantidad, condición, portador y ubicación.",
       "constant": false,
       "selective": false,
       "order": 740,
