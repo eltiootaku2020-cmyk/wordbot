@@ -39,3 +39,8 @@ def test_manual_chat_parser_rejects_multiple_json_objects_as_ambiguous():
     second = '{"narration":"Segunda escena."}'
     with pytest.raises(ValueError):
         parse_narrator_response(f"Ejemplo: {first}\nRespuesta final: {second}")
+
+
+def test_narrator_schema_marks_zero_as_the_neutral_elapsed_default():
+    schema = NarratorResponse.model_json_schema()
+    assert schema["properties"]["elapsed_minutes"]["default"] == 0

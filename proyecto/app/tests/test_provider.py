@@ -20,6 +20,7 @@ def test_mock_narrator_returns_separate_story_and_change_proposal():
     assert result.events[0].entity_id == "maelis"
     assert any(change.field == "confidence" and change.numeric_value == -1 for change in result.state_changes)
     assert any(change.field == "impression" for change in result.state_changes)
+    assert result.elapsed_minutes == 0
 
 
 
@@ -84,3 +85,12 @@ def test_manual_parser_rejects_two_json_objects_even_if_both_are_valid():
     one = json.dumps(payload, ensure_ascii=False)
     with pytest.raises(ValueError):
         parse_narrator_response("Borrador:\n" + one + "\nVersión final:\n" + one)
+
+
+
+def test_system_prompt_does_not_charge_time_per_message_or_turn():
+    from canon_manager.providers import SYSTEM_PROMPT
+
+    assert "nunca representa la duración del mensaje, del turno" in SYSTEM_PROMPT
+    assert "Usa 0 para saludos, preguntas, respuestas" in SYSTEM_PROMPT
+    assert "cuenta una sola vez el intervalo global" in SYSTEM_PROMPT
