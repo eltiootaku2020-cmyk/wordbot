@@ -1,6 +1,6 @@
 # 16 — Puente de continuidad entre el origen terrestre y la primera aventura
 
-**Estado:** regla de continuidad provisional que conserva el comienzo anterior compatible con la premisa confirmada el 30-10-2026. No introduce nuevos hechos de canon que el usuario no haya establecido.
+**Estado:** continuidad actualizada con la decisión de grupo confirmada el 31-10-2026. La localización y hora del claro siguen siendo marco provisional heredado.
 
 ## 1. Secuencia temporal
 
@@ -8,7 +8,7 @@
 2. **Espacio divino/espera — diosa chibi.** Aparece ante la diosa que utiliza su celular, no esperaba recibir a nadie, revisa su pasado, lo considera inadecuado como héroe, se interesa por el cereal y recibe su petición de un poder tipo órdenes mentales. Le da PSICHO-Eco, versión barata/incompleta que crece con el usuario, y afirma que enviará a alguien mejor.
 3. **Traslado al mundo físico.** La conversación termina y el protagonista aparece en el mundo fantástico con sus pertenencias confirmadas. No se repite el accidente del supermercado.
 4. **Primer punto de llegada heredado.** Para mantener la continuidad previa, se utiliza provisionalmente un claro del Bosque de los Siete Ecos, franja exterior del Bosque de las Bestias. La configuración antigua lo ubica en Día 1, 08:00, con bruma y suelo húmedo; esos detalles se conservan como marco heredado, no como nuevos datos confirmados por la última descripción.
-5. **Primer encuentro.** El grupo de aventureros del módulo anterior viaja por la zona y puede descubrir al protagonista. No tiene obligación de rescatarlo, aceptarlo o incorporarlo.
+5. **Primer encuentro confirmado.** En el claro están Brina Solcor, Maelis Orven y Sera Linde. Las tres pueden descubrir al protagonista, hablar con él o decidir ayudarlo; ninguna está obligada a rescatarlo, aceptarlo o incorporarlo. Ivar Dalen y Timo Venn todavía no están presentes.
 
 ## 2. Inventario de llegada
 
@@ -30,7 +30,7 @@ No duplicar el cereal ni la figura entre la escena divina y el inventario terres
 
 ## 3. Grupo inicial heredado
 
-La Lorebook v1.19 y la escena antigua del Día 1 describen cinco integrantes adultos que viajan juntos:
+El reparto completo conserva cinco fichas adultas, pero el usuario confirmó que solo tres estarán presentes en el primer encuentro:
 
 | Nombre | Edad documentada | Rol y competencia documentada |
 |---|---:|---|
@@ -40,13 +40,9 @@ La Lorebook v1.19 y la escena antigua del Día 1 describen cinco integrantes adu
 | Sera Linde | 25 | Arquera; arco, rastreo y observación |
 | Timo Venn | 22 | Encargado de provisiones; inventario, cuentas, comercio y campamento |
 
-Las reacciones de diseño anteriores se conservan: Brina prioriza seguridad; Ivar sospecha posibles emboscadas; Maelis siente curiosidad por anomalías, pero no identifica PSICHO-Eco automáticamente; Sera vigila el perímetro; Timo evalúa recursos y logística.
+Brina prioriza la seguridad; Maelis siente curiosidad por anomalías, pero no identifica PSICHO-Eco automáticamente; Sera vigila el perímetro. Ivar conserva su perfil de lancero desconfiado e irónico, y Timo su especialidad de provisiones y logística, pero ninguno está en la escena inicial.
 
-Este grupo es el **reparto documentado existente**, no una obligación de reclutamiento. Cada persona puede ayudar, negociar, desconfiar, marcharse o separarse según la escena.
-
-### Conflicto todavía sin resolver
-
-En los documentos anteriores existen notas de una posible composición reducida del grupo inicial (Brina, Maelis y Sera) y una composición de cinco (Brina, Ivar, Maelis, Sera y Timo). Para no borrar personajes, se conserva el roster completo como reparto conocido, pero la presencia simultánea de los cinco en el primer encuentro queda marcada como pendiente de reconciliación narrativa. La antigua escena dice que los cinco encuentran al protagonista; ninguna modificación nueva confirmó su eliminación.
+El reparto completo sigue formado por las cinco personas. La decisión resuelta es que el primer encuentro tiene tres integrantes: Brina, Maelis y Sera. Ivar y Timo no se eliminan ni se convierten en personajes de otra historia; su aparición queda para una escena posterior cuya fecha y circunstancia aún no están fijadas.
 
 **Maelis no es campesina en la ficha heredada:** es la maga de 24 años. El ejemplo «Maelis aventurera/campesina» usado al explicar especialidades es conceptual. No crea una segunda Maelis ni cambia la profesión de la Maelis existente. Versiones de personaje diferentes deben tener IDs distintos; un cambio de profesión de la misma persona conserva identidad e historial.
 
@@ -81,4 +77,9 @@ Hasta reconciliar ambas reglas:
 
 ## 7. Alcance y estado
 
-Este documento reconcilia textos y continuidad; no implementa el prólogo, grupo ni inventario dentro de SQLite. La sincronización con `LOREBOOK_MAESTRA.md`, `LOREBOOK_IMPORT.json` y `CONFIG_LIGERA.md` se mantiene pendiente, porque esos artefactos todavía describen el Eco limitado antiguo y el inicio sin celular. Se necesita un cambio coordinado y validación de la importación antes de reemplazarlos.
+Este documento reconcilia textos y continuidad; no implementa el prólogo, grupo ni inventario dentro de SQLite. La migración propuesta v1.20 actualiza por separado los artefactos de SpicyChat, sin sustituir automáticamente los originales v1.19 ni importar a una campaña activa.
+
+
+## 8. Decisión confirmada del usuario — 31-10-2026
+
+El primer encuentro tendrá tres aventureras: **Brina Solcor, Maelis Orven y Sera Linde**. Se mantienen las cinco fichas del reparto. **Ivar Dalen y Timo Venn no están presentes** durante esta escena y podrán incorporarse posteriormente mediante una presentación narrativa con causa y ubicación coherentes. No se fija aquí el momento exacto de esa aparición.
