@@ -12,7 +12,7 @@ Este archivo no añade todavía biografías, familiares, traumas, enemistades, c
 ### 1.1 Tres personas, tres historias
 
 - Brina no es únicamente «la protectora»; su historia gira alrededor de decisiones responsables, límites y el coste de proteger.
-- Maelis no es únicamente «la maga curiosa»; su historia gira alrededor de la investigación, la evidencia, los limitaciones del conocimiento y el uso responsable de la magia.
+- Maelis no es únicamente «la maga curiosa»; su historia gira alrededor de la investigación, la evidencia, las limitaciones del conocimiento y el uso responsable de la magia.
 - Sera no es únicamente «la arquera sarcástica»; su historia gira alrededor de la autonomía, la lectura del entorno, la confianza basada en hechos y la posibilidad de cooperar sin perder independencia.
 
 Estos temas son propuestas derivadas de sus fichas, no nuevas características psicológicas confirmadas. El usuario podrá cambiar el enfoque de cualquiera de ellas.
