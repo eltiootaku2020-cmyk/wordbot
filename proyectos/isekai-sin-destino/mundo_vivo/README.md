@@ -148,3 +148,12 @@ No se preguntará por cada procedimiento menor. Las reglas generales deben permi
 Se añadió una entidad pequeña y demoníaca que es el origen directo del poder del protagonista y se alía con él como su «Eco»/guía. El protagonista es el tercer portador; los dos anteriores murieron después de confiarse y no desarrollar el poder hasta su potencial. La idea base está confirmada; los detalles de ficha y el vínculo exacto con la diosa chibi siguen pendientes.
 
 - [25 — Entidad demoníaca vinculada a PSICHO-Eco](25_ENTIDAD_DEMONIACA_PSICHO_ECO_PROPUESTA.md)
+
+
+### Próximos pasos y prioridades — 31-10-2026
+
+Se añadió una auditoría de estado técnico y una hoja de ruta priorizada para el mundo vivo. Distingue lo que existe en el código de las propuestas aún no implementadas y ordena los siguientes trabajos por dependencia: reloj por acción, segmentos temporales/eventos, rutas, clima regional, entidades/agendas, PSICHO-Eco y contenido del Día 12.
+
+- [27 — Próximos pasos y prioridades de desarrollo](27_PROXIMOS_PASOS_Y_PRIORIDADES_DE_DESARROLLO.md)
+
+Este documento es una recomendación técnica, no modifica el canon ni el runtime.
