@@ -118,6 +118,15 @@ def register_map_region(
     with database.transaction() as conn:
         if conn.execute("SELECT 1 FROM worlds WHERE id=?", (world_id,)).fetchone() is None:
             raise TravelNotFoundError("El mundo no existe.")
+        active_trip = conn.execute(
+            "SELECT 1 FROM session_travel_states t JOIN sessions s ON s.id=t.session_id "
+            "WHERE s.world_id=? AND t.region_id=? AND t.status IN ('running','paused') LIMIT 1",
+            (world_id, region_id),
+        ).fetchone()
+        if active_trip is not None:
+            raise TravelConflictError(
+                "No se puede modificar la geometría mientras una partida recorre esta región."
+            )
         conn.execute(
             """
             INSERT INTO world_map_regions(world_id,region_id,map_json,schema_version,updated_at)
@@ -171,11 +180,24 @@ def _travel_snapshot(row, *, duplicate: bool = False) -> dict[str, Any]:
 def get_travel_state(database: Database, session_id: str) -> dict[str, Any] | None:
     with database.connection() as conn:
         row = conn.execute(
-            "SELECT * FROM session_travel_states WHERE session_id=?", (session_id,)
+            "SELECT t.*,s.day,s.minute_of_day,m.x_m,m.y_m "
+            "FROM session_travel_states t JOIN sessions s ON s.id=t.session_id "
+            "LEFT JOIN session_map_states m ON m.session_id=t.session_id AND m.region_id=t.region_id "
+            "WHERE t.session_id=?",
+            (session_id,),
         ).fetchone()
         if row is None:
             return None
-        return _travel_snapshot(row)
+        result = _travel_snapshot(row)
+        result["current_position"] = (
+            {"x_m": float(row["x_m"]), "y_m": float(row["y_m"])}
+            if row["x_m"] is not None else None
+        )
+        result["clock"] = {
+            "day": int(row["day"]),
+            "minute_of_day": int(row["minute_of_day"]),
+        }
+        return result
 
 
 def plan_travel(
@@ -193,13 +215,16 @@ def plan_travel(
         raise ValueError("destination_label cannot exceed 180 characters")
     with database.transaction() as conn:
         session = _load_session(conn, session_id)
-        world = _load_region_map(conn, str(session["world_id"]), region_id)
-        position, exploration = _load_map_state(conn, session_id, region_id, world)
-
         previous = conn.execute(
             "SELECT * FROM session_travel_states WHERE session_id=?", (session_id,)
         ).fetchone()
         active = previous is not None and str(previous["status"]) in ("running", "paused")
+        if active and str(previous["region_id"]) != region_id:
+            raise TravelConflictError(
+                "Cancela el recorrido actual antes de cambiar de región."
+            )
+        world = _load_region_map(conn, str(session["world_id"]), region_id)
+        position, exploration = _load_map_state(conn, session_id, region_id, world)
         elapsed_seconds = int(previous["elapsed_seconds"]) if active else 0
         clock_minutes_applied = int(previous["clock_minutes_applied"]) if active else 0
 
@@ -368,7 +393,7 @@ def change_travel_status(
         raise ValueError("Unsupported travel action")
     expected, new_status = allowed[action]
     with database.transaction() as conn:
-        _load_session(conn, session_id)
+        session = _load_session(conn, session_id)
         row = conn.execute(
             "SELECT * FROM session_travel_states WHERE session_id=?", (session_id,)
         ).fetchone()
@@ -378,11 +403,51 @@ def change_travel_status(
         valid = current in expected if isinstance(expected, tuple) else current == expected
         if not valid:
             raise TravelConflictError(f"No se puede {action} un recorrido en estado {current}.")
-        conn.execute(
-            "UPDATE session_travel_states SET status=?,updated_at=CURRENT_TIMESTAMP WHERE session_id=?",
-            (new_status, session_id),
-        )
+
+        fired: list[dict[str, Any]] = []
+        minutes_to_apply = 0
+        clock = {
+            "day": int(session["day"]),
+            "minute_of_day": int(session["minute_of_day"]),
+            "minutes_advanced": 0,
+        }
+        if action == "cancel":
+            elapsed_seconds = int(row["elapsed_seconds"])
+            applied_minutes = int(row["clock_minutes_applied"])
+            final_minutes = (elapsed_seconds + 59) // 60
+            minutes_to_apply = max(0, final_minutes - applied_minutes)
+            if minutes_to_apply:
+                previous_total = absolute_minute(
+                    int(session["day"]), int(session["minute_of_day"])
+                )
+                new_total = previous_total + minutes_to_apply
+                new_day = new_total // 1440 + 1
+                new_minute = new_total % 1440
+                conn.execute(
+                    "UPDATE sessions SET day=?,minute_of_day=?,updated_at=CURRENT_TIMESTAMP WHERE id=?",
+                    (new_day, new_minute, session_id),
+                )
+                fired = fire_due_world_events(conn, session_id, previous_total, new_total)
+                clock = {
+                    "day": new_day,
+                    "minute_of_day": new_minute,
+                    "minutes_advanced": minutes_to_apply,
+                }
+            conn.execute(
+                "UPDATE session_travel_states SET status=?,clock_minutes_applied=?,updated_at=CURRENT_TIMESTAMP "
+                "WHERE session_id=?",
+                (new_status, final_minutes, session_id),
+            )
+        else:
+            conn.execute(
+                "UPDATE session_travel_states SET status=?,updated_at=CURRENT_TIMESTAMP WHERE session_id=?",
+                (new_status, session_id),
+            )
+
         after = conn.execute(
             "SELECT * FROM session_travel_states WHERE session_id=?", (session_id,)
         ).fetchone()
-        return _travel_snapshot(after)
+        result = _travel_snapshot(after)
+        result["clock"] = clock
+        result["fired_world_events"] = fired
+        return result
