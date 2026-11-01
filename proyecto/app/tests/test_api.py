@@ -5042,3 +5042,58 @@ def test_restore_rejects_backup_with_only_one_world_timeline_table():
                 (world_id,),
             ).fetchone()[0] == 1
 
+
+
+def test_travel_api_persists_region_and_executes_one_step():
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={})
+        assert seed.status_code == 200, seed.text
+        world_id = seed.json()["world_id"]
+        session_id = seed.json()["session_id"]
+        region_config = {
+            "schema_version": 1,
+            "cell_size_m": 100,
+            "max_route_nodes": 10000,
+            "areas": [],
+            "terrain_zones": [],
+            "obstacles": [],
+            "roads": [],
+            "walkable_bounds": None,
+        }
+
+        saved_region = client.put(
+            f"/api/worlds/{world_id}/map/regions/forest",
+            json={"config": region_config},
+        )
+        assert saved_region.status_code == 200, saved_region.text
+        loaded_region = client.get(
+            f"/api/worlds/{world_id}/map/regions/forest"
+        )
+        assert loaded_region.status_code == 200
+        assert loaded_region.json()["config"]["cell_size_m"] == 100
+
+        planned = client.post(
+            f"/api/sessions/{session_id}/travel/plan",
+            json={
+                "region_id": "forest",
+                "destination_x_m": 300,
+                "destination_y_m": 0,
+                "destination_label": "Claro del Este",
+            },
+        )
+        assert planned.status_code == 200, planned.text
+        assert planned.json()["status"] == "running"
+
+        step = client.post(
+            f"/api/sessions/{session_id}/travel/step",
+            json={"request_id": "api-travel-step-0001"},
+        )
+        assert step.status_code == 200, step.text
+        assert step.json()["travel"]["status"] == "completed"
+        assert step.json()["segment"]["to"] == [300.0, 0.0]
+
+        state = client.get(f"/api/sessions/{session_id}/travel")
+        assert state.status_code == 200
+        assert state.json()["current_position"] == {"x_m": 300.0, "y_m": 0.0}
+        assert state.json()["clock"]["minute_of_day"] == 484
+
