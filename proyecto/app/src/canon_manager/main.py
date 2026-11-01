@@ -19,9 +19,15 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .db import Database
-from .models import ApprovalRequest, ContextPreviewRequest, EntityCreate, LocalCommandRequest, LocalSettingsUpdate, ManualPromptRequest, NarratorResponse, SessionCreate, SessionRestoreRequest, TurnRequest, WorldCreate, WorldStartCreate, WorldTimelineEventCreate, WorldTimelineEventUpdate
+from .models import ApprovalRequest, ContextPreviewRequest, EntityCreate, LocalCommandRequest, LocalSettingsUpdate, ManualPromptRequest, MapRegionConfigRequest, NarratorResponse, SessionCreate, SessionRestoreRequest, TravelPlanRequest, TravelStepRequest, TurnRequest, WorldCreate, WorldStartCreate, WorldTimelineEventCreate, WorldTimelineEventUpdate
 from .providers import ProviderError, build_manual_prompt, make_provider
 from .timeline import fire_due_world_events
+from .travel_controller import (
+    MapRegionNotFoundError, TravelConflictError, TravelNotFoundError,
+    advance_travel_step, change_travel_status, get_map_region, get_travel_state,
+    plan_travel, register_map_region,
+)
+from .world_map import Point, world_map_from_config
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 load_dotenv(BASE_DIR / ".env")
@@ -3843,3 +3849,118 @@ def restore_session_backup(session_id: str, payload: SessionRestoreRequest):
         "message": "Partida restaurada desde la copia seleccionada. La narración y el estado vuelven a ese punto; los otros mundos y partidas no se modificaron."
     }
 
+
+
+# Geometric world map and transactional session travel.
+@app.put("/api/worlds/{world_id}/map/regions/{region_id}")
+def put_world_map_region(world_id: str, region_id: str, payload: MapRegionConfigRequest):
+    try:
+        world_map = world_map_from_config(payload.config)
+        register_map_region(database, world_id, region_id, world_map)
+    except TravelNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {
+        "world_id": world_id,
+        "region_id": region_id,
+        "schema_version": 1,
+        "map": payload.config,
+        "message": "Geometría de región guardada. Esta es la definición compartida por navegación y futuro minimapa.",
+    }
+
+
+@app.get("/api/worlds/{world_id}/map/regions/{region_id}")
+def read_world_map_region(world_id: str, region_id: str):
+    try:
+        return {
+            "world_id": world_id,
+            "region_id": region_id,
+            "config": get_map_region(database, world_id, region_id),
+        }
+    except MapRegionNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except TravelNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.post("/api/sessions/{session_id}/travel/plan")
+def create_or_retarget_travel(session_id: str, payload: TravelPlanRequest):
+    try:
+        return plan_travel(
+            database,
+            session_id,
+            payload.region_id,
+            Point(payload.destination_x_m, payload.destination_y_m),
+            destination_label=payload.destination_label,
+        )
+    except MapRegionNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except TravelNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.get("/api/sessions/{session_id}/travel")
+def read_travel_state(session_id: str):
+    try:
+        state = get_travel_state(database, session_id)
+        if state is None:
+            with database.connection() as conn:
+                if conn.execute("SELECT 1 FROM sessions WHERE id=?", (session_id,)).fetchone() is None:
+                    raise HTTPException(status_code=404, detail="La partida no existe.")
+            return {"session_id": session_id, "status": "idle"}
+        return state
+    except TravelNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.post("/api/sessions/{session_id}/travel/step")
+def execute_travel_step(session_id: str, payload: TravelStepRequest):
+    try:
+        return advance_travel_step(database, session_id, payload.request_id)
+    except MapRegionNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except TravelNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except TravelConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/api/sessions/{session_id}/travel/pause")
+def pause_travel(session_id: str):
+    try:
+        return change_travel_status(database, session_id, "pause")
+    except TravelNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except TravelConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/api/sessions/{session_id}/travel/resume")
+def resume_travel(session_id: str):
+    try:
+        return change_travel_status(database, session_id, "resume")
+    except TravelNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except TravelConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/api/sessions/{session_id}/travel/cancel")
+def cancel_travel(session_id: str):
+    try:
+        return change_travel_status(database, session_id, "cancel")
+    except TravelNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except TravelConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
