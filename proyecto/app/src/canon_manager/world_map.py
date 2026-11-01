@@ -7,6 +7,7 @@ the length of either axis component.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import heapq
 from enum import Enum
 import json
 import math
@@ -112,6 +113,60 @@ class TerrainZone:
             raise ValueError("Terrain speed multiplier must be a positive finite number")
 
 
+@dataclass(frozen=True, slots=True)
+class ObstacleZone:
+    """An impassable polygon such as a mountain, river without a crossing, or wall."""
+
+    obstacle_id: str
+    name: str
+    footprint: Polygon
+    kind: str = "terrain"
+
+    def __post_init__(self) -> None:
+        if not self.obstacle_id.strip() or not self.name.strip() or not self.kind.strip():
+            raise ValueError("Obstacles require a non-empty id, name, and kind")
+
+
+@dataclass(frozen=True, slots=True)
+class RoadZone:
+    """A polygonal road corridor that increases travel speed while traversed."""
+
+    road_id: str
+    name: str
+    footprint: Polygon
+    speed_multiplier: float = 1.5
+
+    def __post_init__(self) -> None:
+        if not self.road_id.strip() or not self.name.strip():
+            raise ValueError("Road corridors require a non-empty id and name")
+        if not math.isfinite(self.speed_multiplier) or self.speed_multiplier <= 1:
+            raise ValueError("Road speed_multiplier must be greater than 1")
+
+
+class BlockedPositionError(ValueError):
+    """Raised when a route endpoint lies inside an obstacle or outside map bounds."""
+
+
+class BlockedPathError(ValueError):
+    """Raised when a direct movement step crosses an impassable obstacle."""
+
+
+class RouteNotFoundError(RuntimeError):
+    """Raised when no traversable route exists inside the configured search area."""
+
+
+class RouteSearchLimitError(RouteNotFoundError):
+    """Raised when route search reaches its deterministic node-expansion budget."""
+
+
+@dataclass(frozen=True, slots=True)
+class RoutePlan:
+    waypoints: tuple[Point, ...]
+    total_distance_m: float
+    estimated_travel_seconds: int
+    expanded_nodes: int
+
+
 @dataclass
 class ExplorationState:
     """Persistent fog-of-war state represented as integer grid-cell coordinates."""
@@ -173,16 +228,28 @@ class WorldMap:
     cell_size_m: float = 250.0
     areas: tuple[MapArea, ...] = ()
     terrain_zones: tuple[TerrainZone, ...] = ()
+    obstacles: tuple[ObstacleZone, ...] = ()
+    roads: tuple[RoadZone, ...] = ()
+    walkable_bounds: Polygon | None = None
+    max_route_nodes: int = 100_000
 
     def __post_init__(self) -> None:
         if not math.isfinite(self.cell_size_m) or self.cell_size_m <= 0:
             raise ValueError("cell_size_m must be a positive finite number")
         area_ids = [area.area_id for area in self.areas]
         terrain_ids = [zone.terrain_id for zone in self.terrain_zones]
+        obstacle_ids = [zone.obstacle_id for zone in self.obstacles]
+        road_ids = [road.road_id for road in self.roads]
         if len(area_ids) != len(set(area_ids)):
             raise ValueError("Map area ids must be unique")
         if len(terrain_ids) != len(set(terrain_ids)):
             raise ValueError("Terrain ids must be unique")
+        if len(obstacle_ids) != len(set(obstacle_ids)):
+            raise ValueError("Obstacle ids must be unique")
+        if len(road_ids) != len(set(road_ids)):
+            raise ValueError("Road ids must be unique")
+        if isinstance(self.max_route_nodes, bool) or not isinstance(self.max_route_nodes, int) or self.max_route_nodes <= 0:
+            raise ValueError("max_route_nodes must be a positive integer")
 
     def move(
         self,
@@ -207,6 +274,8 @@ class WorldMap:
 
         dx, dy = direction.unit_vector
         end = Point(start.x_m + dx * distance_m, start.y_m + dy * distance_m)
+        if any(_segment_intersects_polygon(start, end, obstacle.footprint) for obstacle in self.obstacles):
+            raise BlockedPathError("Movement crosses an impassable obstacle")
         visited = _cells_intersected_by_segment(start, end, self.cell_size_m)
         new_cells = visited.difference(exploration.discovered_cells)
         exploration.discovered_cells.update(visited)
@@ -226,7 +295,7 @@ class WorldMap:
             )
         )
         travel_seconds = _travel_time_seconds(
-            start, end, self.terrain_zones, base_speed_mps
+            start, end, self.terrain_zones, base_speed_mps, self.roads
         )
 
         return MovementResult(
@@ -242,6 +311,224 @@ class WorldMap:
             ),
             crossed_area_ids=crossed_areas,
             crossed_terrain_ids=crossed_terrain,
+        )
+
+
+    def plan_route(
+        self,
+        start: Point,
+        destination: Point,
+        *,
+        base_speed_mps: float = 1.25,
+        max_search_nodes: int | None = None,
+    ) -> RoutePlan:
+        """Find a deterministic, time-aware route around impassable polygons.
+
+        Grid nodes are spaced by cell_size_m. Exact endpoints are retained as
+        waypoints and connected only to nearby visible grid nodes. Roads are
+        polygonal corridors; their speed bonus influences route cost but never
+        makes an obstacle traversable.
+        """
+        if not math.isfinite(base_speed_mps) or base_speed_mps <= 0:
+            raise ValueError("base_speed_mps must be a positive finite number")
+        if not self._route_point_allowed(start):
+            raise BlockedPositionError("Route start is not traversable")
+        if not self._route_point_allowed(destination):
+            raise BlockedPositionError("Route destination is not traversable")
+        if start == destination:
+            return RoutePlan((start,), 0.0, 0, 0)
+
+        if self._route_edge_allowed(start, destination):
+            seconds = _travel_time_seconds_raw(
+                start, destination, self.terrain_zones, base_speed_mps, self.roads
+            )
+            return RoutePlan(
+                (start, destination),
+                math.hypot(destination.x_m - start.x_m, destination.y_m - start.y_m),
+                math.ceil(seconds - _EPSILON),
+                0,
+            )
+
+        cell = self.cell_size_m
+        if self.walkable_bounds is not None:
+            xs = [point.x_m for point in self.walkable_bounds.vertices]
+            ys = [point.y_m for point in self.walkable_bounds.vertices]
+            min_ix = math.ceil(min(xs) / cell)
+            max_ix = math.floor(max(xs) / cell)
+            min_iy = math.ceil(min(ys) / cell)
+            max_iy = math.floor(max(ys) / cell)
+        else:
+            all_points = [start, destination]
+            all_points.extend(
+                vertex for obstacle in self.obstacles for vertex in obstacle.footprint.vertices
+            )
+            min_ix = math.floor(min(point.x_m for point in all_points) / cell) - 3
+            max_ix = math.ceil(max(point.x_m for point in all_points) / cell) + 3
+            min_iy = math.floor(min(point.y_m for point in all_points) / cell) - 3
+            max_iy = math.ceil(max(point.y_m for point in all_points) / cell) + 3
+
+        def point_for(node: tuple[int, int]) -> Point:
+            return Point(node[0] * cell, node[1] * cell)
+
+        def node_allowed(node: tuple[int, int]) -> bool:
+            return self._route_point_allowed(point_for(node))
+
+        def near_nodes(point: Point) -> set[tuple[int, int]]:
+            center_x = round(point.x_m / cell)
+            center_y = round(point.y_m / cell)
+            candidates: set[tuple[int, int]] = set()
+            max_attach = math.sqrt(2) * cell + _EPSILON
+            for ix in range(center_x - 1, center_x + 2):
+                for iy in range(center_y - 1, center_y + 2):
+                    node = (ix, iy)
+                    if not (min_ix <= ix <= max_ix and min_iy <= iy <= max_iy):
+                        continue
+                    candidate = point_for(node)
+                    distance = math.hypot(candidate.x_m - point.x_m, candidate.y_m - point.y_m)
+                    if (
+                        distance <= max_attach
+                        and node_allowed(node)
+                        and self._route_edge_allowed(point, candidate)
+                    ):
+                        candidates.add(node)
+            return candidates
+
+        start_nodes = near_nodes(start)
+        goal_nodes = near_nodes(destination)
+        if not start_nodes or not goal_nodes:
+            raise RouteNotFoundError("No traversable grid connection exists near an endpoint")
+
+        budget = self.max_route_nodes if max_search_nodes is None else max_search_nodes
+        if isinstance(budget, bool) or not isinstance(budget, int) or budget <= 0:
+            raise ValueError("max_search_nodes must be a positive integer")
+
+        road_factor = max((road.speed_multiplier for road in self.roads), default=1.0)
+        terrain_factor = max((zone.speed_multiplier for zone in self.terrain_zones), default=1.0)
+        fastest_speed = base_speed_mps * max(1.0, road_factor) * max(1.0, terrain_factor)
+
+        def heuristic(node: tuple[int, int]) -> float:
+            point = point_for(node)
+            return math.hypot(
+                destination.x_m - point.x_m, destination.y_m - point.y_m
+            ) / fastest_speed
+
+        open_heap: list[tuple[float, float, int, int]] = []
+        came_from: dict[tuple[int, int], tuple[int, int] | None] = {}
+        scores: dict[tuple[int, int], float] = {}
+        for node in sorted(start_nodes, key=lambda item: (item[1], item[0])):
+            point = point_for(node)
+            cost = _travel_time_seconds_raw(
+                start, point, self.terrain_zones, base_speed_mps, self.roads
+            )
+            if cost < scores.get(node, math.inf):
+                scores[node] = cost
+                came_from[node] = None
+                heapq.heappush(open_heap, (cost + heuristic(node), cost, node[1], node[0]))
+
+        expanded = 0
+        best_goal: tuple[int, int] | None = None
+        best_total = math.inf
+        directions = (
+            (-1, -1), (-1, 0), (-1, 1),
+            (0, -1), (0, 1),
+            (1, -1), (1, 0), (1, 1),
+        )
+
+        while open_heap:
+            estimate, queued_cost, iy, ix = heapq.heappop(open_heap)
+            current = (ix, iy)
+            current_cost = scores.get(current, math.inf)
+            if queued_cost > current_cost + _EPSILON:
+                continue
+            if estimate >= best_total - _EPSILON:
+                break
+
+            expanded += 1
+            if expanded > budget:
+                raise RouteSearchLimitError(
+                    f"Route search exceeded its {budget}-node expansion budget"
+                )
+
+            current_point = point_for(current)
+            if current in goal_nodes:
+                final_cost = current_cost + _travel_time_seconds_raw(
+                    current_point, destination, self.terrain_zones, base_speed_mps, self.roads
+                )
+                if final_cost < best_total:
+                    best_total = final_cost
+                    best_goal = current
+
+            for dx, dy in directions:
+                neighbor = (ix + dx, iy + dy)
+                nx, ny = neighbor
+                if not (min_ix <= nx <= max_ix and min_iy <= ny <= max_iy):
+                    continue
+                if not node_allowed(neighbor):
+                    continue
+
+                neighbor_point = point_for(neighbor)
+                if dx and dy:
+                    side_a = (ix + dx, iy)
+                    side_b = (ix, iy + dy)
+                    if not node_allowed(side_a) or not node_allowed(side_b):
+                        continue
+                if not self._route_edge_allowed(current_point, neighbor_point):
+                    continue
+
+                edge_cost = _travel_time_seconds_raw(
+                    current_point, neighbor_point, self.terrain_zones, base_speed_mps, self.roads
+                )
+                candidate_cost = current_cost + edge_cost
+                if candidate_cost + _EPSILON >= scores.get(neighbor, math.inf):
+                    continue
+                scores[neighbor] = candidate_cost
+                came_from[neighbor] = current
+                priority = candidate_cost + heuristic(neighbor)
+                heapq.heappush(open_heap, (priority, candidate_cost, ny, nx))
+
+        if best_goal is None:
+            raise RouteNotFoundError("No traversable route connects the requested positions")
+
+        grid_path: list[tuple[int, int]] = []
+        cursor: tuple[int, int] | None = best_goal
+        while cursor is not None:
+            grid_path.append(cursor)
+            cursor = came_from[cursor]
+        grid_path.reverse()
+
+        waypoints: list[Point] = [start]
+        for node in grid_path:
+            candidate = point_for(node)
+            if candidate != waypoints[-1]:
+                waypoints.append(candidate)
+        if destination != waypoints[-1]:
+            waypoints.append(destination)
+
+        distance = 0.0
+        seconds = 0.0
+        for left, right in zip(waypoints, waypoints[1:]):
+            if not self._route_edge_allowed(left, right):
+                raise RouteNotFoundError("Computed route failed final geometry validation")
+            distance += math.hypot(right.x_m - left.x_m, right.y_m - left.y_m)
+            seconds += _travel_time_seconds_raw(
+                left, right, self.terrain_zones, base_speed_mps, self.roads
+            )
+
+        return RoutePlan(tuple(waypoints), distance, math.ceil(seconds - _EPSILON), expanded)
+
+    def _route_point_allowed(self, point: Point) -> bool:
+        if self.walkable_bounds is not None and not self.walkable_bounds.contains(point):
+            return False
+        return not any(obstacle.footprint.contains(point) for obstacle in self.obstacles)
+
+    def _route_edge_allowed(self, start: Point, end: Point) -> bool:
+        if self.walkable_bounds is not None and not _segment_within_polygon(
+            start, end, self.walkable_bounds
+        ):
+            return False
+        return not any(
+            _segment_intersects_polygon(start, end, obstacle.footprint)
+            for obstacle in self.obstacles
         )
 
 
