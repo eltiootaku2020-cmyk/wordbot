@@ -275,6 +275,10 @@ class WorldMap:
             raise ValueError("distance_m must be a positive finite number")
         if not math.isfinite(base_speed_mps) or base_speed_mps <= 0:
             raise ValueError("base_speed_mps must be a positive finite number")
+        budget = self.max_route_nodes if max_search_nodes is None else max_search_nodes
+        if isinstance(budget, bool) or not isinstance(budget, int) or budget <= 0:
+            raise ValueError("max_search_nodes must be a positive integer")
+
 
         dx, dy = direction.unit_vector
         end = Point(start.x_m + dx * distance_m, start.y_m + dy * distance_m)
@@ -401,10 +405,6 @@ class WorldMap:
         goal_nodes = near_nodes(destination)
         if not start_nodes or not goal_nodes:
             raise RouteNotFoundError("No traversable grid connection exists near an endpoint")
-
-        budget = self.max_route_nodes if max_search_nodes is None else max_search_nodes
-        if isinstance(budget, bool) or not isinstance(budget, int) or budget <= 0:
-            raise ValueError("max_search_nodes must be a positive integer")
 
         road_factor = max((road.speed_multiplier for road in self.roads), default=1.0)
         terrain_factor = max((zone.speed_multiplier for zone in self.terrain_zones), default=1.0)
