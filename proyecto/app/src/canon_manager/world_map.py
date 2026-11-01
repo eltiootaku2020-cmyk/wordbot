@@ -222,6 +222,20 @@ class MovementResult:
 
 
 @dataclass(frozen=True, slots=True)
+class SegmentTraversal:
+    """Committed result for one arbitrary straight segment of a planned route."""
+
+    start: Point
+    end: Point
+    distance_m: float
+    travel_seconds: int
+    visited_cells: tuple[tuple[int, int], ...]
+    newly_discovered_cells: tuple[tuple[int, int], ...]
+    crossed_area_ids: tuple[str, ...]
+    crossed_terrain_ids: tuple[str, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class WorldMap:
     """Geometry and movement rules for one world or map region."""
 
@@ -317,6 +331,51 @@ class WorldMap:
             crossed_terrain_ids=crossed_terrain,
         )
 
+
+    def traverse_segment(
+        self,
+        start: Point,
+        end: Point,
+        exploration: ExplorationState,
+        *,
+        base_speed_mps: float = 1.25,
+    ) -> SegmentTraversal:
+        """Apply one waypoint-to-waypoint leg and reveal only its traversed cells."""
+        if not isinstance(start, Point) or not isinstance(end, Point):
+            raise TypeError("start and end must be Point instances")
+        if not isinstance(exploration, ExplorationState):
+            raise TypeError("exploration must be an ExplorationState")
+        if not math.isfinite(base_speed_mps) or base_speed_mps <= 0:
+            raise ValueError("base_speed_mps must be a positive finite number")
+        if not self._route_edge_allowed(start, end):
+            raise BlockedPathError("Route segment crosses an impassable area")
+        distance = math.hypot(end.x_m - start.x_m, end.y_m - start.y_m)
+        visited = _cells_intersected_by_segment(start, end, self.cell_size_m)
+        newly_discovered = visited.difference(exploration.discovered_cells)
+        exploration.discovered_cells.update(visited)
+        crossed_areas = tuple(sorted(
+            area.area_id for area in self.areas
+            if _segment_intersects_polygon(start, end, area.footprint)
+        ))
+        crossed_terrain = tuple(sorted(
+            zone.terrain_id for zone in self.terrain_zones
+            if _segment_intersects_polygon(start, end, zone.footprint)
+        ))
+        seconds = math.ceil(_travel_time_seconds_raw(
+            start, end, self.terrain_zones, base_speed_mps, self.roads
+        ) - _EPSILON)
+        return SegmentTraversal(
+            start=start,
+            end=end,
+            distance_m=distance,
+            travel_seconds=seconds,
+            visited_cells=tuple(sorted(visited, key=lambda cell: (cell[1], cell[0]))),
+            newly_discovered_cells=tuple(sorted(
+                newly_discovered, key=lambda cell: (cell[1], cell[0])
+            )),
+            crossed_area_ids=crossed_areas,
+            crossed_terrain_ids=crossed_terrain,
+        )
 
     def plan_route(
         self,
@@ -735,3 +794,99 @@ def _travel_time_seconds(
         _travel_time_seconds_raw(start, end, terrain_zones, base_speed_mps, road_zones)
         - _EPSILON
     )
+
+
+
+def world_map_to_config(world: WorldMap) -> dict[str, Any]:
+    """Serialize canonical region geometry for the renderer and travel controller."""
+    def vertices(polygon: Polygon) -> list[list[float]]:
+        return [[point.x_m, point.y_m] for point in polygon.vertices]
+
+    return {
+        "schema_version": 1,
+        "cell_size_m": world.cell_size_m,
+        "max_route_nodes": world.max_route_nodes,
+        "areas": [
+            {"area_id": item.area_id, "name": item.name, "vertices": vertices(item.footprint)}
+            for item in world.areas
+        ],
+        "terrain_zones": [
+            {
+                "terrain_id": item.terrain_id, "name": item.name,
+                "vertices": vertices(item.footprint),
+                "speed_multiplier": item.speed_multiplier,
+            }
+            for item in world.terrain_zones
+        ],
+        "obstacles": [
+            {
+                "obstacle_id": item.obstacle_id, "name": item.name, "kind": item.kind,
+                "vertices": vertices(item.footprint),
+            }
+            for item in world.obstacles
+        ],
+        "roads": [
+            {
+                "road_id": item.road_id, "name": item.name,
+                "vertices": vertices(item.footprint),
+                "speed_multiplier": item.speed_multiplier,
+            }
+            for item in world.roads
+        ],
+        "walkable_bounds": vertices(world.walkable_bounds) if world.walkable_bounds else None,
+    }
+
+
+def world_map_from_config(payload: dict[str, Any]) -> WorldMap:
+    """Validate and reconstruct a map definition saved for a world region."""
+    if not isinstance(payload, dict) or payload.get("schema_version") != 1:
+        raise ValueError("Unsupported world map definition version")
+
+    def polygon(raw: Any) -> Polygon:
+        if not isinstance(raw, list) or len(raw) < 3:
+            raise ValueError("Polygon vertices must be a list of at least three points")
+        return Polygon(tuple(
+            Point(float(pair[0]), float(pair[1]))
+            for pair in raw
+            if isinstance(pair, (list, tuple)) and len(pair) == 2
+        ))
+
+    try:
+        areas = tuple(
+            MapArea(str(item["area_id"]), str(item["name"]), polygon(item["vertices"]))
+            for item in payload.get("areas", [])
+        )
+        terrain = tuple(
+            TerrainZone(
+                str(item["terrain_id"]), str(item["name"]), polygon(item["vertices"]),
+                float(item.get("speed_multiplier", 1.0))
+            )
+            for item in payload.get("terrain_zones", [])
+        )
+        obstacles = tuple(
+            ObstacleZone(
+                str(item["obstacle_id"]), str(item["name"]), polygon(item["vertices"]),
+                str(item.get("kind", "terrain"))
+            )
+            for item in payload.get("obstacles", [])
+        )
+        roads = tuple(
+            RoadZone(
+                str(item["road_id"]), str(item["name"]), polygon(item["vertices"]),
+                float(item.get("speed_multiplier", 1.5))
+            )
+            for item in payload.get("roads", [])
+        )
+        bounds_raw = payload.get("walkable_bounds")
+        bounds = polygon(bounds_raw) if bounds_raw is not None else None
+        return WorldMap(
+            cell_size_m=float(payload.get("cell_size_m", 250.0)),
+            areas=areas,
+            terrain_zones=terrain,
+            obstacles=obstacles,
+            roads=roads,
+            walkable_bounds=bounds,
+            max_route_nodes=int(payload.get("max_route_nodes", 100_000)),
+        )
+    except (KeyError, TypeError, ValueError, IndexError, OverflowError) as exc:
+        raise ValueError(f"Invalid world map definition: {exc}") from exc
