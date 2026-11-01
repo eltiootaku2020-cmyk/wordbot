@@ -5097,3 +5097,10 @@ def test_travel_api_persists_region_and_executes_one_step():
         assert state.json()["current_position"] == {"x_m": 300.0, "y_m": 0.0}
         assert state.json()["clock"]["minute_of_day"] == 484
 
+        map_state = client.get(
+            f"/api/sessions/{session_id}/map/regions/forest/state"
+        )
+        assert map_state.status_code == 200, map_state.text
+        assert map_state.json()["position"] == [300.0, 0.0]
+        assert map_state.json()["discovered_cells"]
+
