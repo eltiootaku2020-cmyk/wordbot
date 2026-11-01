@@ -27,7 +27,7 @@ from .travel_controller import (
     advance_travel_step, change_travel_status, get_map_region, get_travel_state,
     plan_travel, register_map_region,
 )
-from .world_map import Point, world_map_from_config
+from .world_map import Point, RouteNotFoundError, world_map_from_config
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 load_dotenv(BASE_DIR / ".env")
@@ -3859,6 +3859,8 @@ def put_world_map_region(world_id: str, region_id: str, payload: MapRegionConfig
         register_map_region(database, world_id, region_id, world_map)
     except TravelNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except TravelConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
     except (TypeError, ValueError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return {
@@ -3898,6 +3900,8 @@ def create_or_retarget_travel(session_id: str, payload: TravelPlanRequest):
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except TravelNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except RouteNotFoundError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
     except (TypeError, ValueError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
 
