@@ -1,4 +1,4 @@
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -193,3 +193,14 @@ class SessionRestoreRequest(StrictModel):
 
 class LocalSettingsUpdate(StrictModel):
     lore_budget_chars: int = Field(ge=500, le=12000)
+
+
+class MapRegionConfigRequest(StrictModel):
+    config: dict[str, Any]
+
+
+class TravelPlanRequest(StrictModel):
+    region_id: str = Field(min_length=1, max_length=120)
+    destination_x_m: float = Field(allow_inf_nan=False)
+    destination_y_m: float = Field(allow_inf_nan=False)
+    destination_label: str = Field(default="", max_length=180)
