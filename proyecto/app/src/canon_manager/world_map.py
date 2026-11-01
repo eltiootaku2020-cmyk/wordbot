@@ -275,10 +275,6 @@ class WorldMap:
             raise ValueError("distance_m must be a positive finite number")
         if not math.isfinite(base_speed_mps) or base_speed_mps <= 0:
             raise ValueError("base_speed_mps must be a positive finite number")
-        budget = self.max_route_nodes if max_search_nodes is None else max_search_nodes
-        if isinstance(budget, bool) or not isinstance(budget, int) or budget <= 0:
-            raise ValueError("max_search_nodes must be a positive integer")
-
 
         dx, dy = direction.unit_vector
         end = Point(start.x_m + dx * distance_m, start.y_m + dy * distance_m)
@@ -339,6 +335,10 @@ class WorldMap:
         """
         if not math.isfinite(base_speed_mps) or base_speed_mps <= 0:
             raise ValueError("base_speed_mps must be a positive finite number")
+        budget = self.max_route_nodes if max_search_nodes is None else max_search_nodes
+        if isinstance(budget, bool) or not isinstance(budget, int) or budget <= 0:
+            raise ValueError("max_search_nodes must be a positive integer")
+
         if not self._route_point_allowed(start):
             raise BlockedPositionError("Route start is not traversable")
         if not self._route_point_allowed(destination):
