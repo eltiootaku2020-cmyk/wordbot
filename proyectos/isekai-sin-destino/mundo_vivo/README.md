@@ -157,3 +157,12 @@ Se añadió una auditoría de estado técnico y una hoja de ruta priorizada para
 - [27 — Próximos pasos y prioridades de desarrollo](27_PROXIMOS_PASOS_Y_PRIORIDADES_DE_DESARROLLO.md)
 
 Este documento es una recomendación técnica, no modifica el canon ni el runtime.
+
+
+### Decisión de arquitectura — juego local de PC sin IA generativa (31-10-2026)
+
+El usuario aclaró que Isekai sin Destino será un juego ejecutado en PC y **no utilizará IA generativa** para narrar o decidir la partida. Los personajes tendrán comportamiento autónomo mediante reglas y lógica programada; escenas y diálogos se prepararán como contenido del juego. No dependerá de ChatGPT, Gemini, APIs ni modelos externos durante la partida.
+
+- [28 — Arquitectura local de PC sin IA generativa](28_ARQUITECTURA_LOCAL_PC_SIN_IA_GENERATIVA.md)
+
+Esta decisión es específica del juego Isekai; no se debe extender automáticamente como regla de todos los proyectos Word Bot.

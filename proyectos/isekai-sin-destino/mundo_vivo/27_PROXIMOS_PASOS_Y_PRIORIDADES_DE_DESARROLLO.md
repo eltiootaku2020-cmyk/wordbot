@@ -396,3 +396,21 @@ Este documento:
 - no modifica `main`.
 
 La implementación posterior debe mantenerse en PRs pequeñas, una responsabilidad por PR, con pruebas, registro de archivos modificados, CI real y estado de integración claro.
+
+
+## 17. Corrección de arquitectura — Isekai sin IA generativa, ejecución local en PC
+
+**Decisión de dirección confirmada por el usuario el 31-10-2026:** la aventura debe ejecutarse como un programa de PC y no depender de IA generativa (ChatGPT, Gemini, APIs de modelos, modelos locales ni chat web como narrador). Esta sección corrige cualquier lectura de este roadmap que presuponga un LLM narrando cada turno.
+
+- El estado, las decisiones, los personajes, las escenas, los diálogos, las reglas y los acontecimientos deben procesarse localmente.
+- Los personajes tendrán autonomía mediante lógica programada: estados, condiciones, prioridades, agendas, reglas y eventos; no mediante modelos generativos.
+- La narración se construye con escenas escritas, diálogos, variantes, condiciones y fragmentos de texto preparados por el autor.
+- El juego no necesitará conexión, claves API, cuenta externa ni llamadas a ChatGPT/Gemini durante la partida.
+- La base local (por ejemplo SQLite) será la autoridad para estado, cronología, relaciones, inventario, conocimiento, poderes y guardados.
+- La aleatoriedad de juego, si se usa, tendrá una semilla guardada en la partida para poder reproducir y depurar resultados.
+
+Esta dirección aplica al juego Isekai en PC. No convierte automáticamente cada proyecto futuro ni todo el código genérico de Word Bot en una regla global; la arquitectura general deberá poder ofrecer un modo local sin LLM. Los adaptadores generativos que existen en el prototipo no forman parte del runtime final deseado para Isekai. Pueden conservarse temporalmente para diagnóstico o proyectos distintos, pero no deberán ser una dependencia de la aventura.
+
+La nueva hoja de ruta autoritativa es [28 — Arquitectura local de PC sin IA generativa](28_ARQUITECTURA_LOCAL_PC_SIN_IA_GENERATIVA.md). Si alguna sección anterior de este documento habla de un narrador IA, proveedor de IA, respuesta JSON generada por modelo o campaña de prueba manual con ChatGPT/Gemini, se considera descripción del prototipo actual o recomendación antigua, no requisito del juego final.
+
+**Cambio en la prioridad técnica:** no comenzar por conectar elapsed_seconds al output de un LLM. Primero definir el contrato local de acciones y reglas; después el reloj y el simulador determinista lo ejecutan directamente. El modelo de eventos, rutas, clima y agendas sigue siendo necesario, pero todas sus decisiones se resuelven dentro del PC.
