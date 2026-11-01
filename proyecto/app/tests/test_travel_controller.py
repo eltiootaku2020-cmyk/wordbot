@@ -186,10 +186,9 @@ def test_cancel_accounts_for_subminute_travel_time(game: Database):
     mountain = ObstacleZone(
         "mountain", "Mountain", rectangle(400, -100, 600, 100), "mountain"
     )
-    fast_path = RoadZone("wide-road", "Wide road", rectangle(-1000, -1000, 2000, 1000), 2.0)
     register_map_region(
         game, "world-1", "forest",
-        WorldMap(cell_size_m=100, obstacles=(mountain,), roads=(fast_path,)),
+        WorldMap(cell_size_m=50, obstacles=(mountain,)),
     )
     plan_travel(game, "session-1", "forest", Point(1000, 0))
     first = advance_travel_step(game, "session-1", "partial-trip-step-01")
