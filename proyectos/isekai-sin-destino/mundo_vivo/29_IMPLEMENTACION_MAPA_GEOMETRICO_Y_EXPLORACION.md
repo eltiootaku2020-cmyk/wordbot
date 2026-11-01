@@ -160,3 +160,50 @@ Se incorporaron siete casos nuevos a `proyecto/app/tests/test_world_map.py`:
 - Las localizaciones del canon siguen sin coordenadas inventadas. Obstáculos, caminos y fronteras reales del Bosque de los Siete Ecos deberán definirse con geometría aprobada.
 
 La navegación es infraestructura genérica: no introduce ubicaciones, distancias ni hechos nuevos en el canon. La integración con el reloj, la exploración persistente y la interfaz de partida continúa como siguiente etapa.
+
+
+## 10. Controlador transaccional de desplazamientos — actualización 01-11-2026
+
+Se conectó el planificador con un controlador de viajes por partida. El avance es por tramos entre waypoints; cada llamada ejecuta como máximo un tramo. No se usa un trabajador en segundo plano. La interfaz puede pedir el siguiente tramo y ofrecer pausa, reanudación, cancelación o cambio de destino en cualquier punto de control.
+
+### Datos persistidos
+
+Se agregaron dos tablas:
+
+- `world_map_regions`: geometría canónica de una región por mundo, con JSON versionado. El planificador y el futuro minimapa deben leer esta misma definición.
+- `session_travel_states`: ruta activa de la partida, waypoint siguiente, destino, estado (running/paused/completed/cancelled), segundos recorridos y minutos ya aplicados al reloj.
+- `session_travel_steps`: registro de idempotencia por petición. Repetir el mismo `request_id` devuelve el resultado original, sin repetir movimiento, tiempo ni eventos.
+
+La posición y niebla de guerra siguen almacenadas en `session_map_states`; no se duplican dentro de la ruta.
+
+### API disponible
+
+1. `PUT /api/worlds/{world_id}/map/regions/{region_id}`: registrar o actualizar geometría poligonal compartida.
+2. `GET /api/worlds/{world_id}/map/regions/{region_id}`: recuperar esa definición para navegación y futuro minimapa.
+3. `POST /api/sessions/{session_id}/travel/plan`: planificar o reemplazar el destino desde la posición guardada. El cuerpo incluye `region_id`, `destination_x_m`, `destination_y_m` y una etiqueta opcional.
+4. `GET /api/sessions/{session_id}/travel`: recuperar el estado del recorrido.
+5. `POST /api/sessions/{session_id}/travel/step`: ejecutar un tramo. Requiere un `request_id` único y estable durante reintentos.
+6. `POST /api/sessions/{session_id}/travel/pause`, `resume` y `cancel`: controlar el viaje entre tramos.
+
+Volver a llamar a `travel/plan` durante un viaje en curso o pausado equivale a cambiar el destino: se calcula una ruta desde la posición actual y se conserva el tiempo de viaje ya consumido.
+
+### Qué ocurre al ejecutar un tramo
+
+En una única transacción SQLite (`BEGIN IMMEDIATE`):
+
+- valida que el recorrido esté en ejecución y recupera la geometría/posición actuales;
+- recorre el siguiente segmento con las mismas reglas de obstáculos y caminos del planificador;
+- revela las celdas atravesadas y detecta las áreas/terrenos cruzados;
+- persiste la nueva posición y la niebla de guerra;
+- acumula segundos y avanza el reloj en minutos completos; al terminar el viaje redondea el resto al minuto siguiente;
+- activa eventos mundiales confirmados que vencieron durante ese avance, mediante el servicio de cronología existente;
+- actualiza waypoint y estado de viaje, y registra el resultado asociado al `request_id`.
+
+Si ocurre un error antes del commit, posición, reloj, exploración, progreso y disparo de eventos se revierten juntos. Una petición repetida devuelve el resultado guardado y no vuelve a aplicar efectos.
+
+### Límites que permanecen
+
+- El avance es por llamada de API; todavía no hay controles visuales de «viajar», «pausar», «reanudar» y «cambiar destino» en la interfaz.
+- El origen geométrico inicial de una región es (0,0) cuando esa partida aún no tiene posición guardada. La definición y colocación de lugares reales del Bosque de los Siete Ecos sigue pendiente de coordenadas aprobadas.
+- La etiqueta de destino solo actualiza la ubicación textual de la sesión al completar el recorrido; la posición espacial numérica sigue siendo la fuente de verdad del mapa.
+- La persistencia/ejecución está conectada como servicio API, pero el minimapa todavía no existe. Su render deberá consumir `world_map_regions` y `session_map_states`, no mantener datos propios.
