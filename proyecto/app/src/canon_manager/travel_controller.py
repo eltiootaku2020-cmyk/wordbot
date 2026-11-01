@@ -200,6 +200,37 @@ def get_travel_state(database: Database, session_id: str) -> dict[str, Any] | No
         return result
 
 
+def get_session_map_state(
+    database: Database, session_id: str, region_id: str
+) -> dict[str, Any]:
+    """Read the exact persisted position and fog-of-war used by travel."""
+    with database.connection() as conn:
+        session = conn.execute(
+            "SELECT world_id FROM sessions WHERE id=?", (session_id,)
+        ).fetchone()
+        if session is None:
+            raise TravelNotFoundError("La partida no existe.")
+        world = _load_region_map(conn, str(session["world_id"]), region_id)
+        row = conn.execute(
+            "SELECT 1 FROM session_map_states WHERE session_id=? AND region_id=?",
+            (session_id, region_id),
+        ).fetchone()
+        position, exploration = _load_map_state(conn, session_id, region_id, world)
+        cells = sorted(
+            exploration.discovered_cells, key=lambda cell: (cell[1], cell[0])
+        )
+        return {
+            "session_id": session_id,
+            "region_id": region_id,
+            "initialized": row is not None,
+            "position": _point_json(position),
+            "cell_size_m": world.cell_size_m,
+            "coordinate_system": "local_cartesian_m_v1",
+            "schema_version": 1,
+            "discovered_cells": [list(cell) for cell in cells],
+        }
+
+
 def plan_travel(
     database: Database,
     session_id: str,
