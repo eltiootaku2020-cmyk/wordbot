@@ -120,6 +120,18 @@ CREATE TABLE IF NOT EXISTS snapshots (
   turn_id TEXT NOT NULL DEFAULT '', event_sequence INTEGER NOT NULL,
   state_json TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS session_map_states (
+  session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  region_id TEXT NOT NULL CHECK(length(region_id) > 0),
+  x_m REAL NOT NULL,
+  y_m REAL NOT NULL,
+  cell_size_m REAL NOT NULL CHECK(cell_size_m > 0),
+  coordinate_system TEXT NOT NULL DEFAULT 'local_cartesian_m_v1',
+  exploration_json TEXT NOT NULL DEFAULT '{"discovered_cells":[]}',
+  schema_version INTEGER NOT NULL DEFAULT 1 CHECK(schema_version >= 1),
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY(session_id, region_id)
+);
 CREATE INDEX IF NOT EXISTS idx_messages_session_turn ON messages(session_id, turn_index);
 CREATE INDEX IF NOT EXISTS idx_events_session ON events(session_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_changes_pending ON state_changes(session_id, status);
