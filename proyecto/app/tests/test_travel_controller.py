@@ -17,6 +17,8 @@ from canon_manager.world_map import (
     ObstacleZone,
     Point,
     Polygon,
+    RoadZone,
+    RouteNotFoundError,
     WorldMap,
 )
 
@@ -174,6 +176,59 @@ def test_route_without_path_does_not_create_a_travel_record(game: Database):
         game, "world-1", "forest",
         WorldMap(cell_size_m=100, obstacles=(wall,), walkable_bounds=bounds),
     )
-    with pytest.raises(Exception):
+    with pytest.raises(RouteNotFoundError):
         plan_travel(game, "session-1", "forest", Point(900, 500))
     assert get_travel_state(game, "session-1") is None
+
+
+
+def test_cancel_accounts_for_subminute_travel_time(game: Database):
+    mountain = ObstacleZone(
+        "mountain", "Mountain", rectangle(400, -100, 600, 100), "mountain"
+    )
+    fast_path = RoadZone("wide-road", "Wide road", rectangle(-1000, -1000, 2000, 1000), 2.0)
+    register_map_region(
+        game, "world-1", "forest",
+        WorldMap(cell_size_m=100, obstacles=(mountain,), roads=(fast_path,)),
+    )
+    plan_travel(game, "session-1", "forest", Point(1000, 0))
+    first = advance_travel_step(game, "session-1", "partial-trip-step-01")
+    assert first["travel"]["status"] == "running"
+    assert first["segment"]["travel_seconds"] < 60
+    assert first["clock"]["minutes_advanced"] == 0
+
+    cancelled = change_travel_status(game, "session-1", "cancel")
+
+    assert cancelled["status"] == "cancelled"
+    assert cancelled["clock"]["minutes_advanced"] == 1
+    with game.connection() as conn:
+        clock = conn.execute(
+            "SELECT day,minute_of_day FROM sessions WHERE id='session-1'"
+        ).fetchone()
+    assert (clock["day"], clock["minute_of_day"]) == (1, 481)
+
+
+def test_region_geometry_cannot_change_during_active_travel(game: Database):
+    mountain = ObstacleZone(
+        "mountain", "Mountain", rectangle(400, -100, 600, 100), "mountain"
+    )
+    current_map = WorldMap(cell_size_m=100, obstacles=(mountain,))
+    register_map_region(game, "world-1", "forest", current_map)
+    plan_travel(game, "session-1", "forest", Point(1000, 0))
+
+    with pytest.raises(TravelConflictError):
+        register_map_region(game, "world-1", "forest", WorldMap(cell_size_m=200))
+
+
+def test_active_route_cannot_retarget_to_another_region(game: Database):
+    register_map_region(game, "world-1", "other-region", WorldMap(cell_size_m=100))
+    obstacle = ObstacleZone(
+        "mountain", "Mountain", rectangle(400, -100, 600, 100), "mountain"
+    )
+    register_map_region(
+        game, "world-1", "forest", WorldMap(cell_size_m=100, obstacles=(obstacle,))
+    )
+    plan_travel(game, "session-1", "forest", Point(1000, 0))
+
+    with pytest.raises(TravelConflictError):
+        plan_travel(game, "session-1", "other-region", Point(100, 100))
