@@ -24,7 +24,7 @@ from .providers import ProviderError, build_manual_prompt, make_provider
 from .timeline import fire_due_world_events
 from .travel_controller import (
     MapRegionNotFoundError, TravelConflictError, TravelNotFoundError,
-    advance_travel_step, change_travel_status, get_map_region, get_travel_state,
+    advance_travel_step, change_travel_status, get_map_region, get_session_map_state, get_travel_state,
     plan_travel, register_map_region,
 )
 from .world_map import Point, RouteNotFoundError, world_map_from_config
@@ -3967,4 +3967,15 @@ def cancel_travel(session_id: str):
     except TravelConflictError as exc:
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.get("/api/sessions/{session_id}/map/regions/{region_id}/state")
+def read_session_map_region_state(session_id: str, region_id: str):
+    """Return the same persisted coordinates and discovered cells used by travel."""
+    try:
+        return get_session_map_state(database, session_id, region_id)
+    except (MapRegionNotFoundError, TravelNotFoundError) as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except (TypeError, ValueError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
