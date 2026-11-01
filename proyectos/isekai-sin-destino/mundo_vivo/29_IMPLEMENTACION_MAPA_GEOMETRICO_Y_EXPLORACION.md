@@ -184,6 +184,7 @@ La posición y niebla de guerra siguen almacenadas en `session_map_states`; no s
 4. `GET /api/sessions/{session_id}/travel`: recuperar el estado del recorrido.
 5. `POST /api/sessions/{session_id}/travel/step`: ejecutar un tramo. Requiere un `request_id` único y estable durante reintentos.
 6. `POST /api/sessions/{session_id}/travel/pause`, `resume` y `cancel`: controlar el viaje entre tramos.
+7. `GET /api/sessions/{session_id}/map/regions/{region_id}/state`: leer posición guardada, tamaño de celda y celdas descubiertas para el futuro minimapa.
 
 Volver a llamar a `travel/plan` durante un viaje en curso o pausado equivale a cambiar el destino: se calcula una ruta desde la posición actual y se conserva el tiempo de viaje ya consumido.
 
@@ -207,3 +208,10 @@ Si ocurre un error antes del commit, posición, reloj, exploración, progreso y 
 - El origen geométrico inicial de una región es (0,0) cuando esa partida aún no tiene posición guardada. La definición y colocación de lugares reales del Bosque de los Siete Ecos sigue pendiente de coordenadas aprobadas.
 - La etiqueta de destino solo actualiza la ubicación textual de la sesión al completar el recorrido; la posición espacial numérica sigue siendo la fuente de verdad del mapa.
 - La persistencia/ejecución está conectada como servicio API, pero el minimapa todavía no existe. Su render deberá consumir `world_map_regions` y `session_map_states`, no mantener datos propios.
+
+
+### Validación de controlador y API
+
+CI de navegación [#41334499435](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/41334499435): **141 pruebas Python aprobadas** y comprobación de sintaxis JavaScript aprobada. Incluyó ejecución por tramos, guardado de posición/revelado/reloj, idempotencia de reintentos, pausa/reanudación/cancelación, cambio de destino, eventos de cronología, integridad de región y recorrido completo a través de la API. La advertencia Starlette/httpx y los avisos del runner sobre Node.js 20 fueron no bloqueantes.
+
+La prueba de API también consulta el endpoint de estado espacial al finalizar el movimiento y comprueba que devuelve la posición y las celdas reveladas que se guardaron en SQLite. El minimapa puede construirse posteriormente a partir de estos mismos endpoints y datos.
