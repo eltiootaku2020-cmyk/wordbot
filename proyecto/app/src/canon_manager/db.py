@@ -154,6 +154,13 @@ CREATE TABLE IF NOT EXISTS session_travel_states (
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS session_travel_steps (
+  session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  request_id TEXT NOT NULL CHECK(length(request_id) BETWEEN 8 AND 120),
+  result_json TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY(session_id, request_id)
+);
 CREATE INDEX IF NOT EXISTS idx_messages_session_turn ON messages(session_id, turn_index);
 CREATE INDEX IF NOT EXISTS idx_events_session ON events(session_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_changes_pending ON state_changes(session_id, status);
