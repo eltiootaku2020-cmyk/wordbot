@@ -4,11 +4,16 @@ import math
 import pytest
 
 from canon_manager.world_map import (
+    BlockedPathError,
+    BlockedPositionError,
     Direction,
     ExplorationState,
     MapArea,
+    ObstacleZone,
     Point,
     Polygon,
+    RoadZone,
+    RouteNotFoundError,
     TerrainZone,
     WorldMap,
 )
@@ -108,3 +113,66 @@ def test_invalid_distance_and_cell_size_are_rejected() -> None:
 def test_exploration_payload_rejects_non_integer_cell_coordinates() -> None:
     with pytest.raises(ValueError):
         ExplorationState.from_dict({"discovered_cells": [[1, 2.5]]})
+
+
+
+def test_route_detours_around_obstacle_and_is_deterministic() -> None:
+    mountain = ObstacleZone(
+        "mountain-ridge", "Cordón montañoso", rectangle(400, -100, 600, 100), "mountain"
+    )
+    world = WorldMap(cell_size_m=100, obstacles=(mountain,))
+    start = Point(0, 0)
+    destination = Point(1000, 0)
+
+    first = world.plan_route(start, destination)
+    second = world.plan_route(start, destination)
+
+    assert first == second
+    assert first.waypoints[0] == start
+    assert first.waypoints[-1] == destination
+    assert first.total_distance_m > 1000
+    assert any(abs(point.y_m) > 100 for point in first.waypoints)
+    assert all(not mountain.footprint.contains(point) for point in first.waypoints)
+
+
+def test_route_rejects_destination_inside_an_obstacle() -> None:
+    river = ObstacleZone("river", "Río sin cruce", rectangle(400, -100, 600, 100), "river")
+    world = WorldMap(obstacles=(river,))
+
+    with pytest.raises(BlockedPositionError):
+        world.plan_route(Point(0, 0), Point(500, 0))
+
+
+def test_route_reports_no_path_when_obstacle_seals_bounded_map() -> None:
+    bounds = rectangle(0, 0, 1000, 1000)
+    wall = ObstacleZone("wall", "Muro infranqueable", rectangle(490, 0, 510, 1000), "wall")
+    world = WorldMap(cell_size_m=100, obstacles=(wall,), walkable_bounds=bounds)
+
+    with pytest.raises(RouteNotFoundError):
+        world.plan_route(Point(100, 500), Point(900, 500))
+
+
+def test_direct_movement_cannot_cross_an_impassable_obstacle() -> None:
+    mountain = ObstacleZone(
+        "mountain", "Montaña", rectangle(400, -100, 600, 100), "mountain"
+    )
+    world = WorldMap(obstacles=(mountain,))
+
+    with pytest.raises(BlockedPathError):
+        world.move(Point(0, 0), Direction.EAST, 1000, ExplorationState())
+
+
+def test_road_corridor_reduces_route_travel_time() -> None:
+    road = RoadZone("old-road", "Camino antiguo", rectangle(0, -20, 100, 20), 2.0)
+    world = WorldMap(roads=(road,))
+
+    route = world.plan_route(Point(0, 0), Point(100, 0))
+
+    assert route.waypoints == (Point(0, 0), Point(100, 0))
+    assert route.total_distance_m == pytest.approx(100)
+    assert route.estimated_travel_seconds == 40
+
+
+def test_route_search_budget_must_be_positive() -> None:
+    with pytest.raises(ValueError):
+        WorldMap().plan_route(Point(0, 0), Point(10, 0), max_search_nodes=0)
