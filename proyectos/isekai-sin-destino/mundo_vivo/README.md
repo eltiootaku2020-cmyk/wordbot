@@ -139,7 +139,7 @@ No se preguntará por cada procedimiento menor. Las reglas generales deben permi
 
 - Documentación ampliada y enlazada.
 - Modelo JSON actualizado a la versión 0.2.0 y parseado correctamente.
-- No es implementación ejecutable: aún faltan motor de simulación, persistencia SQLite específica del mundo, servicios, API, interfaz y pruebas de campaña.
+- El proyecto todavía no es un juego completo: faltan el runtime integrado, persistencia SQLite específica del mundo, servicios de juego, interfaz y pruebas de campaña. Existe ahora un primer núcleo geométrico aislado, detallado en el documento 29.
 - La rama main permanece fuera del alcance de esta entrega.
 
 
@@ -166,3 +166,14 @@ El usuario aclaró que Isekai sin Destino será un juego ejecutado en PC y **no 
 - [28 — Arquitectura local de PC sin IA generativa](28_ARQUITECTURA_LOCAL_PC_SIN_IA_GENERATIVA.md)
 
 Esta decisión es específica del juego Isekai; no se debe extender automáticamente como regla de todos los proyectos Word Bot.
+
+
+### Primera implementación geográfica — 01-11-2026
+
+Se añadió un primer módulo Python de geometría y exploración: coordenadas locales en metros, ocho direcciones, diagonales normalizadas, áreas poligonales, modificadores de terreno, celdas descubiertas y serialización JSON del estado de exploración.
+
+- Código: `proyecto/app/src/canon_manager/world_map.py`.
+- Pruebas añadidas: `proyecto/app/tests/test_world_map.py`.
+- Diseño y límites: [29 — Implementación del mapa geométrico y exploración](29_IMPLEMENTACION_MAPA_GEOMETRICO_Y_EXPLORACION.md).
+
+Esta pieza todavía no está conectada al guardado SQLite de una campaña, al minimapa ni a una interfaz de juego. Las pruebas están escritas y deben validarse mediante CI. No asigna coordenadas a aldeas o lugares del canon.
