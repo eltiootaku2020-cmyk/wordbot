@@ -177,3 +177,5 @@ Se añadió un primer módulo Python de geometría y exploración: coordenadas l
 - Diseño y límites: [29 — Implementación del mapa geométrico y exploración](29_IMPLEMENTACION_MAPA_GEOMETRICO_Y_EXPLORACION.md).
 
 Esta pieza todavía no está conectada al guardado SQLite de una campaña, al minimapa ni a una interfaz de juego. Las pruebas están escritas y deben validarse mediante CI. No asigna coordenadas a aldeas o lugares del canon.
+
+- **Persistencia SQLite de mapa:** `session_map_states` guarda posición, escala de celdas y exploración por partida/región mediante `canon_manager.map_persistence`; detalles y límites en [29 — Mapa geométrico y exploración](29_IMPLEMENTACION_MAPA_GEOMETRICO_Y_EXPLORACION.md).
