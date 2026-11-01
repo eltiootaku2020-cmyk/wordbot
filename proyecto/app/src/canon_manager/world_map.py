@@ -355,16 +355,37 @@ def _segment_intersects_rectangle(
     return True
 
 
-def _travel_time_seconds(
+
+def _segment_within_polygon(start: Point, end: Point, polygon: Polygon) -> bool:
+    """Return True only when the complete segment remains inside a boundary polygon."""
+    if not polygon.contains(start) or not polygon.contains(end):
+        return False
+    breakpoints = _polygon_breakpoints(start, end, polygon)
+    for left, right in zip(breakpoints, breakpoints[1:]):
+        if right - left <= _EPSILON:
+            continue
+        midpoint_t = (left + right) / 2
+        midpoint = Point(
+            start.x_m + (end.x_m - start.x_m) * midpoint_t,
+            start.y_m + (end.y_m - start.y_m) * midpoint_t,
+        )
+        if not polygon.contains(midpoint):
+            return False
+    return True
+
+
+def _travel_time_seconds_raw(
     start: Point,
     end: Point,
     terrain_zones: Iterable[TerrainZone],
     base_speed_mps: float,
-) -> int:
+    road_zones: Iterable[RoadZone] = (),
+) -> float:
     distance = math.hypot(end.x_m - start.x_m, end.y_m - start.y_m)
-    zones = tuple(terrain_zones)
+    terrain = tuple(terrain_zones)
+    roads = tuple(road_zones)
     breakpoints = {0.0, 1.0}
-    for zone in zones:
+    for zone in (*terrain, *roads):
         breakpoints.update(_polygon_breakpoints(start, end, zone.footprint))
     ordered = sorted(breakpoints)
 
@@ -377,9 +398,29 @@ def _travel_time_seconds(
             start.x_m + (end.x_m - start.x_m) * midpoint_t,
             start.y_m + (end.y_m - start.y_m) * midpoint_t,
         )
-        multipliers = [
-            zone.speed_multiplier for zone in zones if zone.footprint.contains(midpoint)
-        ]
-        effective_multiplier = min(multipliers, default=1.0)
-        seconds += distance * (right - left) / (base_speed_mps * effective_multiplier)
-    return math.ceil(seconds - _EPSILON)
+        terrain_factor = min(
+            (zone.speed_multiplier for zone in terrain if zone.footprint.contains(midpoint)),
+            default=1.0,
+        )
+        road_factor = max(
+            (road.speed_multiplier for road in roads if road.footprint.contains(midpoint)),
+            default=1.0,
+        )
+        seconds += (
+            distance * (right - left)
+            / (base_speed_mps * terrain_factor * road_factor)
+        )
+    return seconds
+
+
+def _travel_time_seconds(
+    start: Point,
+    end: Point,
+    terrain_zones: Iterable[TerrainZone],
+    base_speed_mps: float,
+    road_zones: Iterable[RoadZone] = (),
+) -> int:
+    return math.ceil(
+        _travel_time_seconds_raw(start, end, terrain_zones, base_speed_mps, road_zones)
+        - _EPSILON
+    )
