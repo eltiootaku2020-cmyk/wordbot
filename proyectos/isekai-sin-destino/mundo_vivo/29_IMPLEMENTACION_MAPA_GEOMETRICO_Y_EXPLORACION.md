@@ -123,3 +123,40 @@ Los commits posteriores de esta rama actualizaron solo documentación e informac
 ### Límite que permanece
 
 La persistencia ya existe como servicio y tabla SQLite, pero todavía no está invocada por una interfaz de juego o un controlador de partida real. La próxima integración deberá llamar al servicio en los puntos de guardar/cargar y coordinar posición, tiempo y movimiento como una misma acción transaccional. No se afirma todavía que el usuario pueda abrir una partida jugable y ver el minimapa persistido.
+
+
+## 9. Planificador de rutas, obstáculos y caminos — actualización 01-11-2026
+
+Se añadió una primera capa de navegación determinista en `canon_manager.world_map.WorldMap.plan_route()`.
+
+### Elementos implementados
+
+- `ObstacleZone`: polígonos infranqueables para montañas, ríos sin cruce, acantilados, muros u otros bloqueos. La clase conserva un `kind` descriptivo; no asigna automáticamente reglas narrativas por tipo.
+- `RoadZone`: corredores poligonales de caminos, senderos o puentes. Un corredor aplica un multiplicador de velocidad configurable y puede habilitar el cruce de la parte de un obstáculo que cubra geométricamente.
+- Búsqueda A* sobre una rejilla cuya separación usa el tamaño de celda del mapa. Los puntos exactos de salida y destino se conservan como extremos del recorrido.
+- Las rutas no atraviesan polígonos bloqueados. Para diagonales se comprueban también las dos celdas ortogonales contiguas, evitando cortar esquinas.
+- El coste de ruta se calcula por tiempo estimado: combina terreno lento y bonificaciones de caminos. El algoritmo puede preferir un recorrido algo más largo si reduce el tiempo previsto.
+- `walkable_bounds` permite definir una frontera poligonal. Si una pared, río u obstáculo cierra el paso dentro de esa frontera, el servicio devuelve `RouteNotFoundError` en vez de inventar una salida.
+- Existe un presupuesto de expansiones configurable para acotar búsquedas muy grandes. Si se alcanza, se devuelve `RouteSearchLimitError`, que distingue el límite de cálculo de una ruta inexistente.
+- `move()` rechaza un desplazamiento directo que atraviese un obstáculo sin un corredor de camino explícito. El llamador debe solicitar una ruta y recorrer sus waypoints.
+
+### Pruebas añadidas
+
+Se incorporaron siete casos nuevos a `proyecto/app/tests/test_world_map.py`:
+1. Desvío alrededor de una montaña y resultado determinista.
+2. Rechazo de un destino situado dentro de un obstáculo.
+3. Ausencia de ruta cuando un muro sella una región acotada.
+4. Rechazo de un movimiento directo que atraviesa un obstáculo.
+5. Reducción del tiempo estimado dentro de un corredor de camino.
+6. Validación del presupuesto de búsqueda.
+7. Cruce de un río por un corredor de puente explícito.
+
+### Límites que siguen pendientes
+
+- Los caminos son actualmente corredores poligonales con coste preferente; todavía no existe una red topológica de caminos conectados, cruces, bifurcaciones y puentes con identificadores propios.
+- La rejilla A* ofrece una ruta aproximada por waypoints. Todavía no hay suavizado de curvas ni navegación de alta precisión para vehículos o movimiento animado.
+- El servicio devuelve la ruta, pero aún no hay controlador que ejecute los waypoints, avance el reloj por cada tramo, revele las celdas recorridas y guarde el nuevo estado de posición en una sola operación.
+- No existe minimapa ni interfaz para seleccionar destino, ver la ruta o mostrar un mensaje de «camino bloqueado».
+- Las localizaciones del canon siguen sin coordenadas inventadas. Obstáculos, caminos y fronteras reales del Bosque de los Siete Ecos deberán definirse con geometría aprobada.
+
+La navegación es infraestructura genérica: no introduce ubicaciones, distancias ni hechos nuevos en el canon. La integración con el reloj, la exploración persistente y la interfaz de partida continúa como siguiente etapa.
