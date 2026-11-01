@@ -6,11 +6,11 @@ the length of either axis component.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
 import heapq
-from enum import Enum
 import json
 import math
+from dataclasses import dataclass, field
+from enum import Enum
 from typing import Any, Iterable
 
 
@@ -248,7 +248,11 @@ class WorldMap:
             raise ValueError("Obstacle ids must be unique")
         if len(road_ids) != len(set(road_ids)):
             raise ValueError("Road ids must be unique")
-        if isinstance(self.max_route_nodes, bool) or not isinstance(self.max_route_nodes, int) or self.max_route_nodes <= 0:
+        if (
+            isinstance(self.max_route_nodes, bool)
+            or not isinstance(self.max_route_nodes, int)
+            or self.max_route_nodes <= 0
+        ):
             raise ValueError("max_route_nodes must be a positive integer")
 
     def move(
@@ -262,10 +266,10 @@ class WorldMap:
     ) -> MovementResult:
         """Move exactly the requested path length and update fog-of-war.
 
-        Diagonal movement is normalized, so a 500 m NE step travels 500 m,
-        with equal east and north components. Terrain affects travel time,
-        not the geometric distance. Impassable boundaries/route finding are
-        deliberately a separate layer and are not implied by this primitive.
+        Diagonal movement is normalized, so a 500 m NE step travels 500 m.
+        Terrain and road corridors affect travel time, not distance. Direct
+        steps that cross obstacles are rejected; use plan_route() for detours.
+        walkable_bounds constrains planned routes, not raw movement steps.
         """
         if not math.isfinite(distance_m) or distance_m <= 0:
             raise ValueError("distance_m must be a positive finite number")
@@ -274,8 +278,8 @@ class WorldMap:
 
         dx, dy = direction.unit_vector
         end = Point(start.x_m + dx * distance_m, start.y_m + dy * distance_m)
-        if any(_segment_intersects_polygon(start, end, obstacle.footprint) for obstacle in self.obstacles):
-            raise BlockedPathError("Movement crosses an impassable obstacle")
+        if not self._obstacle_edge_allowed(start, end):
+            raise BlockedPathError("Movement crosses an impassable obstacle without a road crossing")
         visited = _cells_intersected_by_segment(start, end, self.cell_size_m)
         new_cells = visited.difference(exploration.discovered_cells)
         exploration.discovered_cells.update(visited)
@@ -526,10 +530,30 @@ class WorldMap:
             start, end, self.walkable_bounds
         ):
             return False
-        return not any(
-            _segment_intersects_polygon(start, end, obstacle.footprint)
-            for obstacle in self.obstacles
-        )
+        return self._obstacle_edge_allowed(start, end)
+
+    def _obstacle_edge_allowed(self, start: Point, end: Point) -> bool:
+        """Allow obstacle intersections only where an explicit road covers them."""
+        for obstacle in self.obstacles:
+            if not _segment_intersects_polygon(start, end, obstacle.footprint):
+                continue
+            breakpoints = set(_polygon_breakpoints(start, end, obstacle.footprint))
+            for road in self.roads:
+                breakpoints.update(_polygon_breakpoints(start, end, road.footprint))
+            ordered = sorted(breakpoints)
+            for left, right in zip(ordered, ordered[1:]):
+                if right - left <= _EPSILON:
+                    continue
+                midpoint_t = (left + right) / 2
+                midpoint = Point(
+                    start.x_m + (end.x_m - start.x_m) * midpoint_t,
+                    start.y_m + (end.y_m - start.y_m) * midpoint_t,
+                )
+                if obstacle.footprint.contains(midpoint) and not any(
+                    road.footprint.contains(midpoint) for road in self.roads
+                ):
+                    return False
+        return True
 
 
 def _cross(ax: float, ay: float, bx: float, by: float) -> float:
