@@ -176,3 +176,15 @@ def test_road_corridor_reduces_route_travel_time() -> None:
 def test_route_search_budget_must_be_positive() -> None:
     with pytest.raises(ValueError):
         WorldMap().plan_route(Point(0, 0), Point(10, 0), max_search_nodes=0)
+
+
+
+def test_explicit_road_corridor_allows_a_bridge_through_a_river() -> None:
+    river = ObstacleZone("river", "Río", rectangle(400, -50, 600, 50), "river")
+    bridge = RoadZone("bridge", "Puente", rectangle(350, -20, 650, 20), 2.0)
+    world = WorldMap(obstacles=(river,), roads=(bridge,))
+
+    route = world.plan_route(Point(0, 0), Point(1000, 0))
+
+    assert route.waypoints == (Point(0, 0), Point(1000, 0))
+    assert route.estimated_travel_seconds == 680
