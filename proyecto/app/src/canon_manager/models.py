@@ -204,3 +204,7 @@ class TravelPlanRequest(StrictModel):
     destination_x_m: float = Field(allow_inf_nan=False)
     destination_y_m: float = Field(allow_inf_nan=False)
     destination_label: str = Field(default="", max_length=180)
+
+
+class TravelStepRequest(StrictModel):
+    request_id: str = Field(min_length=8, max_length=120)
