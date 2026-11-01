@@ -90,3 +90,25 @@ No se altera el canon geográfico al añadir esta infraestructura. Ninguna local
 4. Integrar las celdas descubiertas en un guardado de campaña con migración/versionado.
 5. Definir un mapa de referencia de una zona pequeña del Bosque de los Siete Ecos con geometría y distancias verificables.
 6. Dibujar el minimapa sobre los mismos datos; la interfaz no debe mantener un mapa paralelo.
+
+
+## 8. Persistencia SQLite de la exploración — actualización 01-11-2026
+
+Se incorporó una capa de guardado por partida y región.
+
+- Tabla `session_map_states`, creada mediante el esquema idempotente de `Database.initialize()`.
+- Clave primaria compuesta por `session_id` y `region_id`: la misma partida puede conservar estados de exploración separados por región.
+- Se guardan posición X/Y en metros, tamaño de celda, identificador del sistema de coordenadas, JSON de celdas descubiertas, versión del formato y fecha de actualización.
+- Las escrituras usan la transacción `BEGIN IMMEDIATE` ya centralizada en `Database.transaction()` y un UPSERT, de modo que re-guardar una región actualiza su estado sin crear duplicados.
+- La clave foránea elimina el registro de mapa al eliminar la sesión; no se mantienen exploraciones huérfanas.
+- El servicio `canon_manager.map_persistence` valida el formato al cargar y rechaza versiones/sistemas de coordenadas desconocidos en vez de interpretar datos incompatibles.
+
+### Pruebas adicionales
+
+Archivo: `proyecto/app/tests/test_map_persistence.py`.
+
+Se añadieron siete pruebas para recuperar coordenadas, escala y niebla de guerra; actualizar el mismo estado; separar regiones; devolver estado vacío antes del primer guardado; respetar claves foráneas; eliminar por cascada con la sesión y rechazar versiones de guardado desconocidas.
+
+### Límite que permanece
+
+La persistencia ya existe como servicio y tabla SQLite, pero todavía no está invocada por una interfaz de juego o un controlador de partida real. La próxima integración deberá llamar al servicio en los puntos de guardar/cargar y coordinar posición, tiempo y movimiento como una misma acción transaccional. No se afirma todavía que el usuario pueda abrir una partida jugable y ver el minimapa persistido.
