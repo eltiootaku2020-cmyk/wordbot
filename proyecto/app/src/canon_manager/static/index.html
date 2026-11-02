@@ -22,6 +22,74 @@ form{display:flex;gap:8px;align-items:stretch}textarea{flex:1;resize:vertical;mi
 details.setup{margin:8px 0 12px;border:1px solid var(--line);border-radius:9px;padding:10px;background:#191b22}details.setup summary{cursor:pointer;font-weight:600}.world-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:10px}.world-form label{display:flex;flex-direction:column;gap:4px}.world-form input,.world-form textarea{width:100%;min-width:0}.world-form textarea{min-height:68px}.world-form .wide{grid-column:1/-1}.world-form button{justify-self:start}
 hr{border:0;border-top:1px solid var(--line);margin:14px 0}label{font-size:13px;color:var(--muted)}
 @media(max-width:900px){main{grid-template-columns:1fr}#chat{max-height:none}.world-form{grid-template-columns:1fr}.world-form .wide{grid-column:auto}}
+
+/* Geometric exploration and session travel */
+.exploration-panel{margin:0 0 14px;border:1px solid var(--line);border-radius:12px;padding:12px;background:#191c23}
+.exploration-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.exploration-head h2{margin:0 0 3px}.exploration-head p{margin:0}
+.exploration-head .toolbar{margin:0}
+.exploration-head label{display:flex;align-items:center;gap:6px}
+.exploration-head input{width:185px;max-width:45vw}
+.exploration-layout{display:grid;grid-template-columns:minmax(0,1fr) 245px;gap:12px;align-items:start}
+.map-column{min-width:0}
+.map-toolbar{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:7px;flex-wrap:wrap}
+.map-toolbar .toolbar{margin:0}
+#worldMapSvg{display:block;width:100%;height:410px;border:1px solid #414756;border-radius:10px;background:#101720;cursor:crosshair;touch-action:manipulation}
+#worldMapSvg:focus{outline:2px solid var(--accent);outline-offset:2px}
+#worldMapSvg{height:min(62vh,620px);min-height:430px;cursor:grab;touch-action:none}
+#worldMapSvg.map-panning{cursor:grabbing}
+.map-layers{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:6px 0 8px;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:#151820}
+.map-layers strong{font-size:12px;color:var(--muted);font-weight:600;margin-right:2px}
+.map-layers label{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text);cursor:pointer}
+.map-layers input{width:14px;height:14px;margin:0;accent-color:#9db7ff}
+.exploration-panel.map-expanded{position:fixed;inset:8px;z-index:1200;margin:0;overflow:auto;max-width:none;background:#151920;box-shadow:0 10px 50px #000c}
+.exploration-panel.map-expanded .exploration-layout{grid-template-columns:minmax(0,1fr) 285px;gap:14px}
+.exploration-panel.map-expanded #worldMapSvg{height:calc(100dvh - 250px);min-height:480px}
+.exploration-panel.map-expanded .map-column{min-width:0}
+@media(max-width:760px){
+  #worldMapSvg{height:55vh;min-height:340px}
+  .exploration-panel.map-expanded .exploration-layout{grid-template-columns:1fr}
+  .exploration-panel.map-expanded #worldMapSvg{height:58vh;min-height:320px}
+}
+.map-legend{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0 4px}
+.map-legend span{display:inline-flex;align-items:center;gap:5px;color:var(--muted);font-size:12px}
+.legend-swatch{display:inline-block;width:12px;height:12px;border-radius:3px;border:1px solid #788396}
+.legend-terrain{background:#526b50}.legend-road{background:#c4a875}.legend-obstacle{background:#777d89}.legend-area{background:#396b78}.legend-fog{background:#0b1018}.legend-route{height:3px;border:0;background:#e8c66b}.legend-player{border-radius:50%;background:#f1f4fa;border:3px solid #355b9b}.legend-destination{border-radius:50%;background:#e3a5ff;border-color:#291631}
+.map-hint{margin:7px 0 0;color:var(--muted);font-size:12px;min-height:34px}
+.travel-controls{display:flex;flex-direction:column;gap:9px;min-width:0}
+.travel-readout{border:1px solid var(--line);border-radius:9px;padding:9px;background:#151820}
+.travel-readout strong{display:block;font-size:12px;color:var(--muted);font-weight:500}
+.travel-readout span{display:block;font-size:14px;overflow-wrap:anywhere}
+.destination-fields{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.destination-fields label{display:flex;flex-direction:column;gap:3px}
+.destination-fields input{width:100%;min-width:0}
+.destination-fields .wide{grid-column:1/-1}
+.travel-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.travel-actions button{min-width:0}
+.travel-actions .wide{grid-column:1/-1}
+#travelStatus{margin:0;min-height:36px;font-size:12px;color:var(--muted)}
+#mapConfigInput{width:100%;min-height:150px;font:12px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace}
+#behaviorProfileInput,#behaviorContextInput,#behaviorCatalogInput{width:100%;min-height:160px;font:12px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace}
+#behaviorPreview{white-space:pre-wrap;overflow-wrap:anywhere;max-height:44vh;overflow:auto;background:#151820;border:1px solid var(--line);border-radius:8px;padding:10px;font-size:12px}
+.behavior-actions{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0}
+.behavior-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.behavior-grid label{display:flex;flex-direction:column;gap:4px}
+#behaviorStatus{font-size:12px;color:var(--muted);min-height:24px}
+
+.map-draw-controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0}
+.map-draw-controls label{display:flex;flex-direction:column;gap:4px;min-width:0}
+.map-draw-controls input,.map-draw-controls select{width:100%;min-width:0}
+.map-draw-actions{display:flex;gap:7px;flex-wrap:wrap}
+#mapDrawStatus{margin:8px 0 0;min-height:20px;font-size:12px;color:var(--muted)}
+.map-draw-controls [hidden]{display:none}
+#worldMapSvg.map-drawing{cursor:crosshair}
+@media(max-width:700px){.map-draw-controls{grid-template-columns:1fr 1fr}}
+.map-config-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+#mapConfigDetails{margin-top:10px}
+.map-config-note{font-size:12px;color:var(--muted);margin:7px 0 0}
+@media(max-width:1000px){.exploration-layout{grid-template-columns:1fr}.travel-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.travel-actions,#travelStatus{grid-column:1/-1}}
+@media(max-width:620px){#worldMapSvg{height:330px}.travel-controls{display:flex}.exploration-head label{width:100%;justify-content:space-between}.exploration-head input{max-width:none;flex:1}.destination-fields{grid-template-columns:1fr 1fr}}
+
 </style>
 </head>
 <body>
@@ -44,6 +112,210 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}label{font-size:13px;
         <option value="gemini">Gemini API (requiere API key)</option>
       </select>
     </div>
+
+    <section class="exploration-panel" aria-labelledby="explorationTitle">
+      <div class="exploration-head">
+        <div>
+          <h2 id="explorationTitle">Exploración del mundo</h2>
+          <p class="muted">El mapa usa la geometría y la exploración guardadas por esta partida. Haz clic para elegir un destino.</p>
+        </div>
+        <div class="toolbar">
+          <label for="mapRegionId">Región
+            <input id="mapRegionId" value="bosque-de-los-siete-ecos" maxlength="120" autocomplete="off">
+          </label>
+          <button id="loadMapButton" type="button">Actualizar mapa</button>
+        </div>
+      </div>
+      <div class="exploration-layout">
+        <div class="map-column">
+          <div class="map-toolbar">
+            <span id="mapScaleLabel" class="status">Escala local en metros · norte arriba</span>
+            <div class="toolbar">
+              <button id="mapZoomOut" type="button" title="Alejar mapa" aria-label="Alejar mapa">−</button>
+              <button id="mapZoomIn" type="button" title="Acercar mapa" aria-label="Acercar mapa">+</button>
+              <button id="mapFitButton" type="button">Ajustar</button>
+              <button id="mapExpandButton" type="button" aria-pressed="false">Ampliar mapa</button>
+            </div>
+          </div>
+          <div class="map-layers" role="group" aria-label="Capas visibles del mapa">
+            <strong>Capas</strong>
+            <label><input id="mapLayerBounds" type="checkbox" checked> Límites</label>
+            <label><input id="mapLayerTerrain" type="checkbox" checked> Terrenos</label>
+            <label><input id="mapLayerAreas" type="checkbox" checked> Zonas</label>
+            <label><input id="mapLayerObstacles" type="checkbox" checked> Obstáculos</label>
+            <label><input id="mapLayerRoads" type="checkbox" checked> Caminos</label>
+            <label><input id="mapLayerPoi" type="checkbox" checked> Puntos de interés</label>
+          </div>
+          <svg id="worldMapSvg" viewBox="-800 -600 1600 1200" role="img" tabindex="0"
+               aria-label="Mapa geométrico de la región. Haz clic para seleccionar un destino.">
+            <g id="mapDrawingLayer"></g>
+          </svg>
+          <div class="map-legend" aria-label="Leyenda del mapa">
+            <span><i class="legend-swatch legend-terrain"></i>Terreno</span>
+            <span><i class="legend-swatch legend-road"></i>Camino / puente</span>
+            <span><i class="legend-swatch legend-obstacle"></i>Obstáculo</span>
+            <span><i class="legend-swatch legend-area"></i>Zona conocida</span>
+            <span><i class="legend-swatch legend-fog"></i>No explorado</span>
+            <span><i class="legend-swatch legend-route"></i>Ruta</span>
+            <span><i class="legend-swatch legend-player"></i>Posición actual</span>
+            <span><i class="legend-swatch legend-destination"></i>Destino elegido</span>
+          </div>
+          <p id="mapHint" class="map-hint" aria-live="polite">Selecciona una partida y registra la geometría autorizada de una región para comenzar.</p>
+        </div>
+        <div class="travel-controls">
+          <div class="travel-readout">
+            <strong>POSICIÓN ACTUAL</strong>
+            <span id="mapCurrentPosition">Sin partida seleccionada</span>
+          </div>
+          <div class="travel-readout">
+            <strong>RELOJ DEL MUNDO</strong>
+            <span id="mapWorldClock">—</span>
+          </div>
+          <div class="travel-readout">
+            <strong>DESTINO ELEGIDO</strong>
+            <span id="mapSelectedDestination">Haz clic en el mapa</span>
+          </div>
+          <div class="destination-fields">
+            <label for="destinationX">Este / X (m)
+              <input id="destinationX" type="number" step="any" placeholder="X">
+            </label>
+            <label for="destinationY">Norte / Y (m)
+              <input id="destinationY" type="number" step="any" placeholder="Y">
+            </label>
+            <label class="wide" for="destinationLabel">Nombre del destino (opcional)
+              <input id="destinationLabel" maxlength="180" placeholder="Solo etiqueta; no crea un lugar del canon">
+            </label>
+          </div>
+          <div class="travel-actions">
+            <button id="planTravelButton" type="button" class="primary wide" disabled>Planificar / cambiar destino</button>
+            <button id="startTravelButton" type="button" disabled>Viajar</button>
+            <button id="stepTravelButton" type="button" disabled>Avanzar tramo</button>
+            <button id="pauseTravelButton" type="button" disabled>Pausar</button>
+            <button id="resumeTravelButton" type="button" disabled>Reanudar</button>
+            <button id="cancelTravelButton" type="button" class="wide" disabled>Cancelar recorrido</button>
+          </div>
+          <p id="travelStatus" aria-live="polite">No hay ningún recorrido preparado.</p>
+        </div>
+      </div>
+      <details id="mapConfigDetails" class="setup">
+        <summary>Configurar o importar geometría de la región</summary>
+        <p class="map-config-note">La geometría define polígonos de áreas conocidas, terrenos, obstáculos, caminos y un límite opcional. No se precargan coordenadas del canon: introduce solo datos geográficos aprobados. Las áreas aparecen como lugares conocidos cuando su zona central se descubre.</p>
+        <label for="mapConfigInput">Definición JSON versionada de la región</label>
+        <textarea id="mapConfigInput" spellcheck="false">{
+  "schema_version": 1,
+  "cell_size_m": 250,
+  "max_route_nodes": 100000,
+  "areas": [],
+  "terrain_zones": [],
+  "obstacles": [],
+  "roads": [],
+  "walkable_bounds": null
+}</textarea>
+        <div class="map-config-actions">
+          <button id="saveMapConfigButton" type="button">Guardar geometría de región</button>
+          <button id="copyMapConfigTemplate" type="button">Cargar plantilla vacía</button>
+          <label for="mapConfigFile">Importar JSON desde archivo</label>
+          <input id="mapConfigFile" type="file" accept=".json,application/json">
+        </div>
+        <p class="map-config-note">Coordenadas cartesianas locales: +X es este, +Y es norte. Una región vacía muestra solo el plano; no inventa aldeas, caminos ni distancias.</p>
+      </details>
+      <details id="mapVisualEditor" class="setup" open>
+        <summary>Editor visual de polígonos</summary>
+        <p class="map-config-note">Dibuja únicamente geometría aprobada. Cada clic añade un vértice en metros locales; al cerrar el polígono se incorpora al borrador JSON. No se guarda hasta pulsar «Guardar geometría de región» arriba.</p>
+        <div class="map-draw-controls">
+          <label for="mapDrawKind">Tipo de geometría
+            <select id="mapDrawKind">
+              <option value="areas">Zona / lugar conocido</option>
+              <option value="terrain_zones">Terreno</option>
+              <option value="obstacles">Obstáculo</option>
+              <option value="roads">Camino / puente</option>
+              <option value="walkable_bounds">Límite transitable</option>
+            </select>
+          </label>
+          <label id="mapDrawIdField" for="mapDrawId">Identificador único
+            <input id="mapDrawId" maxlength="120" placeholder="ej. claro-norte">
+          </label>
+          <label id="mapDrawNameField" for="mapDrawName">Nombre visible al descubrir
+            <input id="mapDrawName" maxlength="180" placeholder="Nombre aprobado">
+          </label>
+          <label id="mapDrawSpeedField" for="mapDrawSpeed">Multiplicador de velocidad
+            <input id="mapDrawSpeed" type="number" min="0.1" max="20" step="0.1" value="1.5">
+          </label>
+          <label id="mapDrawObstacleKindField" for="mapDrawObstacleKind">Clase de obstáculo
+            <select id="mapDrawObstacleKind">
+              <option value="terrain">Terreno</option>
+              <option value="river">Río sin cruce</option>
+              <option value="wall">Muro</option>
+              <option value="cliff">Acantilado</option>
+              <option value="other">Otro</option>
+            </select>
+          </label>
+        </div>
+        <div class="map-draw-actions">
+          <button id="mapDrawStart" type="button" class="primary">Iniciar dibujo</button>
+          <button id="mapDrawUndo" type="button" disabled>Deshacer punto</button>
+          <button id="mapDrawFinish" type="button" disabled>Cerrar y añadir polígono</button>
+          <button id="mapDrawCancel" type="button" disabled>Cancelar dibujo</button>
+        </div>
+        <p id="mapDrawStatus" aria-live="polite">Elige un tipo, completa sus datos y pulsa «Iniciar dibujo».</p>
+        <hr>
+        <h3>Editar vértices de una figura existente</h3>
+        <div class="map-draw-controls">
+          <label class="wide" for="mapEditFeature">Figura de la región
+            <select id="mapEditFeature"><option value="">Selecciona una figura</option></select>
+          </label>
+        </div>
+        <div class="map-draw-actions">
+          <button id="mapEditLoad" type="button">Editar vértices</button>
+          <button id="mapEditCancel" type="button" disabled>Descartar edición</button>
+        </div>
+        <p id="mapEditStatus" aria-live="polite" class="map-config-note">Selecciona una figura para mover sus vértices arrastrando los puntos del mapa. Confirma con «Cerrar y añadir polígono» y guarda la región.</p>
+        <hr>
+        <h3>Puntos de interés independientes</h3>
+        <p class="map-config-note">Los puntos no alteran el terreno ni la ruta. Su icono y nombre solo aparecen cuando su celda se descubre.</p>
+        <div class="map-draw-controls">
+          <label for="mapPoiId">Identificador único
+            <input id="mapPoiId" maxlength="120" placeholder="ej. fuente-antigua">
+          </label>
+          <label for="mapPoiName">Nombre aprobado
+            <input id="mapPoiName" maxlength="180" placeholder="Nombre del lugar">
+          </label>
+          <label for="mapPoiIcon">Icono
+            <select id="mapPoiIcon">
+              <option value="📍">📍 Marcador</option>
+              <option value="🏕️">🏕️ Campamento</option>
+              <option value="🏛️">🏛️ Ruina / edificio</option>
+              <option value="⛩️">⛩️ Santuario</option>
+              <option value="💧">💧 Agua</option>
+              <option value="⭐">⭐ Hito</option>
+              <option value="⚠️">⚠️ Peligro</option>
+              <option value="🌿">🌿 Recurso natural</option>
+              <option value="◆">◆ Genérico</option>
+            </select>
+          </label>
+          <label for="mapPoiCategory">Categoría
+            <select id="mapPoiCategory">
+              <option value="landmark">Hito</option>
+              <option value="village">Aldea</option>
+              <option value="camp">Campamento</option>
+              <option value="ruin">Ruina</option>
+              <option value="resource">Recurso</option>
+              <option value="danger">Peligro</option>
+              <option value="other">Otro</option>
+            </select>
+          </label>
+          <label class="wide" for="mapPoiDescription">Descripción (opcional)
+            <input id="mapPoiDescription" maxlength="500" placeholder="Nota del lugar; no se muestra antes de descubrirlo">
+          </label>
+        </div>
+        <div class="map-draw-actions">
+          <button id="mapPoiPlace" type="button">Colocar punto en el mapa</button>
+          <button id="mapPoiCancel" type="button" disabled>Cancelar colocación</button>
+        </div>
+        <p id="mapPoiStatus" aria-live="polite" class="map-config-note">Completa los datos y pulsa «Colocar punto en el mapa»; después haz un clic para fijar sus coordenadas.</p>
+      </details>
+    </section>
+
     <details class="setup">
       <summary>Crear un mundo y su primera partida</summary>
       <p class="muted">Se guarda todo en SQLite. Después podrás importar el Lorebook JSON y continuar creando escenas desde el chat.</p>
@@ -133,6 +405,53 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}label{font-size:13px;
     <h2>Estado de partida</h2>
     <div id="state"><p class="muted">Carga el mundo de prueba para empezar.</p></div>
     <hr>
+    <details id="behaviorPanel" class="setup">
+      <summary>Personalidad y conducta de PNJ</summary>
+      <p class="muted">Los perfiles son independientes por personaje y partida. Rasgos y necesidades usan valores 0–100; usa <code>null</code> o deja fuera un valor si no se conoce. Las emociones son episodios con <code>kind</code>, <code>intensity</code>, <code>decay_per_hour</code>, <code>target_id</code> y <code>source_event_id</code>. Los objetivos usan <code>goal_id</code>, <code>priority</code>, <code>tags</code> y <code>status</code>. El foco actual usa tipo, objetivo, saliencia y etiquetas. Las relaciones dirigidas se leen desde el registro de la partida: no se editan aquí. La vista previa ordena acciones candidatas, pero todavía no ejecuta acciones ni cambia el mundo. El protagonista no puede ser controlado por este motor.</p>
+      <label for="behaviorEntitySelect">Personaje</label>
+      <select id="behaviorEntitySelect" style="width:100%"><option value="">Selecciona personaje</option></select>
+      <div class="behavior-actions">
+        <button id="loadBehaviorProfile" type="button">Cargar perfil</button>
+        <button id="saveBehaviorProfile" type="button" class="primary">Guardar perfil</button>
+      </div>
+      <label for="behaviorProfileInput">Perfil individual JSON</label>
+      <textarea id="behaviorProfileInput" spellcheck="false">{
+  "schema_version": 1,
+  "traits": {},
+  "needs": {},
+  "emotions": [],
+  "goals": [],
+  "focus": null,
+  "capabilities": [],
+  "resources": {},
+  "relationships": {}
+}</textarea>
+      <label for="behaviorContextInput">Contexto para la previsualización</label>
+      <textarea id="behaviorContextInput" rows="4" spellcheck="false">{
+  "available_minutes": 60,
+  "conditions": {}
+}</textarea>
+      <label for="behaviorFocusCandidatesInput">Focos posibles (lista JSON)</label>
+      <textarea id="behaviorFocusCandidatesInput" rows="4" spellcheck="false">[]</textarea>
+      <p class="muted">Cada candidato puede ser entity, group, place, object, task, threat, knowledge, event, resource o self, con target_id, tags y salience. Se ordenan sin cambiar el foco guardado.</p>
+      <div class="behavior-actions">
+        <button id="previewBehavior" type="button">Previsualizar decisiones</button>
+      </div>
+      <label for="behaviorCatalogInput">Catálogo adicional de este mundo (JSON)</label>
+      <p class="muted">Añade hasta 500 acciones y 500 patrones propios del mundo sin modificar la biblioteca genérica. Cada acción declara etiquetas, requisitos, coste, duración y afinidades; cada patrón modifica la puntuación cuando coinciden sus condiciones. Se combinan con la biblioteca predeterminada.</p>
+      <textarea id="behaviorCatalogInput" spellcheck="false">{
+  "schema_version": 1,
+  "actions": [],
+  "patterns": []
+}</textarea>
+      <div class="behavior-actions">
+        <button id="loadBehaviorCatalog" type="button">Cargar catálogo</button>
+        <button id="saveBehaviorCatalog" type="button">Guardar catálogo del mundo</button>
+      </div>
+      <div id="behaviorStatus" aria-live="polite">Selecciona un personaje para cargar o configurar su perfil.</div>
+      <pre id="behaviorPreview">La vista previa mostrará las acciones posibles, su puntuación y los motivos de cada decisión.</pre>
+    </details>
+    <hr>
     <h2>Eventos importantes pendientes</h2>
     <div id="pendingEvents"><p class="muted">No hay eventos pendientes.</p></div>
     <hr>
@@ -154,6 +473,7 @@ const el = id => document.getElementById(id);
 let currentWorld = "";
 let currentSession = "";
 let entityNames = {};
+let behaviorEntities = [];
 let lastState = null;
 let failedRequest = null;
 let latestCompletedTurnId = "";
@@ -222,6 +542,126 @@ function makeCard(text, className) {
   node.textContent = text;
   return node;
 }
+function behaviorSetStatus(message,isError) {
+  const node=el("behaviorStatus");
+  node.textContent=message;
+  node.classList.toggle("warn",!!isError);
+}
+function refreshBehaviorEntityOptions() {
+  const select=el("behaviorEntitySelect"), previous=select.value;
+  clearChildren(select);
+  addOption(select,"","Selecciona personaje");
+  behaviorEntities.forEach(entity=>{
+    addOption(select,entity.id,entity.name+" · "+entity.kind);
+  });
+  if(behaviorEntities.some(entity=>entity.id===previous))select.value=previous;
+}
+function behaviorSelectedEntity() {
+  const entityId=el("behaviorEntitySelect").value;
+  if(!currentSession)throw new Error("Selecciona una partida antes de configurar conductas.");
+  if(!entityId)throw new Error("Selecciona un personaje.");
+  const entity=behaviorEntities.find(item=>item.id===entityId);
+  if(!entity)throw new Error("El personaje no pertenece al mundo activo o está controlado por el usuario.");
+  return entity;
+}
+async function loadBehaviorProfile() {
+  const entity=behaviorSelectedEntity();
+  const saved=await api("/api/sessions/"+currentSession+"/entities/"+encodeURIComponent(entity.id)+"/behavior");
+  if(saved.configured && saved.profile) {
+    el("behaviorProfileInput").value=JSON.stringify(saved.profile,null,2);
+    behaviorSetStatus("Perfil cargado · "+entity.name+" · datos guardados en esta partida.",false);
+  } else {
+    el("behaviorProfileInput").value=JSON.stringify({
+      schema_version:1,traits:{},needs:{},emotions:[],goals:[],
+      focus:null,capabilities:[],resources:{},relationships:{}
+    },null,2);
+    behaviorSetStatus("Este personaje aún no tiene perfil. Los campos vacíos significan «no registrado», no personalidad neutral.",false);
+  }
+}
+async function saveBehaviorProfile() {
+  const entity=behaviorSelectedEntity();
+  let profile;
+  try{profile=JSON.parse(el("behaviorProfileInput").value);}
+  catch(err){throw new Error("El JSON del perfil no es válido: "+err.message);}
+  const saved=await api("/api/sessions/"+currentSession+"/entities/"+encodeURIComponent(entity.id)+"/behavior",{
+    method:"PUT",body:JSON.stringify({profile})
+  });
+  el("behaviorProfileInput").value=JSON.stringify(saved.profile,null,2);
+  behaviorSetStatus("Perfil guardado para "+entity.name+". Las relaciones proceden del registro dirigido de la partida.",false);
+}
+async function previewBehaviorProfile() {
+  const entity=behaviorSelectedEntity();
+  let context,focusCandidates;
+  try{context=JSON.parse(el("behaviorContextInput").value);}
+  catch(err){throw new Error("El JSON del contexto no es válido: "+err.message);}
+  try{focusCandidates=JSON.parse(el("behaviorFocusCandidatesInput").value);}
+  catch(err){throw new Error("La lista de focos no es JSON válido: "+err.message);}
+  if(!Array.isArray(focusCandidates))throw new Error("Los focos posibles deben ser una lista JSON.");
+  const result=await api("/api/sessions/"+currentSession+"/entities/"+encodeURIComponent(entity.id)+"/behavior/preview",{
+    method:"POST",body:JSON.stringify({context,focus_candidates:focusCandidates,limit:15})
+  });
+  el("behaviorPreview").textContent=JSON.stringify(result,null,2);
+  behaviorSetStatus(
+    "Previsualización de "+entity.name+" · "+result.actions.length+
+    " acciones candidatas · catálogo: "+result.catalog.default_action_count+
+    " acciones y "+result.catalog.default_pattern_count+
+    " patrones genéricos más "+result.catalog.custom_action_count+
+    " acciones y "+result.catalog.custom_pattern_count+" patrones del mundo. Sin efectos aplicados.",
+    false
+  );
+}
+async function loadBehaviorCatalog() {
+  if(!currentWorld)throw new Error("Selecciona un mundo.");
+  const catalog=await api("/api/worlds/"+currentWorld+"/behavior/catalog");
+  el("behaviorCatalogInput").value=JSON.stringify(catalog.custom_catalog || {
+    schema_version:1,actions:[],patterns:[]
+  },null,2);
+  behaviorSetStatus(
+    "Catálogo cargado · "+catalog.default_action_count+" acciones y "+
+    catalog.default_pattern_count+" patrones genéricos; "+
+    catalog.custom_action_count+" acciones y "+catalog.custom_pattern_count+
+    " patrones personalizados.",false
+  );
+}
+async function saveBehaviorCatalog() {
+  if(!currentWorld)throw new Error("Selecciona un mundo.");
+  let catalog;
+  try{catalog=JSON.parse(el("behaviorCatalogInput").value);}
+  catch(err){throw new Error("El JSON del catálogo no es válido: "+err.message);}
+  const saved=await api("/api/worlds/"+currentWorld+"/behavior/catalog",{
+    method:"PUT",body:JSON.stringify(catalog)
+  });
+  el("behaviorCatalogInput").value=JSON.stringify(saved.custom_catalog,null,2);
+  behaviorSetStatus(
+    "Catálogo del mundo guardado · "+saved.default_action_count+
+    " acciones y "+saved.default_pattern_count+" patrones genéricos, más "+
+    saved.custom_action_count+" acciones y "+saved.custom_pattern_count+
+    " patrones propios.",false
+  );
+}
+el("loadBehaviorProfile").onclick=async()=>{
+  try{await loadBehaviorProfile();}
+  catch(err){behaviorSetStatus(err.message,true);}
+};
+el("saveBehaviorProfile").onclick=async()=>{
+  try{await saveBehaviorProfile();}
+  catch(err){behaviorSetStatus(err.message,true);}
+};
+el("previewBehavior").onclick=async()=>{
+  try{await previewBehaviorProfile();}
+  catch(err){behaviorSetStatus(err.message,true);}
+};
+el("loadBehaviorCatalog").onclick=async()=>{
+  try{await loadBehaviorCatalog();}
+  catch(err){behaviorSetStatus(err.message,true);}
+};
+el("saveBehaviorCatalog").onclick=async()=>{
+  try{await saveBehaviorCatalog();}
+  catch(err){behaviorSetStatus(err.message,true);}
+};
+el("behaviorEntitySelect").onchange=()=>{
+  el("behaviorPreview").textContent="Pulsa «Cargar perfil» para leer el perfil de este personaje.";
+};
 async function refreshWorlds() {
   const worlds = await api("/api/worlds");
   clearChildren(el("worldSelect"));
@@ -234,11 +674,15 @@ async function refreshSessions() {
   clearChildren(el("sessionSelect")); addOption(el("sessionSelect"), "", "Selecciona partida");
   clearChildren(el("recipientSelect")); addOption(el("recipientSelect"), "", "Escena / grupo");
   entityNames = {};
+  behaviorEntities = [];
+  refreshBehaviorEntityOptions();
   if (!currentWorld) return;
   const sessions = await api("/api/worlds/" + currentWorld + "/sessions");
   sessions.forEach(s => addOption(el("sessionSelect"), s.id, s.name + " — Día " + s.day));
   const entities = await api("/api/worlds/" + currentWorld + "/entities");
+  behaviorEntities = entities.filter(entity => entity.kind !== "protagonist");
   entities.forEach(e => { entityNames[e.id] = e.name; });
+  refreshBehaviorEntityOptions();
   if (currentSession && sessions.some(s => s.id === currentSession)) el("sessionSelect").value = currentSession;
   if (el("sessionSelect").value) await loadSession(el("sessionSelect").value);
 }
@@ -442,9 +886,14 @@ async function loadSession(sessionId) {
   }
   await loadMessages();
   await loadState();
+  await loadExplorationData();
   await refreshBackups();
 }
-el("worldSelect").onchange = async () => { currentSession = ""; await refreshSessions(); };
+el("worldSelect").onchange = async () => {
+  currentSession = "";
+  await refreshSessions();
+  await loadExplorationData();
+};
 el("sessionSelect").onchange = async () => { if (el("sessionSelect").value) await loadSession(el("sessionSelect").value); };
 el("createWorldForm").onsubmit = async event => {
   event.preventDefault();
@@ -863,6 +1312,1186 @@ el("restoreBackup").onclick = async () => {
     setStatus("Partida restaurada. " + result.message, true);
   } catch (err) { setStatus(err.message, false); }
 };
+
+/* Shared geometric map and step-driven travel controls. */
+const EMPTY_MAP_CONFIG = {
+  schema_version:1,
+  cell_size_m:250,
+  max_route_nodes:100000,
+  areas:[],
+  terrain_zones:[],
+  obstacles:[],
+  roads:[],
+  points_of_interest:[],
+  walkable_bounds:null
+};
+const SVG_NS = "http://www.w3.org/2000/svg";
+let mapConfig = null;
+let sessionMapState = null;
+let travelState = null;
+let selectedMapPoint = null;
+let mapZoom = 1;
+let mapPan = {x:0,y:0};
+let mapPanDrag = null;
+let travelLoopRunning = false;
+let explorationLoadToken = 0;
+let mapDrawingMode = false;
+let mapDraftVertices = [];
+let mapDrawingViewBox = null;
+let mapConfigPersisted = false;
+let mapDrawingWasPersisted = false;
+let mapEditingTarget = null;
+let mapVertexDragIndex = null;
+let mapSuppressNextClick = false;
+let mapPoiPlacementMode = false;
+let mapPoiWasPersisted = false;
+
+function mapSvgNode(tag, attrs, text) {
+  const node = document.createElementNS(SVG_NS, tag);
+  Object.entries(attrs || {}).forEach(([key,value]) => node.setAttribute(key, String(value)));
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+function mapPoint(raw) {
+  if (Array.isArray(raw)) return {x:Number(raw[0]), y:Number(raw[1])};
+  return {x:Number(raw.x_m), y:Number(raw.y_m)};
+}
+function mapPointLabel(point) {
+  return "X " + point.x.toLocaleString("es-AR",{maximumFractionDigits:1}) +
+    " m · Y " + point.y.toLocaleString("es-AR",{maximumFractionDigits:1}) + " m";
+}
+function mapPolygonCentroid(vertices) {
+  if (!vertices || !vertices.length) return {x:0,y:0};
+  const total=vertices.reduce((sum,raw) => {
+    const p=mapPoint(raw); sum.x+=p.x; sum.y+=p.y; return sum;
+  },{x:0,y:0});
+  return {x:total.x/vertices.length,y:total.y/vertices.length};
+}
+function mapPointInPolygon(point, vertices) {
+  if (!vertices || vertices.length < 3) return false;
+  let inside=false;
+  for(let i=0,j=vertices.length-1;i<vertices.length;j=i++) {
+    const a=mapPoint(vertices[i]), b=mapPoint(vertices[j]);
+    const intersects=((a.y>point.y)!==(b.y>point.y)) &&
+      (point.x < (b.x-a.x)*(point.y-a.y)/(b.y-a.y)+a.x);
+    if(intersects) inside=!inside;
+  }
+  return inside;
+}
+function mapFeaturePoints(config) {
+  const values=[];
+  for(const group of ["areas","terrain_zones","obstacles","roads"]) {
+    (config && config[group] || []).forEach(item => (item.vertices || []).forEach(p => values.push(mapPoint(p))));
+  }
+  if(config && Array.isArray(config.walkable_bounds)) config.walkable_bounds.forEach(p=>values.push(mapPoint(p)));
+  const known=mapDiscoveredSet();
+  const cell=Number((config && config.cell_size_m) || 250);
+  (config && config.points_of_interest || []).forEach(item=>{
+    const point={x:Number(item.x_m),y:Number(item.y_m)};
+    if(Number.isFinite(point.x) && Number.isFinite(point.y) && mapCellKnown(point,cell,known))values.push(point);
+  });
+  if(mapDrawingMode)mapDraftVertices.forEach(point=>values.push(point));
+  return values;
+}
+function mapViewport() {
+  const cell=Number((mapConfig && mapConfig.cell_size_m) || 250);
+  if(mapDrawingMode && mapDrawingViewBox) {
+    return {
+      minX:mapDrawingViewBox[0],
+      maxY:-mapDrawingViewBox[1],
+      width:mapDrawingViewBox[2],
+      height:mapDrawingViewBox[3],
+      cell
+    };
+  }
+  const points=mapFeaturePoints(mapConfig || EMPTY_MAP_CONFIG);
+  if(sessionMapState && sessionMapState.position) points.push(mapPoint(sessionMapState.position));
+  if(travelState && Array.isArray(travelState.route)) travelState.route.forEach(p=>points.push(mapPoint(p)));
+  if(selectedMapPoint) points.push(selectedMapPoint);
+  if(!points.length) points.push({x:0,y:0});
+  let minX=Math.min(...points.map(p=>p.x)), maxX=Math.max(...points.map(p=>p.x));
+  let minY=Math.min(...points.map(p=>p.y)), maxY=Math.max(...points.map(p=>p.y));
+  const margin=Math.max(120,cell*1.5);
+  if(maxX-minX<cell*4){const mid=(minX+maxX)/2;minX=mid-cell*2;maxX=mid+cell*2;}
+  if(maxY-minY<cell*4){const mid=(minY+maxY)/2;minY=mid-cell*2;maxY=mid+cell*2;}
+  minX-=margin;maxX+=margin;minY-=margin;maxY+=margin;
+  const extentCenter={x:(minX+maxX)/2,y:(minY+maxY)/2};
+  const playerCenter=sessionMapState && sessionMapState.position ? mapPoint(sessionMapState.position) : extentCenter;
+  const baseCenter=mapZoom>1 ? playerCenter : extentCenter;
+  const center={x:baseCenter.x+mapPan.x,y:baseCenter.y+mapPan.y};
+  const baseWidth=maxX-minX, baseHeight=maxY-minY;
+  const width=baseWidth/mapZoom, height=baseHeight/mapZoom;
+  return {minX:center.x-width/2,maxY:center.y+height/2,width,height,cell};
+}
+function mapSetHint(message, isError) {
+  const node=el("mapHint");
+  if(node){node.textContent=message;node.classList.toggle("warn",!!isError);}
+}
+function mapSetTravelStatus(message, isError) {
+  const node=el("travelStatus");
+  if(node){node.textContent=message;node.classList.toggle("warn",!!isError);}
+}
+function mapDestinationInput() {
+  const x=Number(el("destinationX").value), y=Number(el("destinationY").value);
+  if(!el("destinationX").value.trim() || !el("destinationY").value.trim() ||
+     !Number.isFinite(x) || !Number.isFinite(y)) {
+    throw new Error("Selecciona un destino haciendo clic en el mapa o introduce X e Y.");
+  }
+  return {x,y};
+}
+function mapDiscoveredSet() {
+  return new Set((sessionMapState && sessionMapState.discovered_cells || []).map(cell=>cell[0]+","+cell[1]));
+}
+function mapCellKnown(point, cellSize, known) {
+  const x=Math.floor(point.x/cellSize), y=Math.floor(point.y/cellSize);
+  return known.has(x+","+y);
+}
+function mapDrawPolygon(layer, item, style, kind) {
+  const vertices=item.vertices || [];
+  if(vertices.length<3)return;
+  const points=vertices.map(raw=>{const p=mapPoint(raw);return p.x+","+(-p.y);}).join(" ");
+  const polygon=mapSvgNode("polygon",{
+    points,
+    fill:style.fill,
+    "fill-opacity":style.opacity || 0.72,
+    stroke:style.stroke,
+    "stroke-width":style.width || 2,
+    "stroke-linejoin":"round",
+    "vector-effect":"non-scaling-stroke"
+  });
+  polygon.appendChild(mapSvgNode("title",{},(item.name || kind)));
+  layer.appendChild(polygon);
+}
+function renderWorldMap() {
+  const svg=el("worldMapSvg"), layer=el("mapDrawingLayer");
+  if(!svg || !layer)return;
+  while(layer.firstChild)layer.removeChild(layer.firstChild);
+  const view=mapViewport(), minX=view.minX, maxY=view.maxY, width=view.width, height=view.height;
+  const minY=maxY-height, cell=view.cell;
+  svg.setAttribute("viewBox",[minX,-maxY,width,height].join(" "));
+  el("mapScaleLabel").textContent="Celda "+cell.toLocaleString("es-AR")+" m · norte arriba · +X este · rueda: zoom · arrastrar: mover";
+  layer.appendChild(mapSvgNode("rect",{x:minX,y:-maxY,width,height,fill:"#17212a"}));
+  const shown={
+    bounds:el("mapLayerBounds").checked,
+    terrain:el("mapLayerTerrain").checked,
+    areas:el("mapLayerAreas").checked,
+    obstacles:el("mapLayerObstacles").checked,
+    roads:el("mapLayerRoads").checked,
+    poi:el("mapLayerPoi").checked
+  };
+
+  const boundary=mapConfig && mapConfig.walkable_bounds;
+  if(shown.bounds && Array.isArray(boundary) && boundary.length>=3) {
+    mapDrawPolygon(layer,{vertices:boundary,name:"Límite transitable"},{
+      fill:"#263e40",opacity:0.55,stroke:"#7a9b91",width:2
+    },"Límite");
+  }
+  if(shown.terrain)(mapConfig && mapConfig.terrain_zones || []).forEach(item=>mapDrawPolygon(layer,item,{
+    fill:"#526b50",stroke:"#9bb487",opacity:0.7,width:1.5
+  },"Terreno"));
+  if(shown.areas)(mapConfig && mapConfig.areas || []).forEach(item=>mapDrawPolygon(layer,item,{
+    fill:"#396b78",stroke:"#8fc4cf",opacity:0.48,width:2
+  },"Zona"));
+  if(shown.obstacles)(mapConfig && mapConfig.obstacles || []).forEach(item=>mapDrawPolygon(layer,item,{
+    fill:"#777d89",stroke:"#c0c6d1",opacity:0.88,width:2
+  },"Obstáculo"));
+  // Roads are above obstacles so an explicit bridge remains visible across a river.
+  if(shown.roads)(mapConfig && mapConfig.roads || []).forEach(item=>mapDrawPolygon(layer,item,{
+    fill:"#c4a875",stroke:"#e4d2a6",opacity:0.94,width:2.5
+  },"Camino / puente"));
+
+  const known=mapDiscoveredSet();
+  // One fog rectangle with a mask scales with explored cells, not all possible
+  // cells in a large region. White keeps fog visible; black opens explored cells.
+  const defs=mapSvgNode("defs",{});
+  const fogMask=mapSvgNode("mask",{
+    id:"mapFogMask",
+    maskUnits:"userSpaceOnUse",
+    maskContentUnits:"userSpaceOnUse",
+    x:minX,y:-maxY,width,height
+  });
+  fogMask.appendChild(mapSvgNode("rect",{
+    x:minX,y:-maxY,width,height,fill:"#ffffff"
+  }));
+  for(const key of known) {
+    const parts=key.split(",").map(Number);
+    const ix=parts[0], iy=parts[1];
+    const x=ix*cell, y=-(iy+1)*cell;
+    if(x+cell<minX || x>minX+width || y+cell< -maxY || y> -minY)continue;
+    fogMask.appendChild(mapSvgNode("rect",{
+      x,y,width:cell,height:cell,fill:"#000000"
+    }));
+  }
+  defs.appendChild(fogMask);
+  layer.appendChild(defs);
+  layer.appendChild(mapSvgNode("rect",{
+    x:minX,y:-maxY,width,height,
+    fill:"#080d14","fill-opacity":0.9,
+    mask:"url(#mapFogMask)"
+  }));
+  // Subtle grid edges are useful on ordinary-sized explored patches. They are
+  // omitted for very large saves; the exploration mask itself remains complete.
+  if(known.size<=4000) {
+    for(const key of known) {
+      const parts=key.split(",").map(Number);
+      const ix=parts[0], iy=parts[1];
+      const x=ix*cell, y=-(iy+1)*cell;
+      if(x+cell<minX || x>minX+width || y+cell< -maxY || y> -minY)continue;
+      layer.appendChild(mapSvgNode("rect",{
+        x,y,width:cell,height:cell,fill:"none",
+        stroke:"#a5dfb0","stroke-opacity":0.3,"stroke-width":0.7,
+        "vector-effect":"non-scaling-stroke"
+      }));
+    }
+  }
+
+  // Feature names are revealed only after their center cell has been explored.
+  const labelGroups=[
+    ["areas","#e5f4f7",""],
+    ["terrain_zones","#c9e0b8",""],
+    ["obstacles","#e0e3eb",""],
+    ["roads","#f1d9a7",""]
+  ].filter(([group])=>shown[({areas:"areas",terrain_zones:"terrain",obstacles:"obstacles",roads:"roads"})[group]]);
+  labelGroups.forEach(([group,color])=>{
+    (mapConfig && mapConfig[group] || []).forEach(item=>{
+      const center=mapPolygonCentroid(item.vertices || []);
+      if(!mapCellKnown(center,cell,known))return;
+      layer.appendChild(mapSvgNode("text",{
+        x:center.x,y:-center.y-7,
+        fill:color,"font-size":13,"font-weight":600,
+        "text-anchor":"middle","paint-order":"stroke",
+        stroke:"#14212b","stroke-width":3
+      },item.name || "Zona conocida"));
+    });
+  });
+
+  // Independent markers are only rendered after their cell has been explored.
+  if(shown.poi)(mapConfig && mapConfig.points_of_interest || []).forEach(item=>{
+    const point={x:Number(item.x_m),y:Number(item.y_m)};
+    if(!Number.isFinite(point.x) || !Number.isFinite(point.y) || !mapCellKnown(point,cell,known))return;
+    const marker=mapSvgNode("g",{"class":"map-poi-marker"});
+    marker.appendChild(mapSvgNode("title",{},(item.name || "Punto de interés")+
+      (item.description ? " · "+item.description : "")));
+    marker.appendChild(mapSvgNode("circle",{
+      cx:point.x,cy:-point.y,r:14,fill:"#182331",
+      stroke:"#f0d28c","stroke-width":2,
+      "vector-effect":"non-scaling-stroke"
+    }));
+    marker.appendChild(mapSvgNode("text",{
+      x:point.x,y:-point.y+5,fill:"#fff4d3",
+      "font-size":15,"text-anchor":"middle",
+      "paint-order":"stroke",stroke:"#17202a","stroke-width":2
+    },item.icon || "◆"));
+    marker.appendChild(mapSvgNode("text",{
+      x:point.x+19,y:-point.y-11,fill:"#fff1cc",
+      "font-size":12,"font-weight":700,
+      "paint-order":"stroke",stroke:"#17202a","stroke-width":3
+    },item.name || "Punto de interés"));
+    layer.appendChild(marker);
+  });
+
+  if(mapDrawingMode && mapDraftVertices.length) {
+    const draftPoints=mapDraftVertices.map(point=>point.x+","+(-point.y)).join(" ");
+    if(mapDraftVertices.length>=3) {
+      layer.appendChild(mapSvgNode("polygon",{
+        points:draftPoints,fill:"#83b8ff","fill-opacity":0.16,
+        stroke:"#9dc7ff","stroke-width":2,"stroke-dasharray":"7 5",
+        "vector-effect":"non-scaling-stroke"
+      }));
+    }
+    layer.appendChild(mapSvgNode("polyline",{
+      points:draftPoints,fill:"none",stroke:"#9dc7ff","stroke-width":3,
+      "stroke-linecap":"round","stroke-linejoin":"round",
+      "stroke-dasharray":"7 5","vector-effect":"non-scaling-stroke"
+    }));
+    mapDraftVertices.forEach((point,index)=>{
+      layer.appendChild(mapSvgNode("circle",{
+        cx:point.x,cy:-point.y,r:6,fill:"#ffffff",
+        stroke:"#3978c7","stroke-width":2,
+        "vector-effect":"non-scaling-stroke",
+        "data-vertex-index":index,
+        cursor:mapEditingTarget ? "grab" : "default"
+      }));
+      layer.appendChild(mapSvgNode("text",{
+        x:point.x+10,y:-point.y-10,fill:"#ffffff",
+        "font-size":12,"font-weight":700,
+        "paint-order":"stroke",stroke:"#152235","stroke-width":3
+      },String(index+1)));
+    });
+  }
+
+  if(travelState && Array.isArray(travelState.route) && travelState.route.length>1) {
+    const line=travelState.route.map(raw=>{const p=mapPoint(raw);return p.x+","+(-p.y);}).join(" ");
+    layer.appendChild(mapSvgNode("polyline",{
+      points:line,fill:"none",stroke:"#f0c96b","stroke-width":4,
+      "stroke-linecap":"round","stroke-linejoin":"round",
+      "stroke-dasharray":"10 7","vector-effect":"non-scaling-stroke"
+    }));
+  }
+  if(selectedMapPoint) {
+    layer.appendChild(mapSvgNode("circle",{
+      cx:selectedMapPoint.x,cy:-selectedMapPoint.y,r:9,
+      fill:"#e3a5ff",stroke:"#291631","stroke-width":2,
+      "vector-effect":"non-scaling-stroke"
+    }));
+    layer.appendChild(mapSvgNode("text",{
+      x:selectedMapPoint.x+13,y:-selectedMapPoint.y-12,
+      fill:"#f3d9ff","font-size":13,"font-weight":600,
+      "paint-order":"stroke",stroke:"#1b1020","stroke-width":3
+    },"Destino"));
+  }
+  if(sessionMapState && sessionMapState.position) {
+    const p=mapPoint(sessionMapState.position);
+    layer.appendChild(mapSvgNode("circle",{
+      cx:p.x,cy:-p.y,r:11,fill:"#f1f4fa",stroke:"#355b9b","stroke-width":4,
+      "vector-effect":"non-scaling-stroke"
+    }));
+    layer.appendChild(mapSvgNode("circle",{
+      cx:p.x,cy:-p.y,r:3.5,fill:"#355b9b"
+    }));
+    layer.appendChild(mapSvgNode("text",{
+      x:p.x+15,y:-p.y+5,fill:"#ffffff","font-size":13,
+      "font-weight":700,"paint-order":"stroke",stroke:"#101720","stroke-width":3
+    },"Tú"));
+  }
+  if(!mapConfig)mapSetHint("No hay geometría registrada para esta región. Abre «Configurar geometría» e importa polígonos aprobados; no se han inventado lugares ni coordenadas.",false);
+  else if(!(mapConfig.areas||[]).length && !(mapConfig.terrain_zones||[]).length &&
+          !(mapConfig.obstacles||[]).length && !(mapConfig.roads||[]).length) {
+    mapSetHint("Región geométrica vacía: el plano está listo, pero aún no contiene terrenos, caminos, obstáculos ni lugares definidos.",false);
+  } else if(!sessionMapState || !sessionMapState.discovered_cells.length) {
+    mapSetHint("La niebla cubre las zonas sin explorar. El marcador indica tu posición; explora para revelar terreno y nombres de zonas.",false);
+  } else mapSetHint("Haz clic sobre el mapa para elegir destino. Las áreas y su nombre se revelan al explorar sus celdas.",false);
+}
+function updateTravelControls() {
+  const hasSession=!!currentSession, hasMap=!!mapConfig && mapConfigPersisted &&
+    !mapDrawingMode && !mapPoiPlacementMode;
+  const state=travelState || {status:"idle"};
+  const active=state.status==="running", paused=state.status==="paused";
+  el("planTravelButton").disabled=!hasSession || !hasMap;
+  el("startTravelButton").disabled=!active || travelLoopRunning;
+  el("stepTravelButton").disabled=!active || travelLoopRunning;
+  el("pauseTravelButton").disabled=!active;
+  el("resumeTravelButton").disabled=!paused;
+  el("cancelTravelButton").disabled=!(active||paused);
+  if(sessionMapState && sessionMapState.position) {
+    el("mapCurrentPosition").textContent=mapPointLabel(mapPoint(sessionMapState.position));
+  } else el("mapCurrentPosition").textContent=hasSession?"Origen inicial del plano: X 0 m · Y 0 m":"Sin partida seleccionada";
+  if(travelState && travelState.clock) {
+    const minutes=Number(travelState.clock.minute_of_day)||0;
+    const hh=String(Math.floor(minutes/60)).padStart(2,"0");
+    const mm=String(minutes%60).padStart(2,"0");
+    el("mapWorldClock").textContent="Día "+travelState.clock.day+" · "+hh+":"+mm;
+  } else if(lastState && lastState.state)el("mapWorldClock").textContent=lastState.state.time_label;
+  else el("mapWorldClock").textContent="—";
+  if(selectedMapPoint)el("mapSelectedDestination").textContent=mapPointLabel(selectedMapPoint);
+  else if(state.destination)el("mapSelectedDestination").textContent=mapPointLabel({
+    x:state.destination.x_m,y:state.destination.y_m
+  });
+  else el("mapSelectedDestination").textContent="Haz clic en el mapa";
+  const labels={
+    idle:"No hay ningún recorrido preparado.",
+    running:"Recorrido preparado · "+Math.max(0,(state.route||[]).length-(state.next_waypoint_index||1))+" tramos pendientes.",
+    paused:"Recorrido pausado · puedes reanudar, cambiar el destino o cancelar.",
+    completed:"Destino alcanzado.",
+    cancelled:"Recorrido cancelado · la posición guardada se conserva."
+  };
+  if(!travelLoopRunning || state.status!=="running")mapSetTravelStatus(labels[state.status]||labels.idle,false);
+}
+function renderExploration() {
+  renderWorldMap();
+  updateTravelControls();
+}
+async function loadExplorationData() {
+  const loadToken=++explorationLoadToken;
+  const requestedSession=currentSession;
+  const requestedWorld=currentWorld;
+  const requestedRegion=el("mapRegionId").value.trim();
+  if(!currentSession) {
+    mapConfig=null;mapConfigPersisted=false;sessionMapState=null;travelState=null;selectedMapPoint=null;
+    renderExploration();
+    mapSetHint("Selecciona una partida para ver su mapa.",false);
+    return;
+  }
+  const regionId=requestedRegion;
+  if(!regionId) {
+    mapConfig=null;mapConfigPersisted=false;sessionMapState=null;travelState=null;
+    renderExploration();
+    mapSetHint("Escribe el identificador de la región.",true);
+    return;
+  }
+  try {
+    const [region,state,travel]=await Promise.all([
+      api("/api/worlds/"+requestedWorld+"/map/regions/"+encodeURIComponent(regionId)),
+      api("/api/sessions/"+requestedSession+"/map/regions/"+encodeURIComponent(regionId)+"/state"),
+      api("/api/sessions/"+requestedSession+"/travel")
+    ]);
+    if((travel.status==="running" || travel.status==="paused") && travel.region_id!==regionId &&
+       loadToken===explorationLoadToken && requestedSession===currentSession &&
+       requestedWorld===currentWorld) {
+      // Keep the live route on its own region; never draw its waypoints on another map.
+      el("mapRegionId").value=travel.region_id;
+      await loadExplorationData();
+      return;
+    }
+    if(loadToken!==explorationLoadToken || requestedSession!==currentSession ||
+       requestedWorld!==currentWorld || regionId!==el("mapRegionId").value.trim())return;
+    mapConfig=region.config;
+    if(!Array.isArray(mapConfig.points_of_interest))mapConfig.points_of_interest=[];
+    mapConfigPersisted=true;
+    sessionMapState=state;
+    travelState=travel.status==="idle"?null:travel;
+    if(!selectedMapPoint && travelState && travelState.destination) {
+      selectedMapPoint={x:travelState.destination.x_m,y:travelState.destination.y_m};
+      el("destinationX").value=selectedMapPoint.x;
+      el("destinationY").value=selectedMapPoint.y;
+      el("destinationLabel").value=travelState.destination.label || "";
+    }
+    renderExploration();
+    el("mapConfigInput").value=JSON.stringify(mapConfig,null,2);
+    refreshMapEditFeatureOptions();
+  } catch(err) {
+    if(loadToken!==explorationLoadToken || requestedSession!==currentSession ||
+       requestedWorld!==currentWorld || regionId!==el("mapRegionId").value.trim())return;
+    mapConfig=null;mapConfigPersisted=false;sessionMapState=null;travelState=null;
+    refreshMapEditFeatureOptions();
+    renderExploration();
+    if(err.status===404)mapSetHint("Esta región aún no tiene geometría registrada. Importa una definición geográfica aprobada en «Configurar geometría».",false);
+    else mapSetHint("No se pudo cargar el mapa: "+err.message,true);
+  }
+}
+function selectMapDestination(point) {
+  selectedMapPoint=point;
+  el("destinationX").value=String(Math.round(point.x*10)/10);
+  el("destinationY").value=String(Math.round(point.y*10)/10);
+  const cell=Number((mapConfig && mapConfig.cell_size_m) || 250);
+  const known=mapDiscoveredSet();
+  const knownArea=(mapConfig && mapConfig.areas || []).find(area=>
+    mapPointInPolygon(point,area.vertices || []) &&
+    mapCellKnown(mapPolygonCentroid(area.vertices || []),cell,known)
+  );
+  // Never auto-fill a name from a polygon hidden by the fog of war.
+  el("destinationLabel").value=knownArea ? (knownArea.name || "") : "";
+  el("mapSelectedDestination").textContent=mapPointLabel(point);
+  renderWorldMap();
+}
+function mapScreenToWorldPoint(event) {
+  const svg=el("worldMapSvg");
+  const rect=svg.getBoundingClientRect();
+  const view=svg.getAttribute("viewBox").trim().split(" ").map(Number);
+  if(rect.width<=0 || rect.height<=0 || view.length!==4 || view.some(value=>!Number.isFinite(value)))return null;
+  // Match SVG xMidYMid meet letterboxing; never stretch local metre coordinates.
+  const scale=Math.min(rect.width/view[2],rect.height/view[3]);
+  const drawnWidth=view[2]*scale, drawnHeight=view[3]*scale;
+  const offsetX=(rect.width-drawnWidth)/2, offsetY=(rect.height-drawnHeight)/2;
+  const localX=(event.clientX-rect.left-offsetX)/scale;
+  const localY=(event.clientY-rect.top-offsetY)/scale;
+  if(localX<0 || localX>view[2] || localY<0 || localY>view[3])return null;
+  return {x:view[0]+localX,y:-(view[1]+localY)};
+}
+function setMapDrawStatus(message,isError) {
+  const node=el("mapDrawStatus");
+  node.textContent=message;
+  node.classList.toggle("warn",!!isError);
+}
+function refreshMapEditFeatureOptions() {
+  const select=el("mapEditFeature"), previous=select.value;
+  select.innerHTML="";
+  const placeholder=document.createElement("option");
+  placeholder.value="";
+  placeholder.textContent="Selecciona una figura";
+  select.appendChild(placeholder);
+  if(mapConfig && Array.isArray(mapConfig.walkable_bounds) && mapConfig.walkable_bounds.length>=3) {
+    const option=document.createElement("option");
+    option.value=JSON.stringify(["walkable_bounds",""]);
+    option.textContent="Límite transitable";
+    select.appendChild(option);
+  }
+  const groups=[
+    ["areas","Zona"],
+    ["terrain_zones","Terreno"],
+    ["obstacles","Obstáculo"],
+    ["roads","Camino / puente"]
+  ];
+  const idKeys={areas:"area_id",terrain_zones:"terrain_id",obstacles:"obstacle_id",roads:"road_id"};
+  groups.forEach(([group,label])=>{
+    (mapConfig && mapConfig[group] || []).forEach(item=>{
+      const option=document.createElement("option");
+      option.value=JSON.stringify([group,item[idKeys[group]]]);
+      option.textContent=label+" · "+(item.name || item[idKeys[group]]);
+      select.appendChild(option);
+    });
+  });
+  if([...select.options].some(option=>option.value===previous))select.value=previous;
+}
+function updateMapDrawControls() {
+  const kind=el("mapDrawKind").value;
+  const bounds=kind==="walkable_bounds";
+  const speed=kind==="terrain_zones" || kind==="roads";
+  const obstacle=kind==="obstacles";
+  const busy=mapDrawingMode || mapPoiPlacementMode;
+  el("mapDrawIdField").hidden=bounds;
+  el("mapDrawNameField").hidden=bounds;
+  el("mapDrawSpeedField").hidden=!speed;
+  el("mapDrawObstacleKindField").hidden=!obstacle;
+  el("mapDrawKind").disabled=busy;
+  ["mapDrawId","mapDrawName","mapDrawSpeed","mapDrawObstacleKind"].forEach(id=>{
+    el(id).disabled=busy || (bounds && (id==="mapDrawId" || id==="mapDrawName")) ||
+      (!speed && id==="mapDrawSpeed") || (!obstacle && id==="mapDrawObstacleKind");
+  });
+  el("mapDrawStart").disabled=busy;
+  el("mapDrawUndo").disabled=!mapDrawingMode || !!mapEditingTarget || mapDraftVertices.length===0;
+  el("mapDrawFinish").disabled=!mapDrawingMode || mapDraftVertices.length<3;
+  el("mapDrawCancel").disabled=!mapDrawingMode;
+  el("mapEditFeature").disabled=busy;
+  el("mapEditLoad").disabled=busy || !el("mapEditFeature").value;
+  el("mapEditCancel").disabled=!mapEditingTarget;
+  ["mapPoiId","mapPoiName","mapPoiIcon","mapPoiCategory","mapPoiDescription"].forEach(id=>{
+    el(id).disabled=mapPoiPlacementMode;
+  });
+  el("mapPoiPlace").disabled=busy;
+  el("mapPoiCancel").disabled=!mapPoiPlacementMode;
+  el("worldMapSvg").classList.toggle("map-drawing",busy);
+  el("mapConfigInput").disabled=busy;
+}
+function beginMapFeatureEdit() {
+  if(!currentWorld || !currentSession)throw new Error("Selecciona una partida antes de editar.");
+  if(mapDrawingMode || mapPoiPlacementMode)throw new Error("Termina o cancela la operación actual primero.");
+  const selected=el("mapEditFeature").value;
+  if(!selected)throw new Error("Selecciona una figura existente.");
+  let draftConfig;
+  try{draftConfig=JSON.parse(el("mapConfigInput").value);}
+  catch(err){throw new Error("El JSON de geometría no es válido: "+err.message);}
+  if(!draftConfig || typeof draftConfig!=="object" || Array.isArray(draftConfig)) {
+    throw new Error("La geometría actual no es un objeto JSON válido.");
+  }
+  mapDrawingWasPersisted=!!mapConfigPersisted && JSON.stringify(draftConfig)===JSON.stringify(mapConfig);
+  mapConfig=draftConfig;
+  mapConfigPersisted=false;
+  const [kind,id]=JSON.parse(selected);
+  let rawVertices;
+  if(kind==="walkable_bounds")rawVertices=mapConfig.walkable_bounds;
+  else {
+    const idKeys={areas:"area_id",terrain_zones:"terrain_id",obstacles:"obstacle_id",roads:"road_id"};
+    const entry=(mapConfig[kind] || []).find(item=>item[idKeys[kind]]===id);
+    if(!entry)throw new Error("La figura seleccionada ya no existe en el borrador.");
+    rawVertices=entry.vertices;
+  }
+  if(!Array.isArray(rawVertices) || rawVertices.length<3)throw new Error("La figura no tiene tres vértices editables.");
+  const view=el("worldMapSvg").getAttribute("viewBox").trim().split(" ").map(Number);
+  mapDrawingViewBox=view.length===4 && view.every(Number.isFinite)?view:null;
+  mapDraftVertices=rawVertices.map(mapPoint);
+  mapEditingTarget={kind,id};
+  mapDrawingMode=true;
+  updateMapDrawControls();
+  renderWorldMap();
+  updateTravelControls();
+  el("mapEditStatus").textContent="Edición activa · arrastra los puntos numerados para ajustar la forma. Confirma con «Cerrar y añadir polígono».";
+}
+function startMapDrawing() {
+  if(!currentWorld || !currentSession)throw new Error("Selecciona un mundo y una partida antes de dibujar.");
+  if(mapDrawingMode || mapPoiPlacementMode)return;
+  let draftConfig;
+  try { draftConfig=JSON.parse(el("mapConfigInput").value); }
+  catch(err) {
+    if(!mapConfig)throw new Error("El JSON de geometría no es válido: "+err.message);
+    draftConfig=mapConfig;
+  }
+  if(!draftConfig || typeof draftConfig!=="object" || Array.isArray(draftConfig)) {
+    throw new Error("La geometría actual no es un objeto JSON válido.");
+  }
+  mapDrawingWasPersisted=!!mapConfigPersisted && JSON.stringify(draftConfig)===JSON.stringify(mapConfig);
+  mapConfig=draftConfig;
+  mapConfigPersisted=false;
+  for(const group of ["areas","terrain_zones","obstacles","roads"]) {
+    if(!Array.isArray(mapConfig[group]))mapConfig[group]=[];
+  }
+  if(!Array.isArray(mapConfig.points_of_interest))mapConfig.points_of_interest=[];
+  if(!("walkable_bounds" in mapConfig))mapConfig.walkable_bounds=null;
+  const view=el("worldMapSvg").getAttribute("viewBox").trim().split(" ").map(Number);
+  mapDrawingViewBox=view.length===4 && view.every(Number.isFinite)?view:null;
+  mapDraftVertices=[];
+  mapEditingTarget=null;
+  mapDrawingMode=true;
+  refreshMapEditFeatureOptions();
+  updateMapDrawControls();
+  renderWorldMap();
+  updateTravelControls();
+  setMapDrawStatus("Dibujo activo · haz clic en el mapa para añadir vértices. Se necesitan al menos tres.",false);
+}
+function cancelMapDrawing(message) {
+  mapDrawingMode=false;
+  mapDraftVertices=[];
+  mapDrawingViewBox=null;
+  mapEditingTarget=null;
+  mapVertexDragIndex=null;
+  mapConfigPersisted=mapDrawingWasPersisted;
+  updateMapDrawControls();
+  renderWorldMap();
+  updateTravelControls();
+  setMapDrawStatus(message || "Dibujo cancelado; no se modificó la geometría.",false);
+}
+function mapCross(a,b,c) {
+  return (b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x);
+}
+function mapPointOnSegment(p,a,b) {
+  const epsilon=1e-8;
+  return Math.abs(mapCross(a,b,p))<=epsilon &&
+    p.x>=Math.min(a.x,b.x)-epsilon && p.x<=Math.max(a.x,b.x)+epsilon &&
+    p.y>=Math.min(a.y,b.y)-epsilon && p.y<=Math.max(a.y,b.y)+epsilon;
+}
+function mapSegmentsIntersect(a,b,c,d) {
+  const abC=mapCross(a,b,c), abD=mapCross(a,b,d);
+  const cdA=mapCross(c,d,a), cdB=mapCross(c,d,b);
+  if(((abC>0 && abD<0)||(abC<0 && abD>0)) &&
+     ((cdA>0 && cdB<0)||(cdA<0 && cdB>0)))return true;
+  return (Math.abs(abC)<=1e-8 && mapPointOnSegment(c,a,b)) ||
+    (Math.abs(abD)<=1e-8 && mapPointOnSegment(d,a,b)) ||
+    (Math.abs(cdA)<=1e-8 && mapPointOnSegment(a,c,d)) ||
+    (Math.abs(cdB)<=1e-8 && mapPointOnSegment(b,c,d));
+}
+function validateMapDraftPolygon(vertices) {
+  let points=vertices.slice();
+  if(points.length>3) {
+    const first=points[0], last=points[points.length-1];
+    if(Math.hypot(first.x-last.x,first.y-last.y)<0.01)points=points.slice(0,-1);
+  }
+  const unique=[];
+  for(const point of points) {
+    if(!unique.some(other=>Math.hypot(point.x-other.x,point.y-other.y)<0.01))unique.push(point);
+  }
+  if(unique.length<3)return {error:"El polígono necesita al menos tres vértices distintos.",points};
+  let twiceArea=0;
+  for(let i=0;i<points.length;i++) {
+    const a=points[i],b=points[(i+1)%points.length];
+    if(Math.hypot(a.x-b.x,a.y-b.y)<0.01)return {error:"Hay dos vértices consecutivos repetidos.",points};
+    twiceArea+=a.x*b.y-b.x*a.y;
+  }
+  if(Math.abs(twiceArea)<0.02)return {error:"El polígono tiene un área nula o demasiado pequeña.",points};
+  for(let i=0;i<points.length;i++) {
+    const a=points[i],b=points[(i+1)%points.length];
+    for(let j=i+1;j<points.length;j++) {
+      if(j===i || j===(i+1)%points.length || (j+1)%points.length===i)continue;
+      const c=points[j],d=points[(j+1)%points.length];
+      if(mapSegmentsIntersect(a,b,c,d))return {error:"El polígono se cruza consigo mismo; revisa el orden de los vértices.",points};
+    }
+  }
+  return {error:"",points};
+}
+function finishMapDrawing() {
+  if(!mapDrawingMode)return;
+  const validated=validateMapDraftPolygon(mapDraftVertices);
+  if(validated.error) {
+    setMapDrawStatus(validated.error,true);
+    return;
+  }
+  const kind=mapEditingTarget ? mapEditingTarget.kind : el("mapDrawKind").value;
+  const vertices=validated.points.map(point=>[point.x,point.y]);
+  if(mapEditingTarget) {
+    if(kind==="walkable_bounds") {
+      mapConfig.walkable_bounds=vertices;
+    } else {
+      const idKeys={areas:"area_id",terrain_zones:"terrain_id",obstacles:"obstacle_id",roads:"road_id"};
+      const idKey=idKeys[kind];
+      const entry=(mapConfig[kind] || []).find(item=>item[idKey]===mapEditingTarget.id);
+      if(!entry) {
+        setMapDrawStatus("La figura seleccionada ya no existe en el borrador.",true);
+        return;
+      }
+      entry.vertices=vertices;
+    }
+  } else if(kind==="walkable_bounds") {
+    mapConfig.walkable_bounds=vertices;
+  } else {
+    const id=el("mapDrawId").value.trim();
+    const name=el("mapDrawName").value.trim();
+    const idKeys={
+      areas:"area_id",terrain_zones:"terrain_id",obstacles:"obstacle_id",roads:"road_id"
+    };
+    const idKey=idKeys[kind];
+    if(!id || !/^[a-zA-Z0-9._-]{1,120}$/.test(id)) {
+      setMapDrawStatus("Introduce un identificador único (letras, números, punto, guion o guion bajo).",true);
+      return;
+    }
+    if(!name) {
+      setMapDrawStatus("Introduce el nombre aprobado de la zona.",true);
+      return;
+    }
+    if((mapConfig[kind] || []).some(item=>item[idKey]===id)) {
+      setMapDrawStatus("Ese identificador ya existe en esta categoría.",true);
+      return;
+    }
+    const item={[idKey]:id,name,vertices};
+    if(kind==="terrain_zones") {
+      const speed=Number(el("mapDrawSpeed").value);
+      if(!Number.isFinite(speed) || speed<=0 || speed>20) {
+        setMapDrawStatus("El multiplicador de terreno debe ser mayor que 0 y no superar 20.",true);
+        return;
+      }
+      item.speed_multiplier=speed;
+    } else if(kind==="roads") {
+      const speed=Number(el("mapDrawSpeed").value);
+      if(!Number.isFinite(speed) || speed<=1 || speed>20) {
+        setMapDrawStatus("El multiplicador de camino debe ser mayor que 1 y no superar 20.",true);
+        return;
+      }
+      item.speed_multiplier=speed;
+    } else if(kind==="obstacles") {
+      item.kind=el("mapDrawObstacleKind").value;
+    }
+    mapConfig[kind].push(item);
+  }
+  el("mapConfigInput").value=JSON.stringify(mapConfig,null,2);
+  mapConfigPersisted=false;
+  const count=validated.points.length;
+  const wasEditing=!!mapEditingTarget;
+  mapDrawingMode=false;
+  mapDraftVertices=[];
+  mapDrawingViewBox=null;
+  mapEditingTarget=null;
+  mapVertexDragIndex=null;
+  refreshMapEditFeatureOptions();
+  updateMapDrawControls();
+  renderWorldMap();
+  updateTravelControls();
+  if(wasEditing)el("mapEditStatus").textContent="Vértices actualizados en el borrador JSON. Guarda la geometría para persistir los cambios.";
+  else setMapDrawStatus(
+    kind==="walkable_bounds"
+      ? "Límite transitable añadido al borrador JSON. Guarda la geometría para persistirlo."
+      : "Polígono añadido ("+count+" vértices) al borrador JSON. Guarda la geometría para persistirlo.",
+    false
+  );
+}
+el("mapDrawKind").onchange=()=>{
+  if(el("mapDrawKind").value==="roads")el("mapDrawSpeed").value="1.5";
+  else if(el("mapDrawKind").value==="terrain_zones")el("mapDrawSpeed").value="1";
+  updateMapDrawControls();
+};
+el("mapDrawStart").onclick=()=>{
+  try{startMapDrawing();}
+  catch(err){setMapDrawStatus(err.message,true);}
+};
+el("mapDrawUndo").onclick=()=>{
+  if(!mapDrawingMode || !mapDraftVertices.length)return;
+  mapDraftVertices.pop();
+  renderWorldMap();
+  updateMapDrawControls();
+  setMapDrawStatus(mapDraftVertices.length+" vértices en el borrador.",false);
+};
+el("mapDrawFinish").onclick=finishMapDrawing;
+el("mapDrawCancel").onclick=()=>cancelMapDrawing();
+el("mapEditLoad").onclick=()=>{
+  try{beginMapFeatureEdit();}
+  catch(err){el("mapEditStatus").textContent=err.message;}
+};
+el("mapEditCancel").onclick=()=>cancelMapDrawing("Edición descartada; se conserva la geometría anterior.");
+el("mapEditFeature").onchange=()=>updateMapDrawControls();
+updateMapDrawControls();
+
+function setMapPoiStatus(message,isError) {
+  const node=el("mapPoiStatus");
+  node.textContent=message;
+  node.classList.toggle("warn",!!isError);
+}
+function startMapPoiPlacement() {
+  if(!currentWorld || !currentSession)throw new Error("Selecciona un mundo y una partida antes de colocar puntos.");
+  if(mapDrawingMode || mapPoiPlacementMode)throw new Error("Termina o cancela la operación actual primero.");
+  let draftConfig;
+  try{draftConfig=JSON.parse(el("mapConfigInput").value);}
+  catch(err){throw new Error("El JSON de geometría no es válido: "+err.message);}
+  if(!draftConfig || typeof draftConfig!=="object" || Array.isArray(draftConfig)) {
+    throw new Error("La geometría actual no es un objeto JSON válido.");
+  }
+  mapPoiWasPersisted=!!mapConfigPersisted && JSON.stringify(draftConfig)===JSON.stringify(mapConfig);
+  mapConfig=draftConfig;
+  if(!Array.isArray(mapConfig.points_of_interest))mapConfig.points_of_interest=[];
+  mapConfigPersisted=false;
+  mapPoiPlacementMode=true;
+  updateMapDrawControls();
+  renderWorldMap();
+  updateTravelControls();
+  setMapPoiStatus("Colocación activa · haz un clic sobre el mapa para fijar el punto.",false);
+}
+function cancelMapPoiPlacement(message) {
+  mapPoiPlacementMode=false;
+  mapConfigPersisted=mapPoiWasPersisted;
+  updateMapDrawControls();
+  renderWorldMap();
+  updateTravelControls();
+  setMapPoiStatus(message || "Colocación cancelada; no se añadió ningún punto.",false);
+}
+function addMapPointOfInterestAt(point) {
+  const pointId=el("mapPoiId").value.trim();
+  const name=el("mapPoiName").value.trim();
+  const icon=el("mapPoiIcon").value;
+  const category=el("mapPoiCategory").value;
+  const description=el("mapPoiDescription").value.trim();
+  if(!pointId || !/^[a-zA-Z0-9._-]{1,120}$/.test(pointId)) {
+    setMapPoiStatus("Introduce un identificador único (letras, números, punto, guion o guion bajo).",true);
+    return;
+  }
+  if(!name || name.length>180) {
+    setMapPoiStatus("Introduce un nombre aprobado de hasta 180 caracteres.",true);
+    return;
+  }
+  if((mapConfig.points_of_interest || []).some(item=>item.point_id===pointId)) {
+    setMapPoiStatus("Ese identificador de punto ya existe en esta región.",true);
+    return;
+  }
+  if(description.length>500 || !icon || icon.length>8 || !category) {
+    setMapPoiStatus("Revisa el icono, categoría y descripción (máximo 500 caracteres).",true);
+    return;
+  }
+  mapConfig.points_of_interest.push({
+    point_id:pointId,name,x_m:point.x,y_m:point.y,icon,category,description
+  });
+  el("mapConfigInput").value=JSON.stringify(mapConfig,null,2);
+  mapConfigPersisted=false;
+  mapPoiPlacementMode=false;
+  refreshMapEditFeatureOptions();
+  updateMapDrawControls();
+  renderWorldMap();
+  updateTravelControls();
+  setMapPoiStatus("Punto añadido al borrador en "+mapPointLabel(point)+". Guarda la geometría para persistirlo.",false);
+}
+el("mapPoiPlace").onclick=()=>{
+  try{startMapPoiPlacement();}
+  catch(err){setMapPoiStatus(err.message,true);}
+};
+el("mapPoiCancel").onclick=()=>cancelMapPoiPlacement();
+
+function mapCreateRequestId() {
+  if(window.crypto && typeof window.crypto.randomUUID==="function")return window.crypto.randomUUID();
+  return "travel-"+Date.now()+"-"+Math.random().toString(36).slice(2,12);
+}
+function getPendingTravelRequestId(sessionId) {
+  const key="wordbot:pending-travel-step:"+sessionId;
+  try {
+    let id=sessionStorage.getItem(key) || "";
+    if(!id){id=mapCreateRequestId();sessionStorage.setItem(key,id);}
+    return id;
+  } catch (_) {
+    return mapCreateRequestId();
+  }
+}
+function clearPendingTravelRequestId(sessionId) {
+  try{sessionStorage.removeItem("wordbot:pending-travel-step:"+sessionId);}catch(_){}
+}
+async function saveMapGeometry() {
+  if(!currentWorld || !currentSession)throw new Error("Selecciona un mundo y una partida.");
+  const regionId=el("mapRegionId").value.trim();
+  if(!regionId)throw new Error("Escribe un identificador de región.");
+  let config;
+  try{config=JSON.parse(el("mapConfigInput").value);}
+  catch(err){throw new Error("El JSON de geometría no es válido: "+err.message);}
+  const saved=await api("/api/worlds/"+currentWorld+"/map/regions/"+encodeURIComponent(regionId),{
+    method:"PUT",body:JSON.stringify({config})
+  });
+  mapConfig=saved.map;
+  mapConfigPersisted=true;
+  await loadExplorationData();
+  refreshMapEditFeatureOptions();
+  mapSetHint("Geometría guardada. El planificador y el mapa utilizan esta misma definición.",false);
+}
+async function planSelectedTravel() {
+  if(!currentSession || !mapConfig || !mapConfigPersisted) {
+    throw new Error("Guarda primero la geometría de la región antes de planificar un viaje.");
+  }
+  const destination=mapDestinationInput();
+  const planned=await api("/api/sessions/"+currentSession+"/travel/plan",{
+    method:"POST",
+    body:JSON.stringify({
+      region_id:el("mapRegionId").value.trim(),
+      destination_x_m:destination.x,
+      destination_y_m:destination.y,
+      destination_label:el("destinationLabel").value.trim()
+    })
+  });
+  travelState=planned;
+  selectedMapPoint=destination;
+  await loadExplorationData();
+  const km=(Number(planned.planned_distance_m)/1000).toLocaleString("es-AR",{maximumFractionDigits:2});
+  mapSetTravelStatus("Ruta calculada · "+km+" km · "+planned.route.length+" puntos. Pulsa «Viajar» para ejecutar los tramos.",false);
+}
+async function refreshTravelStatus() {
+  if(!currentSession)return;
+  const state=await api("/api/sessions/"+currentSession+"/travel");
+  travelState=state.status==="idle"?null:state;
+  await loadExplorationData();
+}
+async function advanceOneTravelLeg(sessionId) {
+  const targetSession=sessionId || currentSession;
+  if(!targetSession)throw new Error("Selecciona una partida.");
+  const requestId=getPendingTravelRequestId(targetSession);
+  try {
+    const result=await api("/api/sessions/"+targetSession+"/travel/step",{
+      method:"POST",body:JSON.stringify({request_id:requestId})
+    });
+    clearPendingTravelRequestId(targetSession);
+    if(targetSession===currentSession) {
+      travelState=result.travel;
+      await loadExplorationData();
+    }
+    const discovered=result.segment.newly_discovered_cells.length;
+    if(targetSession===currentSession)mapSetTravelStatus(
+      "Tramo completado · "+Math.round(result.segment.distance_m)+" m · "+
+      result.segment.travel_seconds+" s · "+discovered+" celdas nuevas.",
+      false
+    );
+    return result;
+  } catch(err) {
+    if(targetSession===currentSession)await loadExplorationData();
+    throw err;
+  }
+}
+async function runTravelToEnd() {
+  if(travelLoopRunning)return;
+  if(!travelState || travelState.status!=="running")throw new Error("Primero planifica una ruta o reanuda el recorrido.");
+  const sessionId=currentSession;
+  travelLoopRunning=true;
+  updateTravelControls();
+  try {
+    while(currentSession===sessionId) {
+      const current=await api("/api/sessions/"+sessionId+"/travel");
+      if(current.status!=="running") {
+        if(currentSession===sessionId)travelState=current.status==="idle"?null:current;
+        break;
+      }
+      await advanceOneTravelLeg(sessionId);
+      await new Promise(resolve=>setTimeout(resolve,110));
+    }
+    if(currentSession===sessionId)await loadExplorationData();
+  } finally {
+    travelLoopRunning=false;
+    updateTravelControls();
+  }
+}
+async function changeTravelStatus(action) {
+  if(!currentSession)throw new Error("Selecciona una partida.");
+  const sessionId=currentSession;
+  const result=await api("/api/sessions/"+sessionId+"/travel/"+action,{method:"POST",body:"{}"});
+  if(currentSession!==sessionId)return;
+  travelState=result;
+  await loadExplorationData();
+  if(action==="resume") {
+    mapSetTravelStatus("Recorrido reanudado.",false);
+    await runTravelToEnd();
+  } else if(action==="pause")mapSetTravelStatus("Recorrido pausado en el último waypoint confirmado.",false);
+  else mapSetTravelStatus("Recorrido cancelado. Se conserva la última posición confirmada.",false);
+}
+
+el("loadMapButton").onclick=async()=>{
+  try{await loadExplorationData();setStatus("Mapa de región actualizado.",true);}
+  catch(err){setStatus(err.message,false);}
+};
+el("mapRegionId").onchange=async()=>{
+  if(mapDrawingMode)cancelMapDrawing("Cambio de región: el dibujo no guardado fue descartado.");
+  if(mapPoiPlacementMode)cancelMapPoiPlacement("Cambio de región: la colocación pendiente fue descartada.");
+  mapPan={x:0,y:0};mapZoom=1;
+  selectedMapPoint=null;
+  mapConfig=null;
+  mapConfigPersisted=false;
+  renderExploration();
+  await loadExplorationData();
+};
+el("saveMapConfigButton").onclick=async()=>{
+  try{await saveMapGeometry();setStatus("Geometría de región guardada.",true);}
+  catch(err){setStatus(err.message,false);}
+};
+el("copyMapConfigTemplate").onclick=()=>{
+  el("mapConfigInput").value=JSON.stringify(EMPTY_MAP_CONFIG,null,2);
+  mapConfig=JSON.parse(JSON.stringify(EMPTY_MAP_CONFIG));
+  mapConfigPersisted=false;
+  refreshMapEditFeatureOptions();
+  renderWorldMap();
+  updateTravelControls();
+};
+el("mapConfigInput").addEventListener("input",()=>{
+  mapConfigPersisted=false;
+  try{
+    const candidate=JSON.parse(el("mapConfigInput").value);
+    if(candidate && typeof candidate==="object" && !Array.isArray(candidate)) {
+      mapConfig=candidate;
+      refreshMapEditFeatureOptions();
+      renderWorldMap();
+    }
+  }catch(_){}
+  updateTravelControls();
+});
+
+el("mapConfigFile").onchange=async()=>{
+  const file=el("mapConfigFile").files && el("mapConfigFile").files[0];
+  if(!file)return;
+  try {
+    const text=await file.text();
+    JSON.parse(text);
+    el("mapConfigInput").value=text;
+    mapConfig=JSON.parse(text);
+    mapConfigPersisted=false;
+    refreshMapEditFeatureOptions();
+    renderWorldMap();
+    updateTravelControls();
+    setStatus("JSON cargado en el editor. Revísalo y pulsa «Guardar geometría de región».",true);
+  } catch(err) {
+    setStatus("No se pudo leer el JSON: "+err.message,false);
+  } finally {
+    el("mapConfigFile").value="";
+  }
+};
+el("worldMapSvg").addEventListener("pointerdown",event=>{
+  if(mapDrawingMode && mapEditingTarget) {
+    let node=event.target;
+    while(node && node!==event.currentTarget && !node.getAttribute("data-vertex-index"))node=node.parentNode;
+    if(!node || node===event.currentTarget)return;
+    const index=Number(node.getAttribute("data-vertex-index"));
+    if(!Number.isInteger(index) || index<0 || index>=mapDraftVertices.length)return;
+    mapVertexDragIndex=index;
+    mapSuppressNextClick=true;
+    try{event.currentTarget.setPointerCapture(event.pointerId);}catch(_){}
+    event.preventDefault();
+    return;
+  }
+  if(mapDrawingMode || mapPoiPlacementMode || event.button!==0)return;
+  const rect=event.currentTarget.getBoundingClientRect();
+  const view=event.currentTarget.getAttribute("viewBox").trim().split(/\\s+/).map(Number);
+  if(rect.width<=0 || rect.height<=0 || view.length!==4)return;
+  const scale=Math.min(rect.width/view[2],rect.height/view[3]);
+  mapPanDrag={
+    pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,
+    startPan:{x:mapPan.x,y:mapPan.y},scale,moved:false
+  };
+  event.currentTarget.classList.add("map-panning");
+  try{event.currentTarget.setPointerCapture(event.pointerId);}catch(_){}
+});
+el("worldMapSvg").addEventListener("pointermove",event=>{
+  if(mapPanDrag && mapPanDrag.pointerId===event.pointerId) {
+    const dx=event.clientX-mapPanDrag.startX,dy=event.clientY-mapPanDrag.startY;
+    if(!mapPanDrag.moved && Math.hypot(dx,dy)<4)return;
+    mapPanDrag.moved=true;
+    mapSuppressNextClick=true;
+    mapPan.x=mapPanDrag.startPan.x-dx/mapPanDrag.scale;
+    mapPan.y=mapPanDrag.startPan.y+dy/mapPanDrag.scale;
+    renderWorldMap();
+    return;
+  }
+  if(mapVertexDragIndex===null || !mapEditingTarget)return;
+  const point=mapScreenToWorldPoint(event);
+  if(!point)return;
+  mapDraftVertices[mapVertexDragIndex]=point;
+  renderWorldMap();
+  el("mapEditStatus").textContent="Vértice "+(mapVertexDragIndex+1)+" · "+mapPointLabel(point);
+});
+function finishMapVertexDrag(event) {
+  if(mapPanDrag && mapPanDrag.pointerId===event.pointerId) {
+    const moved=mapPanDrag.moved;
+    mapPanDrag=null;
+    event.currentTarget.classList.remove("map-panning");
+    try{
+      if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);
+    }catch(_){}
+    if(moved)window.setTimeout(()=>{mapSuppressNextClick=false;},0);
+    return;
+  }
+  if(mapVertexDragIndex===null)return;
+  mapVertexDragIndex=null;
+  try{
+    if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);
+  }catch(_){}
+  window.setTimeout(()=>{mapSuppressNextClick=false;},0);
+  updateMapDrawControls();
+  el("mapEditStatus").textContent="Vértice ajustado en el borrador. Puedes mover otros puntos y confirmar el polígono.";
+}
+el("worldMapSvg").addEventListener("pointerup",finishMapVertexDrag);
+el("worldMapSvg").addEventListener("pointercancel",finishMapVertexDrag);
+
+function mapZoomAtPointer(event,factor) {
+  if(mapDrawingMode || mapPoiPlacementMode)return;
+  const before=mapScreenToWorldPoint(event);
+  if(!before)return;
+  mapZoom=Math.max(0.45,Math.min(8,mapZoom*factor));
+  renderWorldMap();
+  const after=mapScreenToWorldPoint(event);
+  if(after) {
+    mapPan.x+=before.x-after.x;
+    mapPan.y+=before.y-after.y;
+    renderWorldMap();
+  }
+}
+el("worldMapSvg").addEventListener("wheel",event=>{
+  event.preventDefault();
+  mapZoomAtPointer(event,event.deltaY<0?1.15:1/1.15);
+},{passive:false});
+el("worldMapSvg").addEventListener("dblclick",event=>{
+  if(mapDrawingMode || mapPoiPlacementMode)return;
+  event.preventDefault();
+  mapZoomAtPointer(event,1.5);
+});
+el("worldMapSvg").addEventListener("click",event=>{
+  if(mapSuppressNextClick) {
+    mapSuppressNextClick=false;
+    return;
+  }
+  if(!mapConfig && !mapDrawingMode && !mapPoiPlacementMode)return;
+  const point=mapScreenToWorldPoint(event);
+  if(!point)return;
+  if(mapPoiPlacementMode) {
+    addMapPointOfInterestAt(point);
+    return;
+  }
+  if(mapDrawingMode) {
+    if(mapEditingTarget) {
+      el("mapEditStatus").textContent="Arrastra uno de los puntos numerados para cambiar un vértice; los clics libres no agregan vértices en modo edición.";
+      return;
+    }
+    mapDraftVertices.push(point);
+    renderWorldMap();
+    updateMapDrawControls();
+    setMapDrawStatus(mapDraftVertices.length+" vértices · último: "+mapPointLabel(point),false);
+    return;
+  }
+  selectMapDestination(point);
+});
+el("destinationX").onchange=()=>{try{selectedMapPoint=mapDestinationInput();renderWorldMap();updateTravelControls();}catch(err){selectedMapPoint=null;renderWorldMap();}};
+el("destinationY").onchange=()=>{try{selectedMapPoint=mapDestinationInput();renderWorldMap();updateTravelControls();}catch(err){selectedMapPoint=null;renderWorldMap();}};
+el("mapZoomIn").onclick=()=>{if(mapDrawingMode || mapPoiPlacementMode)return;mapZoom=Math.min(8,mapZoom*1.3);renderWorldMap();};
+el("mapZoomOut").onclick=()=>{if(mapDrawingMode || mapPoiPlacementMode)return;mapZoom=Math.max(0.45,mapZoom/1.3);renderWorldMap();};
+el("mapFitButton").onclick=()=>{
+  if(mapDrawingMode || mapPoiPlacementMode)return;
+  mapZoom=1;mapPan={x:0,y:0};renderWorldMap();
+};
+el("mapExpandButton").onclick=()=>{
+  const panel=el("explorationTitle").closest(".exploration-panel");
+  const expanded=panel.classList.toggle("map-expanded");
+  el("mapExpandButton").textContent=expanded?"Cerrar mapa ampliado":"Ampliar mapa";
+  el("mapExpandButton").setAttribute("aria-pressed",expanded?"true":"false");
+  requestAnimationFrame(renderWorldMap);
+};
+["mapLayerBounds","mapLayerTerrain","mapLayerAreas","mapLayerObstacles","mapLayerRoads","mapLayerPoi"]
+  .forEach(id=>el(id).addEventListener("change",renderWorldMap));
+el("planTravelButton").onclick=async()=>{
+  try{setStatus("Calculando ruta…",false);await planSelectedTravel();setStatus("Ruta calculada.",true);}
+  catch(err){mapSetTravelStatus(err.message,true);setStatus(err.message,false);}
+};
+el("startTravelButton").onclick=async()=>{
+  try{await runTravelToEnd();setStatus("Recorrido terminado o detenido.",true);}
+  catch(err){mapSetTravelStatus(err.message,true);setStatus(err.message,false);}
+};
+el("stepTravelButton").onclick=async()=>{
+  try{await advanceOneTravelLeg();}
+  catch(err){mapSetTravelStatus(err.message,true);setStatus(err.message,false);}
+};
+el("pauseTravelButton").onclick=async()=>{
+  try{await changeTravelStatus("pause");}
+  catch(err){mapSetTravelStatus(err.message,true);setStatus(err.message,false);}
+};
+el("resumeTravelButton").onclick=async()=>{
+  try{await changeTravelStatus("resume");}
+  catch(err){mapSetTravelStatus(err.message,true);setStatus(err.message,false);}
+};
+el("cancelTravelButton").onclick=async()=>{
+  try{await changeTravelStatus("cancel");}
+  catch(err){mapSetTravelStatus(err.message,true);setStatus(err.message,false);}
+};
+
 (async function start() {
   try {
     const health = await api("/api/health");

@@ -5042,3 +5042,322 @@ def test_restore_rejects_backup_with_only_one_world_timeline_table():
                 (world_id,),
             ).fetchone()[0] == 1
 
+
+
+def test_travel_api_persists_region_and_executes_one_step():
+    with TestClient(app) as client:
+        seed = client.post("/api/demo/seed", json={})
+        assert seed.status_code == 200, seed.text
+        world_id = seed.json()["world_id"]
+        session_id = seed.json()["session_id"]
+        region_config = {
+            "schema_version": 1,
+            "cell_size_m": 100,
+            "max_route_nodes": 10000,
+            "areas": [],
+            "terrain_zones": [],
+            "obstacles": [],
+            "roads": [],
+            "points_of_interest": [
+                {
+                    "point_id": "north-shrine",
+                    "name": "Santuario del Norte",
+                    "x_m": 500,
+                    "y_m": 300,
+                    "icon": "⛩️",
+                    "category": "landmark",
+                    "description": "Marcador de ejemplo para verificar persistencia.",
+                }
+            ],
+            "walkable_bounds": None,
+        }
+
+        saved_region = client.put(
+            f"/api/worlds/{world_id}/map/regions/forest",
+            json={"config": region_config},
+        )
+        assert saved_region.status_code == 200, saved_region.text
+        loaded_region = client.get(
+            f"/api/worlds/{world_id}/map/regions/forest"
+        )
+        assert loaded_region.status_code == 200
+        assert loaded_region.json()["config"]["cell_size_m"] == 100
+        assert loaded_region.json()["config"]["points_of_interest"] == region_config["points_of_interest"]
+
+        planned = client.post(
+            f"/api/sessions/{session_id}/travel/plan",
+            json={
+                "region_id": "forest",
+                "destination_x_m": 300,
+                "destination_y_m": 0,
+                "destination_label": "Claro del Este",
+            },
+        )
+        assert planned.status_code == 200, planned.text
+        assert planned.json()["status"] == "running"
+
+        step = client.post(
+            f"/api/sessions/{session_id}/travel/step",
+            json={"request_id": "api-travel-step-0001"},
+        )
+        assert step.status_code == 200, step.text
+        assert step.json()["travel"]["status"] == "completed"
+        assert step.json()["segment"]["to"] == [300.0, 0.0]
+
+        state = client.get(f"/api/sessions/{session_id}/travel")
+        assert state.status_code == 200
+        assert state.json()["current_position"] == {"x_m": 300.0, "y_m": 0.0}
+        assert state.json()["clock"]["minute_of_day"] == 484
+
+        map_state = client.get(
+            f"/api/sessions/{session_id}/map/regions/forest/state"
+        )
+        assert map_state.status_code == 200, map_state.text
+        assert map_state.json()["position"] == [300.0, 0.0]
+        assert map_state.json()["discovered_cells"]
+
+
+
+
+def test_behavior_profiles_are_saved_per_entity_and_rank_different_actions():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={})
+        assert seeded.status_code == 200, seeded.text
+        world_id = seeded.json()["world_id"]
+        session_id = seeded.json()["session_id"]
+        maelis_id = f"{world_id}:maelis-orven"
+        brina_id = f"{world_id}:brina-solcor"
+
+        maelis_profile = {
+            "traits": {"curiosity": 95, "analytical": 90},
+            "needs": {"fatigue": 10, "hunger": None},
+            "goals": [{
+                "goal_id": "compare-evidence",
+                "priority": 90,
+                "tags": ["investigate", "evidence"],
+                "status": "active",
+            }],
+            "focus": {"kind": "knowledge", "target_id": "unknown-mark", "salience": 90},
+            "capabilities": ["investigate", "study"],
+            "emotions": [],
+            "resources": {},
+        }
+        brina_profile = {
+            "traits": {"caution": 95, "risk_tolerance": 5, "discipline": 75},
+            "needs": {"fatigue": 20},
+            "goals": [{
+                "goal_id": "keep-group-safe",
+                "priority": 85,
+                "tags": ["safety", "retreat"],
+                "status": "active",
+            }],
+            "focus": {"kind": "threat", "target_id": "unknown-noise", "salience": 90},
+            "capabilities": ["guard", "protect"],
+            "emotions": [{
+                "kind": "fear",
+                "intensity": 75,
+                "decay_per_hour": 5,
+                "target_id": "",
+                "source_event_id": "noise-heard-1",
+            }],
+            "resources": {},
+        }
+
+        saved_maelis = client.put(
+            f"/api/sessions/{session_id}/entities/{maelis_id}/behavior",
+            json={"profile": maelis_profile},
+        )
+        assert saved_maelis.status_code == 200, saved_maelis.text
+        saved_brina = client.put(
+            f"/api/sessions/{session_id}/entities/{brina_id}/behavior",
+            json={"profile": brina_profile},
+        )
+        assert saved_brina.status_code == 200, saved_brina.text
+
+        maelis_preview = client.post(
+            f"/api/sessions/{session_id}/entities/{maelis_id}/behavior/preview",
+            json={
+                "context": {"available_minutes": 60},
+                "focus_candidates": [
+                    {"kind": "place", "target_id": "evidence-site", "salience": 10, "tags": ["investigate"]},
+                    {"kind": "entity", "target_id": brina_id, "salience": 20, "tags": ["social"]},
+                ],
+                "limit": 10,
+            },
+        )
+        brina_preview = client.post(
+            f"/api/sessions/{session_id}/entities/{brina_id}/behavior/preview",
+            json={"context": {"available_minutes": 60}, "limit": 10},
+        )
+        assert maelis_preview.status_code == 200, maelis_preview.text
+        assert brina_preview.status_code == 200, brina_preview.text
+        assert maelis_preview.json()["actions"][0]["action_id"] == "investigate"
+        assert brina_preview.json()["actions"][0]["action_id"] == "guard"
+        assert maelis_preview.json()["focus_candidates"][0]["target_id"] == "evidence-site"
+        assert maelis_preview.json()["side_effects_applied"] is False
+        assert brina_preview.json()["side_effects_applied"] is False
+
+        loaded = client.get(
+            f"/api/sessions/{session_id}/entities/{maelis_id}/behavior"
+        )
+        assert loaded.status_code == 200, loaded.text
+        assert loaded.json()["configured"] is True
+        assert loaded.json()["profile"]["needs"]["hunger"] is None
+
+
+def test_behavior_catalog_is_world_scoped_and_defaults_are_composed():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={})
+        world_id = seeded.json()["world_id"]
+        catalog = {
+            "schema_version": 1,
+            "actions": [{
+                "action_id": "repair_armor",
+                "category": "craft",
+                "base_priority": 4,
+                "tags": ["repair", "equipment"],
+                "required_capabilities": ["smithing"],
+                "duration_minutes": 30,
+                "risk_level": 0,
+            }],
+            "patterns": [{
+                "pattern_id": "care_for_equipment",
+                "bonus": 6,
+                "action_ids": ["repair_armor"],
+                "required_traits": {"discipline": 60},
+            }],
+        }
+        saved = client.put(
+            f"/api/worlds/{world_id}/behavior/catalog",
+            json=catalog,
+        )
+        assert saved.status_code == 200, saved.text
+        result = saved.json()
+        assert result["default_action_count"] >= 25
+        assert result["default_pattern_count"] >= 20
+        assert result["custom_action_count"] == 1
+        assert result["custom_pattern_count"] == 1
+        assert "repair_armor" in {item["action_id"] for item in result["actions"]}
+
+        loaded = client.get(f"/api/worlds/{world_id}/behavior/catalog")
+        assert loaded.status_code == 200, loaded.text
+        assert loaded.json()["custom_action_count"] == 1
+
+
+def test_behavior_relationships_are_loaded_from_directed_sqlite_state():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={})
+        world_id = seeded.json()["world_id"]
+        session_id = seeded.json()["session_id"]
+        maelis_id = f"{world_id}:maelis-orven"
+        brina_id = f"{world_id}:brina-solcor"
+
+        with database.transaction() as conn:
+            conn.execute(
+                "INSERT INTO relationships(id,session_id,from_entity_id,to_entity_id,axis,value,reason) "
+                "VALUES(?,?,?,?,?,?,?)",
+                ("relation-maelis-brina", session_id, maelis_id, brina_id, "trust", 82, "Actos observados."),
+            )
+            conn.execute(
+                "INSERT INTO relationships(id,session_id,from_entity_id,to_entity_id,axis,value,reason) "
+                "VALUES(?,?,?,?,?,?,?)",
+                ("relation-brina-maelis", session_id, brina_id, maelis_id, "trust", 25, "Dirección opuesta."),
+            )
+
+        saved = client.put(
+            f"/api/sessions/{session_id}/entities/{maelis_id}/behavior",
+            json={"profile": {"traits": {}, "needs": {}, "emotions": [], "goals": [], "capabilities": [], "resources": {}}},
+        )
+        assert saved.status_code == 200, saved.text
+        assert saved.json()["profile"]["relationships"][brina_id]["trust"] == 82
+
+        reverse = client.put(
+            f"/api/sessions/{session_id}/entities/{brina_id}/behavior",
+            json={"profile": {"traits": {}, "needs": {}, "emotions": [], "goals": [], "capabilities": [], "resources": {}}},
+        )
+        assert reverse.status_code == 200, reverse.text
+        assert reverse.json()["profile"]["relationships"][maelis_id]["trust"] == 25
+
+
+def test_behavior_profiles_are_included_in_session_backup_and_restore():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={})
+        world_id = seeded.json()["world_id"]
+        session_id = seeded.json()["session_id"]
+        maelis_id = f"{world_id}:maelis-orven"
+        profile = {
+            "traits": {"curiosity": 80},
+            "needs": {"fatigue": 20},
+            "emotions": [{"kind": "curiosity", "intensity": 65, "source_event_id": "clue-1"}],
+            "goals": [],
+            "capabilities": ["study"],
+            "resources": {},
+        }
+        saved = client.put(
+            f"/api/sessions/{session_id}/entities/{maelis_id}/behavior",
+            json={"profile": profile},
+        )
+        assert saved.status_code == 200, saved.text
+
+        backup = client.post(f"/api/sessions/{session_id}/backup", json={})
+        assert backup.status_code == 200, backup.text
+        changed = client.put(
+            f"/api/sessions/{session_id}/entities/{maelis_id}/behavior",
+            json={"profile": {"traits": {"curiosity": 10}}},
+        )
+        assert changed.status_code == 200, changed.text
+
+        restored = client.post(
+            f"/api/sessions/{session_id}/restore",
+            json={"backup_name": backup.json()["backup_name"], "confirmation": "RESTAURAR"},
+        )
+        assert restored.status_code == 200, restored.text
+        loaded = client.get(
+            f"/api/sessions/{session_id}/entities/{maelis_id}/behavior"
+        )
+        assert loaded.status_code == 200, loaded.text
+        assert loaded.json()["profile"]["traits"]["curiosity"] == 80
+        assert loaded.json()["profile"]["emotions"][0]["source_event_id"] == "clue-1"
+
+
+def test_behavior_engine_refuses_to_choose_player_character_actions():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={})
+        world_id = seeded.json()["world_id"]
+        session_id = seeded.json()["session_id"]
+        protagonist_id = f"{world_id}:protagonista"
+        saved = client.put(
+            f"/api/sessions/{session_id}/entities/{protagonist_id}/behavior",
+            json={"profile": {"traits": {"courage": 100}}},
+        )
+        assert saved.status_code == 200, saved.text
+        preview = client.post(
+            f"/api/sessions/{session_id}/entities/{protagonist_id}/behavior/preview",
+            json={"context": {}},
+        )
+        assert preview.status_code == 404
+        assert "bajo control del usuario" in preview.json()["detail"]
+
+
+def test_behavior_profile_rejects_entities_from_another_world():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={})
+        session_id = seeded.json()["session_id"]
+        response = client.put(
+            f"/api/sessions/{session_id}/entities/not-in-this-world/behavior",
+            json={"profile": {"traits": {"curiosity": 50}}},
+        )
+        assert response.status_code == 404
+
+
+def test_behavior_profile_validation_rejects_out_of_range_traits():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={})
+        world_id = seeded.json()["world_id"]
+        session_id = seeded.json()["session_id"]
+        entity_id = f"{world_id}:maelis-orven"
+        response = client.put(
+            f"/api/sessions/{session_id}/entities/{entity_id}/behavior",
+            json={"profile": {"traits": {"curiosity": 101}}},
+        )
+        assert response.status_code == 422

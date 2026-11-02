@@ -1,4 +1,4 @@
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -193,3 +193,34 @@ class SessionRestoreRequest(StrictModel):
 
 class LocalSettingsUpdate(StrictModel):
     lore_budget_chars: int = Field(ge=500, le=12000)
+
+
+class MapRegionConfigRequest(StrictModel):
+    config: dict[str, Any]
+
+
+class TravelPlanRequest(StrictModel):
+    region_id: str = Field(min_length=1, max_length=120)
+    destination_x_m: float = Field(allow_inf_nan=False)
+    destination_y_m: float = Field(allow_inf_nan=False)
+    destination_label: str = Field(default="", max_length=180)
+
+
+class TravelStepRequest(StrictModel):
+    request_id: str = Field(min_length=8, max_length=120)
+
+
+class BehaviorProfileRequest(StrictModel):
+    profile: dict[str, Any]
+
+
+class BehaviorCatalogRequest(StrictModel):
+    schema_version: int = Field(default=1, ge=1, le=1)
+    actions: list[dict[str, Any]] = Field(default_factory=list, max_length=500)
+    patterns: list[dict[str, Any]] = Field(default_factory=list, max_length=500)
+
+
+class BehaviorPreviewRequest(StrictModel):
+    context: dict[str, Any] = Field(default_factory=dict)
+    focus_candidates: list[dict[str, Any]] = Field(default_factory=list, max_length=100)
+    limit: int = Field(default=10, ge=1, le=100)

@@ -120,6 +120,61 @@ CREATE TABLE IF NOT EXISTS snapshots (
   turn_id TEXT NOT NULL DEFAULT '', event_sequence INTEGER NOT NULL,
   state_json TEXT NOT NULL, created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
+CREATE TABLE IF NOT EXISTS session_map_states (
+  session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  region_id TEXT NOT NULL CHECK(length(region_id) > 0),
+  x_m REAL NOT NULL,
+  y_m REAL NOT NULL,
+  cell_size_m REAL NOT NULL CHECK(cell_size_m > 0),
+  coordinate_system TEXT NOT NULL DEFAULT 'local_cartesian_m_v1',
+  exploration_json TEXT NOT NULL DEFAULT '{"discovered_cells":[]}',
+  schema_version INTEGER NOT NULL DEFAULT 1 CHECK(schema_version >= 1),
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY(session_id, region_id)
+);
+CREATE TABLE IF NOT EXISTS world_map_regions (
+  world_id TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
+  region_id TEXT NOT NULL CHECK(length(region_id) > 0),
+  map_json TEXT NOT NULL,
+  schema_version INTEGER NOT NULL DEFAULT 1 CHECK(schema_version >= 1),
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY(world_id, region_id)
+);
+CREATE TABLE IF NOT EXISTS session_travel_states (
+  session_id TEXT PRIMARY KEY REFERENCES sessions(id) ON DELETE CASCADE,
+  region_id TEXT NOT NULL CHECK(length(region_id) > 0),
+  route_json TEXT NOT NULL,
+  next_waypoint_index INTEGER NOT NULL DEFAULT 1 CHECK(next_waypoint_index >= 1),
+  destination_x_m REAL NOT NULL,
+  destination_y_m REAL NOT NULL,
+  destination_label TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL CHECK(status IN ('running','paused','completed','cancelled')),
+  elapsed_seconds INTEGER NOT NULL DEFAULT 0 CHECK(elapsed_seconds >= 0),
+  clock_minutes_applied INTEGER NOT NULL DEFAULT 0 CHECK(clock_minutes_applied >= 0),
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS session_travel_steps (
+  session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  request_id TEXT NOT NULL CHECK(length(request_id) BETWEEN 8 AND 120),
+  result_json TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY(session_id, request_id)
+);
+CREATE TABLE IF NOT EXISTS world_behavior_catalogs (
+  world_id TEXT PRIMARY KEY REFERENCES worlds(id) ON DELETE CASCADE,
+  catalog_json TEXT NOT NULL,
+  schema_version INTEGER NOT NULL DEFAULT 1 CHECK(schema_version >= 1),
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS session_entity_behavior_profiles (
+  session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  entity_id TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  profile_json TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY(session_id, entity_id)
+);
+CREATE INDEX IF NOT EXISTS idx_behavior_profiles_entity ON session_entity_behavior_profiles(entity_id);
 CREATE INDEX IF NOT EXISTS idx_messages_session_turn ON messages(session_id, turn_index);
 CREATE INDEX IF NOT EXISTS idx_events_session ON events(session_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_changes_pending ON state_changes(session_id, status);

@@ -19,9 +19,25 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
 from .db import Database
-from .models import ApprovalRequest, ContextPreviewRequest, EntityCreate, LocalCommandRequest, LocalSettingsUpdate, ManualPromptRequest, NarratorResponse, SessionCreate, SessionRestoreRequest, TurnRequest, WorldCreate, WorldStartCreate, WorldTimelineEventCreate, WorldTimelineEventUpdate
+from .behavior_controller import (
+    BehaviorEntityNotFoundError,
+    BehaviorProfileNotFoundError,
+    get_entity_behavior_profile,
+    get_world_behavior_catalog,
+    preview_entity_behavior,
+    save_entity_behavior_profile,
+    save_world_behavior_catalog,
+)
+from .behavior_engine import BehaviorValidationError
+from .models import ApprovalRequest, BehaviorCatalogRequest, BehaviorPreviewRequest, BehaviorProfileRequest, ContextPreviewRequest, EntityCreate, LocalCommandRequest, LocalSettingsUpdate, ManualPromptRequest, MapRegionConfigRequest, NarratorResponse, SessionCreate, SessionRestoreRequest, TravelPlanRequest, TravelStepRequest, TurnRequest, WorldCreate, WorldStartCreate, WorldTimelineEventCreate, WorldTimelineEventUpdate
 from .providers import ProviderError, build_manual_prompt, make_provider
 from .timeline import fire_due_world_events
+from .travel_controller import (
+    MapRegionNotFoundError, TravelConflictError, TravelNotFoundError,
+    advance_travel_step, change_travel_status, get_map_region, get_session_map_state, get_travel_state,
+    plan_travel, register_map_region,
+)
+from .world_map import Point, RouteNotFoundError, world_map_from_config
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 load_dotenv(BASE_DIR / ".env")
@@ -3549,6 +3565,7 @@ def backup_session_database(session_id: str):
 
 RESTORE_SESSION_TABLES = (
     "session_presence",
+    "session_entity_behavior_profiles",
     "inventory_items",
     "resources",
     "relationships",
@@ -3561,6 +3578,7 @@ RESTORE_SESSION_TABLES = (
 )
 RESTORE_REQUIRED_COLUMNS = {
     "session_presence": {"session_id", "entity_id", "location", "presence_status"},
+    "session_entity_behavior_profiles": {"session_id", "entity_id", "profile_json"},
     "inventory_items": {"id", "session_id", "item_key", "display_name", "quantity", "condition", "carrier_entity_id", "location"},
     "resources": {"id", "session_id", "resource_key", "display_name", "quantity", "unit"},
     "relationships": {"id", "session_id", "from_entity_id", "to_entity_id", "axis", "value"},
@@ -3610,7 +3628,15 @@ def _restore_world_signature(conn, world_id: str):
                 (world_id,)
             ).fetchall()
         ]
-    return (tuple(world), tuple(entities), tuple(lore), tuple(timeline_events))
+    behavior_catalog = []
+    if "world_behavior_catalogs" in available_tables:
+        row = conn.execute(
+            "SELECT catalog_json,schema_version FROM world_behavior_catalogs WHERE world_id=?",
+            (world_id,),
+        ).fetchone()
+        if row is not None:
+            behavior_catalog.append(tuple(row))
+    return (tuple(world), tuple(entities), tuple(lore), tuple(timeline_events), tuple(behavior_catalog))
 
 
 def _table_columns(conn, table: str) -> set[str]:
@@ -3654,7 +3680,7 @@ def _read_session_backup(backup_path: Path, session_id: str):
                 ),
             )
 
-        optional_tables = {"session_timeline_events"}
+        optional_tables = {"session_timeline_events", "session_entity_behavior_profiles"}
         missing_tables = [
             table for table in RESTORE_SESSION_TABLES
             if table not in source_tables and table not in optional_tables
@@ -3843,3 +3869,210 @@ def restore_session_backup(session_id: str, payload: SessionRestoreRequest):
         "message": "Partida restaurada desde la copia seleccionada. La narración y el estado vuelven a ese punto; los otros mundos y partidas no se modificaron."
     }
 
+
+
+# Geometric world map and transactional session travel.
+@app.put("/api/worlds/{world_id}/map/regions/{region_id}")
+def put_world_map_region(world_id: str, region_id: str, payload: MapRegionConfigRequest):
+    try:
+        world_map = world_map_from_config(payload.config)
+        register_map_region(database, world_id, region_id, world_map)
+    except TravelNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except TravelConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return {
+        "world_id": world_id,
+        "region_id": region_id,
+        "schema_version": 1,
+        "map": payload.config,
+        "message": "Geometría de región guardada. Esta es la definición compartida por navegación y futuro minimapa.",
+    }
+
+
+@app.get("/api/worlds/{world_id}/map/regions/{region_id}")
+def read_world_map_region(world_id: str, region_id: str):
+    try:
+        return {
+            "world_id": world_id,
+            "region_id": region_id,
+            "config": get_map_region(database, world_id, region_id),
+        }
+    except MapRegionNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except TravelNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.post("/api/sessions/{session_id}/travel/plan")
+def create_or_retarget_travel(session_id: str, payload: TravelPlanRequest):
+    try:
+        return plan_travel(
+            database,
+            session_id,
+            payload.region_id,
+            Point(payload.destination_x_m, payload.destination_y_m),
+            destination_label=payload.destination_label,
+        )
+    except MapRegionNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except TravelNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except RouteNotFoundError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.get("/api/sessions/{session_id}/travel")
+def read_travel_state(session_id: str):
+    try:
+        state = get_travel_state(database, session_id)
+        if state is None:
+            with database.connection() as conn:
+                if conn.execute("SELECT 1 FROM sessions WHERE id=?", (session_id,)).fetchone() is None:
+                    raise HTTPException(status_code=404, detail="La partida no existe.")
+            return {"session_id": session_id, "status": "idle"}
+        return state
+    except TravelNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@app.post("/api/sessions/{session_id}/travel/step")
+def execute_travel_step(session_id: str, payload: TravelStepRequest):
+    try:
+        return advance_travel_step(database, session_id, payload.request_id)
+    except MapRegionNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except TravelNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except TravelConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/api/sessions/{session_id}/travel/pause")
+def pause_travel(session_id: str):
+    try:
+        return change_travel_status(database, session_id, "pause")
+    except TravelNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except TravelConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/api/sessions/{session_id}/travel/resume")
+def resume_travel(session_id: str):
+    try:
+        return change_travel_status(database, session_id, "resume")
+    except TravelNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except TravelConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/api/sessions/{session_id}/travel/cancel")
+def cancel_travel(session_id: str):
+    try:
+        return change_travel_status(database, session_id, "cancel")
+    except TravelNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except TravelConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.get("/api/sessions/{session_id}/map/regions/{region_id}/state")
+def read_session_map_region_state(session_id: str, region_id: str):
+    """Return the same persisted coordinates and discovered cells used by travel."""
+    try:
+        return get_session_map_state(database, session_id, region_id)
+    except (MapRegionNotFoundError, TravelNotFoundError) as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+# Per-world action catalogs and per-entity behavior profiles. These endpoints
+# only save profiles or preview deterministic proposals; they never execute
+# an NPC action or apply effects to the campaign.
+@app.get("/api/worlds/{world_id}/behavior/catalog")
+def read_world_behavior_catalog(world_id: str):
+    try:
+        return get_world_behavior_catalog(database, world_id)
+    except BehaviorEntityNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except (BehaviorValidationError, TypeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.put("/api/worlds/{world_id}/behavior/catalog")
+def write_world_behavior_catalog(world_id: str, payload: BehaviorCatalogRequest):
+    try:
+        return save_world_behavior_catalog(database, world_id, payload.model_dump())
+    except BehaviorEntityNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except (BehaviorValidationError, TypeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.get("/api/sessions/{session_id}/entities/{entity_id}/behavior")
+def read_entity_behavior_profile(session_id: str, entity_id: str):
+    try:
+        saved = get_entity_behavior_profile(database, session_id, entity_id)
+        return {
+            "configured": saved is not None,
+            "entity_id": entity_id,
+            "profile": saved["profile"] if saved else None,
+            "updated_at": saved["updated_at"] if saved else None,
+            "message": (
+                "Perfil guardado para esta partida."
+                if saved else
+                "No hay perfil configurado. Los valores desconocidos no se interpretan como cero."
+            ),
+        }
+    except BehaviorEntityNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except (BehaviorValidationError, TypeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.put("/api/sessions/{session_id}/entities/{entity_id}/behavior")
+def write_entity_behavior_profile(
+    session_id: str, entity_id: str, payload: BehaviorProfileRequest
+):
+    try:
+        return save_entity_behavior_profile(database, session_id, entity_id, payload.profile)
+    except BehaviorEntityNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except (BehaviorValidationError, TypeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/api/sessions/{session_id}/entities/{entity_id}/behavior/preview")
+def preview_entity_behavior_api(
+    session_id: str, entity_id: str, payload: BehaviorPreviewRequest
+):
+    try:
+        return preview_entity_behavior(
+            database,
+            session_id,
+            entity_id,
+            payload.context,
+            limit=payload.limit,
+            focus_candidates=payload.focus_candidates,
+        )
+    except BehaviorProfileNotFoundError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except BehaviorEntityNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except (BehaviorValidationError, TypeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
