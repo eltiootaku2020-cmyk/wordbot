@@ -185,7 +185,7 @@ def test_focus_ranking_uses_goal_and_emotional_target_without_revealing_facts():
         }],
     )
     ranked = rank_focuses(state, [
-        {"kind": "place", "target_id": "glade", "salience": 20, "tags": ["herbs"]},
+        {"kind": "place", "target_id": "glade", "salience": 10, "tags": ["herbs"]},
         {"kind": "entity", "target_id": "brina", "salience": 20},
     ])
 
