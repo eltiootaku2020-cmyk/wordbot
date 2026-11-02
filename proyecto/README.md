@@ -41,7 +41,9 @@ No se debe enviar el Lorebook entero en cada mensaje. La aplicación recupera so
 - [Investigación de proyectos y referencias](INVESTIGACION_REFERENCIAS.md) — incluye Openovel, Chronicler, RPG Tracker, Open Dungeon, Gamentic, SillyTavern, RisuAI, memoria y APIs.
 - [Continuidad duradera y variedad narrativa](CONTINUIDAD_DURADERA_Y_VARIACION.md) — marcas persistentes para promesas, pistas, heridas y conocimiento; relaciones de escena; sugerencias antirrepetición y límites pendientes.
 - [Decisiones técnicas provisionales](DECISIONES_TECNICAS.md) — ADR-001 a ADR-015.
-- [Investigación comparativa y errores fantasma](INVESTIGACION_PROGRAMAS_SIMILARES_Y_ERRORES_FANTASMA_2026-10-29.md) — alternativas reales, criterios adoptables y nuevos casos de regresión.\n- [Motor de conducta y decisiones de PNJ](MOTOR_CONDUCTA_Y_DECISION_NPC.md) — rasgos, necesidades, emociones con procedencia, focos, objetivos, acciones y patrones combinables; distingue la base implementada de la autonomía aún pendiente.\n- [Roadmap de implementación](ROADMAP_IMPLEMENTACION.md) — prioridades y pruebas pendientes.
+- [Investigación comparativa y errores fantasma](INVESTIGACION_PROGRAMAS_SIMILARES_Y_ERRORES_FANTASMA_2026-10-29.md) — alternativas reales, criterios adoptables y nuevos casos de regresión.
+- [Motor de conducta y decisiones de PNJ](MOTOR_CONDUCTA_Y_DECISION_NPC.md) — perfiles por personaje, emociones con procedencia, focos, objetivos, acciones y patrones; distingue la previsualización implementada de la autonomía aún pendiente.
+- [Roadmap de implementación](ROADMAP_IMPLEMENTACION.md) — prioridades y pruebas pendientes.
 
 Para el uso previsto, la interfaz local en Chromium + FastAPI + SQLite incluye un puente manual de copia/pega para el chat web normal. Las API oficiales siguen disponibles como modalidad separada y optativa. No se leerá automáticamente la pestaña de ChatGPT/Gemini.
 
