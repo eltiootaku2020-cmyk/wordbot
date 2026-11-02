@@ -208,3 +208,19 @@ class TravelPlanRequest(StrictModel):
 
 class TravelStepRequest(StrictModel):
     request_id: str = Field(min_length=8, max_length=120)
+
+
+class BehaviorProfileRequest(StrictModel):
+    profile: dict[str, Any]
+
+
+class BehaviorCatalogRequest(StrictModel):
+    schema_version: int = Field(default=1, ge=1, le=1)
+    actions: list[dict[str, Any]] = Field(default_factory=list, max_length=500)
+    patterns: list[dict[str, Any]] = Field(default_factory=list, max_length=500)
+
+
+class BehaviorPreviewRequest(StrictModel):
+    context: dict[str, Any] = Field(default_factory=dict)
+    focus_candidates: list[dict[str, Any]] = Field(default_factory=list, max_length=100)
+    limit: int = Field(default=10, ge=1, le=100)
