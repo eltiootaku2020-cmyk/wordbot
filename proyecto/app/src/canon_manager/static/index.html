@@ -1358,6 +1358,14 @@ function selectMapDestination(point) {
   selectedMapPoint=point;
   el("destinationX").value=String(Math.round(point.x*10)/10);
   el("destinationY").value=String(Math.round(point.y*10)/10);
+  const cell=Number((mapConfig && mapConfig.cell_size_m) || 250);
+  const known=mapDiscoveredSet();
+  const knownArea=(mapConfig && mapConfig.areas || []).find(area=>
+    mapPointInPolygon(point,area.vertices || []) &&
+    mapCellKnown(mapPolygonCentroid(area.vertices || []),cell,known)
+  );
+  // Never auto-fill a name from a polygon hidden by the fog of war.
+  el("destinationLabel").value=knownArea ? (knownArea.name || "") : "";
   el("mapSelectedDestination").textContent=mapPointLabel(point);
   renderWorldMap();
 }
