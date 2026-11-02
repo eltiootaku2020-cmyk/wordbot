@@ -423,37 +423,37 @@ El nivel de detalle visible al protagonista es menor que el nivel de estado que 
 
 ### Actualización técnica — 02-11-2026
 
-Word Bot ya incorpora una primera capa genérica de perfiles de conducta persistidos y previsualización determinista:
+Word Bot incorpora una primera capa genérica de perfiles de conducta, una agenda persistente básica y ejecución limitada de actividades vinculada al reloj real de la partida:
 
 - Cada entidad tiene un perfil separado por partida en SQLite: rasgos, necesidades (incluidos valores desconocidos), emociones con intensidad y evento fuente, objetivos, foco, capacidades y recursos.
-- Las relaciones dirigidas se consultan desde el registro de relaciones vigente de la partida; no se copian ni se simetrizan.
-- Cada mundo puede añadir acciones y patrones a su catálogo sin modificar los demás mundos. La biblioteca genérica inicial contiene 29 acciones y 22 patrones reutilizables; el sistema permite hasta 500 definiciones personalizadas de cada tipo por mundo.
-- La API y la pantalla local permiten editar perfiles JSON, guardar el catálogo del mundo y previsualizar hasta 15 decisiones candidatas para un PNJ.
-- El protagonista está excluido de la previsualización autónoma: sus acciones continúan bajo control del usuario.
-- La vista previa informa razones y puntuaciones, pero no consume recursos, no mueve personajes, no avanza el reloj ni crea acontecimientos.
+- Las relaciones dirigidas se consultan desde el registro vigente de la partida; no se copian ni se simetrizan.
+- Cada mundo puede ampliar el catálogo sin modificar otros mundos. La biblioteca genérica inicial contiene 29 acciones y 22 patrones; se permiten hasta 500 definiciones personalizadas de cada tipo por mundo.
+- La API y la pantalla local permiten guardar perfiles JSON, mantener el catálogo del mundo y previsualizar decisiones candidatas con puntuaciones y motivos.
+- Se pueden programar actividades por entidad y partida mediante API. Cada entrada guarda acción, horario, duración, prioridad y contexto.
+- Programar una actividad no adelanta el reloj. Una tarea se marca en curso cuando la hora de juego alcanza su inicio y solo se completa al llegar al final de su duración.
+- La agenda se procesa dentro de la misma transacción cuando el reloj avanza por turnos del narrador o por progreso/cancelación de viajes. No utiliza temporizadores reales ni un proceso de fondo.
+- Al completar una tarea se vuelve a validar el perfil y la acción. Los efectos actuales solo pueden cambiar necesidades ya conocidas, añadir emociones con evento fuente, actualizar objetivos existentes y cambiar/limpiar el foco.
+- Las emociones configuradas se desgastan cuando avanza el tiempo de juego. Una pausa del chat no las modifica.
+- Agenda, ejecuciones y perfiles se incluyen en las copias de seguridad y snapshots de turno. Los reintentos no duplican una misma ejecución.
+- El protagonista no puede recibir agendas autónomas.
 
-Esta implementación **todavía no es la autonomía completa**: no ejecuta las acciones, no crea agendas ni simula intervalos fuera de escena, y todavía no usa automáticamente el conocimiento/testimonios individuales como precondiciones de todas las decisiones. Los perfiles de Brina, Maelis y Sera empiezan vacíos salvo información que el autor configure; no se han inventado emociones, necesidades ni metas iniciales.
-
-La especificación genérica, los límites y las próximas fases están en [Motor de conducta y decisiones de PNJ](../../../../proyecto/MOTOR_CONDUCTA_Y_DECISION_NPC.md). No contiene reglas narrativas propias de Brina, Maelis o Sera; esas reglas deben definirse aquí como datos del mundo y solo después de confirmación del autor.
-
-**Ya documentado en el proyecto:**
-- las entidades pueden tener objetivos, necesidades, capacidades, conocimientos, ubicación, relaciones e historial;
-- el mundo continúa actuando aunque el protagonista esté lejos;
-- los viajes, caravanas y sus integrantes conservan actividades, vínculos y autonomía;
-- hechos, percepciones, recuerdos, rumores y conocimiento se mantienen separados;
-- la cronología mundial contempla la erupción del Día 12.
+Esta fase es **autonomía parcial**, no un simulador completo. Las agendas se crean explícitamente mediante API; el motor aún no genera por sí mismo la agenda diaria de una aventurera ni decide cada mañana qué desea hacer.
 
 **Todavía no implementado como sistema completo:**
-- agenda ejecutable por entidad;
-- selección autónoma de actividades;
-- simulación fuera de escena con pasos temporales;
-- resolución de conflictos entre PNJ;
-- persistencia y restauración de agendas activas;
-- movimiento autónomo con validación de rutas;
-- comunicación y difusión de resultados;
-- interfaz para consultar solo lo que el protagonista descubre.
+- generación autónoma de agendas a partir de objetivos y decisiones del motor;
+- administración visual de agendas (la primera versión se gestiona por API);
+- comprobación espacial de cada tarea, clima, distancia, rutas, presencia y testigos;
+- desplazamiento autónomo por el mapa;
+- reservas y consumo atómico de inventario/recursos en acciones programadas;
+- cambios automáticos de emociones por sucesos aceptados;
+- uso obligatorio de conocimiento, recuerdos y testimonios individuales como precondiciones;
+- interrupción, reanudación y replanificación de tareas;
+- diálogos, negociaciones, cooperación y conflictos autónomos entre PNJ;
+- comunicación de resultados al protagonista únicamente por vías de información válidas.
 
-No marcar estas capacidades como terminadas por existir este documento. Una fase técnica posterior deberá definir esquema, servicios, API, turnos, snapshots, undo/backup/restore, reglas de coste y pruebas automatizadas.
+Los perfiles de Brina, Maelis y Sera siguen vacíos salvo la información que el autor configure; no se han inventado emociones, necesidades ni metas iniciales. Sus agendas narrativas concretas no se cargan hasta que el autor confirme objetivos y compromisos.
+
+La especificación genérica, los límites técnicos y la API están en [Motor de conducta y decisiones de PNJ](../../../../proyecto/MOTOR_CONDUCTA_Y_DECISION_NPC.md). Las tareas propuestas en este documento siguen siendo requisitos de Isekai, no canon confirmado.
 
 ## 13. Decisiones de autor que siguen abiertas
 

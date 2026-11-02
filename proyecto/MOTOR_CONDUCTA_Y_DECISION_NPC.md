@@ -71,26 +71,36 @@ Son una biblioteca inicial, no miles de reglas escritas a mano. Cada mundo puede
 
 `append_emotion()` registra una nueva emoción sin sobrescribir otras causas todavía activas.
 
-## 4. Límites que siguen pendientes
+## 4. Estado real y límites pendientes
 
-Esta fase es un **evaluador de propuestas**, no un simulador completo. No debe marcarse como autonomía terminada.
+La primera fase sigue siendo un **evaluador de propuestas**, pero ahora existe una segunda capa parcial: agenda persistente y ejecución limitada de actividades cuando el reloj ya avanzó por una acción autorizada.
 
-Todavía falta:
+### Runtime implementado
 
-- editor visual de campos de perfil en vez de editar JSON manualmente;
-- generación de decisiones a partir de percepción y conocimiento individual comprobable; ahora los límites de conocimiento aún no se construyen automáticamente desde los recuerdos/testigos;
-- convertir cada acción candidata en un plan validado con precondiciones, pasos, costes, duración e interrupciones;
-- ejecutor transaccional e idempotente que aplique resultados a ubicación, inventario, tiempo, relaciones, eventos y recursos;
-- registro de por qué se descartaron acciones, y no solo los motivos de puntuación de las acciones elegidas;
-- agendas y colas persistentes por personaje, con compromisos, prioridad, descanso y cancelación;
-- simulación fuera de escena al avanzar el reloj por viajes, descanso o saltos autorizados;
-- encuentros entre PNJ, diálogo autónomo, negociación, cooperación, conflicto y resolución persistente;
-- que emociones se creen o modifiquen a partir de eventos aceptados y se desgasten cuando el tiempo del mundo avance; ahora se pueden guardar y avanzar mediante función, pero no se actualizan solas;
-- snapshots, deshacer y recuperación de decisiones ejecutadas, y panel que explique acciones, evidencias y efectos.
+- `session_entity_agendas` conserva actividades por PNJ, con acción, inicio, duración, prioridad, contexto, estado y resultado.
+- `behavior_action_executions` registra una ejecución completada por agenda. Los identificadores de solicitud hacen idempotente la creación; el estado y la transacción impiden aplicar dos veces una actividad.
+- La API permite crear, consultar y cancelar actividades. La creación no modifica la hora.
+- Las actividades empiezan cuando el reloj cruza su hora programada y solo se completan cuando alcanza el final de su duración.
+- El runtime se invoca al avanzar tiempo por turnos del narrador y por tramos/cancelación de viajes. Nunca crea tiempo por sí mismo ni funciona como un proceso en segundo plano.
+- El desgaste emocional configurado se aplica a los perfiles cuando avanza el reloj. No se desgastan emociones si no transcurre tiempo de juego.
+- En la ejecución se vuelven a comprobar perfil, capacidades, condiciones y catálogo guardado. Los efectos permitidos son deliberadamente limitados: cambios sobre necesidades ya conocidas, emociones nuevas con evento fuente, actualización de objetivos existentes y cambio/limpieza del foco.
+- Las actividades completadas generan un registro de evento y una fila de ejecución. Perfiles, agendas y ejecuciones se incluyen en snapshots de turno y copias de seguridad/restauración.
 
-La API local expone `GET/PUT /api/sessions/{session_id}/entities/{entity_id}/behavior`, `POST .../behavior/preview` y `GET/PUT /api/worlds/{world_id}/behavior/catalog`. La interfaz permite seleccionar una entidad, cargar/guardar su perfil, mantener el catálogo JSON del mundo y consultar la puntuación de hasta 15 acciones. También acepta una lista de hasta 100 focos candidatos para comparar qué persona, lugar, objeto, tarea, amenaza, conocimiento, evento o recurso atrae más la atención. El contexto de previsualización incluye el reloj y lugar de la sesión; quien invoca puede aportar condiciones, tiempo disponible y destinatario.
+API: `POST /api/sessions/{session_id}/entities/{entity_id}/agendas`, `GET /api/sessions/{session_id}/agendas` y `DELETE /api/sessions/{session_id}/agendas/{agenda_id}`.
 
-La salida de la previsualización **no modifica la partida**: no consume recursos, no mueve PNJ, no avanza el reloj ni crea eventos. Esta separación es deliberada; primero se valida la selección; después se conectará a un ejecutor transaccional con evidencia e idempotencia. Tampoco se han precargado rasgos, necesidades, traumas, emociones ni metas de Brina, Maelis o Sera. Sus perfiles empiezan sin datos y requieren configuración o evidencia real.
+### Límites pendientes
+
+- El motor **no crea agendas por iniciativa propia** todavía: las entradas se programan explícitamente mediante API.
+- No hay panel visual para administrar, reordenar o inspeccionar agendas; la primera interfaz disponible es la API.
+- Las actividades no validan aún posición, distancia, clima, ruta, presencia de testigos ni acceso a lugares. No deben programarse como acciones que impliquen desplazamiento físico.
+- Las acciones con coste de recursos se rechazan para agenda hasta contar con reservas atómicas y resolución de concurrencia.
+- Los efectos no modifican inventario, ubicación, relaciones ni poderes. No hay aún movimiento autónomo por el mapa.
+- Las emociones se desgastan al avanzar el reloj, pero los acontecimientos aceptados todavía no generan emociones de forma automática.
+- No hay agenda con interrupciones, reanudación parcial, cambios de prioridad mientras está en curso ni resolución de conflictos entre PNJ.
+- El uso de conocimiento, recuerdos y testimonios como precondiciones automáticas sigue pendiente; no se puede inferir que un PNJ sabe algo solo porque figure en el registro mundial.
+- Continúan pendientes el editor visual de perfiles, el registro de razones para todas las propuestas descartadas y la prueba E2E real del navegador.
+
+La previsualización `rank_actions()` sigue sin producir efectos. Es una lista de propuestas. La ejecución solo ocurre para una actividad que ha sido guardada como agenda y cuyo intervalo ya ha transcurrido en el reloj real de la partida.
 
 ## 5. Criterios para considerar completa la autonomía
 

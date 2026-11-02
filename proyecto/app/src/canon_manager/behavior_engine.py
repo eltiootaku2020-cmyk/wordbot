@@ -174,6 +174,90 @@ def validate_profile(profile: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+def _validate_action_effects(value: Any) -> dict[str, Any]:
+    """Validate the deliberately narrow, profile-local effects of an NPC action."""
+    if not isinstance(value, Mapping):
+        raise BehaviorValidationError("action.effects must be an object")
+    allowed = {"need_deltas", "emotions", "goal_updates", "focus"}
+    extras = set(value) - allowed
+    if extras:
+        raise BehaviorValidationError(
+            f"Unsupported action effect fields: {', '.join(sorted(extras))}"
+        )
+
+    need_deltas = _number_map(
+        value.get("need_deltas", {}), "action.effects.need_deltas", -100, 100
+    )
+    raw_emotions = value.get("emotions", [])
+    if not isinstance(raw_emotions, list) or len(raw_emotions) > 20:
+        raise BehaviorValidationError("action.effects.emotions must contain at most 20 entries")
+    emotions: list[dict[str, Any]] = []
+    for item in raw_emotions:
+        if not isinstance(item, Mapping):
+            raise BehaviorValidationError("Each action emotion effect must be an object")
+        if "source_event_id" in item:
+            raise BehaviorValidationError("Emotion source_event_id is assigned by the runtime")
+        emotions.append({
+            "kind": _text(item.get("kind"), "action.effects.emotion.kind", 80),
+            "intensity": _number(item.get("intensity"), "action.effects.emotion.intensity", 0, 100),
+            "decay_per_hour": _number(
+                item.get("decay_per_hour", 0), "action.effects.emotion.decay_per_hour", 0, 100
+            ),
+            "target_id": _text(
+                item.get("target_id", ""), "action.effects.emotion.target_id", 120,
+                allow_empty=True,
+            ),
+        })
+
+    raw_goals = value.get("goal_updates", [])
+    if not isinstance(raw_goals, list) or len(raw_goals) > 30:
+        raise BehaviorValidationError("action.effects.goal_updates must contain at most 30 entries")
+    goal_updates: list[dict[str, str]] = []
+    seen_goals: set[str] = set()
+    for item in raw_goals:
+        if not isinstance(item, Mapping):
+            raise BehaviorValidationError("Each goal update effect must be an object")
+        goal_id = _text(item.get("goal_id"), "action.effects.goal_update.goal_id")
+        status = item.get("status")
+        if status not in {"active", "paused", "completed", "abandoned"}:
+            raise BehaviorValidationError("Invalid action goal update status")
+        if goal_id in seen_goals:
+            raise BehaviorValidationError("Action goal updates cannot repeat a goal id")
+        seen_goals.add(goal_id)
+        goal_updates.append({"goal_id": goal_id, "status": status})
+
+    focus = None
+    if "focus" in value and value["focus"] is not None:
+        raw_focus = value["focus"]
+        if not isinstance(raw_focus, Mapping):
+            raise BehaviorValidationError("action.effects.focus must be an object or null")
+        kind = _text(raw_focus.get("kind"), "action.effects.focus.kind", 40)
+        if kind not in FOCUS_TYPES:
+            raise BehaviorValidationError("Unsupported action effect focus kind")
+        focus = {
+            "kind": kind,
+            "target_id": _text(
+                raw_focus.get("target_id", ""), "action.effects.focus.target_id", 120,
+                allow_empty=True,
+            ),
+            "salience": _number(
+                raw_focus.get("salience", 50), "action.effects.focus.salience", 0, 100
+            ),
+            "tags": _string_list(
+                raw_focus.get("tags", []), "action.effects.focus.tags", maximum_items=40
+            ),
+        }
+
+    result: dict[str, Any] = {
+        "need_deltas": need_deltas,
+        "emotions": emotions,
+        "goal_updates": goal_updates,
+    }
+    if "focus" in value:
+        result["focus"] = focus
+    return result
+
+
 def validate_action(action: Mapping[str, Any]) -> dict[str, Any]:
     """Validate one reusable action template in a world-specific catalog."""
     if not isinstance(action, Mapping):
@@ -213,6 +297,7 @@ def validate_action(action: Mapping[str, Any]) -> dict[str, Any]:
         "resource_costs": _number_map(action.get("resource_costs", {}), "action.resource_costs", 0, 1_000_000),
         "duration_minutes": duration,
         "risk_level": risk,
+        "effects": _validate_action_effects(action.get("effects", {})),
     }
 
 
