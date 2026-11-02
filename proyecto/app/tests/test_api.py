@@ -16,6 +16,7 @@ from fastapi.testclient import TestClient
 import canon_manager.main as main_module
 from canon_manager.main import app, database, build_context, session_row, apply_narrator_result, relevance_terms
 from canon_manager.models import NarratorResponse, EventProposal, StateChangeProposal, InventoryOperation, MovementProposal, PowerUseProposal, ResourceOperation
+from canon_manager.behavior_runtime import tick_behavior_runtime
 
 
 @pytest.fixture(autouse=True)
@@ -5361,3 +5362,303 @@ def test_behavior_profile_validation_rejects_out_of_range_traits():
             json={"profile": {"traits": {"curiosity": 101}}},
         )
         assert response.status_code == 422
+
+
+def test_npc_agenda_runs_only_after_world_time_advances_and_is_idempotent():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        maelis_id = f"{world_id}:maelis-orven"
+        profile = {
+            "traits": {"curiosity": 80},
+            "needs": {"fatigue": 60, "thirst": None},
+            "emotions": [{
+                "kind": "worry", "intensity": 60, "decay_per_hour": 6,
+                "target_id": "", "source_event_id": "noise-before-agenda",
+            }],
+            "goals": [{
+                "goal_id": "study-the-mark", "priority": 80,
+                "tags": ["investigate"], "status": "active",
+            }],
+            "focus": {"kind": "knowledge", "target_id": "old-clue", "salience": 50},
+            "capabilities": ["investigate"],
+            "resources": {},
+        }
+        saved_profile = client.put(
+            f"/api/sessions/{session_id}/entities/{maelis_id}/behavior",
+            json={"profile": profile},
+        )
+        assert saved_profile.status_code == 200, saved_profile.text
+
+        catalog = {
+            "schema_version": 1,
+            "actions": [{
+                "action_id": "field_research",
+                "category": "research",
+                "base_priority": 20,
+                "tags": ["investigate", "evidence"],
+                "required_capabilities": ["investigate"],
+                "duration_minutes": 20,
+                "risk_level": 0,
+                "effects": {
+                    "need_deltas": {"fatigue": -10, "thirst": -15},
+                    "emotions": [{
+                        "kind": "satisfaction", "intensity": 25, "decay_per_hour": 2,
+                        "target_id": "",
+                    }],
+                    "goal_updates": [{"goal_id": "study-the-mark", "status": "completed"}],
+                    "focus": {
+                        "kind": "knowledge", "target_id": "new-evidence",
+                        "salience": 90, "tags": ["discovery"],
+                    },
+                },
+            }],
+            "patterns": [],
+        }
+        saved_catalog = client.put(
+            f"/api/worlds/{world_id}/behavior/catalog", json=catalog
+        )
+        assert saved_catalog.status_code == 200, saved_catalog.text
+
+        request = {
+            "request_id": "maelis-research-0001",
+            "action_id": "field_research",
+            "scheduled_day": 1,
+            "scheduled_minute": 480,
+            "priority": 80,
+        }
+        scheduled = client.post(
+            f"/api/sessions/{session_id}/entities/{maelis_id}/agendas",
+            json=request,
+        )
+        assert scheduled.status_code == 200, scheduled.text
+        agenda = scheduled.json()
+        assert agenda["status"] == "scheduled"
+        assert agenda["duration_minutes"] == 20
+        assert agenda["scheduled_total_minutes"] == 480
+
+        # Scheduling records intent only; the game clock and profile are unchanged.
+        state = client.get(f"/api/sessions/{session_id}/state").json()
+        assert state["state"]["time_label"].endswith("08:00")
+        before = client.get(
+            f"/api/sessions/{session_id}/entities/{maelis_id}/behavior"
+        ).json()["profile"]
+        assert before["needs"]["fatigue"] == 60
+
+        duplicate = client.post(
+            f"/api/sessions/{session_id}/entities/{maelis_id}/agendas",
+            json=request,
+        )
+        assert duplicate.status_code == 200, duplicate.text
+        assert duplicate.json()["duplicate_request"] is True
+        assert duplicate.json()["agenda_id"] == agenda["agenda_id"]
+
+        with database.transaction() as conn:
+            conn.execute(
+                "UPDATE sessions SET day=1,minute_of_day=490 WHERE id=?", (session_id,)
+            )
+            partial = tick_behavior_runtime(conn, session_id, 480, 490)
+        assert partial["started"] == 1
+        assert partial["completed"] == 0
+        running = client.get(
+            f"/api/sessions/{session_id}/agendas", params={"entity_id": maelis_id}
+        ).json()
+        assert running[0]["status"] == "running"
+
+        with database.transaction() as conn:
+            conn.execute(
+                "UPDATE sessions SET day=1,minute_of_day=500 WHERE id=?", (session_id,)
+            )
+            completed = tick_behavior_runtime(conn, session_id, 490, 500)
+        assert completed["completed"] == 1
+        assert completed["blocked"] == 0
+
+        after = client.get(
+            f"/api/sessions/{session_id}/entities/{maelis_id}/behavior"
+        ).json()["profile"]
+        assert after["needs"]["fatigue"] == 50
+        # Unknown needs stay unknown even when an action has a configured delta.
+        assert after["needs"]["thirst"] is None
+        assert after["goals"][0]["status"] == "completed"
+        assert after["focus"]["target_id"] == "new-evidence"
+        emotion = next(item for item in after["emotions"] if item["kind"] == "satisfaction")
+        assert emotion["source_event_id"]
+
+        with database.connection() as conn:
+            executions = conn.execute(
+                "SELECT COUNT(*) AS n FROM behavior_action_executions "
+                "WHERE session_id=? AND agenda_id=?",
+                (session_id, agenda["agenda_id"]),
+            ).fetchone()["n"]
+            event = conn.execute(
+                "SELECT id FROM events WHERE id=?", (emotion["source_event_id"],)
+            ).fetchone()
+        assert executions == 1
+        assert event is not None
+
+        # Reprocessing a later clock interval cannot apply the same agenda twice.
+        with database.transaction() as conn:
+            conn.execute(
+                "UPDATE sessions SET day=1,minute_of_day=510 WHERE id=?", (session_id,)
+            )
+            repeated = tick_behavior_runtime(conn, session_id, 500, 510)
+        assert repeated["completed"] == 0
+        with database.connection() as conn:
+            executions_after_retry = conn.execute(
+                "SELECT COUNT(*) AS n FROM behavior_action_executions "
+                "WHERE session_id=? AND agenda_id=?",
+                (session_id, agenda["agenda_id"]),
+            ).fetchone()["n"]
+        assert executions_after_retry == 1
+
+
+def test_npc_agenda_rejects_overlaps_resource_costs_and_player_control():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        maelis_id = f"{world_id}:maelis-orven"
+        protagonist_id = f"{world_id}:protagonista"
+        profile = {
+            "traits": {"curiosity": 80},
+            "needs": {},
+            "emotions": [],
+            "goals": [],
+            "capabilities": ["investigate", "repair"],
+            "resources": {"materials": 5},
+        }
+        saved = client.put(
+            f"/api/sessions/{session_id}/entities/{maelis_id}/behavior",
+            json={"profile": profile},
+        )
+        assert saved.status_code == 200, saved.text
+        catalog = {
+            "schema_version": 1,
+            "actions": [
+                {
+                    "action_id": "field_research",
+                    "category": "research",
+                    "duration_minutes": 30,
+                    "required_capabilities": ["investigate"],
+                },
+                {
+                    "action_id": "repair_equipment",
+                    "category": "craft",
+                    "duration_minutes": 30,
+                    "required_capabilities": ["repair"],
+                    "resource_costs": {"materials": 1},
+                },
+            ],
+            "patterns": [],
+        }
+        response = client.put(f"/api/worlds/{world_id}/behavior/catalog", json=catalog)
+        assert response.status_code == 200, response.text
+
+        first = client.post(
+            f"/api/sessions/{session_id}/entities/{maelis_id}/agendas",
+            json={
+                "request_id": "agenda-overlap-0001",
+                "action_id": "field_research",
+                "scheduled_day": 1,
+                "scheduled_minute": 480,
+            },
+        )
+        assert first.status_code == 200, first.text
+        overlap = client.post(
+            f"/api/sessions/{session_id}/entities/{maelis_id}/agendas",
+            json={
+                "request_id": "agenda-overlap-0002",
+                "action_id": "field_research",
+                "scheduled_day": 1,
+                "scheduled_minute": 500,
+            },
+        )
+        assert overlap.status_code == 409
+        resource_cost = client.post(
+            f"/api/sessions/{session_id}/entities/{maelis_id}/agendas",
+            json={
+                "request_id": "agenda-resource-0001",
+                "action_id": "repair_equipment",
+                "scheduled_day": 1,
+                "scheduled_minute": 520,
+            },
+        )
+        assert resource_cost.status_code == 422
+        player_agenda = client.post(
+            f"/api/sessions/{session_id}/entities/{protagonist_id}/agendas",
+            json={
+                "request_id": "agenda-player-0001",
+                "action_id": "field_research",
+                "scheduled_day": 1,
+                "scheduled_minute": 520,
+            },
+        )
+        assert player_agenda.status_code == 409
+        state = client.get(f"/api/sessions/{session_id}/state").json()
+        assert state["state"]["time_label"].endswith("08:00")
+
+
+def test_npc_agendas_are_included_in_backup_and_restore():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        maelis_id = f"{world_id}:maelis-orven"
+        profile = {
+            "traits": {"curiosity": 70},
+            "needs": {},
+            "emotions": [],
+            "goals": [],
+            "capabilities": ["investigate"],
+            "resources": {},
+        }
+        saved = client.put(
+            f"/api/sessions/{session_id}/entities/{maelis_id}/behavior",
+            json={"profile": profile},
+        )
+        assert saved.status_code == 200, saved.text
+        catalog = {
+            "schema_version": 1,
+            "actions": [{
+                "action_id": "field_research",
+                "category": "research",
+                "duration_minutes": 25,
+                "required_capabilities": ["investigate"],
+            }],
+            "patterns": [],
+        }
+        assert client.put(
+            f"/api/worlds/{world_id}/behavior/catalog", json=catalog
+        ).status_code == 200
+        scheduled = client.post(
+            f"/api/sessions/{session_id}/entities/{maelis_id}/agendas",
+            json={
+                "request_id": "agenda-backup-0001",
+                "action_id": "field_research",
+                "scheduled_day": 1,
+                "scheduled_minute": 490,
+            },
+        )
+        assert scheduled.status_code == 200, scheduled.text
+        agenda_id = scheduled.json()["agenda_id"]
+
+        backup = client.post(f"/api/sessions/{session_id}/backup", json={})
+        assert backup.status_code == 200, backup.text
+        cancelled = client.delete(f"/api/sessions/{session_id}/agendas/{agenda_id}")
+        assert cancelled.status_code == 200, cancelled.text
+        assert cancelled.json()["status"] == "cancelled"
+
+        restored = client.post(
+            f"/api/sessions/{session_id}/restore",
+            json={
+                "backup_name": backup.json()["backup_name"],
+                "confirmation": "RESTAURAR",
+            },
+        )
+        assert restored.status_code == 200, restored.text
+        agendas = client.get(
+            f"/api/sessions/{session_id}/agendas", params={"entity_id": maelis_id}
+        )
+        assert agendas.status_code == 200, agendas.text
+        assert len(agendas.json()) == 1
+        assert agendas.json()[0]["agenda_id"] == agenda_id
+        assert agendas.json()[0]["status"] == "scheduled"
+
