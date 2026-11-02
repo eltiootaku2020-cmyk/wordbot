@@ -224,3 +224,13 @@ class BehaviorPreviewRequest(StrictModel):
     context: dict[str, Any] = Field(default_factory=dict)
     focus_candidates: list[dict[str, Any]] = Field(default_factory=list, max_length=100)
     limit: int = Field(default=10, ge=1, le=100)
+
+class BehaviorAgendaCreateRequest(StrictModel):
+    request_id: str = Field(min_length=8, max_length=120)
+    action_id: str = Field(min_length=1, max_length=120)
+    scheduled_day: int = Field(ge=1)
+    scheduled_minute: int = Field(ge=0, le=1439)
+    priority: float = Field(default=50, ge=0, le=100, allow_inf_nan=False)
+    target_entity_id: str = Field(default="", max_length=120)
+    context: dict[str, Any] = Field(default_factory=dict)
+
