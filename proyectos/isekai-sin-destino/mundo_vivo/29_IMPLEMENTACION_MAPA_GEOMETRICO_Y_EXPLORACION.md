@@ -286,3 +286,18 @@ La interfaz se alimenta de `GET /api/worlds/{world_id}/map/regions/{region_id}`,
 El formato de región conserva los puntos de interés junto al resto de la geometría. `points_of_interest` es opcional al leer configuraciones antiguas; al guardar, el servidor normaliza el campo como una colección. Cada punto utiliza coordenadas locales en metros y se dibuja solo después de descubrir su celda. Los puntos no son obstáculos ni áreas de colisión.
 
 La herramienta gráfica permite seleccionar una figura ya definida, mover sus vértices con el puntero y confirmar el contorno mediante el mismo validador geométrico que se usa al crear polígonos. Los cambios siguen siendo un borrador hasta guardar explícitamente la región.
+
+### Mapa ampliado e interacción de navegación — actualización 02-11-2026
+
+La pantalla SVG ahora ocupa una zona de mapa más grande (altura adaptable hasta 620 px) y tiene un modo ampliado que ocupa casi toda la ventana. Se incorporaron:
+
+- Desplazamiento libre arrastrando el mapa con el puntero, sin alterar las coordenadas guardadas.
+- Zoom con rueda del ratón, centrado en el punto bajo el cursor; doble clic para acercar.
+- Botones de acercar, alejar y ajustar para volver a la extensión completa.
+- Filtros independientes de capas: límites, terrenos, zonas, obstáculos, caminos y puntos de interés.
+- Las capas y el modo ampliado cambian solo la representación; no modifican geometría, niebla, posición ni rutas.
+- La niebla de guerra permanece activa aunque se oculten o muestren capas: un filtro visual no puede descubrir celdas desconocidas.
+
+La pantalla también incluye un panel de perfiles de conducta para PNJ. Permite cargar y guardar el perfil individual en la partida, editar el catálogo adicional del mundo y consultar una previsualización de decisiones. El protagonista está excluido de esa previsualización.
+
+Esta pantalla no inicia acciones autónomas. Solo presenta el resultado del evaluador de conducta; la ejecución transaccional y las agendas de PNJ siguen siendo trabajo pendiente.
