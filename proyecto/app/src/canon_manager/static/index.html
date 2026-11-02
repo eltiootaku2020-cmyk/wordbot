@@ -1524,6 +1524,7 @@ function startMapDrawing() {
   mapDrawingMode=true;
   updateMapDrawControls();
   renderWorldMap();
+  updateTravelControls();
   setMapDrawStatus("Dibujo activo · haz clic en el mapa para añadir vértices. Se necesitan al menos tres.",false);
 }
 function cancelMapDrawing(message) {
@@ -1533,6 +1534,7 @@ function cancelMapDrawing(message) {
   mapConfigPersisted=mapDrawingWasPersisted;
   updateMapDrawControls();
   renderWorldMap();
+  updateTravelControls();
   setMapDrawStatus(message || "Dibujo cancelado; no se modificó la geometría.",false);
 }
 function mapCross(a,b,c) {
@@ -1640,6 +1642,7 @@ function finishMapDrawing() {
   mapDrawingViewBox=null;
   updateMapDrawControls();
   renderWorldMap();
+  updateTravelControls();
   setMapDrawStatus(
     kind==="walkable_bounds"
       ? "Límite transitable añadido al borrador JSON. Guarda la geometría para persistirlo."
@@ -1700,7 +1703,9 @@ async function saveMapGeometry() {
   mapSetHint("Geometría guardada. El planificador y el mapa utilizan esta misma definición.",false);
 }
 async function planSelectedTravel() {
-  if(!currentSession || !mapConfig)throw new Error("Selecciona una partida y carga su geometría.");
+  if(!currentSession || !mapConfig || !mapConfigPersisted) {
+    throw new Error("Guarda primero la geometría de la región antes de planificar un viaje.");
+  }
   const destination=mapDestinationInput();
   const planned=await api("/api/sessions/"+currentSession+"/travel/plan",{
     method:"POST",
@@ -1793,7 +1798,15 @@ el("saveMapConfigButton").onclick=async()=>{
   try{await saveMapGeometry();setStatus("Geometría de región guardada.",true);}
   catch(err){setStatus(err.message,false);}
 };
-el("copyMapConfigTemplate").onclick=()=>{el("mapConfigInput").value=JSON.stringify(EMPTY_MAP_CONFIG,null,2);};
+el("copyMapConfigTemplate").onclick=()=>{
+  el("mapConfigInput").value=JSON.stringify(EMPTY_MAP_CONFIG,null,2);
+  mapConfigPersisted=false;
+  updateTravelControls();
+};
+el("mapConfigInput").addEventListener("input",()=>{
+  mapConfigPersisted=false;
+  updateTravelControls();
+});
 
 el("mapConfigFile").onchange=async()=>{
   const file=el("mapConfigFile").files && el("mapConfigFile").files[0];
@@ -1802,6 +1815,8 @@ el("mapConfigFile").onchange=async()=>{
     const text=await file.text();
     JSON.parse(text);
     el("mapConfigInput").value=text;
+    mapConfigPersisted=false;
+    updateTravelControls();
     setStatus("JSON cargado en el editor. Revísalo y pulsa «Guardar geometría de región».",true);
   } catch(err) {
     setStatus("No se pudo leer el JSON: "+err.message,false);
