@@ -407,7 +407,7 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}label{font-size:13px;
     <hr>
     <details id="behaviorPanel" class="setup">
       <summary>Personalidad y conducta de PNJ</summary>
-      <p class="muted">Los perfiles son independientes por personaje y partida. Los valores desconocidos deben quedar como <code>null</code> o ausentes. La vista previa ordena acciones candidatas, pero todavía no ejecuta acciones ni cambia el mundo. El protagonista no puede ser controlado por este motor.</p>
+      <p class="muted">Los perfiles son independientes por personaje y partida. Rasgos y necesidades usan valores 0–100; usa <code>null</code> o deja fuera un valor si no se conoce. Las emociones son episodios con <code>kind</code>, <code>intensity</code>, <code>decay_per_hour</code>, <code>target_id</code> y <code>source_event_id</code>. Los objetivos usan <code>goal_id</code>, <code>priority</code>, <code>tags</code> y <code>status</code>. El foco actual usa tipo, objetivo, saliencia y etiquetas. Las relaciones dirigidas se leen desde el registro de la partida: no se editan aquí. La vista previa ordena acciones candidatas, pero todavía no ejecuta acciones ni cambia el mundo. El protagonista no puede ser controlado por este motor.</p>
       <label for="behaviorEntitySelect">Personaje</label>
       <select id="behaviorEntitySelect" style="width:100%"><option value="">Selecciona personaje</option></select>
       <div class="behavior-actions">
@@ -438,7 +438,7 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}label{font-size:13px;
         <button id="previewBehavior" type="button">Previsualizar decisiones</button>
       </div>
       <label for="behaviorCatalogInput">Catálogo adicional de este mundo (JSON)</label>
-      <p class="muted">Añade acciones y patrones propios del mundo sin modificar la biblioteca genérica. Se combinan con las acciones y patrones predeterminados.</p>
+      <p class="muted">Añade hasta 500 acciones y 500 patrones propios del mundo sin modificar la biblioteca genérica. Cada acción declara etiquetas, requisitos, coste, duración y afinidades; cada patrón modifica la puntuación cuando coinciden sus condiciones. Se combinan con la biblioteca predeterminada.</p>
       <textarea id="behaviorCatalogInput" spellcheck="false">{
   "schema_version": 1,
   "actions": [],
