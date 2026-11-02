@@ -423,11 +423,18 @@ El nivel de detalle visible al protagonista es menor que el nivel de estado que 
 
 ### Actualización técnica — 02-11-2026
 
-Word Bot incorpora una primera base genérica para puntuar propuestas de conducta en `proyecto/app/src/canon_manager/behavior_engine.py`. Acepta rasgos, necesidades conocidas/desconocidas, emociones con evento fuente y desgaste individual, objetivos, foco, capacidades, recursos y relaciones dirigidas. Un catálogo inicial de acciones y patrones se combina para ordenar decisiones candidatas de forma determinista.
+Word Bot ya incorpora una primera capa genérica de perfiles de conducta persistidos y previsualización determinista:
 
-Esta base **todavía no implementa la autonomía descrita en este documento**: no persiste perfiles por entidad en SQLite, no ejecuta los efectos de las acciones, no mantiene agendas, no simula intervalos fuera de escena y no registra encuentros autónomos entre PNJ. La salida actual es una propuesta de acción; no cambia el mundo.
+- Cada entidad tiene un perfil separado por partida en SQLite: rasgos, necesidades (incluidos valores desconocidos), emociones con intensidad y evento fuente, objetivos, foco, capacidades y recursos.
+- Las relaciones dirigidas se consultan desde el registro de relaciones vigente de la partida; no se copian ni se simetrizan.
+- Cada mundo puede añadir acciones y patrones a su catálogo sin modificar los demás mundos. La biblioteca genérica inicial contiene 29 acciones y 22 patrones reutilizables; el sistema permite hasta 500 definiciones personalizadas de cada tipo por mundo.
+- La API y la pantalla local permiten editar perfiles JSON, guardar el catálogo del mundo y previsualizar hasta 15 decisiones candidatas para un PNJ.
+- El protagonista está excluido de la previsualización autónoma: sus acciones continúan bajo control del usuario.
+- La vista previa informa razones y puntuaciones, pero no consume recursos, no mueve personajes, no avanza el reloj ni crea acontecimientos.
 
-La especificación genérica y los límites están en [Motor de conducta y decisiones de PNJ](../../../../proyecto/MOTOR_CONDUCTA_Y_DECISION_NPC.md). No contiene reglas narrativas de Brina, Maelis o Sera; esas reglas deben definirse aquí como datos del mundo y solo después de confirmación del autor.
+Esta implementación **todavía no es la autonomía completa**: no ejecuta las acciones, no crea agendas ni simula intervalos fuera de escena, y todavía no usa automáticamente el conocimiento/testimonios individuales como precondiciones de todas las decisiones. Los perfiles de Brina, Maelis y Sera empiezan vacíos salvo información que el autor configure; no se han inventado emociones, necesidades ni metas iniciales.
+
+La especificación genérica, los límites y las próximas fases están en [Motor de conducta y decisiones de PNJ](../../../../proyecto/MOTOR_CONDUCTA_Y_DECISION_NPC.md). No contiene reglas narrativas propias de Brina, Maelis o Sera; esas reglas deben definirse aquí como datos del mundo y solo después de confirmación del autor.
 
 **Ya documentado en el proyecto:**
 - las entidades pueden tener objetivos, necesidades, capacidades, conocimientos, ubicación, relaciones e historial;
