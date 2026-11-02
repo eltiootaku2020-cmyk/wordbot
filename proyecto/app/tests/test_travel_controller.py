@@ -4,6 +4,7 @@ from pathlib import Path
 import pytest
 
 from canon_manager.db import Database
+from canon_manager.map_persistence import save_map_state
 from canon_manager.travel_controller import (
     TravelConflictError,
     advance_travel_step,
@@ -231,3 +232,18 @@ def test_active_route_cannot_retarget_to_another_region(game: Database):
 
     with pytest.raises(TravelConflictError):
         plan_travel(game, "session-1", "other-region", Point(100, 100))
+
+
+def test_region_cell_size_cannot_change_after_exploration_is_saved(game: Database):
+    register_map_region(game, "world-1", "forest", WorldMap(cell_size_m=100))
+    save_map_state(
+        game,
+        "session-1",
+        "forest",
+        Point(0, 0),
+        ExplorationState({(0, 0)}),
+        cell_size_m=100,
+    )
+
+    with pytest.raises(TravelConflictError):
+        register_map_region(game, "world-1", "forest", WorldMap(cell_size_m=200))
