@@ -5185,7 +5185,7 @@ def test_behavior_profiles_are_saved_per_entity_and_rank_different_actions():
         assert maelis_preview.status_code == 200, maelis_preview.text
         assert brina_preview.status_code == 200, brina_preview.text
         assert maelis_preview.json()["actions"][0]["action_id"] == "investigate"
-        assert brina_preview.json()["actions"][0]["action_id"] == "withdraw"
+        assert brina_preview.json()["actions"][0]["action_id"] == "guard"
         assert maelis_preview.json()["side_effects_applied"] is False
         assert brina_preview.json()["side_effects_applied"] is False
 
@@ -5328,7 +5328,7 @@ def test_behavior_engine_refuses_to_choose_player_character_actions():
             json={"context": {}},
         )
         assert preview.status_code == 404
-        assert "controlado por el usuario" in preview.json()["detail"]
+        assert "bajo control del usuario" in preview.json()["detail"]
 
 
 def test_behavior_profile_rejects_entities_from_another_world():
