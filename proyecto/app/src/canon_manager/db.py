@@ -174,6 +174,43 @@ CREATE TABLE IF NOT EXISTS session_entity_behavior_profiles (
   updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY(session_id, entity_id)
 );
+CREATE TABLE IF NOT EXISTS session_entity_agendas (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  entity_id TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  request_id TEXT NOT NULL CHECK(length(request_id) BETWEEN 8 AND 120),
+  action_id TEXT NOT NULL,
+  action_json TEXT NOT NULL,
+  patterns_json TEXT NOT NULL DEFAULT '[]',
+  context_json TEXT NOT NULL DEFAULT '{}',
+  scheduled_total_minutes INTEGER NOT NULL CHECK(scheduled_total_minutes >= 0),
+  duration_minutes INTEGER NOT NULL CHECK(duration_minutes BETWEEN 1 AND 10080),
+  priority REAL NOT NULL DEFAULT 50 CHECK(priority BETWEEN 0 AND 100),
+  target_entity_id TEXT NOT NULL DEFAULT '',
+  status TEXT NOT NULL CHECK(status IN ('scheduled','running','completed','cancelled','blocked')),
+  result_json TEXT NOT NULL DEFAULT '{}',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(session_id, request_id)
+);
+CREATE INDEX IF NOT EXISTS idx_session_agendas_due
+  ON session_entity_agendas(session_id,status,scheduled_total_minutes,priority);
+CREATE INDEX IF NOT EXISTS idx_session_agendas_entity
+  ON session_entity_agendas(session_id,entity_id,status,scheduled_total_minutes);
+CREATE TABLE IF NOT EXISTS behavior_action_executions (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  agenda_id TEXT NOT NULL,
+  entity_id TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  action_id TEXT NOT NULL,
+  started_total_minutes INTEGER NOT NULL,
+  completed_total_minutes INTEGER NOT NULL,
+  result_json TEXT NOT NULL,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(session_id,agenda_id)
+);
+CREATE INDEX IF NOT EXISTS idx_behavior_executions_entity
+  ON behavior_action_executions(session_id,entity_id,completed_total_minutes);
 CREATE INDEX IF NOT EXISTS idx_behavior_profiles_entity ON session_entity_behavior_profiles(entity_id);
 CREATE INDEX IF NOT EXISTS idx_messages_session_turn ON messages(session_id, turn_index);
 CREATE INDEX IF NOT EXISTS idx_events_session ON events(session_id, created_at);
