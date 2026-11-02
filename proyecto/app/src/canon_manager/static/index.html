@@ -59,6 +59,7 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}label{font-size:13px;
 .map-draw-controls input,.map-draw-controls select{width:100%;min-width:0}
 .map-draw-actions{display:flex;gap:7px;flex-wrap:wrap}
 #mapDrawStatus{margin:8px 0 0;min-height:20px;font-size:12px;color:var(--muted)}
+.map-draw-controls [hidden]{display:none}
 #worldMapSvg.map-drawing{cursor:crosshair}
 @media(max-width:700px){.map-draw-controls{grid-template-columns:1fr 1fr}}
 .map-config-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
@@ -1793,7 +1794,14 @@ el("loadMapButton").onclick=async()=>{
   try{await loadExplorationData();setStatus("Mapa de región actualizado.",true);}
   catch(err){setStatus(err.message,false);}
 };
-el("mapRegionId").onchange=async()=>{selectedMapPoint=null;await loadExplorationData();};
+el("mapRegionId").onchange=async()=>{
+  if(mapDrawingMode)cancelMapDrawing("Cambio de región: el dibujo no guardado fue descartado.");
+  selectedMapPoint=null;
+  mapConfig=null;
+  mapConfigPersisted=false;
+  renderExploration();
+  await loadExplorationData();
+};
 el("saveMapConfigButton").onclick=async()=>{
   try{await saveMapGeometry();setStatus("Geometría de región guardada.",true);}
   catch(err){setStatus(err.message,false);}
