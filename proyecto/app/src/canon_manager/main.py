@@ -29,7 +29,12 @@ from .behavior_controller import (
     save_world_behavior_catalog,
 )
 from .behavior_engine import BehaviorValidationError
-from .models import ApprovalRequest, BehaviorCatalogRequest, BehaviorPreviewRequest, BehaviorProfileRequest, ContextPreviewRequest, EntityCreate, LocalCommandRequest, LocalSettingsUpdate, ManualPromptRequest, MapRegionConfigRequest, NarratorResponse, SessionCreate, SessionRestoreRequest, TravelPlanRequest, TravelStepRequest, TurnRequest, WorldCreate, WorldStartCreate, WorldTimelineEventCreate, WorldTimelineEventUpdate
+from .behavior_runtime import (
+    BehaviorAgendaConflictError, BehaviorAgendaNotFoundError, BehaviorAgendaValidationError,
+    cancel_behavior_agenda, list_behavior_agendas, schedule_behavior_agenda,
+    tick_behavior_runtime,
+)
+from .models import ApprovalRequest, BehaviorAgendaCreateRequest, BehaviorCatalogRequest, BehaviorPreviewRequest, BehaviorProfileRequest, ContextPreviewRequest, EntityCreate, LocalCommandRequest, LocalSettingsUpdate, ManualPromptRequest, MapRegionConfigRequest, NarratorResponse, SessionCreate, SessionRestoreRequest, TravelPlanRequest, TravelStepRequest, TurnRequest, WorldCreate, WorldStartCreate, WorldTimelineEventCreate, WorldTimelineEventUpdate
 from .providers import ProviderError, build_manual_prompt, make_provider
 from .timeline import fire_due_world_events
 from .travel_controller import (
@@ -610,6 +615,18 @@ def capture_turn_state(conn, session_id: str) -> dict[str, Any]:
         "timeline_events": [dict(row) for row in conn.execute(
             "SELECT * FROM session_timeline_events WHERE session_id=? ORDER BY scheduled_total_minutes,world_event_id",
             (session_id,)
+        ).fetchall()],
+        "behavior_profiles": [dict(row) for row in conn.execute(
+            "SELECT * FROM session_entity_behavior_profiles WHERE session_id=? ORDER BY entity_id",
+            (session_id,)
+        ).fetchall()],
+        "behavior_agendas": [dict(row) for row in conn.execute(
+            "SELECT * FROM session_entity_agendas WHERE session_id=? ORDER BY scheduled_total_minutes,id",
+            (session_id,)
+        ).fetchall()],
+        "behavior_executions": [dict(row) for row in conn.execute(
+            "SELECT * FROM behavior_action_executions WHERE session_id=? ORDER BY completed_total_minutes,id",
+            (session_id,)
         ).fetchall()]
     }
 
@@ -647,7 +664,10 @@ def restore_turn_state(conn, session_id: str, state: dict[str, Any]) -> None:
         ("relationships", state.get("relationships", [])),
         ("ability_uses", state.get("ability_uses", [])),
         # Firing records are mutable session state: undo must rewind them with the clock.
-        ("session_timeline_events", state.get("timeline_events", []))
+        ("session_timeline_events", state.get("timeline_events", [])),
+        ("session_entity_behavior_profiles", state.get("behavior_profiles", [])),
+        ("session_entity_agendas", state.get("behavior_agendas", [])),
+        ("behavior_action_executions", state.get("behavior_executions", []))
     ]
     for table, rows in table_rows:
         conn.execute(f"DELETE FROM {table} WHERE session_id=?", (session_id,))
@@ -2055,6 +2075,17 @@ def apply_narrator_result(
         fired_events = fire_due_world_events(
             conn, session["id"], previous_total_minutes, total_minutes
         )
+        behavior_runtime = tick_behavior_runtime(
+            conn, session["id"], previous_total_minutes, total_minutes
+        )
+        if behavior_runtime["completed"]:
+            applied.append(
+                f"Actividades autónomas de PNJ completadas: {behavior_runtime['completed']}."
+            )
+        if behavior_runtime["blocked"]:
+            pending_notes.append(
+                f"Actividades de PNJ bloqueadas por precondiciones: {behavior_runtime['blocked']}."
+            )
         for fired in fired_events:
             applied.append(
                 f"Suceso mundial activado: {fired['title']} "
@@ -3566,6 +3597,8 @@ def backup_session_database(session_id: str):
 RESTORE_SESSION_TABLES = (
     "session_presence",
     "session_entity_behavior_profiles",
+    "session_entity_agendas",
+    "behavior_action_executions",
     "inventory_items",
     "resources",
     "relationships",
@@ -3579,6 +3612,8 @@ RESTORE_SESSION_TABLES = (
 RESTORE_REQUIRED_COLUMNS = {
     "session_presence": {"session_id", "entity_id", "location", "presence_status"},
     "session_entity_behavior_profiles": {"session_id", "entity_id", "profile_json"},
+    "session_entity_agendas": {"id", "session_id", "entity_id", "request_id", "action_id", "scheduled_total_minutes", "duration_minutes", "status"},
+    "behavior_action_executions": {"id", "session_id", "agenda_id", "entity_id", "action_id", "completed_total_minutes", "result_json"},
     "inventory_items": {"id", "session_id", "item_key", "display_name", "quantity", "condition", "carrier_entity_id", "location"},
     "resources": {"id", "session_id", "resource_key", "display_name", "quantity", "unit"},
     "relationships": {"id", "session_id", "from_entity_id", "to_entity_id", "axis", "value"},
@@ -3680,7 +3715,10 @@ def _read_session_backup(backup_path: Path, session_id: str):
                 ),
             )
 
-        optional_tables = {"session_timeline_events", "session_entity_behavior_profiles"}
+        optional_tables = {
+            "session_timeline_events", "session_entity_behavior_profiles",
+            "session_entity_agendas", "behavior_action_executions",
+        }
         missing_tables = [
             table for table in RESTORE_SESSION_TABLES
             if table not in source_tables and table not in optional_tables
@@ -4076,3 +4114,48 @@ def preview_entity_behavior_api(
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     except (BehaviorValidationError, TypeError, ValueError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+# Persistent NPC agendas. Scheduling never advances time; activities complete
+# only when a separate, authoritative game action advances the world clock.
+@app.get("/api/sessions/{session_id}/agendas")
+def read_behavior_agendas(session_id: str, entity_id: str | None = None):
+    try:
+        return list_behavior_agendas(database, session_id, entity_id)
+    except BehaviorAgendaNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except BehaviorAgendaConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@app.post("/api/sessions/{session_id}/entities/{entity_id}/agendas")
+def create_behavior_agenda(
+    session_id: str, entity_id: str, payload: BehaviorAgendaCreateRequest
+):
+    try:
+        return schedule_behavior_agenda(
+            database,
+            session_id,
+            entity_id,
+            request_id=payload.request_id,
+            action_id=payload.action_id,
+            scheduled_day=payload.scheduled_day,
+            scheduled_minute=payload.scheduled_minute,
+            priority=payload.priority,
+            target_entity_id=payload.target_entity_id,
+            context=payload.context,
+        )
+    except BehaviorAgendaNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except BehaviorAgendaConflictError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    except (BehaviorAgendaValidationError, BehaviorValidationError, TypeError, ValueError) as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.delete("/api/sessions/{session_id}/agendas/{agenda_id}")
+def delete_behavior_agenda(session_id: str, agenda_id: str):
+    try:
+        return cancel_behavior_agenda(database, session_id, agenda_id)
+    except BehaviorAgendaNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+
