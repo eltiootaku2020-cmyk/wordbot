@@ -9,6 +9,7 @@ from canon_manager.world_map import (
     Direction,
     ExplorationState,
     MapArea,
+    MapPointOfInterest,
     ObstacleZone,
     Point,
     Polygon,
@@ -16,6 +17,8 @@ from canon_manager.world_map import (
     RouteNotFoundError,
     TerrainZone,
     WorldMap,
+    world_map_from_config,
+    world_map_to_config,
 )
 
 
@@ -188,3 +191,70 @@ def test_explicit_road_corridor_allows_a_bridge_through_a_river() -> None:
 
     assert route.waypoints == (Point(0, 0), Point(1000, 0))
     assert route.estimated_travel_seconds == 680
+
+
+
+def test_points_of_interest_round_trip_with_region_geometry() -> None:
+    point = MapPointOfInterest(
+        "old-watchtower",
+        "Torre de vigilancia",
+        Point(125.5, -80.25),
+        icon="🏰",
+        category="landmark",
+        description="Estructura de piedra visible desde el sendero.",
+    )
+    original = WorldMap(points_of_interest=(point,))
+
+    saved = world_map_to_config(original)
+    restored = world_map_from_config(saved)
+
+    assert saved["points_of_interest"] == [
+        {
+            "point_id": "old-watchtower",
+            "name": "Torre de vigilancia",
+            "x_m": 125.5,
+            "y_m": -80.25,
+            "icon": "🏰",
+            "category": "landmark",
+            "description": "Estructura de piedra visible desde el sendero.",
+        }
+    ]
+    assert restored.points_of_interest == (point,)
+
+
+def test_legacy_region_config_without_points_of_interest_remains_compatible() -> None:
+    restored = world_map_from_config(
+        {
+            "schema_version": 1,
+            "cell_size_m": 250,
+            "areas": [],
+            "terrain_zones": [],
+            "obstacles": [],
+            "roads": [],
+            "walkable_bounds": None,
+        }
+    )
+
+    assert restored.points_of_interest == ()
+
+
+def test_points_of_interest_require_unique_ids() -> None:
+    first = MapPointOfInterest("camp", "Campamento", Point(0, 0))
+    second = MapPointOfInterest("camp", "Otro campamento", Point(100, 100))
+
+    with pytest.raises(ValueError, match="ids must be unique"):
+        WorldMap(points_of_interest=(first, second))
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"icon": ""},
+        {"icon": "123456789"},
+        {"category": ""},
+        {"description": "x" * 501},
+    ],
+)
+def test_points_of_interest_validate_presentation_fields(kwargs: dict) -> None:
+    with pytest.raises(ValueError):
+        MapPointOfInterest("poi", "Punto", Point(0, 0), **kwargs)
