@@ -22,6 +22,44 @@ form{display:flex;gap:8px;align-items:stretch}textarea{flex:1;resize:vertical;mi
 details.setup{margin:8px 0 12px;border:1px solid var(--line);border-radius:9px;padding:10px;background:#191b22}details.setup summary{cursor:pointer;font-weight:600}.world-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:10px}.world-form label{display:flex;flex-direction:column;gap:4px}.world-form input,.world-form textarea{width:100%;min-width:0}.world-form textarea{min-height:68px}.world-form .wide{grid-column:1/-1}.world-form button{justify-self:start}
 hr{border:0;border-top:1px solid var(--line);margin:14px 0}label{font-size:13px;color:var(--muted)}
 @media(max-width:900px){main{grid-template-columns:1fr}#chat{max-height:none}.world-form{grid-template-columns:1fr}.world-form .wide{grid-column:auto}}
+
+/* Geometric exploration and session travel */
+.exploration-panel{margin:0 0 14px;border:1px solid var(--line);border-radius:12px;padding:12px;background:#191c23}
+.exploration-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.exploration-head h2{margin:0 0 3px}.exploration-head p{margin:0}
+.exploration-head .toolbar{margin:0}
+.exploration-head label{display:flex;align-items:center;gap:6px}
+.exploration-head input{width:185px;max-width:45vw}
+.exploration-layout{display:grid;grid-template-columns:minmax(0,1fr) 245px;gap:12px;align-items:start}
+.map-column{min-width:0}
+.map-toolbar{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:7px;flex-wrap:wrap}
+.map-toolbar .toolbar{margin:0}
+#worldMapSvg{display:block;width:100%;height:410px;border:1px solid #414756;border-radius:10px;background:#101720;cursor:crosshair;touch-action:manipulation}
+#worldMapSvg:focus{outline:2px solid var(--accent);outline-offset:2px}
+.map-legend{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0 4px}
+.map-legend span{display:inline-flex;align-items:center;gap:5px;color:var(--muted);font-size:12px}
+.legend-swatch{display:inline-block;width:12px;height:12px;border-radius:3px;border:1px solid #788396}
+.legend-terrain{background:#526b50}.legend-road{background:#c4a875}.legend-obstacle{background:#777d89}.legend-area{background:#396b78}.legend-fog{background:#0b1018}.legend-route{height:3px;border:0;background:#e8c66b}
+.map-hint{margin:7px 0 0;color:var(--muted);font-size:12px;min-height:34px}
+.travel-controls{display:flex;flex-direction:column;gap:9px;min-width:0}
+.travel-readout{border:1px solid var(--line);border-radius:9px;padding:9px;background:#151820}
+.travel-readout strong{display:block;font-size:12px;color:var(--muted);font-weight:500}
+.travel-readout span{display:block;font-size:14px;overflow-wrap:anywhere}
+.destination-fields{display:grid;grid-template-columns:1fr 1fr;gap:7px}
+.destination-fields label{display:flex;flex-direction:column;gap:3px}
+.destination-fields input{width:100%;min-width:0}
+.destination-fields .wide{grid-column:1/-1}
+.travel-actions{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.travel-actions button{min-width:0}
+.travel-actions .wide{grid-column:1/-1}
+#travelStatus{margin:0;min-height:36px;font-size:12px;color:var(--muted)}
+#mapConfigInput{width:100%;min-height:150px;font:12px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace}
+.map-config-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
+#mapConfigDetails{margin-top:10px}
+.map-config-note{font-size:12px;color:var(--muted);margin:7px 0 0}
+@media(max-width:1000px){.exploration-layout{grid-template-columns:1fr}.travel-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.travel-actions,#travelStatus{grid-column:1/-1}}
+@media(max-width:620px){#worldMapSvg{height:330px}.travel-controls{display:flex}.exploration-head label{width:100%;justify-content:space-between}.exploration-head input{max-width:none;flex:1}.destination-fields{grid-template-columns:1fr 1fr}}
+
 </style>
 </head>
 <body>
@@ -44,6 +82,101 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}label{font-size:13px;
         <option value="gemini">Gemini API (requiere API key)</option>
       </select>
     </div>
+
+    <section class="exploration-panel" aria-labelledby="explorationTitle">
+      <div class="exploration-head">
+        <div>
+          <h2 id="explorationTitle">Exploración del mundo</h2>
+          <p class="muted">El mapa usa la geometría y la exploración guardadas por esta partida. Haz clic para elegir un destino.</p>
+        </div>
+        <div class="toolbar">
+          <label for="mapRegionId">Región
+            <input id="mapRegionId" value="bosque-de-los-siete-ecos" maxlength="120" autocomplete="off">
+          </label>
+          <button id="loadMapButton" type="button">Actualizar mapa</button>
+        </div>
+      </div>
+      <div class="exploration-layout">
+        <div class="map-column">
+          <div class="map-toolbar">
+            <span id="mapScaleLabel" class="status">Escala local en metros · norte arriba</span>
+            <div class="toolbar">
+              <button id="mapZoomOut" type="button" title="Alejar mapa" aria-label="Alejar mapa">−</button>
+              <button id="mapZoomIn" type="button" title="Acercar mapa" aria-label="Acercar mapa">+</button>
+              <button id="mapFitButton" type="button">Ajustar</button>
+            </div>
+          </div>
+          <svg id="worldMapSvg" viewBox="-800 -600 1600 1200" role="img" tabindex="0"
+               aria-label="Mapa geométrico de la región. Haz clic para seleccionar un destino.">
+            <g id="mapDrawingLayer"></g>
+          </svg>
+          <div class="map-legend" aria-label="Leyenda del mapa">
+            <span><i class="legend-swatch legend-terrain"></i>Terreno</span>
+            <span><i class="legend-swatch legend-road"></i>Camino / puente</span>
+            <span><i class="legend-swatch legend-obstacle"></i>Obstáculo</span>
+            <span><i class="legend-swatch legend-area"></i>Zona conocida</span>
+            <span><i class="legend-swatch legend-fog"></i>No explorado</span>
+            <span><i class="legend-swatch legend-route"></i>Ruta</span>
+          </div>
+          <p id="mapHint" class="map-hint" aria-live="polite">Selecciona una partida y registra la geometría autorizada de una región para comenzar.</p>
+        </div>
+        <div class="travel-controls">
+          <div class="travel-readout">
+            <strong>POSICIÓN ACTUAL</strong>
+            <span id="mapCurrentPosition">Sin partida seleccionada</span>
+          </div>
+          <div class="travel-readout">
+            <strong>RELOJ DEL MUNDO</strong>
+            <span id="mapWorldClock">—</span>
+          </div>
+          <div class="travel-readout">
+            <strong>DESTINO ELEGIDO</strong>
+            <span id="mapSelectedDestination">Haz clic en el mapa</span>
+          </div>
+          <div class="destination-fields">
+            <label for="destinationX">Este / X (m)
+              <input id="destinationX" type="number" step="any" placeholder="X">
+            </label>
+            <label for="destinationY">Norte / Y (m)
+              <input id="destinationY" type="number" step="any" placeholder="Y">
+            </label>
+            <label class="wide" for="destinationLabel">Nombre del destino (opcional)
+              <input id="destinationLabel" maxlength="180" placeholder="Solo etiqueta; no crea un lugar del canon">
+            </label>
+          </div>
+          <div class="travel-actions">
+            <button id="planTravelButton" type="button" class="primary wide" disabled>Planificar / cambiar destino</button>
+            <button id="startTravelButton" type="button" disabled>Viajar</button>
+            <button id="stepTravelButton" type="button" disabled>Avanzar tramo</button>
+            <button id="pauseTravelButton" type="button" disabled>Pausar</button>
+            <button id="resumeTravelButton" type="button" disabled>Reanudar</button>
+            <button id="cancelTravelButton" type="button" class="wide" disabled>Cancelar recorrido</button>
+          </div>
+          <p id="travelStatus" aria-live="polite">No hay ningún recorrido preparado.</p>
+        </div>
+      </div>
+      <details id="mapConfigDetails" class="setup">
+        <summary>Configurar o importar geometría de la región</summary>
+        <p class="map-config-note">La geometría define polígonos de áreas conocidas, terrenos, obstáculos, caminos y un límite opcional. No se precargan coordenadas del canon: introduce solo datos geográficos aprobados. Las áreas aparecen como lugares conocidos cuando su zona central se descubre.</p>
+        <label for="mapConfigInput">Definición JSON versionada de la región</label>
+        <textarea id="mapConfigInput" spellcheck="false">{
+  "schema_version": 1,
+  "cell_size_m": 250,
+  "max_route_nodes": 100000,
+  "areas": [],
+  "terrain_zones": [],
+  "obstacles": [],
+  "roads": [],
+  "walkable_bounds": null
+}</textarea>
+        <div class="map-config-actions">
+          <button id="saveMapConfigButton" type="button">Guardar geometría de región</button>
+          <button id="copyMapConfigTemplate" type="button">Cargar plantilla vacía</button>
+        </div>
+        <p class="map-config-note">Coordenadas cartesianas locales: +X es este, +Y es norte. Una región vacía muestra solo el plano; no inventa aldeas, caminos ni distancias.</p>
+      </details>
+    </section>
+
     <details class="setup">
       <summary>Crear un mundo y su primera partida</summary>
       <p class="muted">Se guarda todo en SQLite. Después podrás importar el Lorebook JSON y continuar creando escenas desde el chat.</p>
@@ -442,6 +575,7 @@ async function loadSession(sessionId) {
   }
   await loadMessages();
   await loadState();
+  await loadExplorationData();
   await refreshBackups();
 }
 el("worldSelect").onchange = async () => { currentSession = ""; await refreshSessions(); };
@@ -863,6 +997,462 @@ el("restoreBackup").onclick = async () => {
     setStatus("Partida restaurada. " + result.message, true);
   } catch (err) { setStatus(err.message, false); }
 };
+
+/* Shared geometric map and step-driven travel controls. */
+const EMPTY_MAP_CONFIG = {
+  schema_version:1,
+  cell_size_m:250,
+  max_route_nodes:100000,
+  areas:[],
+  terrain_zones:[],
+  obstacles:[],
+  roads:[],
+  walkable_bounds:null
+};
+const SVG_NS = "http://www.w3.org/2000/svg";
+let mapConfig = null;
+let sessionMapState = null;
+let travelState = null;
+let selectedMapPoint = null;
+let mapZoom = 1;
+let travelLoopRunning = false;
+let pendingTravelRequestId = "";
+
+function mapSvgNode(tag, attrs, text) {
+  const node = document.createElementNS(SVG_NS, tag);
+  Object.entries(attrs || {}).forEach(([key,value]) => node.setAttribute(key, String(value)));
+  if (text !== undefined) node.textContent = text;
+  return node;
+}
+function mapPoint(raw) {
+  if (Array.isArray(raw)) return {x:Number(raw[0]), y:Number(raw[1])};
+  return {x:Number(raw.x_m), y:Number(raw.y_m)};
+}
+function mapPointLabel(point) {
+  return "X " + point.x.toLocaleString("es-AR",{maximumFractionDigits:1}) +
+    " m · Y " + point.y.toLocaleString("es-AR",{maximumFractionDigits:1}) + " m";
+}
+function mapPolygonCentroid(vertices) {
+  if (!vertices || !vertices.length) return {x:0,y:0};
+  return vertices.reduce((sum,raw) => {
+    const p=mapPoint(raw); sum.x+=p.x; sum.y+=p.y; return sum;
+  },{x:0,y:0});
+}
+function mapPointInPolygon(point, vertices) {
+  if (!vertices || vertices.length < 3) return false;
+  let inside=false;
+  for(let i=0,j=vertices.length-1;i<vertices.length;j=i++) {
+    const a=mapPoint(vertices[i]), b=mapPoint(vertices[j]);
+    const intersects=((a.y>point.y)!==(b.y>point.y)) &&
+      (point.x < (b.x-a.x)*(point.y-a.y)/(b.y-a.y)+a.x);
+    if(intersects) inside=!inside;
+  }
+  return inside;
+}
+function mapFeaturePoints(config) {
+  const values=[];
+  for(const group of ["areas","terrain_zones","obstacles","roads"]) {
+    (config && config[group] || []).forEach(item => (item.vertices || []).forEach(p => values.push(mapPoint(p))));
+  }
+  if(config && Array.isArray(config.walkable_bounds)) config.walkable_bounds.forEach(p=>values.push(mapPoint(p)));
+  return values;
+}
+function mapViewport() {
+  const points=mapFeaturePoints(mapConfig || EMPTY_MAP_CONFIG);
+  if(sessionMapState && sessionMapState.position) points.push(mapPoint(sessionMapState.position));
+  if(travelState && Array.isArray(travelState.route)) travelState.route.forEach(p=>points.push(mapPoint(p)));
+  if(selectedMapPoint) points.push(selectedMapPoint);
+  if(!points.length) points.push({x:0,y:0});
+  let minX=Math.min(...points.map(p=>p.x)), maxX=Math.max(...points.map(p=>p.x));
+  let minY=Math.min(...points.map(p=>p.y)), maxY=Math.max(...points.map(p=>p.y));
+  const cell=Number((mapConfig && mapConfig.cell_size_m) || 250);
+  const margin=Math.max(120,cell*1.5);
+  if(maxX-minX<cell*4){const mid=(minX+maxX)/2;minX=mid-cell*2;maxX=mid+cell*2;}
+  if(maxY-minY<cell*4){const mid=(minY+maxY)/2;minY=mid-cell*2;maxY=mid+cell*2;}
+  minX-=margin;maxX+=margin;minY-=margin;maxY+=margin;
+  const center=sessionMapState && sessionMapState.position ? mapPoint(sessionMapState.position) : {x:(minX+maxX)/2,y:(minY+maxY)/2};
+  const baseWidth=maxX-minX, baseHeight=maxY-minY;
+  const width=baseWidth/mapZoom, height=baseHeight/mapZoom;
+  return {minX:center.x-width/2,maxY:center.y+height/2,width,height,cell};
+}
+function mapSetHint(message, isError) {
+  const node=el("mapHint");
+  if(node){node.textContent=message;node.classList.toggle("warn",!!isError);}
+}
+function mapSetTravelStatus(message, isError) {
+  const node=el("travelStatus");
+  if(node){node.textContent=message;node.classList.toggle("warn",!!isError);}
+}
+function mapDestinationInput() {
+  const x=Number(el("destinationX").value), y=Number(el("destinationY").value);
+  if(!el("destinationX").value.trim() || !el("destinationY").value.trim() ||
+     !Number.isFinite(x) || !Number.isFinite(y)) {
+    throw new Error("Selecciona un destino haciendo clic en el mapa o introduce X e Y.");
+  }
+  return {x,y};
+}
+function mapDiscoveredSet() {
+  return new Set((sessionMapState && sessionMapState.discovered_cells || []).map(cell=>cell[0]+","+cell[1]));
+}
+function mapCellKnown(point, cellSize, known) {
+  const x=Math.floor(point.x/cellSize), y=Math.floor(point.y/cellSize);
+  return known.has(x+","+y);
+}
+function mapDrawPolygon(layer, item, style, kind) {
+  const vertices=item.vertices || [];
+  if(vertices.length<3)return;
+  const points=vertices.map(raw=>{const p=mapPoint(raw);return p.x+","+(-p.y);}).join(" ");
+  const polygon=mapSvgNode("polygon",{
+    points,
+    fill:style.fill,
+    "fill-opacity":style.opacity || 0.72,
+    stroke:style.stroke,
+    "stroke-width":style.width || 2,
+    "stroke-linejoin":"round",
+    "vector-effect":"non-scaling-stroke"
+  });
+  polygon.appendChild(mapSvgNode("title",{},(item.name || kind)));
+  layer.appendChild(polygon);
+}
+function renderWorldMap() {
+  const svg=el("worldMapSvg"), layer=el("mapDrawingLayer");
+  if(!svg || !layer)return;
+  while(layer.firstChild)layer.removeChild(layer.firstChild);
+  const view=mapViewport(), minX=view.minX, maxY=view.maxY, width=view.width, height=view.height;
+  const minY=maxY-height, cell=view.cell;
+  svg.setAttribute("viewBox",[minX,-maxY,width,height].join(" "));
+  el("mapScaleLabel").textContent="Celda "+cell.toLocaleString("es-AR")+" m · norte arriba · +X este";
+  layer.appendChild(mapSvgNode("rect",{x:minX,y:-maxY,width,height,fill:"#17212a"}));
+
+  const boundary=mapConfig && mapConfig.walkable_bounds;
+  if(Array.isArray(boundary) && boundary.length>=3) {
+    mapDrawPolygon(layer,{vertices:boundary,name:"Límite transitable"},{
+      fill:"#263e40",opacity:0.55,stroke:"#7a9b91",width:2
+    },"Límite");
+  }
+  (mapConfig && mapConfig.terrain_zones || []).forEach(item=>mapDrawPolygon(layer,item,{
+    fill:"#526b50",stroke:"#9bb487",opacity:0.7,width:1.5
+  },"Terreno"));
+  (mapConfig && mapConfig.areas || []).forEach(item=>mapDrawPolygon(layer,item,{
+    fill:"#396b78",stroke:"#8fc4cf",opacity:0.48,width:2
+  },"Zona"));
+  (mapConfig && mapConfig.roads || []).forEach(item=>mapDrawPolygon(layer,item,{
+    fill:"#c4a875",stroke:"#e4d2a6",opacity:0.88,width:2
+  },"Camino"));
+  (mapConfig && mapConfig.obstacles || []).forEach(item=>mapDrawPolygon(layer,item,{
+    fill:"#777d89",stroke:"#c0c6d1",opacity:0.88,width:2
+  },"Obstáculo"));
+
+  const known=mapDiscoveredSet();
+  const startX=Math.floor(minX/cell), endX=Math.ceil((minX+width)/cell);
+  const startY=Math.floor(minY/cell), endY=Math.ceil(maxY/cell);
+  const cellCount=(endX-startX+1)*(endY-startY+1);
+  const fogLimit=7000;
+  if(cellCount<=fogLimit) {
+    for(let ix=startX;ix<=endX;ix++) for(let iy=startY;iy<=endY;iy++) {
+      const center={x:(ix+0.5)*cell,y:(iy+0.5)*cell};
+      if(Array.isArray(boundary) && !mapPointInPolygon(center,boundary))continue;
+      const isKnown=known.has(ix+","+iy);
+      layer.appendChild(mapSvgNode("rect",{
+        x:ix*cell,y:-(iy+1)*cell,width:cell,height:cell,
+        fill:isKnown?"#9cc7a0":"#080d14",
+        "fill-opacity":isKnown?0.12:0.88,
+        stroke:isKnown?"#a5dfb0":"#26303b",
+        "stroke-opacity":isKnown?0.26:0.42,
+        "stroke-width":0.7,
+        "vector-effect":"non-scaling-stroke"
+      }));
+    }
+  }
+
+  // Area names are shown only after their center cell has been explored.
+  (mapConfig && mapConfig.areas || []).forEach(item=>{
+    const center=mapPolygonCentroid(item.vertices || []);
+    if(!mapCellKnown(center,cell,known))return;
+    layer.appendChild(mapSvgNode("text",{
+      x:center.x,y:-center.y-7,
+      fill:"#e5f4f7","font-size":14,"font-weight":600,
+      "text-anchor":"middle","paint-order":"stroke",
+      stroke:"#14212b","stroke-width":3
+    },item.name || "Zona conocida"));
+  });
+
+  if(travelState && Array.isArray(travelState.route) && travelState.route.length>1) {
+    const line=travelState.route.map(raw=>{const p=mapPoint(raw);return p.x+","+(-p.y);}).join(" ");
+    layer.appendChild(mapSvgNode("polyline",{
+      points:line,fill:"none",stroke:"#f0c96b","stroke-width":4,
+      "stroke-linecap":"round","stroke-linejoin":"round",
+      "stroke-dasharray":"10 7","vector-effect":"non-scaling-stroke"
+    }));
+  }
+  if(selectedMapPoint) {
+    layer.appendChild(mapSvgNode("circle",{
+      cx:selectedMapPoint.x,cy:-selectedMapPoint.y,r:9,
+      fill:"#e3a5ff",stroke:"#291631","stroke-width":2,
+      "vector-effect":"non-scaling-stroke"
+    }));
+    layer.appendChild(mapSvgNode("text",{
+      x:selectedMapPoint.x+13,y:-selectedMapPoint.y-12,
+      fill:"#f3d9ff","font-size":13,"font-weight":600,
+      "paint-order":"stroke",stroke:"#1b1020","stroke-width":3
+    },"Destino"));
+  }
+  if(sessionMapState && sessionMapState.position) {
+    const p=mapPoint(sessionMapState.position);
+    layer.appendChild(mapSvgNode("circle",{
+      cx:p.x,cy:-p.y,r:11,fill:"#f1f4fa",stroke:"#355b9b","stroke-width":4,
+      "vector-effect":"non-scaling-stroke"
+    }));
+    layer.appendChild(mapSvgNode("circle",{
+      cx:p.x,cy:-p.y,r:3.5,fill:"#355b9b"
+    }));
+    layer.appendChild(mapSvgNode("text",{
+      x:p.x+15,y:-p.y+5,fill:"#ffffff","font-size":13,
+      "font-weight":700,"paint-order":"stroke",stroke:"#101720","stroke-width":3
+    },"Tú"));
+  }
+  if(cellCount>fogLimit)mapSetHint("La vista contiene demasiadas celdas para dibujar toda la niebla de una vez. Acerca el mapa o reduce su extensión.",true);
+  else if(!mapConfig)mapSetHint("No hay geometría registrada para esta región. Abre «Configurar geometría» e importa polígonos aprobados; no se han inventado lugares ni coordenadas.",false);
+  else if(!(mapConfig.areas||[]).length && !(mapConfig.terrain_zones||[]).length &&
+          !(mapConfig.obstacles||[]).length && !(mapConfig.roads||[]).length) {
+    mapSetHint("Región geométrica vacía: el plano está listo, pero aún no contiene terrenos, caminos, obstáculos ni lugares definidos.",false);
+  } else if(!sessionMapState || !sessionMapState.discovered_cells.length) {
+    mapSetHint("La niebla cubre las zonas sin explorar. El marcador indica tu posición; explora para revelar terreno y nombres de zonas.",false);
+  } else mapSetHint("Haz clic sobre el mapa para elegir destino. Las áreas y su nombre se revelan al explorar sus celdas.",false);
+}
+function updateTravelControls() {
+  const hasSession=!!currentSession, hasMap=!!mapConfig;
+  const state=travelState || {status:"idle"};
+  const active=state.status==="running", paused=state.status==="paused";
+  el("planTravelButton").disabled=!hasSession || !hasMap;
+  el("startTravelButton").disabled=!active || travelLoopRunning;
+  el("stepTravelButton").disabled=!active || travelLoopRunning;
+  el("pauseTravelButton").disabled=!active;
+  el("resumeTravelButton").disabled=!paused;
+  el("cancelTravelButton").disabled=!(active||paused);
+  if(sessionMapState && sessionMapState.position) {
+    el("mapCurrentPosition").textContent=mapPointLabel(mapPoint(sessionMapState.position));
+  } else el("mapCurrentPosition").textContent=hasSession?"Origen inicial del plano: X 0 m · Y 0 m":"Sin partida seleccionada";
+  if(travelState && travelState.clock) {
+    const minutes=Number(travelState.clock.minute_of_day)||0;
+    const hh=String(Math.floor(minutes/60)).padStart(2,"0");
+    const mm=String(minutes%60).padStart(2,"0");
+    el("mapWorldClock").textContent="Día "+travelState.clock.day+" · "+hh+":"+mm;
+  } else if(lastState && lastState.state)el("mapWorldClock").textContent=lastState.state.time_label;
+  else el("mapWorldClock").textContent="—";
+  if(selectedMapPoint)el("mapSelectedDestination").textContent=mapPointLabel(selectedMapPoint);
+  else if(state.destination)el("mapSelectedDestination").textContent=mapPointLabel({
+    x:state.destination.x_m,y:state.destination.y_m
+  });
+  else el("mapSelectedDestination").textContent="Haz clic en el mapa";
+  const labels={
+    idle:"No hay ningún recorrido preparado.",
+    running:"Recorrido preparado · "+Math.max(0,(state.route||[]).length-(state.next_waypoint_index||1))+" tramos pendientes.",
+    paused:"Recorrido pausado · puedes reanudar, cambiar el destino o cancelar.",
+    completed:"Destino alcanzado.",
+    cancelled:"Recorrido cancelado · la posición guardada se conserva."
+  };
+  if(!travelLoopRunning || state.status!=="running")mapSetTravelStatus(labels[state.status]||labels.idle,false);
+}
+function renderExploration() {
+  renderWorldMap();
+  updateTravelControls();
+}
+async function loadExplorationData() {
+  if(!currentSession) {
+    mapConfig=null;sessionMapState=null;travelState=null;selectedMapPoint=null;
+    renderExploration();
+    mapSetHint("Selecciona una partida para ver su mapa.",false);
+    return;
+  }
+  const regionId=el("mapRegionId").value.trim();
+  if(!regionId) {
+    mapConfig=null;sessionMapState=null;travelState=null;
+    renderExploration();
+    mapSetHint("Escribe el identificador de la región.",true);
+    return;
+  }
+  try {
+    const [region,state,travel]=await Promise.all([
+      api("/api/worlds/"+currentWorld+"/map/regions/"+encodeURIComponent(regionId)),
+      api("/api/sessions/"+currentSession+"/map/regions/"+encodeURIComponent(regionId)+"/state"),
+      api("/api/sessions/"+currentSession+"/travel")
+    ]);
+    mapConfig=region.config;
+    sessionMapState=state;
+    travelState=travel.status==="idle"?null:travel;
+    if(!selectedMapPoint && travelState && travelState.destination) {
+      selectedMapPoint={x:travelState.destination.x_m,y:travelState.destination.y_m};
+      el("destinationX").value=selectedMapPoint.x;
+      el("destinationY").value=selectedMapPoint.y;
+      el("destinationLabel").value=travelState.destination.label || "";
+    }
+    renderExploration();
+    el("mapConfigInput").value=JSON.stringify(mapConfig,null,2);
+  } catch(err) {
+    mapConfig=null;sessionMapState=null;travelState=null;
+    renderExploration();
+    if(err.status===404)mapSetHint("Esta región aún no tiene geometría registrada. Importa una definición geográfica aprobada en «Configurar geometría».",false);
+    else mapSetHint("No se pudo cargar el mapa: "+err.message,true);
+  }
+}
+function selectMapDestination(point) {
+  selectedMapPoint=point;
+  el("destinationX").value=String(Math.round(point.x*10)/10);
+  el("destinationY").value=String(Math.round(point.y*10)/10);
+  el("mapSelectedDestination").textContent=mapPointLabel(point);
+  renderWorldMap();
+}
+function mapCreateRequestId() {
+  if(window.crypto && typeof window.crypto.randomUUID==="function")return window.crypto.randomUUID();
+  return "travel-"+Date.now()+"-"+Math.random().toString(36).slice(2,12);
+}
+async function saveMapGeometry() {
+  if(!currentWorld || !currentSession)throw new Error("Selecciona un mundo y una partida.");
+  const regionId=el("mapRegionId").value.trim();
+  if(!regionId)throw new Error("Escribe un identificador de región.");
+  let config;
+  try{config=JSON.parse(el("mapConfigInput").value);}
+  catch(err){throw new Error("El JSON de geometría no es válido: "+err.message);}
+  const saved=await api("/api/worlds/"+currentWorld+"/map/regions/"+encodeURIComponent(regionId),{
+    method:"PUT",body:JSON.stringify({config})
+  });
+  mapConfig=saved.map;
+  await loadExplorationData();
+  mapSetHint("Geometría guardada. El planificador y el mapa utilizan esta misma definición.",false);
+}
+async function planSelectedTravel() {
+  if(!currentSession || !mapConfig)throw new Error("Selecciona una partida y carga su geometría.");
+  const destination=mapDestinationInput();
+  const planned=await api("/api/sessions/"+currentSession+"/travel/plan",{
+    method:"POST",
+    body:JSON.stringify({
+      region_id:el("mapRegionId").value.trim(),
+      destination_x_m:destination.x,
+      destination_y_m:destination.y,
+      destination_label:el("destinationLabel").value.trim()
+    })
+  });
+  travelState=planned;
+  selectedMapPoint=destination;
+  await loadExplorationData();
+  const km=(Number(planned.planned_distance_m)/1000).toLocaleString("es-AR",{maximumFractionDigits:2});
+  mapSetTravelStatus("Ruta calculada · "+km+" km · "+planned.route.length+" puntos. Pulsa «Viajar» para ejecutar los tramos.",false);
+}
+async function refreshTravelStatus() {
+  if(!currentSession)return;
+  const state=await api("/api/sessions/"+currentSession+"/travel");
+  travelState=state.status==="idle"?null:state;
+  await loadExplorationData();
+}
+async function advanceOneTravelLeg() {
+  if(!currentSession)throw new Error("Selecciona una partida.");
+  if(!pendingTravelRequestId)pendingTravelRequestId=mapCreateRequestId();
+  try {
+    const result=await api("/api/sessions/"+currentSession+"/travel/step",{
+      method:"POST",body:JSON.stringify({request_id:pendingTravelRequestId})
+    });
+    pendingTravelRequestId="";
+    travelState=result.travel;
+    await loadExplorationData();
+    const discovered=result.segment.newly_discovered_cells.length;
+    mapSetTravelStatus(
+      "Tramo completado · "+Math.round(result.segment.distance_m)+" m · "+
+      result.segment.travel_seconds+" s · "+discovered+" celdas nuevas.",
+      false
+    );
+    return result;
+  } catch(err) {
+    await loadExplorationData();
+    throw err;
+  }
+}
+async function runTravelToEnd() {
+  if(travelLoopRunning)return;
+  if(!travelState || travelState.status!=="running")throw new Error("Primero planifica una ruta o reanuda el recorrido.");
+  travelLoopRunning=true;
+  updateTravelControls();
+  try {
+    while(currentSession) {
+      const current=await api("/api/sessions/"+currentSession+"/travel");
+      if(current.status!=="running") {
+        travelState=current.status==="idle"?null:current;
+        break;
+      }
+      await advanceOneTravelLeg();
+      await new Promise(resolve=>setTimeout(resolve,110));
+    }
+    await loadExplorationData();
+  } finally {
+    travelLoopRunning=false;
+    updateTravelControls();
+  }
+}
+async function changeTravelStatus(action) {
+  if(!currentSession)throw new Error("Selecciona una partida.");
+  const result=await api("/api/sessions/"+currentSession+"/travel/"+action,{method:"POST",body:"{}"});
+  travelState=result;
+  await loadExplorationData();
+  if(action==="resume") {
+    mapSetTravelStatus("Recorrido reanudado.",false);
+    await runTravelToEnd();
+  } else if(action==="pause")mapSetTravelStatus("Recorrido pausado en el último waypoint confirmado.",false);
+  else mapSetTravelStatus("Recorrido cancelado. Se conserva la última posición confirmada.",false);
+}
+
+el("loadMapButton").onclick=async()=>{
+  try{await loadExplorationData();setStatus("Mapa de región actualizado.",true);}
+  catch(err){setStatus(err.message,false);}
+};
+el("mapRegionId").onchange=async()=>{selectedMapPoint=null;await loadExplorationData();};
+el("saveMapConfigButton").onclick=async()=>{
+  try{await saveMapGeometry();setStatus("Geometría de región guardada.",true);}
+  catch(err){setStatus(err.message,false);}
+};
+el("copyMapConfigTemplate").onclick=()=>{el("mapConfigInput").value=JSON.stringify(EMPTY_MAP_CONFIG,null,2);};
+el("worldMapSvg").addEventListener("click",event=>{
+  if(!mapConfig)return;
+  const rect=el("worldMapSvg").getBoundingClientRect();
+  const view=el("worldMapSvg").getAttribute("viewBox").split(/\s+/).map(Number);
+  if(rect.width<=0 || rect.height<=0 || view.length!==4)return;
+  const screenX=(event.clientX-rect.left)/rect.width;
+  const screenY=(event.clientY-rect.top)/rect.height;
+  const point={
+    x:view[0]+screenX*view[2],
+    y:-(view[1]+screenY*view[3])
+  };
+  selectMapDestination(point);
+});
+el("destinationX").onchange=()=>{try{selectedMapPoint=mapDestinationInput();renderWorldMap();updateTravelControls();}catch(err){selectedMapPoint=null;renderWorldMap();}};
+el("destinationY").onchange=()=>{try{selectedMapPoint=mapDestinationInput();renderWorldMap();updateTravelControls();}catch(err){selectedMapPoint=null;renderWorldMap();}};
+el("mapZoomIn").onclick=()=>{mapZoom=Math.min(4,mapZoom*1.3);renderWorldMap();};
+el("mapZoomOut").onclick=()=>{mapZoom=Math.max(0.5,mapZoom/1.3);renderWorldMap();};
+el("mapFitButton").onclick=()=>{mapZoom=1;renderWorldMap();};
+el("planTravelButton").onclick=async()=>{
+  try{setStatus("Calculando ruta…",false);await planSelectedTravel();setStatus("Ruta calculada.",true);}
+  catch(err){mapSetTravelStatus(err.message,true);setStatus(err.message,false);}
+};
+el("startTravelButton").onclick=async()=>{
+  try{await runTravelToEnd();setStatus("Recorrido terminado o detenido.",true);}
+  catch(err){mapSetTravelStatus(err.message,true);setStatus(err.message,false);}
+};
+el("stepTravelButton").onclick=async()=>{
+  try{await advanceOneTravelLeg();}
+  catch(err){mapSetTravelStatus(err.message,true);setStatus(err.message,false);}
+};
+el("pauseTravelButton").onclick=async()=>{
+  try{await changeTravelStatus("pause");}
+  catch(err){mapSetTravelStatus(err.message,true);setStatus(err.message,false);}
+};
+el("resumeTravelButton").onclick=async()=>{
+  try{await changeTravelStatus("resume");}
+  catch(err){mapSetTravelStatus(err.message,true);setStatus(err.message,false);}
+};
+el("cancelTravelButton").onclick=async()=>{
+  try{await changeTravelStatus("cancel");}
+  catch(err){mapSetTravelStatus(err.message,true);setStatus(err.message,false);}
+};
+
 (async function start() {
   try {
     const health = await api("/api/health");
