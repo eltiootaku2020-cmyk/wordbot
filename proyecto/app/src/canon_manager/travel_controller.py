@@ -13,6 +13,7 @@ import sqlite3
 from typing import Any
 
 from .db import Database
+from .behavior_runtime import tick_behavior_runtime
 from .timeline import absolute_minute, fire_due_world_events
 from .world_map import (
     ExplorationState,
@@ -380,6 +381,7 @@ def advance_travel_step(
         _save_map_state(conn, session_id, region_id, next_point, exploration, world.cell_size_m)
 
         fired = fire_due_world_events(conn, session_id, old_total, new_total)
+        tick_behavior_runtime(conn, session_id, old_total, new_total)
         new_index = next_index + 1
         status = "completed" if final_step else "running"
         if final_step and str(travel["destination_label"]).strip():
@@ -477,6 +479,7 @@ def change_travel_status(
                     (new_day, new_minute, session_id),
                 )
                 fired = fire_due_world_events(conn, session_id, previous_total, new_total)
+                tick_behavior_runtime(conn, session_id, previous_total, new_total)
                 clock = {
                     "day": new_day,
                     "minute_of_day": new_minute,
