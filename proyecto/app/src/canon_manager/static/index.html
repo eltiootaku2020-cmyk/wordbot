@@ -1075,6 +1075,8 @@ let explorationLoadToken = 0;
 let mapDrawingMode = false;
 let mapDraftVertices = [];
 let mapDrawingViewBox = null;
+let mapConfigPersisted = false;
+let mapDrawingWasPersisted = false;
 
 function mapSvgNode(tag, attrs, text) {
   const node = document.createElementNS(SVG_NS, tag);
@@ -1351,7 +1353,7 @@ function renderWorldMap() {
   } else mapSetHint("Haz clic sobre el mapa para elegir destino. Las áreas y su nombre se revelan al explorar sus celdas.",false);
 }
 function updateTravelControls() {
-  const hasSession=!!currentSession, hasMap=!!mapConfig;
+  const hasSession=!!currentSession, hasMap=!!mapConfig && mapConfigPersisted;
   const state=travelState || {status:"idle"};
   const active=state.status==="running", paused=state.status==="paused";
   el("planTravelButton").disabled=!hasSession || !hasMap;
@@ -1394,14 +1396,14 @@ async function loadExplorationData() {
   const requestedWorld=currentWorld;
   const requestedRegion=el("mapRegionId").value.trim();
   if(!currentSession) {
-    mapConfig=null;sessionMapState=null;travelState=null;selectedMapPoint=null;
+    mapConfig=null;mapConfigPersisted=false;sessionMapState=null;travelState=null;selectedMapPoint=null;
     renderExploration();
     mapSetHint("Selecciona una partida para ver su mapa.",false);
     return;
   }
   const regionId=requestedRegion;
   if(!regionId) {
-    mapConfig=null;sessionMapState=null;travelState=null;
+    mapConfig=null;mapConfigPersisted=false;sessionMapState=null;travelState=null;
     renderExploration();
     mapSetHint("Escribe el identificador de la región.",true);
     return;
@@ -1423,6 +1425,7 @@ async function loadExplorationData() {
     if(loadToken!==explorationLoadToken || requestedSession!==currentSession ||
        requestedWorld!==currentWorld || regionId!==el("mapRegionId").value.trim())return;
     mapConfig=region.config;
+    mapConfigPersisted=true;
     sessionMapState=state;
     travelState=travel.status==="idle"?null:travel;
     if(!selectedMapPoint && travelState && travelState.destination) {
@@ -1436,7 +1439,7 @@ async function loadExplorationData() {
   } catch(err) {
     if(loadToken!==explorationLoadToken || requestedSession!==currentSession ||
        requestedWorld!==currentWorld || regionId!==el("mapRegionId").value.trim())return;
-    mapConfig=null;sessionMapState=null;travelState=null;
+    mapConfig=null;mapConfigPersisted=false;sessionMapState=null;travelState=null;
     renderExploration();
     if(err.status===404)mapSetHint("Esta región aún no tiene geometría registrada. Importa una definición geográfica aprobada en «Configurar geometría».",false);
     else mapSetHint("No se pudo cargar el mapa: "+err.message,true);
@@ -1499,13 +1502,18 @@ function updateMapDrawControls() {
 function startMapDrawing() {
   if(!currentWorld || !currentSession)throw new Error("Selecciona un mundo y una partida antes de dibujar.");
   if(mapDrawingMode)return;
-  if(!mapConfig) {
-    try { mapConfig=JSON.parse(el("mapConfigInput").value); }
-    catch (_) { mapConfig=JSON.parse(JSON.stringify(EMPTY_MAP_CONFIG)); }
+  let draftConfig;
+  try { draftConfig=JSON.parse(el("mapConfigInput").value); }
+  catch(err) {
+    if(!mapConfig)throw new Error("El JSON de geometría no es válido: "+err.message);
+    draftConfig=mapConfig;
   }
-  if(!mapConfig || typeof mapConfig!=="object" || Array.isArray(mapConfig)) {
+  if(!draftConfig || typeof draftConfig!=="object" || Array.isArray(draftConfig)) {
     throw new Error("La geometría actual no es un objeto JSON válido.");
   }
+  mapDrawingWasPersisted=!!mapConfigPersisted && JSON.stringify(draftConfig)===JSON.stringify(mapConfig);
+  mapConfig=draftConfig;
+  mapConfigPersisted=false;
   for(const group of ["areas","terrain_zones","obstacles","roads"]) {
     if(!Array.isArray(mapConfig[group]))mapConfig[group]=[];
   }
@@ -1522,6 +1530,7 @@ function cancelMapDrawing(message) {
   mapDrawingMode=false;
   mapDraftVertices=[];
   mapDrawingViewBox=null;
+  mapConfigPersisted=mapDrawingWasPersisted;
   updateMapDrawControls();
   renderWorldMap();
   setMapDrawStatus(message || "Dibujo cancelado; no se modificó la geometría.",false);
@@ -1624,6 +1633,7 @@ function finishMapDrawing() {
     mapConfig[kind].push(item);
   }
   el("mapConfigInput").value=JSON.stringify(mapConfig,null,2);
+  mapConfigPersisted=false;
   const count=validated.points.length;
   mapDrawingMode=false;
   mapDraftVertices=[];
@@ -1685,6 +1695,7 @@ async function saveMapGeometry() {
     method:"PUT",body:JSON.stringify({config})
   });
   mapConfig=saved.map;
+  mapConfigPersisted=true;
   await loadExplorationData();
   mapSetHint("Geometría guardada. El planificador y el mapa utilizan esta misma definición.",false);
 }
