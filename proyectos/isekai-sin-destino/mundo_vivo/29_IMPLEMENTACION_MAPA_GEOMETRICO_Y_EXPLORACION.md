@@ -250,6 +250,7 @@ La pantalla permite cargar un JSON desde archivo o editarlo directamente. La est
 - `obstacles`: polígonos que impiden el paso salvo corredor explícito.
 - `roads`: corredores de camino, senderos o puentes con su multiplicador.
 - `walkable_bounds`: polígono opcional que limita las rutas.
+- `points_of_interest`: marcadores puntuales independientes con `point_id`, `name`, `x_m`, `y_m`, `icon`, `category` y `description`. No alteran la navegación ni el terreno. Sus iconos, nombres y descripciones se representan únicamente cuando su celda está descubierta. El campo es opcional para conservar la compatibilidad con mapas anteriores.
 
 La plantilla inicial está vacía: solo define escala y colecciones vacías. No trae ubicaciones ni coordenadas inventadas. El mapa puede mostrar el plano y el marcador inicial, pero no simula conocer un bosque que aún no tiene geometría aprobada.
 
@@ -265,12 +266,23 @@ Se añadió una herramienta de dibujo integrada en el mapa SVG para crear geomet
 - El resultado se añade al mismo objeto de geometría JSON que consumen la API y el planificador. No se guarda automáticamente: el usuario debe pulsar «Guardar geometría de región».
 - Mientras el JSON está modificado, la planificación queda deshabilitada. Así no se puede calcular una ruta sobre una geometría local que el servidor aún no ha recibido.
 - Los clics del editor reutilizan la conversión SVG→metros que usa la selección de destinos; el área del mapa no cambia de escala durante el dibujo.
+- Se pueden cargar polígonos existentes desde una lista y arrastrar sus vértices directamente en el SVG. Los cambios se validan antes de sustituir los vértices y se mantienen en el borrador hasta guardar la región.
+- La edición de una figura conserva su identificador, nombre y propiedades; solo actualiza la lista de vértices de esa figura.
+- Se pueden colocar puntos de interés con identificador, nombre, categoría, icono y descripción desde un único clic. Son marcadores independientes: no bloquean el paso ni alteran el cálculo de rutas.
+- Los puntos de interés se guardan dentro de la geometría de la región existente en SQLite. No requieren una tabla paralela ni una migración de base de datos.
+- Los marcadores se dibujan después de la máscara de niebla y solo cuando la celda de sus coordenadas ya fue descubierta. Los puntos desconocidos tampoco amplían la vista inicial del mapa.
 
 ### Límites actuales
 
-- Es una vista cartográfica SVG funcional, no todavía un minimapa final pulido con iconografía, capas seleccionables o mapa artístico de fondo.
-- El editor dibuja polígonos; todavía no existe un catálogo independiente de puntos de interés con iconos, fichas o marcadores puntuales.
-- Las geometrías se pueden crear visualmente o importar/editar como JSON. No se ofrece todavía edición de vértices de polígonos ya existentes ni un editor de rutas lineales por nodos.
-- Las localizaciones canónicas del Bosque de los Siete Ecos siguen sin coordenadas. Deben cargarse a partir de geometría aprobada; la interfaz no las deduce de los nombres.
+- Es una vista cartográfica SVG funcional, no todavía un minimapa final pulido con fondos ilustrados, filtros de capas o fichas laterales de puntos de interés.
+- La edición permite arrastrar vértices, pero todavía no ofrece añadir o quitar vértices individuales de polígonos ya existentes ni un editor de rutas lineales por nodos.
+- Los lugares del canon no se precargan por nombre: hay que introducir sus coordenadas aprobadas. Las localizaciones canónicas del Bosque de los Siete Ecos siguen sin coordenadas confirmadas.
 
 La interfaz se alimenta de `GET /api/worlds/{world_id}/map/regions/{region_id}`, `GET /api/sessions/{session_id}/map/regions/{region_id}/state` y los endpoints `/travel`. Toda mejora visual futura debe seguir escribiendo y leyendo las mismas definiciones, coordenadas y celdas descubiertas.
+
+
+### Edición de figuras y puntos de interés — actualización 02-11-2026
+
+El formato de región conserva los puntos de interés junto al resto de la geometría. `points_of_interest` es opcional al leer configuraciones antiguas; al guardar, el servidor normaliza el campo como una colección. Cada punto utiliza coordenadas locales en metros y se dibuja solo después de descubrir su celda. Los puntos no son obstáculos ni áreas de colisión.
+
+La herramienta gráfica permite seleccionar una figura ya definida, mover sus vértices con el puntero y confirmar el contorno mediante el mismo validador geométrico que se usa al crear polígonos. Los cambios siguen siendo un borrador hasta guardar explícitamente la región.
