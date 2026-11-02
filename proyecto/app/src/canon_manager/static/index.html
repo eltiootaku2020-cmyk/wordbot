@@ -36,6 +36,21 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}label{font-size:13px;
 .map-toolbar .toolbar{margin:0}
 #worldMapSvg{display:block;width:100%;height:410px;border:1px solid #414756;border-radius:10px;background:#101720;cursor:crosshair;touch-action:manipulation}
 #worldMapSvg:focus{outline:2px solid var(--accent);outline-offset:2px}
+#worldMapSvg{height:min(62vh,620px);min-height:430px;cursor:grab;touch-action:none}
+#worldMapSvg.map-panning{cursor:grabbing}
+.map-layers{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin:6px 0 8px;padding:7px 9px;border:1px solid var(--line);border-radius:8px;background:#151820}
+.map-layers strong{font-size:12px;color:var(--muted);font-weight:600;margin-right:2px}
+.map-layers label{display:flex;align-items:center;gap:4px;font-size:12px;color:var(--text);cursor:pointer}
+.map-layers input{width:14px;height:14px;margin:0;accent-color:#9db7ff}
+.exploration-panel.map-expanded{position:fixed;inset:8px;z-index:1200;margin:0;overflow:auto;max-width:none;background:#151920;box-shadow:0 10px 50px #000c}
+.exploration-panel.map-expanded .exploration-layout{grid-template-columns:minmax(0,1fr) 285px;gap:14px}
+.exploration-panel.map-expanded #worldMapSvg{height:calc(100dvh - 250px);min-height:480px}
+.exploration-panel.map-expanded .map-column{min-width:0}
+@media(max-width:760px){
+  #worldMapSvg{height:55vh;min-height:340px}
+  .exploration-panel.map-expanded .exploration-layout{grid-template-columns:1fr}
+  .exploration-panel.map-expanded #worldMapSvg{height:58vh;min-height:320px}
+}
 .map-legend{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0 4px}
 .map-legend span{display:inline-flex;align-items:center;gap:5px;color:var(--muted);font-size:12px}
 .legend-swatch{display:inline-block;width:12px;height:12px;border-radius:3px;border:1px solid #788396}
@@ -112,7 +127,17 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}label{font-size:13px;
               <button id="mapZoomOut" type="button" title="Alejar mapa" aria-label="Alejar mapa">−</button>
               <button id="mapZoomIn" type="button" title="Acercar mapa" aria-label="Acercar mapa">+</button>
               <button id="mapFitButton" type="button">Ajustar</button>
+              <button id="mapExpandButton" type="button" aria-pressed="false">Ampliar mapa</button>
             </div>
+          </div>
+          <div class="map-layers" role="group" aria-label="Capas visibles del mapa">
+            <strong>Capas</strong>
+            <label><input id="mapLayerBounds" type="checkbox" checked> Límites</label>
+            <label><input id="mapLayerTerrain" type="checkbox" checked> Terrenos</label>
+            <label><input id="mapLayerAreas" type="checkbox" checked> Zonas</label>
+            <label><input id="mapLayerObstacles" type="checkbox" checked> Obstáculos</label>
+            <label><input id="mapLayerRoads" type="checkbox" checked> Caminos</label>
+            <label><input id="mapLayerPoi" type="checkbox" checked> Puntos de interés</label>
           </div>
           <svg id="worldMapSvg" viewBox="-800 -600 1600 1200" role="img" tabindex="0"
                aria-label="Mapa geométrico de la región. Haz clic para seleccionar un destino.">
@@ -1127,6 +1152,8 @@ let sessionMapState = null;
 let travelState = null;
 let selectedMapPoint = null;
 let mapZoom = 1;
+let mapPan = {x:0,y:0};
+let mapPanDrag = null;
 let travelLoopRunning = false;
 let explorationLoadToken = 0;
 let mapDrawingMode = false;
@@ -1211,7 +1238,8 @@ function mapViewport() {
   minX-=margin;maxX+=margin;minY-=margin;maxY+=margin;
   const extentCenter={x:(minX+maxX)/2,y:(minY+maxY)/2};
   const playerCenter=sessionMapState && sessionMapState.position ? mapPoint(sessionMapState.position) : extentCenter;
-  const center=mapZoom>1 ? playerCenter : extentCenter;
+  const baseCenter=mapZoom>1 ? playerCenter : extentCenter;
+  const center={x:baseCenter.x+mapPan.x,y:baseCenter.y+mapPan.y};
   const baseWidth=maxX-minX, baseHeight=maxY-minY;
   const width=baseWidth/mapZoom, height=baseHeight/mapZoom;
   return {minX:center.x-width/2,maxY:center.y+height/2,width,height,cell};
@@ -1262,26 +1290,34 @@ function renderWorldMap() {
   const view=mapViewport(), minX=view.minX, maxY=view.maxY, width=view.width, height=view.height;
   const minY=maxY-height, cell=view.cell;
   svg.setAttribute("viewBox",[minX,-maxY,width,height].join(" "));
-  el("mapScaleLabel").textContent="Celda "+cell.toLocaleString("es-AR")+" m · norte arriba · +X este";
+  el("mapScaleLabel").textContent="Celda "+cell.toLocaleString("es-AR")+" m · norte arriba · +X este · rueda: zoom · arrastrar: mover";
   layer.appendChild(mapSvgNode("rect",{x:minX,y:-maxY,width,height,fill:"#17212a"}));
+  const shown={
+    bounds:el("mapLayerBounds").checked,
+    terrain:el("mapLayerTerrain").checked,
+    areas:el("mapLayerAreas").checked,
+    obstacles:el("mapLayerObstacles").checked,
+    roads:el("mapLayerRoads").checked,
+    poi:el("mapLayerPoi").checked
+  };
 
   const boundary=mapConfig && mapConfig.walkable_bounds;
-  if(Array.isArray(boundary) && boundary.length>=3) {
+  if(shown.bounds && Array.isArray(boundary) && boundary.length>=3) {
     mapDrawPolygon(layer,{vertices:boundary,name:"Límite transitable"},{
       fill:"#263e40",opacity:0.55,stroke:"#7a9b91",width:2
     },"Límite");
   }
-  (mapConfig && mapConfig.terrain_zones || []).forEach(item=>mapDrawPolygon(layer,item,{
+  if(shown.terrain)(mapConfig && mapConfig.terrain_zones || []).forEach(item=>mapDrawPolygon(layer,item,{
     fill:"#526b50",stroke:"#9bb487",opacity:0.7,width:1.5
   },"Terreno"));
-  (mapConfig && mapConfig.areas || []).forEach(item=>mapDrawPolygon(layer,item,{
+  if(shown.areas)(mapConfig && mapConfig.areas || []).forEach(item=>mapDrawPolygon(layer,item,{
     fill:"#396b78",stroke:"#8fc4cf",opacity:0.48,width:2
   },"Zona"));
-  (mapConfig && mapConfig.obstacles || []).forEach(item=>mapDrawPolygon(layer,item,{
+  if(shown.obstacles)(mapConfig && mapConfig.obstacles || []).forEach(item=>mapDrawPolygon(layer,item,{
     fill:"#777d89",stroke:"#c0c6d1",opacity:0.88,width:2
   },"Obstáculo"));
   // Roads are above obstacles so an explicit bridge remains visible across a river.
-  (mapConfig && mapConfig.roads || []).forEach(item=>mapDrawPolygon(layer,item,{
+  if(shown.roads)(mapConfig && mapConfig.roads || []).forEach(item=>mapDrawPolygon(layer,item,{
     fill:"#c4a875",stroke:"#e4d2a6",opacity:0.94,width:2.5
   },"Camino / puente"));
 
@@ -1336,7 +1372,7 @@ function renderWorldMap() {
     ["terrain_zones","#c9e0b8",""],
     ["obstacles","#e0e3eb",""],
     ["roads","#f1d9a7",""]
-  ];
+  ].filter(([group])=>shown[({areas:"areas",terrain_zones:"terrain",obstacles:"obstacles",roads:"roads"})[group]]);
   labelGroups.forEach(([group,color])=>{
     (mapConfig && mapConfig[group] || []).forEach(item=>{
       const center=mapPolygonCentroid(item.vertices || []);
@@ -1351,7 +1387,7 @@ function renderWorldMap() {
   });
 
   // Independent markers are only rendered after their cell has been explored.
-  (mapConfig && mapConfig.points_of_interest || []).forEach(item=>{
+  if(shown.poi)(mapConfig && mapConfig.points_of_interest || []).forEach(item=>{
     const point={x:Number(item.x_m),y:Number(item.y_m)};
     if(!Number.isFinite(point.x) || !Number.isFinite(point.y) || !mapCellKnown(point,cell,known))return;
     const marker=mapSvgNode("g",{"class":"map-poi-marker"});
@@ -2071,6 +2107,7 @@ el("loadMapButton").onclick=async()=>{
 el("mapRegionId").onchange=async()=>{
   if(mapDrawingMode)cancelMapDrawing("Cambio de región: el dibujo no guardado fue descartado.");
   if(mapPoiPlacementMode)cancelMapPoiPlacement("Cambio de región: la colocación pendiente fue descartada.");
+  mapPan={x:0,y:0};mapZoom=1;
   selectedMapPoint=null;
   mapConfig=null;
   mapConfigPersisted=false;
@@ -2122,18 +2159,41 @@ el("mapConfigFile").onchange=async()=>{
   }
 };
 el("worldMapSvg").addEventListener("pointerdown",event=>{
-  if(!mapDrawingMode || !mapEditingTarget)return;
-  let node=event.target;
-  while(node && node!==event.currentTarget && !node.getAttribute("data-vertex-index"))node=node.parentNode;
-  if(!node || node===event.currentTarget)return;
-  const index=Number(node.getAttribute("data-vertex-index"));
-  if(!Number.isInteger(index) || index<0 || index>=mapDraftVertices.length)return;
-  mapVertexDragIndex=index;
-  mapSuppressNextClick=true;
+  if(mapDrawingMode && mapEditingTarget) {
+    let node=event.target;
+    while(node && node!==event.currentTarget && !node.getAttribute("data-vertex-index"))node=node.parentNode;
+    if(!node || node===event.currentTarget)return;
+    const index=Number(node.getAttribute("data-vertex-index"));
+    if(!Number.isInteger(index) || index<0 || index>=mapDraftVertices.length)return;
+    mapVertexDragIndex=index;
+    mapSuppressNextClick=true;
+    try{event.currentTarget.setPointerCapture(event.pointerId);}catch(_){}
+    event.preventDefault();
+    return;
+  }
+  if(mapDrawingMode || mapPoiPlacementMode || event.button!==0)return;
+  const rect=event.currentTarget.getBoundingClientRect();
+  const view=event.currentTarget.getAttribute("viewBox").trim().split(/\\s+/).map(Number);
+  if(rect.width<=0 || rect.height<=0 || view.length!==4)return;
+  const scale=Math.min(rect.width/view[2],rect.height/view[3]);
+  mapPanDrag={
+    pointerId:event.pointerId,startX:event.clientX,startY:event.clientY,
+    startPan:{x:mapPan.x,y:mapPan.y},scale,moved:false
+  };
+  event.currentTarget.classList.add("map-panning");
   try{event.currentTarget.setPointerCapture(event.pointerId);}catch(_){}
-  event.preventDefault();
 });
 el("worldMapSvg").addEventListener("pointermove",event=>{
+  if(mapPanDrag && mapPanDrag.pointerId===event.pointerId) {
+    const dx=event.clientX-mapPanDrag.startX,dy=event.clientY-mapPanDrag.startY;
+    if(!mapPanDrag.moved && Math.hypot(dx,dy)<4)return;
+    mapPanDrag.moved=true;
+    mapSuppressNextClick=true;
+    mapPan.x=mapPanDrag.startPan.x-dx/mapPanDrag.scale;
+    mapPan.y=mapPanDrag.startPan.y+dy/mapPanDrag.scale;
+    renderWorldMap();
+    return;
+  }
   if(mapVertexDragIndex===null || !mapEditingTarget)return;
   const point=mapScreenToWorldPoint(event);
   if(!point)return;
@@ -2142,6 +2202,16 @@ el("worldMapSvg").addEventListener("pointermove",event=>{
   el("mapEditStatus").textContent="Vértice "+(mapVertexDragIndex+1)+" · "+mapPointLabel(point);
 });
 function finishMapVertexDrag(event) {
+  if(mapPanDrag && mapPanDrag.pointerId===event.pointerId) {
+    const moved=mapPanDrag.moved;
+    mapPanDrag=null;
+    event.currentTarget.classList.remove("map-panning");
+    try{
+      if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);
+    }catch(_){}
+    if(moved)window.setTimeout(()=>{mapSuppressNextClick=false;},0);
+    return;
+  }
   if(mapVertexDragIndex===null)return;
   mapVertexDragIndex=null;
   try{
@@ -2154,6 +2224,28 @@ function finishMapVertexDrag(event) {
 el("worldMapSvg").addEventListener("pointerup",finishMapVertexDrag);
 el("worldMapSvg").addEventListener("pointercancel",finishMapVertexDrag);
 
+function mapZoomAtPointer(event,factor) {
+  if(mapDrawingMode || mapPoiPlacementMode)return;
+  const before=mapScreenToWorldPoint(event);
+  if(!before)return;
+  mapZoom=Math.max(0.45,Math.min(8,mapZoom*factor));
+  renderWorldMap();
+  const after=mapScreenToWorldPoint(event);
+  if(after) {
+    mapPan.x+=before.x-after.x;
+    mapPan.y+=before.y-after.y;
+    renderWorldMap();
+  }
+}
+el("worldMapSvg").addEventListener("wheel",event=>{
+  event.preventDefault();
+  mapZoomAtPointer(event,event.deltaY<0?1.15:1/1.15);
+},{passive:false});
+el("worldMapSvg").addEventListener("dblclick",event=>{
+  if(mapDrawingMode || mapPoiPlacementMode)return;
+  event.preventDefault();
+  mapZoomAtPointer(event,1.5);
+});
 el("worldMapSvg").addEventListener("click",event=>{
   if(mapSuppressNextClick) {
     mapSuppressNextClick=false;
@@ -2181,9 +2273,21 @@ el("worldMapSvg").addEventListener("click",event=>{
 });
 el("destinationX").onchange=()=>{try{selectedMapPoint=mapDestinationInput();renderWorldMap();updateTravelControls();}catch(err){selectedMapPoint=null;renderWorldMap();}};
 el("destinationY").onchange=()=>{try{selectedMapPoint=mapDestinationInput();renderWorldMap();updateTravelControls();}catch(err){selectedMapPoint=null;renderWorldMap();}};
-el("mapZoomIn").onclick=()=>{if(mapDrawingMode)return;mapZoom=Math.min(4,mapZoom*1.3);renderWorldMap();};
-el("mapZoomOut").onclick=()=>{if(mapDrawingMode)return;mapZoom=Math.max(0.5,mapZoom/1.3);renderWorldMap();};
-el("mapFitButton").onclick=()=>{if(mapDrawingMode)return;mapZoom=1;renderWorldMap();};
+el("mapZoomIn").onclick=()=>{if(mapDrawingMode || mapPoiPlacementMode)return;mapZoom=Math.min(8,mapZoom*1.3);renderWorldMap();};
+el("mapZoomOut").onclick=()=>{if(mapDrawingMode || mapPoiPlacementMode)return;mapZoom=Math.max(0.45,mapZoom/1.3);renderWorldMap();};
+el("mapFitButton").onclick=()=>{
+  if(mapDrawingMode || mapPoiPlacementMode)return;
+  mapZoom=1;mapPan={x:0,y:0};renderWorldMap();
+};
+el("mapExpandButton").onclick=()=>{
+  const panel=el("explorationTitle").closest(".exploration-panel");
+  const expanded=panel.classList.toggle("map-expanded");
+  el("mapExpandButton").textContent=expanded?"Cerrar mapa ampliado":"Ampliar mapa";
+  el("mapExpandButton").setAttribute("aria-pressed",expanded?"true":"false");
+  requestAnimationFrame(renderWorldMap);
+};
+["mapLayerBounds","mapLayerTerrain","mapLayerAreas","mapLayerObstacles","mapLayerRoads","mapLayerPoi"]
+  .forEach(id=>el(id).addEventListener("change",renderWorldMap));
 el("planTravelButton").onclick=async()=>{
   try{setStatus("Calculando ruta…",false);await planSelectedTravel();setStatus("Ruta calculada.",true);}
   catch(err){mapSetTravelStatus(err.message,true);setStatus(err.message,false);}
