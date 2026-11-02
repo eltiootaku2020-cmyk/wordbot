@@ -202,6 +202,13 @@ def preview_entity_behavior(
         raise BehaviorProfileNotFoundError(
             "Este personaje todavía no tiene un perfil de conducta configurado para esta partida."
         )
+    if saved["entity_kind"] == "protagonist":
+        raise BehaviorEntityNotFoundError(
+            "El protagonista está bajo control del usuario; el motor no propone ni elige sus acciones."
+        )
+    if context and context.get("target_entity_id"):
+        with database.connection() as conn:
+            _entity_in_session(conn, session_id, str(context["target_entity_id"]))
     with database.connection() as conn:
         session = conn.execute(
             "SELECT world_id,day,minute_of_day,current_location FROM sessions WHERE id=?",
