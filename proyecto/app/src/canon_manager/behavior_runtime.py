@@ -314,8 +314,8 @@ def _apply_profile_effects(
             continue
         goal["status"] = update["status"]
 
-    if "focus" in effects and effects["focus"] is not None:
-        profile["focus"] = dict(effects["focus"])
+    if "focus" in effects:
+        profile["focus"] = None if effects["focus"] is None else dict(effects["focus"])
 
     return validate_profile(profile), notes
 
@@ -406,6 +406,9 @@ def process_due_behavior_agendas(
                 )
 
             event_id = uuid.uuid4().hex
+            updated_profile, notes = _apply_profile_effects(
+                profile, action.get("effects", {}), event_id
+            )
             event_description = (
                 f"{entity['name']} completó la actividad programada "
                 f"«{action['action_id']}»."
@@ -419,9 +422,6 @@ def process_due_behavior_agendas(
                     str(row["entity_id"]), event_description,
                     json.dumps([str(row["entity_id"])]), 1, 1,
                 ),
-            )
-            updated_profile, notes = _apply_profile_effects(
-                profile, action.get("effects", {}), event_id
             )
             stored_profile = dict(updated_profile)
             stored_profile["relationships"] = {}
