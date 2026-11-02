@@ -524,11 +524,11 @@ def plan_autonomous_behavior_agendas(
     entities = conn.execute(
         "SELECT e.id,e.kind,p.location AS entity_location "
         "FROM entities e "
-        "JOIN session_entity_behavior_profiles b ON b.entity_id=e.id "
+        "JOIN session_entity_behavior_profiles b ON b.entity_id=e.id AND b.session_id=? "
         "LEFT JOIN session_presence p ON p.session_id=? AND p.entity_id=e.id "
         "WHERE e.world_id=? AND e.kind<>'protagonist' "
         "ORDER BY e.id",
-        (session_id, world_id),
+        (session_id, session_id, world_id),
     ).fetchall()
 
     planned = 0
