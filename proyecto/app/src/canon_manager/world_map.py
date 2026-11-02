@@ -143,6 +143,32 @@ class RoadZone:
             raise ValueError("Road speed_multiplier must be greater than 1")
 
 
+@dataclass(frozen=True, slots=True)
+class MapPointOfInterest:
+    """A named map marker with a fixed local position and presentation icon."""
+
+    point_id: str
+    name: str
+    position: Point
+    icon: str = "◆"
+    category: str = "other"
+    description: str = ""
+
+    def __post_init__(self) -> None:
+        if not self.point_id.strip() or len(self.point_id) > 120:
+            raise ValueError("Points of interest require an id of 1-120 characters")
+        if not self.name.strip() or len(self.name) > 180:
+            raise ValueError("Points of interest require a name of 1-180 characters")
+        if not isinstance(self.position, Point):
+            raise ValueError("Point of interest position must be a Point")
+        if not isinstance(self.icon, str) or not self.icon.strip() or len(self.icon) > 8:
+            raise ValueError("Point of interest icon must contain 1-8 characters")
+        if not isinstance(self.category, str) or not self.category.strip() or len(self.category) > 60:
+            raise ValueError("Point of interest category must contain 1-60 characters")
+        if not isinstance(self.description, str) or len(self.description) > 500:
+            raise ValueError("Point of interest description cannot exceed 500 characters")
+
+
 class BlockedPositionError(ValueError):
     """Raised when a route endpoint lies inside an obstacle or outside map bounds."""
 
@@ -246,6 +272,7 @@ class WorldMap:
     roads: tuple[RoadZone, ...] = ()
     walkable_bounds: Polygon | None = None
     max_route_nodes: int = 100_000
+    points_of_interest: tuple[MapPointOfInterest, ...] = ()
 
     def __post_init__(self) -> None:
         if not math.isfinite(self.cell_size_m) or self.cell_size_m <= 0:
@@ -254,6 +281,7 @@ class WorldMap:
         terrain_ids = [zone.terrain_id for zone in self.terrain_zones]
         obstacle_ids = [zone.obstacle_id for zone in self.obstacles]
         road_ids = [road.road_id for road in self.roads]
+        point_ids = [point.point_id for point in self.points_of_interest]
         if len(area_ids) != len(set(area_ids)):
             raise ValueError("Map area ids must be unique")
         if len(terrain_ids) != len(set(terrain_ids)):
@@ -262,6 +290,8 @@ class WorldMap:
             raise ValueError("Obstacle ids must be unique")
         if len(road_ids) != len(set(road_ids)):
             raise ValueError("Road ids must be unique")
+        if len(point_ids) != len(set(point_ids)):
+            raise ValueError("Point of interest ids must be unique")
         if (
             isinstance(self.max_route_nodes, bool)
             or not isinstance(self.max_route_nodes, int)
@@ -833,6 +863,18 @@ def world_map_to_config(world: WorldMap) -> dict[str, Any]:
             }
             for item in world.roads
         ],
+        "points_of_interest": [
+            {
+                "point_id": item.point_id,
+                "name": item.name,
+                "x_m": item.position.x_m,
+                "y_m": item.position.y_m,
+                "icon": item.icon,
+                "category": item.category,
+                "description": item.description,
+            }
+            for item in world.points_of_interest
+        ],
         "walkable_bounds": vertices(world.walkable_bounds) if world.walkable_bounds else None,
     }
 
@@ -877,6 +919,20 @@ def world_map_from_config(payload: dict[str, Any]) -> WorldMap:
             )
             for item in payload.get("roads", [])
         )
+        raw_points = payload.get("points_of_interest", [])
+        if not isinstance(raw_points, list):
+            raise ValueError("points_of_interest must be a list")
+        points_of_interest = tuple(
+            MapPointOfInterest(
+                str(item["point_id"]),
+                str(item["name"]),
+                Point(float(item["x_m"]), float(item["y_m"])),
+                str(item.get("icon", "◆")),
+                str(item.get("category", "other")),
+                str(item.get("description", "")),
+            )
+            for item in raw_points
+        )
         bounds_raw = payload.get("walkable_bounds")
         bounds = polygon(bounds_raw) if bounds_raw is not None else None
         return WorldMap(
@@ -887,6 +943,7 @@ def world_map_from_config(payload: dict[str, Any]) -> WorldMap:
             roads=roads,
             walkable_bounds=bounds,
             max_route_nodes=int(payload.get("max_route_nodes", 100_000)),
+            points_of_interest=points_of_interest,
         )
     except (KeyError, TypeError, ValueError, IndexError, OverflowError) as exc:
         raise ValueError(f"Invalid world map definition: {exc}") from exc
