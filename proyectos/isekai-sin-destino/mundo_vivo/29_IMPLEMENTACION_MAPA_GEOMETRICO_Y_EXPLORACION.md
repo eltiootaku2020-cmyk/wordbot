@@ -253,11 +253,24 @@ La pantalla permite cargar un JSON desde archivo o editarlo directamente. La est
 
 La plantilla inicial está vacía: solo define escala y colecciones vacías. No trae ubicaciones ni coordenadas inventadas. El mapa puede mostrar el plano y el marcador inicial, pero no simula conocer un bosque que aún no tiene geometría aprobada.
 
-### Límites de esta primera pantalla
+### Editor visual de polígonos — actualización 02-11-2026
+
+Se añadió una herramienta de dibujo integrada en el mapa SVG para crear geometría sin editar manualmente cada par de coordenadas:
+
+- Selección del tipo: área/lugar, terreno, obstáculo, camino/puente o límite transitable.
+- Cada clic sobre el plano añade un vértice en coordenadas locales; el borrador se representa con línea, relleno tenue, puntos y numeración.
+- Permite deshacer el último vértice, cancelar el dibujo o cerrar el polígono.
+- Los campos adicionales dependen del tipo: identificador y nombre, multiplicador de velocidad o clase de obstáculo.
+- Comprueba al menos tres vértices distintos, área no nula y ausencia de auto-intersecciones antes de incorporar el polígono.
+- El resultado se añade al mismo objeto de geometría JSON que consumen la API y el planificador. No se guarda automáticamente: el usuario debe pulsar «Guardar geometría de región».
+- Mientras el JSON está modificado, la planificación queda deshabilitada. Así no se puede calcular una ruta sobre una geometría local que el servidor aún no ha recibido.
+- Los clics del editor reutilizan la conversión SVG→metros que usa la selección de destinos; el área del mapa no cambia de escala durante el dibujo.
+
+### Límites actuales
 
 - Es una vista cartográfica SVG funcional, no todavía un minimapa final pulido con iconografía, capas seleccionables o mapa artístico de fondo.
-- Las figuras geográficas se importan como JSON; aún no hay editor visual de polígonos para dibujar aldeas, ríos o montañas con el ratón.
-- Los lugares conocidos se representan mediante áreas poligonales; todavía no existe un catálogo independiente de puntos de interés con iconos y fichas.
+- El editor dibuja polígonos; todavía no existe un catálogo independiente de puntos de interés con iconos, fichas o marcadores puntuales.
+- Las geometrías se pueden crear visualmente o importar/editar como JSON. No se ofrece todavía edición de vértices de polígonos ya existentes ni un editor de rutas lineales por nodos.
 - Las localizaciones canónicas del Bosque de los Siete Ecos siguen sin coordenadas. Deben cargarse a partir de geometría aprobada; la interfaz no las deduce de los nombres.
 
-La interfaz se alimenta de `GET /api/worlds/{world_id}/map/regions/{region_id}`, `GET /api/sessions/{session_id}/map/regions/{region_id}/state` y los endpoints `/travel`. La próxima ampliación puede mejorar el estilo cartográfico o añadir edición visual, pero debe seguir escribiendo y leyendo las mismas definiciones y coordenadas compartidas.
+La interfaz se alimenta de `GET /api/worlds/{world_id}/map/regions/{region_id}`, `GET /api/sessions/{session_id}/map/regions/{region_id}/state` y los endpoints `/travel`. Toda mejora visual futura debe seguir escribiendo y leyendo las mismas definiciones, coordenadas y celdas descubiertas.
