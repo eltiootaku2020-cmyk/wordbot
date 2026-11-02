@@ -1079,7 +1079,9 @@ function mapViewport() {
   if(maxX-minX<cell*4){const mid=(minX+maxX)/2;minX=mid-cell*2;maxX=mid+cell*2;}
   if(maxY-minY<cell*4){const mid=(minY+maxY)/2;minY=mid-cell*2;maxY=mid+cell*2;}
   minX-=margin;maxX+=margin;minY-=margin;maxY+=margin;
-  const center=sessionMapState && sessionMapState.position ? mapPoint(sessionMapState.position) : {x:(minX+maxX)/2,y:(minY+maxY)/2};
+  const extentCenter={x:(minX+maxX)/2,y:(minY+maxY)/2};
+  const playerCenter=sessionMapState && sessionMapState.position ? mapPoint(sessionMapState.position) : extentCenter;
+  const center=mapZoom>1 ? playerCenter : extentCenter;
   const baseWidth=maxX-minX, baseHeight=maxY-minY;
   const width=baseWidth/mapZoom, height=baseHeight/mapZoom;
   return {minX:center.x-width/2,maxY:center.y+height/2,width,height,cell};
@@ -1475,11 +1477,17 @@ el("worldMapSvg").addEventListener("click",event=>{
   const rect=el("worldMapSvg").getBoundingClientRect();
   const view=el("worldMapSvg").getAttribute("viewBox").split(/\s+/).map(Number);
   if(rect.width<=0 || rect.height<=0 || view.length!==4)return;
-  const screenX=(event.clientX-rect.left)/rect.width;
-  const screenY=(event.clientY-rect.top)/rect.height;
+  // Account for SVG's default xMidYMid meet letterboxing so clicks map
+  // to the same local metre coordinates without stretching the geometry.
+  const scale=Math.min(rect.width/view[2],rect.height/view[3]);
+  const drawnWidth=view[2]*scale, drawnHeight=view[3]*scale;
+  const offsetX=(rect.width-drawnWidth)/2, offsetY=(rect.height-drawnHeight)/2;
+  const localX=(event.clientX-rect.left-offsetX)/scale;
+  const localY=(event.clientY-rect.top-offsetY)/scale;
+  if(localX<0 || localX>view[2] || localY<0 || localY>view[3])return;
   const point={
-    x:view[0]+screenX*view[2],
-    y:-(view[1]+screenY*view[3])
+    x:view[0]+localX,
+    y:-(view[1]+localY)
   };
   selectMapDestination(point);
 });
