@@ -1302,6 +1302,14 @@ async function loadExplorationData() {
       api("/api/sessions/"+requestedSession+"/map/regions/"+encodeURIComponent(regionId)+"/state"),
       api("/api/sessions/"+requestedSession+"/travel")
     ]);
+    if((travel.status==="running" || travel.status==="paused") && travel.region_id!==regionId &&
+       loadToken===explorationLoadToken && requestedSession===currentSession &&
+       requestedWorld===currentWorld) {
+      // Keep the live route on its own region; never draw its waypoints on another map.
+      el("mapRegionId").value=travel.region_id;
+      await loadExplorationData();
+      return;
+    }
     if(loadToken!==explorationLoadToken || requestedSession!==currentSession ||
        requestedWorld!==currentWorld || regionId!==el("mapRegionId").value.trim())return;
     mapConfig=region.config;
