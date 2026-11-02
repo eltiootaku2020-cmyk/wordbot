@@ -1,6 +1,6 @@
 # Motor de conducta y decisiones de PNJ
 
-**Estado:** primera base de puntuación determinista implementada; integración con persistencia y simulación autónoma todavía pendiente.  
+**Estado:** perfiles y catálogos persistidos, previsualización de decisiones y panel local integrados; ejecución autónoma y agendas todavía pendientes.  
 **Alcance:** motor genérico de Word Bot. Los catálogos de acciones, focos, rasgos y patrones concretos deben ser datos del mundo o de cada personaje; no se deben convertir en reglas globales de todos los universos.
 
 ## 1. Diagnóstico del estado anterior
@@ -28,7 +28,7 @@ La personalidad no debe reducirse a una etiqueta única como «seria», «tímid
 
 ## 3. Primera implementación
 
-Módulo: `proyecto/app/src/canon_manager/behavior_engine.py`.
+Módulos: `proyecto/app/src/canon_manager/behavior_engine.py` (reglas y puntuación) y `behavior_controller.py` (persistencia y previsualización).
 
 ### Datos por personaje
 
@@ -43,7 +43,7 @@ El contrato de perfil admite:
 - `resources`: cantidades disponibles.
 - `relationships`: valores dirigidos por entidad destinataria y eje.
 
-El perfil es independiente para cada entidad. El motor no copia rasgos, emociones o relaciones entre personajes.
+El perfil es independiente por entidad y partida y se guarda en `session_entity_behavior_profiles`. La relación no se copia en el JSON del perfil: se consulta en la tabla dirigida `relationships` para usar el valor vigente de A→B, sin inferir B→A. El protagonista queda excluido de la previsualización porque sus acciones pertenecen al usuario.
 
 ### Acciones y patrones de inicio
 
@@ -51,7 +51,7 @@ El catálogo genérico inicial aporta **29 acciones reutilizables** (observar, p
 
 Incluye **22 patrones contextuales** de ejemplo, como evaluación cautelosa, curiosidad investigadora, protección, límites de independencia, cooperación, prioridad de evidencia, recuperación por cansancio, prioridad por hambre/sed, distancia por miedo, foco en amenaza y desescalada.
 
-Son una biblioteca inicial, no miles de reglas escritas a mano. El catálogo está diseñado para crecer mediante combinaciones de acciones, requisitos, prioridades, rasgos, necesidades, emociones, objetivos y focos. Cada mundo puede aportar acciones y patrones especializados sin contaminar el motor común.
+Son una biblioteca inicial, no miles de reglas escritas a mano. Cada mundo puede guardar un catálogo propio de hasta 500 acciones y 500 patrones adicionales, que se combina con la biblioteca genérica sin contaminar otros mundos. Cada perfil admite hasta 200 emociones activas registradas, 100 objetivos y colecciones separadas de rasgos/necesidades/focos. La variedad sale de combinar condiciones, perfiles, objetivos, recursos, relaciones, focos y estados emocionales; el límite evita que se convierta en una lista ilimitada de reglas duplicadas.
 
 ### Puntuación y salida
 
@@ -77,18 +77,20 @@ Esta fase es un **evaluador de propuestas**, no un simulador completo. No debe m
 
 Todavía falta:
 
-- guardar perfiles, emociones, focos y metas en SQLite por partida y entidad;
-- editor de personalidad y catálogo de conducta en la interfaz;
-- catálogo de acciones por mundo, con precondiciones y efectos verificables;
-- ejecutor transaccional que aplique un resultado válido a posición, inventario, tiempo, relaciones y eventos;
-- agenda y cola de actividades con duración, interrupciones y cancelaciones;
-- simulación fuera de escena cuando realmente transcurre tiempo, sin avanzar el mundo por cada mensaje;
-- encuentros entre PNJ, negociación, cooperación, conflicto y resolución con resultados persistentes;
-- memoria y conocimiento usados como límites de decisión para impedir que un PNJ actúe con información que no posee;
-- historial, snapshots, deshacer y recuperación de decisiones autónomas;
-- panel para inspeccionar por qué un PNJ priorizó una acción y qué condiciones la hicieron posible.
+- editor visual de campos de perfil en vez de editar JSON manualmente;
+- generación de decisiones a partir de percepción y conocimiento individual comprobable; ahora los límites de conocimiento aún no se construyen automáticamente desde los recuerdos/testigos;
+- convertir cada acción candidata en un plan validado con precondiciones, pasos, costes, duración e interrupciones;
+- ejecutor transaccional e idempotente que aplique resultados a ubicación, inventario, tiempo, relaciones, eventos y recursos;
+- registro de por qué se descartaron acciones, y no solo los motivos de puntuación de las acciones elegidas;
+- agendas y colas persistentes por personaje, con compromisos, prioridad, descanso y cancelación;
+- simulación fuera de escena al avanzar el reloj por viajes, descanso o saltos autorizados;
+- encuentros entre PNJ, diálogo autónomo, negociación, cooperación, conflicto y resolución persistente;
+- que emociones se creen o modifiquen a partir de eventos aceptados y se desgasten cuando el tiempo del mundo avance; ahora se pueden guardar y avanzar mediante función, pero no se actualizan solas;
+- snapshots, deshacer y recuperación de decisiones ejecutadas, y panel que explique acciones, evidencias y efectos.
 
-La salida actual no modifica la partida. Esta separación es deliberada: primero se prueba la selección; después se conecta a un ejecutor con transacciones, evidencia e idempotencia.
+La API local expone `GET/PUT /api/sessions/{session_id}/entities/{entity_id}/behavior`, `POST .../behavior/preview` y `GET/PUT /api/worlds/{world_id}/behavior/catalog`. La interfaz permite seleccionar una entidad, cargar/guardar su perfil, mantener el catálogo JSON del mundo y consultar la puntuación de hasta 15 acciones. El contexto de previsualización incluye el reloj y lugar de la sesión; quien invoca puede aportar condiciones, tiempo disponible y destinatario.
+
+La salida de la previsualización **no modifica la partida**: no consume recursos, no mueve PNJ, no avanza el reloj ni crea eventos. Esta separación es deliberada; primero se valida la selección; después se conectará a un ejecutor transaccional con evidencia e idempotencia. Tampoco se han precargado rasgos, necesidades, traumas, emociones ni metas de Brina, Maelis o Sera. Sus perfiles empiezan sin datos y requieren configuración o evidencia real.
 
 ## 5. Criterios para considerar completa la autonomía
 
