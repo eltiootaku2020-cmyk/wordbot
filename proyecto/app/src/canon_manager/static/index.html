@@ -69,6 +69,13 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}label{font-size:13px;
 .travel-actions .wide{grid-column:1/-1}
 #travelStatus{margin:0;min-height:36px;font-size:12px;color:var(--muted)}
 #mapConfigInput{width:100%;min-height:150px;font:12px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace}
+#behaviorProfileInput,#behaviorContextInput,#behaviorCatalogInput{width:100%;min-height:160px;font:12px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace}
+#behaviorPreview{white-space:pre-wrap;overflow-wrap:anywhere;max-height:44vh;overflow:auto;background:#151820;border:1px solid var(--line);border-radius:8px;padding:10px;font-size:12px}
+.behavior-actions{display:flex;gap:7px;flex-wrap:wrap;margin:8px 0}
+.behavior-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.behavior-grid label{display:flex;flex-direction:column;gap:4px}
+#behaviorStatus{font-size:12px;color:var(--muted);min-height:24px}
+
 .map-draw-controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0}
 .map-draw-controls label{display:flex;flex-direction:column;gap:4px;min-width:0}
 .map-draw-controls input,.map-draw-controls select{width:100%;min-width:0}
@@ -398,6 +405,50 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}label{font-size:13px;
     <h2>Estado de partida</h2>
     <div id="state"><p class="muted">Carga el mundo de prueba para empezar.</p></div>
     <hr>
+    <details id="behaviorPanel" class="setup">
+      <summary>Personalidad y conducta de PNJ</summary>
+      <p class="muted">Los perfiles son independientes por personaje y partida. Los valores desconocidos deben quedar como <code>null</code> o ausentes. La vista previa ordena acciones candidatas, pero todavía no ejecuta acciones ni cambia el mundo. El protagonista no puede ser controlado por este motor.</p>
+      <label for="behaviorEntitySelect">Personaje</label>
+      <select id="behaviorEntitySelect" style="width:100%"><option value="">Selecciona personaje</option></select>
+      <div class="behavior-actions">
+        <button id="loadBehaviorProfile" type="button">Cargar perfil</button>
+        <button id="saveBehaviorProfile" type="button" class="primary">Guardar perfil</button>
+      </div>
+      <label for="behaviorProfileInput">Perfil individual JSON</label>
+      <textarea id="behaviorProfileInput" spellcheck="false">{
+  "schema_version": 1,
+  "traits": {},
+  "needs": {},
+  "emotions": [],
+  "goals": [],
+  "focus": null,
+  "capabilities": [],
+  "resources": {},
+  "relationships": {}
+}</textarea>
+      <label for="behaviorContextInput">Contexto para la previsualización</label>
+      <textarea id="behaviorContextInput" rows="4" spellcheck="false">{
+  "available_minutes": 60,
+  "conditions": {}
+}</textarea>
+      <div class="behavior-actions">
+        <button id="previewBehavior" type="button">Previsualizar decisiones</button>
+      </div>
+      <label for="behaviorCatalogInput">Catálogo adicional de este mundo (JSON)</label>
+      <p class="muted">Añade acciones y patrones propios del mundo sin modificar la biblioteca genérica. Se combinan con las acciones y patrones predeterminados.</p>
+      <textarea id="behaviorCatalogInput" spellcheck="false">{
+  "schema_version": 1,
+  "actions": [],
+  "patterns": []
+}</textarea>
+      <div class="behavior-actions">
+        <button id="loadBehaviorCatalog" type="button">Cargar catálogo</button>
+        <button id="saveBehaviorCatalog" type="button">Guardar catálogo del mundo</button>
+      </div>
+      <div id="behaviorStatus" aria-live="polite">Selecciona un personaje para cargar o configurar su perfil.</div>
+      <pre id="behaviorPreview">La vista previa mostrará las acciones posibles, su puntuación y los motivos de cada decisión.</pre>
+    </details>
+    <hr>
     <h2>Eventos importantes pendientes</h2>
     <div id="pendingEvents"><p class="muted">No hay eventos pendientes.</p></div>
     <hr>
@@ -419,6 +470,7 @@ const el = id => document.getElementById(id);
 let currentWorld = "";
 let currentSession = "";
 let entityNames = {};
+let behaviorEntities = [];
 let lastState = null;
 let failedRequest = null;
 let latestCompletedTurnId = "";
@@ -487,6 +539,123 @@ function makeCard(text, className) {
   node.textContent = text;
   return node;
 }
+function behaviorSetStatus(message,isError) {
+  const node=el("behaviorStatus");
+  node.textContent=message;
+  node.classList.toggle("warn",!!isError);
+}
+function refreshBehaviorEntityOptions() {
+  const select=el("behaviorEntitySelect"), previous=select.value;
+  clearChildren(select);
+  addOption(select,"","Selecciona personaje");
+  behaviorEntities.forEach(entity=>{
+    addOption(select,entity.id,entity.name+" · "+entity.kind);
+  });
+  if(behaviorEntities.some(entity=>entity.id===previous))select.value=previous;
+}
+function behaviorSelectedEntity() {
+  const entityId=el("behaviorEntitySelect").value;
+  if(!currentSession)throw new Error("Selecciona una partida antes de configurar conductas.");
+  if(!entityId)throw new Error("Selecciona un personaje.");
+  const entity=behaviorEntities.find(item=>item.id===entityId);
+  if(!entity)throw new Error("El personaje no pertenece al mundo activo o está controlado por el usuario.");
+  return entity;
+}
+async function loadBehaviorProfile() {
+  const entity=behaviorSelectedEntity();
+  const saved=await api("/api/sessions/"+currentSession+"/entities/"+encodeURIComponent(entity.id)+"/behavior");
+  if(saved.configured && saved.profile) {
+    el("behaviorProfileInput").value=JSON.stringify(saved.profile,null,2);
+    behaviorSetStatus("Perfil cargado · "+entity.name+" · datos guardados en esta partida.",false);
+  } else {
+    el("behaviorProfileInput").value=JSON.stringify({
+      schema_version:1,traits:{},needs:{},emotions:[],goals:[],
+      focus:null,capabilities:[],resources:{},relationships:{}
+    },null,2);
+    behaviorSetStatus("Este personaje aún no tiene perfil. Los campos vacíos significan «no registrado», no personalidad neutral.",false);
+  }
+}
+async function saveBehaviorProfile() {
+  const entity=behaviorSelectedEntity();
+  let profile;
+  try{profile=JSON.parse(el("behaviorProfileInput").value);}
+  catch(err){throw new Error("El JSON del perfil no es válido: "+err.message);}
+  const saved=await api("/api/sessions/"+currentSession+"/entities/"+encodeURIComponent(entity.id)+"/behavior",{
+    method:"PUT",body:JSON.stringify({profile})
+  });
+  el("behaviorProfileInput").value=JSON.stringify(saved.profile,null,2);
+  behaviorSetStatus("Perfil guardado para "+entity.name+". Las relaciones proceden del registro dirigido de la partida.",false);
+}
+async function previewBehaviorProfile() {
+  const entity=behaviorSelectedEntity();
+  let context;
+  try{context=JSON.parse(el("behaviorContextInput").value);}
+  catch(err){throw new Error("El JSON del contexto no es válido: "+err.message);}
+  const result=await api("/api/sessions/"+currentSession+"/entities/"+encodeURIComponent(entity.id)+"/behavior/preview",{
+    method:"POST",body:JSON.stringify({context,limit:15})
+  });
+  el("behaviorPreview").textContent=JSON.stringify(result,null,2);
+  behaviorSetStatus(
+    "Previsualización de "+entity.name+" · "+result.actions.length+
+    " acciones candidatas · catálogo: "+result.catalog.default_action_count+
+    " acciones y "+result.catalog.default_pattern_count+
+    " patrones genéricos más "+result.catalog.custom_action_count+
+    " acciones y "+result.catalog.custom_pattern_count+" patrones del mundo. Sin efectos aplicados.",
+    false
+  );
+}
+async function loadBehaviorCatalog() {
+  if(!currentWorld)throw new Error("Selecciona un mundo.");
+  const catalog=await api("/api/worlds/"+currentWorld+"/behavior/catalog");
+  el("behaviorCatalogInput").value=JSON.stringify(catalog.custom_catalog || {
+    schema_version:1,actions:[],patterns:[]
+  },null,2);
+  behaviorSetStatus(
+    "Catálogo cargado · "+catalog.default_action_count+" acciones y "+
+    catalog.default_pattern_count+" patrones genéricos; "+
+    catalog.custom_action_count+" acciones y "+catalog.custom_pattern_count+
+    " patrones personalizados.",false
+  );
+}
+async function saveBehaviorCatalog() {
+  if(!currentWorld)throw new Error("Selecciona un mundo.");
+  let catalog;
+  try{catalog=JSON.parse(el("behaviorCatalogInput").value);}
+  catch(err){throw new Error("El JSON del catálogo no es válido: "+err.message);}
+  const saved=await api("/api/worlds/"+currentWorld+"/behavior/catalog",{
+    method:"PUT",body:JSON.stringify(catalog)
+  });
+  el("behaviorCatalogInput").value=JSON.stringify(saved.custom_catalog,null,2);
+  behaviorSetStatus(
+    "Catálogo del mundo guardado · "+saved.default_action_count+
+    " acciones y "+saved.default_pattern_count+" patrones genéricos, más "+
+    saved.custom_action_count+" acciones y "+saved.custom_pattern_count+
+    " patrones propios.",false
+  );
+}
+el("loadBehaviorProfile").onclick=async()=>{
+  try{await loadBehaviorProfile();}
+  catch(err){behaviorSetStatus(err.message,true);}
+};
+el("saveBehaviorProfile").onclick=async()=>{
+  try{await saveBehaviorProfile();}
+  catch(err){behaviorSetStatus(err.message,true);}
+};
+el("previewBehavior").onclick=async()=>{
+  try{await previewBehaviorProfile();}
+  catch(err){behaviorSetStatus(err.message,true);}
+};
+el("loadBehaviorCatalog").onclick=async()=>{
+  try{await loadBehaviorCatalog();}
+  catch(err){behaviorSetStatus(err.message,true);}
+};
+el("saveBehaviorCatalog").onclick=async()=>{
+  try{await saveBehaviorCatalog();}
+  catch(err){behaviorSetStatus(err.message,true);}
+};
+el("behaviorEntitySelect").onchange=()=>{
+  el("behaviorPreview").textContent="Pulsa «Cargar perfil» para leer el perfil de este personaje.";
+};
 async function refreshWorlds() {
   const worlds = await api("/api/worlds");
   clearChildren(el("worldSelect"));
@@ -503,7 +672,9 @@ async function refreshSessions() {
   const sessions = await api("/api/worlds/" + currentWorld + "/sessions");
   sessions.forEach(s => addOption(el("sessionSelect"), s.id, s.name + " — Día " + s.day));
   const entities = await api("/api/worlds/" + currentWorld + "/entities");
+  behaviorEntities = entities.filter(entity => entity.kind !== "protagonist");
   entities.forEach(e => { entityNames[e.id] = e.name; });
+  refreshBehaviorEntityOptions();
   if (currentSession && sessions.some(s => s.id === currentSession)) el("sessionSelect").value = currentSession;
   if (el("sessionSelect").value) await loadSession(el("sessionSelect").value);
 }
