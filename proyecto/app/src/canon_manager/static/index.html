@@ -1042,9 +1042,10 @@ function mapPointLabel(point) {
 }
 function mapPolygonCentroid(vertices) {
   if (!vertices || !vertices.length) return {x:0,y:0};
-  return vertices.reduce((sum,raw) => {
+  const total=vertices.reduce((sum,raw) => {
     const p=mapPoint(raw); sum.x+=p.x; sum.y+=p.y; return sum;
   },{x:0,y:0});
+  return {x:total.x/vertices.length,y:total.y/vertices.length};
 }
 function mapPointInPolygon(point, vertices) {
   if (!vertices || vertices.length < 3) return false;
@@ -1144,12 +1145,13 @@ function renderWorldMap() {
   (mapConfig && mapConfig.areas || []).forEach(item=>mapDrawPolygon(layer,item,{
     fill:"#396b78",stroke:"#8fc4cf",opacity:0.48,width:2
   },"Zona"));
-  (mapConfig && mapConfig.roads || []).forEach(item=>mapDrawPolygon(layer,item,{
-    fill:"#c4a875",stroke:"#e4d2a6",opacity:0.88,width:2
-  },"Camino"));
   (mapConfig && mapConfig.obstacles || []).forEach(item=>mapDrawPolygon(layer,item,{
     fill:"#777d89",stroke:"#c0c6d1",opacity:0.88,width:2
   },"Obstáculo"));
+  // Roads are above obstacles so an explicit bridge remains visible across a river.
+  (mapConfig && mapConfig.roads || []).forEach(item=>mapDrawPolygon(layer,item,{
+    fill:"#c4a875",stroke:"#e4d2a6",opacity:0.94,width:2.5
+  },"Camino / puente"));
 
   const known=mapDiscoveredSet();
   const startX=Math.floor(minX/cell), endX=Math.ceil((minX+width)/cell);
@@ -1173,16 +1175,24 @@ function renderWorldMap() {
     }
   }
 
-  // Area names are shown only after their center cell has been explored.
-  (mapConfig && mapConfig.areas || []).forEach(item=>{
-    const center=mapPolygonCentroid(item.vertices || []);
-    if(!mapCellKnown(center,cell,known))return;
-    layer.appendChild(mapSvgNode("text",{
-      x:center.x,y:-center.y-7,
-      fill:"#e5f4f7","font-size":14,"font-weight":600,
-      "text-anchor":"middle","paint-order":"stroke",
-      stroke:"#14212b","stroke-width":3
-    },item.name || "Zona conocida"));
+  // Feature names are revealed only after their center cell has been explored.
+  const labelGroups=[
+    ["areas","#e5f4f7",""],
+    ["terrain_zones","#c9e0b8",""],
+    ["obstacles","#e0e3eb",""],
+    ["roads","#f1d9a7",""]
+  ];
+  labelGroups.forEach(([group,color])=>{
+    (mapConfig && mapConfig[group] || []).forEach(item=>{
+      const center=mapPolygonCentroid(item.vertices || []);
+      if(!mapCellKnown(center,cell,known))return;
+      layer.appendChild(mapSvgNode("text",{
+        x:center.x,y:-center.y-7,
+        fill:color,"font-size":13,"font-weight":600,
+        "text-anchor":"middle","paint-order":"stroke",
+        stroke:"#14212b","stroke-width":3
+      },item.name || "Zona conocida"));
+    });
   });
 
   if(travelState && Array.isArray(travelState.route) && travelState.route.length>1) {
@@ -1388,7 +1398,7 @@ async function advanceOneTravelLeg(sessionId) {
       await loadExplorationData();
     }
     const discovered=result.segment.newly_discovered_cells.length;
-    mapSetTravelStatus(
+    if(targetSession===currentSession)mapSetTravelStatus(
       "Tramo completado · "+Math.round(result.segment.distance_m)+" m · "+
       result.segment.travel_seconds+" s · "+discovered+" celdas nuevas.",
       false
