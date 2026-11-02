@@ -1,6 +1,6 @@
 # Motor de conducta y decisiones de PNJ
 
-**Estado:** perfiles y catálogos persistidos, previsualización de decisiones y panel local integrados; ejecución autónoma y agendas todavía pendientes.  
+**Estado:** perfiles y catálogos persistidos, previsualización, agendas persistentes, ejecución limitada y primer planificador reactivo conectados a los avances reales del reloj. La autonomía de jornada completa sigue pendiente.  
 **Alcance:** motor genérico de Word Bot. Los catálogos de acciones, focos, rasgos y patrones concretos deben ser datos del mundo o de cada personaje; no se deben convertir en reglas globales de todos los universos.
 
 ## 1. Diagnóstico del estado anterior
@@ -81,6 +81,10 @@ La primera fase sigue siendo un **evaluador de propuestas**, pero ahora existe u
 - `behavior_action_executions` registra una ejecución completada por agenda. Los identificadores de solicitud hacen idempotente la creación; el estado y la transacción impiden aplicar dos veces una actividad.
 - La API permite crear, consultar y cancelar actividades. La creación no modifica la hora.
 - Las actividades empiezan cuando el reloj cruza su hora programada y solo se completan cuando alcanza el final de su duración.
+- En cada avance real del reloj, el runtime primero procesa las actividades vencidas y después intenta programar como máximo la siguiente actividad de cada PNJ configurado que no tenga otra agenda pendiente o en curso.
+- El planificador selecciona de forma determinista la acción mejor puntuada por el motor, pero solo si el catálogo del mundo la marca explícitamente como apta para autonomía (autonomous_allowed: true), tiene duración positiva de hasta cuatro horas, no consume recursos ni implica movimiento físico.
+- Las condiciones no registradas permanecen desconocidas y no se dan por verdaderas. Las acciones que necesitan descanso seguro, comida, agua u otra condición solo son candidatas cuando el contexto aporta la condición explícitamente.
+- Se evitan las tres últimas acciones completadas del mismo PNJ para reducir repeticiones inmediatas. Cada agenda generada usa una clave determinista de solicitud y conserva puntuación y motivos de selección.
 - El runtime se invoca al avanzar tiempo por turnos del narrador y por tramos/cancelación de viajes. Nunca crea tiempo por sí mismo ni funciona como un proceso en segundo plano.
 - El desgaste emocional configurado se aplica a los perfiles cuando avanza el reloj. No se desgastan emociones si no transcurre tiempo de juego.
 - En la ejecución se vuelven a comprobar perfil, capacidades, condiciones y catálogo guardado. Los efectos permitidos son deliberadamente limitados: cambios sobre necesidades ya conocidas, emociones nuevas con evento fuente, actualización de objetivos existentes y cambio/limpieza del foco.
@@ -90,7 +94,8 @@ API: `POST /api/sessions/{session_id}/entities/{entity_id}/agendas`, `GET /api/s
 
 ### Límites pendientes
 
-- El motor **no crea agendas por iniciativa propia** todavía: las entradas se programan explícitamente mediante API.
+- El planificador crea una sola actividad siguiente por PNJ y avance del reloj; todavía no construye una jornada completa, no rellena huecos futuros ni coordina varias actividades por adelantado.
+- Ninguna acción se habilita por defecto para ejecución autónoma: el catálogo de cada mundo debe marcarla explícitamente. Los perfiles ausentes o incompletos producen inactividad, no datos psicológicos inventados.
 - No hay panel visual para administrar, reordenar o inspeccionar agendas; la primera interfaz disponible es la API.
 - Las actividades no validan aún posición, distancia, clima, ruta, presencia de testigos ni acceso a lugares. No deben programarse como acciones que impliquen desplazamiento físico.
 - Las acciones con coste de recursos se rechazan para agenda hasta contar con reservas atómicas y resolución de concurrencia.
