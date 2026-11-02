@@ -1118,6 +1118,7 @@ const EMPTY_MAP_CONFIG = {
   terrain_zones:[],
   obstacles:[],
   roads:[],
+  points_of_interest:[],
   walkable_bounds:null
 };
 const SVG_NS = "http://www.w3.org/2000/svg";
@@ -1133,6 +1134,10 @@ let mapDraftVertices = [];
 let mapDrawingViewBox = null;
 let mapConfigPersisted = false;
 let mapDrawingWasPersisted = false;
+let mapEditingTarget = null;
+let mapVertexDragIndex = null;
+let mapPoiPlacementMode = false;
+let mapPoiWasPersisted = false;
 
 function mapSvgNode(tag, attrs, text) {
   const node = document.createElementNS(SVG_NS, tag);
@@ -1172,6 +1177,12 @@ function mapFeaturePoints(config) {
     (config && config[group] || []).forEach(item => (item.vertices || []).forEach(p => values.push(mapPoint(p))));
   }
   if(config && Array.isArray(config.walkable_bounds)) config.walkable_bounds.forEach(p=>values.push(mapPoint(p)));
+  const known=mapDiscoveredSet();
+  const cell=Number((config && config.cell_size_m) || 250);
+  (config && config.points_of_interest || []).forEach(item=>{
+    const point={x:Number(item.x_m),y:Number(item.y_m)};
+    if(Number.isFinite(point.x) && Number.isFinite(point.y) && mapCellKnown(point,cell,known))values.push(point);
+  });
   if(mapDrawingMode)mapDraftVertices.forEach(point=>values.push(point));
   return values;
 }
@@ -1338,6 +1349,31 @@ function renderWorldMap() {
     });
   });
 
+  // Independent markers are only rendered after their cell has been explored.
+  (mapConfig && mapConfig.points_of_interest || []).forEach(item=>{
+    const point={x:Number(item.x_m),y:Number(item.y_m)};
+    if(!Number.isFinite(point.x) || !Number.isFinite(point.y) || !mapCellKnown(point,cell,known))return;
+    const marker=mapSvgNode("g",{"class":"map-poi-marker"});
+    marker.appendChild(mapSvgNode("title",{},(item.name || "Punto de interés")+
+      (item.description ? " · "+item.description : "")));
+    marker.appendChild(mapSvgNode("circle",{
+      cx:point.x,cy:-point.y,r:14,fill:"#182331",
+      stroke:"#f0d28c","stroke-width":2,
+      "vector-effect":"non-scaling-stroke"
+    }));
+    marker.appendChild(mapSvgNode("text",{
+      x:point.x,y:-point.y+5,fill:"#fff4d3",
+      "font-size":15,"text-anchor":"middle",
+      "paint-order":"stroke",stroke:"#17202a","stroke-width":2
+    },item.icon || "◆"));
+    marker.appendChild(mapSvgNode("text",{
+      x:point.x+19,y:-point.y-11,fill:"#fff1cc",
+      "font-size":12,"font-weight":700,
+      "paint-order":"stroke",stroke:"#17202a","stroke-width":3
+    },item.name || "Punto de interés"));
+    layer.appendChild(marker);
+  });
+
   if(mapDrawingMode && mapDraftVertices.length) {
     const draftPoints=mapDraftVertices.map(point=>point.x+","+(-point.y)).join(" ");
     if(mapDraftVertices.length>=3) {
@@ -1356,7 +1392,9 @@ function renderWorldMap() {
       layer.appendChild(mapSvgNode("circle",{
         cx:point.x,cy:-point.y,r:6,fill:"#ffffff",
         stroke:"#3978c7","stroke-width":2,
-        "vector-effect":"non-scaling-stroke"
+        "vector-effect":"non-scaling-stroke",
+        "data-vertex-index":index,
+        cursor:mapEditingTarget ? "grab" : "default"
       }));
       layer.appendChild(mapSvgNode("text",{
         x:point.x+10,y:-point.y-10,fill:"#ffffff",
@@ -1409,7 +1447,8 @@ function renderWorldMap() {
   } else mapSetHint("Haz clic sobre el mapa para elegir destino. Las áreas y su nombre se revelan al explorar sus celdas.",false);
 }
 function updateTravelControls() {
-  const hasSession=!!currentSession, hasMap=!!mapConfig && mapConfigPersisted;
+  const hasSession=!!currentSession, hasMap=!!mapConfig && mapConfigPersisted &&
+    !mapDrawingMode && !mapPoiPlacementMode;
   const state=travelState || {status:"idle"};
   const active=state.status==="running", paused=state.status==="paused";
   el("planTravelButton").disabled=!hasSession || !hasMap;
