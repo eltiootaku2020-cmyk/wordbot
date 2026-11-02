@@ -5176,7 +5176,14 @@ def test_behavior_profiles_are_saved_per_entity_and_rank_different_actions():
 
         maelis_preview = client.post(
             f"/api/sessions/{session_id}/entities/{maelis_id}/behavior/preview",
-            json={"context": {"available_minutes": 60}, "limit": 10},
+            json={
+                "context": {"available_minutes": 60},
+                "focus_candidates": [
+                    {"kind": "place", "target_id": "evidence-site", "salience": 10, "tags": ["investigate"]},
+                    {"kind": "entity", "target_id": brina_id, "salience": 20, "tags": ["social"]},
+                ],
+                "limit": 10,
+            },
         )
         brina_preview = client.post(
             f"/api/sessions/{session_id}/entities/{brina_id}/behavior/preview",
@@ -5186,6 +5193,7 @@ def test_behavior_profiles_are_saved_per_entity_and_rank_different_actions():
         assert brina_preview.status_code == 200, brina_preview.text
         assert maelis_preview.json()["actions"][0]["action_id"] == "investigate"
         assert brina_preview.json()["actions"][0]["action_id"] == "guard"
+        assert maelis_preview.json()["focus_candidates"][0]["target_id"] == "evidence-site"
         assert maelis_preview.json()["side_effects_applied"] is False
         assert brina_preview.json()["side_effects_applied"] is False
 
