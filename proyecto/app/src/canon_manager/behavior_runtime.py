@@ -42,8 +42,9 @@ def _total_minutes(day: int, minute: int) -> int:
 def _session_entity(conn, session_id: str, entity_id: str):
     row = conn.execute(
         "SELECT s.world_id,s.day,s.minute_of_day,s.current_location,"
-        "e.id AS entity_id,e.name AS entity_name,e.kind AS entity_kind "
+        "e.id AS entity_id,e.name AS entity_name,e.kind AS entity_kind,p.location AS entity_location "
         "FROM sessions s JOIN entities e ON e.world_id=s.world_id "
+        "LEFT JOIN session_presence p ON p.session_id=s.id AND p.entity_id=e.id "
         "WHERE s.id=? AND e.id=?",
         (session_id, entity_id),
     ).fetchone()
@@ -190,7 +191,11 @@ def schedule_behavior_agenda(
         agenda_context["available_minutes"] = duration
         agenda_context.setdefault("world_day", scheduled_day)
         agenda_context.setdefault("world_minute", scheduled_minute)
-        agenda_context.setdefault("location", str(entity["current_location"]))
+        actor_location = str(entity["entity_location"] or "").strip()
+        if actor_location:
+            agenda_context["location"] = actor_location
+        else:
+            agenda_context.pop("location", None)
 
         profile = _profile_for(conn, session_id, entity_id)
         possible = rank_actions(
@@ -360,8 +365,9 @@ def process_due_behavior_agendas(
             continue
 
         entity = conn.execute(
-            "SELECT e.name,e.kind,s.world_id FROM sessions s "
+            "SELECT e.name,e.kind,s.world_id,p.location AS entity_location FROM sessions s "
             "JOIN entities e ON e.world_id=s.world_id "
+            "LEFT JOIN session_presence p ON p.session_id=s.id AND p.entity_id=e.id "
             "WHERE s.id=? AND e.id=?",
             (session_id, str(row["entity_id"])),
         ).fetchone()
@@ -377,6 +383,17 @@ def process_due_behavior_agendas(
         ).fetchone()
         if profile_row is None:
             _block_agenda(conn, agenda_id, "El perfil de conducta ya no está disponible.")
+            stats["blocked"] += 1
+            continue
+
+        context_snapshot = json.loads(str(row["context_json"]))
+        planned_location = str(context_snapshot.get("location", "")).strip()
+        current_location = str(entity["entity_location"] or "").strip()
+        if planned_location and current_location != planned_location:
+            _block_agenda(
+                conn, agenda_id,
+                "La ubicación registrada del PNJ cambió desde que se programó la actividad.",
+            )
             stats["blocked"] += 1
             continue
 
@@ -439,7 +456,7 @@ def process_due_behavior_agendas(
                 "action_id": action["action_id"],
                 "started_total_minutes": start,
                 "completed_total_minutes": end,
-                "effects_applied": action.get("effects", {}),
+                "configured_effects": action.get("effects", {}),
                 "notes": notes,
             }
             encoded_result = json.dumps(result, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
@@ -474,7 +491,8 @@ def tick_behavior_runtime(
 
     updated = 0
     rows = conn.execute(
-        "SELECT entity_id,profile_json FROM session_entity_behavior_profiles WHERE session_id=?",
+        "SELECT b.entity_id,b.profile_json FROM session_entity_behavior_profiles b "
+        "JOIN entities e ON e.id=b.entity_id WHERE b.session_id=? AND e.kind<>'protagonist'",
         (session_id,),
     ).fetchall()
     for row in rows:
