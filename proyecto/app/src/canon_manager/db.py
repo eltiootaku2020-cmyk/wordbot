@@ -161,6 +161,20 @@ CREATE TABLE IF NOT EXISTS session_travel_steps (
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY(session_id, request_id)
 );
+CREATE TABLE IF NOT EXISTS world_behavior_catalogs (
+  world_id TEXT PRIMARY KEY REFERENCES worlds(id) ON DELETE CASCADE,
+  catalog_json TEXT NOT NULL,
+  schema_version INTEGER NOT NULL DEFAULT 1 CHECK(schema_version >= 1),
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+CREATE TABLE IF NOT EXISTS session_entity_behavior_profiles (
+  session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  entity_id TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  profile_json TEXT NOT NULL,
+  updated_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  PRIMARY KEY(session_id, entity_id)
+);
+CREATE INDEX IF NOT EXISTS idx_behavior_profiles_entity ON session_entity_behavior_profiles(entity_id);
 CREATE INDEX IF NOT EXISTS idx_messages_session_turn ON messages(session_id, turn_index);
 CREATE INDEX IF NOT EXISTS idx_events_session ON events(session_id, created_at);
 CREATE INDEX IF NOT EXISTS idx_changes_pending ON state_changes(session_id, status);
