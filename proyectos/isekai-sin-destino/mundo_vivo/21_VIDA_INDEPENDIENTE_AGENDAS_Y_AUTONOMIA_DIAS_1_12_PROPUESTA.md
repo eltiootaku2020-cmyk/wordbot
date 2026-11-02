@@ -421,6 +421,14 @@ El nivel de detalle visible al protagonista es menor que el nivel de estado que 
 
 ## 12. Estado técnico y próximos pasos
 
+### Actualización técnica — 02-11-2026
+
+Word Bot incorpora una primera base genérica para puntuar propuestas de conducta en `proyecto/app/src/canon_manager/behavior_engine.py`. Acepta rasgos, necesidades conocidas/desconocidas, emociones con evento fuente y desgaste individual, objetivos, foco, capacidades, recursos y relaciones dirigidas. Un catálogo inicial de acciones y patrones se combina para ordenar decisiones candidatas de forma determinista.
+
+Esta base **todavía no implementa la autonomía descrita en este documento**: no persiste perfiles por entidad en SQLite, no ejecuta los efectos de las acciones, no mantiene agendas, no simula intervalos fuera de escena y no registra encuentros autónomos entre PNJ. La salida actual es una propuesta de acción; no cambia el mundo.
+
+La especificación genérica y los límites están en [Motor de conducta y decisiones de PNJ](../../../../proyecto/MOTOR_CONDUCTA_Y_DECISION_NPC.md). No contiene reglas narrativas de Brina, Maelis o Sera; esas reglas deben definirse aquí como datos del mundo y solo después de confirmación del autor.
+
 **Ya documentado en el proyecto:**
 - las entidades pueden tener objetivos, necesidades, capacidades, conocimientos, ubicación, relaciones e historial;
 - el mundo continúa actuando aunque el protagonista esté lejos;
