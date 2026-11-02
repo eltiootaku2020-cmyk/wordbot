@@ -215,3 +215,49 @@ Si ocurre un error antes del commit, posición, reloj, exploración, progreso y 
 CI de navegación [#41334499435](https://github.com/eltiootaku2020-cmyk/wordbot/actions/runs/41334499435): **141 pruebas Python aprobadas** y comprobación de sintaxis JavaScript aprobada. Incluyó ejecución por tramos, guardado de posición/revelado/reloj, idempotencia de reintentos, pausa/reanudación/cancelación, cambio de destino, eventos de cronología, integridad de región y recorrido completo a través de la API. La advertencia Starlette/httpx y los avisos del runner sobre Node.js 20 fueron no bloqueantes.
 
 La prueba de API también consulta el endpoint de estado espacial al finalizar el movimiento y comprueba que devuelve la posición y las celdas reveladas que se guardaron en SQLite. El minimapa puede construirse posteriormente a partir de estos mismos endpoints y datos.
+
+
+## 11. Primera interfaz gráfica de exploración y viaje — actualización 02-11-2026
+
+Se incorporó al cliente local una vista SVG interactiva que consume la API del controlador de viajes y la geometría persistida de la región. No mantiene un segundo estado espacial ni introduce ubicaciones canónicas.
+
+### Presentación del mapa
+
+- Proyección local cartesiana: +X hacia el este, +Y hacia el norte; la interfaz muestra el norte arriba y conserva la escala sin estirar las distancias.
+- Dibuja las áreas conocidas (`areas`), terrenos (`terrain_zones`), obstáculos (`obstacles`), caminos y puentes (`roads`) usando las mismas figuras poligonales que usa A*.
+- Los caminos se dibujan encima de los obstáculos para que un puente explícito pueda distinguirse visualmente de un río.
+- La niebla cubre las celdas no exploradas. Las celdas descubiertas dejan ver la geometría que ya se conocía en el servidor.
+- Los nombres de áreas, terrenos, obstáculos y caminos aparecen únicamente cuando la celda central de su polígono ha sido descubierta. No se revelan etiquetas escondidas detrás de la niebla.
+- Muestra la posición actual, el destino seleccionado y la ruta calculada, incluidos los waypoints de los desvíos.
+- Permite ajustar el zoom. El mapa se ajusta a la extensión de la geometría cuando se pulsa «Ajustar»; el acercamiento centra la vista en la posición actual.
+- Los clics se transforman de coordenadas de pantalla a metros locales teniendo en cuenta el espacio de letterboxing del SVG; no se deforma el plano para hacer coincidir el clic.
+
+### Controles de desplazamiento
+
+- Seleccionar destino mediante clic en el mapa o introducir X/Y directamente.
+- Planificar o cambiar el destino desde la posición confirmada.
+- «Viajar» ejecuta los tramos uno por uno mediante la API; «Avanzar tramo» permite control manual.
+- «Pausar», «Reanudar» y «Cancelar» operan entre waypoints confirmados. Cancelar conserva la última posición confirmada y el controlador contabiliza el tiempo parcial conforme a su regla de redondeo.
+- La pantalla conserva el identificador de petición pendiente en `sessionStorage`; una recarga o reintento reutiliza la misma clave de idempotencia y evita duplicar el avance.
+- Si se cambia el identificador de región mientras el viaje está activo, la pantalla vuelve a mostrar la región real del recorrido, en vez de dibujar su ruta sobre otro mapa.
+
+### Configuración de geometría
+
+La pantalla permite cargar un JSON desde archivo o editarlo directamente. La estructura versionada acepta:
+
+- `areas`: polígonos con identificador y nombre, para aldeas, campamentos, ruinas u otras zonas.
+- `terrain_zones`: polígonos con multiplicador de velocidad.
+- `obstacles`: polígonos que impiden el paso salvo corredor explícito.
+- `roads`: corredores de camino, senderos o puentes con su multiplicador.
+- `walkable_bounds`: polígono opcional que limita las rutas.
+
+La plantilla inicial está vacía: solo define escala y colecciones vacías. No trae ubicaciones ni coordenadas inventadas. El mapa puede mostrar el plano y el marcador inicial, pero no simula conocer un bosque que aún no tiene geometría aprobada.
+
+### Límites de esta primera pantalla
+
+- Es una vista cartográfica SVG funcional, no todavía un minimapa final pulido con iconografía, capas seleccionables o mapa artístico de fondo.
+- Las figuras geográficas se importan como JSON; aún no hay editor visual de polígonos para dibujar aldeas, ríos o montañas con el ratón.
+- Los lugares conocidos se representan mediante áreas poligonales; todavía no existe un catálogo independiente de puntos de interés con iconos y fichas.
+- Las localizaciones canónicas del Bosque de los Siete Ecos siguen sin coordenadas. Deben cargarse a partir de geometría aprobada; la interfaz no las deduce de los nombres.
+
+La interfaz se alimenta de `GET /api/worlds/{world_id}/map/regions/{region_id}`, `GET /api/sessions/{session_id}/map/regions/{region_id}/state` y los endpoints `/travel`. La próxima ampliación puede mejorar el estilo cartográfico o añadir edición visual, pero debe seguir escribiendo y leyendo las mismas definiciones y coordenadas compartidas.
