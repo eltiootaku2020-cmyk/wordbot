@@ -226,6 +226,61 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}label{font-size:13px;
           <button id="mapDrawCancel" type="button" disabled>Cancelar dibujo</button>
         </div>
         <p id="mapDrawStatus" aria-live="polite">Elige un tipo, completa sus datos y pulsa «Iniciar dibujo».</p>
+        <hr>
+        <h3>Editar vértices de una figura existente</h3>
+        <div class="map-draw-controls">
+          <label class="wide" for="mapEditFeature">Figura de la región
+            <select id="mapEditFeature"><option value="">Selecciona una figura</option></select>
+          </label>
+        </div>
+        <div class="map-draw-actions">
+          <button id="mapEditLoad" type="button">Editar vértices</button>
+          <button id="mapEditCancel" type="button" disabled>Descartar edición</button>
+        </div>
+        <p id="mapEditStatus" aria-live="polite" class="map-config-note">Selecciona una figura para mover sus vértices arrastrando los puntos del mapa. Confirma con «Cerrar y añadir polígono» y guarda la región.</p>
+        <hr>
+        <h3>Puntos de interés independientes</h3>
+        <p class="map-config-note">Los puntos no alteran el terreno ni la ruta. Su icono y nombre solo aparecen cuando su celda se descubre.</p>
+        <div class="map-draw-controls">
+          <label for="mapPoiId">Identificador único
+            <input id="mapPoiId" maxlength="120" placeholder="ej. fuente-antigua">
+          </label>
+          <label for="mapPoiName">Nombre aprobado
+            <input id="mapPoiName" maxlength="180" placeholder="Nombre del lugar">
+          </label>
+          <label for="mapPoiIcon">Icono
+            <select id="mapPoiIcon">
+              <option value="📍">📍 Marcador</option>
+              <option value="🏕️">🏕️ Campamento</option>
+              <option value="🏛️">🏛️ Ruina / edificio</option>
+              <option value="⛩️">⛩️ Santuario</option>
+              <option value="💧">💧 Agua</option>
+              <option value="⭐">⭐ Hito</option>
+              <option value="⚠️">⚠️ Peligro</option>
+              <option value="🌿">🌿 Recurso natural</option>
+              <option value="◆">◆ Genérico</option>
+            </select>
+          </label>
+          <label for="mapPoiCategory">Categoría
+            <select id="mapPoiCategory">
+              <option value="landmark">Hito</option>
+              <option value="village">Aldea</option>
+              <option value="camp">Campamento</option>
+              <option value="ruin">Ruina</option>
+              <option value="resource">Recurso</option>
+              <option value="danger">Peligro</option>
+              <option value="other">Otro</option>
+            </select>
+          </label>
+          <label class="wide" for="mapPoiDescription">Descripción (opcional)
+            <input id="mapPoiDescription" maxlength="500" placeholder="Nota del lugar; no se muestra antes de descubrirlo">
+          </label>
+        </div>
+        <div class="map-draw-actions">
+          <button id="mapPoiPlace" type="button">Colocar punto en el mapa</button>
+          <button id="mapPoiCancel" type="button" disabled>Cancelar colocación</button>
+        </div>
+        <p id="mapPoiStatus" aria-live="polite" class="map-config-note">Completa los datos y pulsa «Colocar punto en el mapa»; después haz un clic para fijar sus coordenadas.</p>
       </details>
     </section>
 
