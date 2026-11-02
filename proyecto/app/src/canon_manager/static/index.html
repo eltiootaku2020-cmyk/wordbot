@@ -1136,6 +1136,7 @@ let mapConfigPersisted = false;
 let mapDrawingWasPersisted = false;
 let mapEditingTarget = null;
 let mapVertexDragIndex = null;
+let mapSuppressNextClick = false;
 let mapPoiPlacementMode = false;
 let mapPoiWasPersisted = false;
 
@@ -1520,6 +1521,7 @@ async function loadExplorationData() {
     if(loadToken!==explorationLoadToken || requestedSession!==currentSession ||
        requestedWorld!==currentWorld || regionId!==el("mapRegionId").value.trim())return;
     mapConfig=region.config;
+    if(!Array.isArray(mapConfig.points_of_interest))mapConfig.points_of_interest=[];
     mapConfigPersisted=true;
     sessionMapState=state;
     travelState=travel.status==="idle"?null:travel;
@@ -1531,10 +1533,12 @@ async function loadExplorationData() {
     }
     renderExploration();
     el("mapConfigInput").value=JSON.stringify(mapConfig,null,2);
+    refreshMapEditFeatureOptions();
   } catch(err) {
     if(loadToken!==explorationLoadToken || requestedSession!==currentSession ||
        requestedWorld!==currentWorld || regionId!==el("mapRegionId").value.trim())return;
     mapConfig=null;mapConfigPersisted=false;sessionMapState=null;travelState=null;
+    refreshMapEditFeatureOptions();
     renderExploration();
     if(err.status===404)mapSetHint("Esta región aún no tiene geometría registrada. Importa una definición geográfica aprobada en «Configurar geometría».",false);
     else mapSetHint("No se pudo cargar el mapa: "+err.message,true);
@@ -1632,6 +1636,7 @@ function updateMapDrawControls() {
   el("mapPoiPlace").disabled=busy;
   el("mapPoiCancel").disabled=!mapPoiPlacementMode;
   el("worldMapSvg").classList.toggle("map-drawing",busy);
+  el("mapConfigInput").disabled=busy;
 }
 function beginMapFeatureEdit() {
   if(!currentWorld || !currentSession)throw new Error("Selecciona una partida antes de editar.");
@@ -1969,6 +1974,7 @@ async function saveMapGeometry() {
   mapConfig=saved.map;
   mapConfigPersisted=true;
   await loadExplorationData();
+  refreshMapEditFeatureOptions();
   mapSetHint("Geometría guardada. El planificador y el mapa utilizan esta misma definición.",false);
 }
 async function planSelectedTravel() {
@@ -2064,6 +2070,7 @@ el("loadMapButton").onclick=async()=>{
 };
 el("mapRegionId").onchange=async()=>{
   if(mapDrawingMode)cancelMapDrawing("Cambio de región: el dibujo no guardado fue descartado.");
+  if(mapPoiPlacementMode)cancelMapPoiPlacement("Cambio de región: la colocación pendiente fue descartada.");
   selectedMapPoint=null;
   mapConfig=null;
   mapConfigPersisted=false;
@@ -2076,11 +2083,22 @@ el("saveMapConfigButton").onclick=async()=>{
 };
 el("copyMapConfigTemplate").onclick=()=>{
   el("mapConfigInput").value=JSON.stringify(EMPTY_MAP_CONFIG,null,2);
+  mapConfig=JSON.parse(JSON.stringify(EMPTY_MAP_CONFIG));
   mapConfigPersisted=false;
+  refreshMapEditFeatureOptions();
+  renderWorldMap();
   updateTravelControls();
 };
 el("mapConfigInput").addEventListener("input",()=>{
   mapConfigPersisted=false;
+  try{
+    const candidate=JSON.parse(el("mapConfigInput").value);
+    if(candidate && typeof candidate==="object" && !Array.isArray(candidate)) {
+      mapConfig=candidate;
+      refreshMapEditFeatureOptions();
+      renderWorldMap();
+    }
+  }catch(_){}
   updateTravelControls();
 });
 
@@ -2091,7 +2109,10 @@ el("mapConfigFile").onchange=async()=>{
     const text=await file.text();
     JSON.parse(text);
     el("mapConfigInput").value=text;
+    mapConfig=JSON.parse(text);
     mapConfigPersisted=false;
+    refreshMapEditFeatureOptions();
+    renderWorldMap();
     updateTravelControls();
     setStatus("JSON cargado en el editor. Revísalo y pulsa «Guardar geometría de región».",true);
   } catch(err) {
@@ -2100,11 +2121,56 @@ el("mapConfigFile").onchange=async()=>{
     el("mapConfigFile").value="";
   }
 };
-el("worldMapSvg").addEventListener("click",event=>{
-  if(!mapConfig && !mapDrawingMode)return;
+el("worldMapSvg").addEventListener("pointerdown",event=>{
+  if(!mapDrawingMode || !mapEditingTarget)return;
+  let node=event.target;
+  while(node && node!==event.currentTarget && !node.getAttribute("data-vertex-index"))node=node.parentNode;
+  if(!node || node===event.currentTarget)return;
+  const index=Number(node.getAttribute("data-vertex-index"));
+  if(!Number.isInteger(index) || index<0 || index>=mapDraftVertices.length)return;
+  mapVertexDragIndex=index;
+  mapSuppressNextClick=true;
+  try{event.currentTarget.setPointerCapture(event.pointerId);}catch(_){}
+  event.preventDefault();
+});
+el("worldMapSvg").addEventListener("pointermove",event=>{
+  if(mapVertexDragIndex===null || !mapEditingTarget)return;
   const point=mapScreenToWorldPoint(event);
   if(!point)return;
+  mapDraftVertices[mapVertexDragIndex]=point;
+  renderWorldMap();
+  el("mapEditStatus").textContent="Vértice "+(mapVertexDragIndex+1)+" · "+mapPointLabel(point);
+});
+function finishMapVertexDrag(event) {
+  if(mapVertexDragIndex===null)return;
+  mapVertexDragIndex=null;
+  try{
+    if(event.currentTarget.hasPointerCapture(event.pointerId))event.currentTarget.releasePointerCapture(event.pointerId);
+  }catch(_){}
+  window.setTimeout(()=>{mapSuppressNextClick=false;},0);
+  updateMapDrawControls();
+  el("mapEditStatus").textContent="Vértice ajustado en el borrador. Puedes mover otros puntos y confirmar el polígono.";
+}
+el("worldMapSvg").addEventListener("pointerup",finishMapVertexDrag);
+el("worldMapSvg").addEventListener("pointercancel",finishMapVertexDrag);
+
+el("worldMapSvg").addEventListener("click",event=>{
+  if(mapSuppressNextClick) {
+    mapSuppressNextClick=false;
+    return;
+  }
+  if(!mapConfig && !mapDrawingMode && !mapPoiPlacementMode)return;
+  const point=mapScreenToWorldPoint(event);
+  if(!point)return;
+  if(mapPoiPlacementMode) {
+    addMapPointOfInterestAt(point);
+    return;
+  }
   if(mapDrawingMode) {
+    if(mapEditingTarget) {
+      el("mapEditStatus").textContent="Arrastra uno de los puntos numerados para cambiar un vértice; los clics libres no agregan vértices en modo edición.";
+      return;
+    }
     mapDraftVertices.push(point);
     renderWorldMap();
     updateMapDrawControls();
