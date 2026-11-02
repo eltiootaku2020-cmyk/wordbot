@@ -2082,6 +2082,10 @@ def apply_narrator_result(
             applied.append(
                 f"Actividades autónomas de PNJ completadas: {behavior_runtime['completed']}."
             )
+        if behavior_runtime["planned"]:
+            applied.append(
+                f"Próximas actividades autónomas programadas: {behavior_runtime['planned']}."
+            )
         if behavior_runtime["blocked"]:
             pending_notes.append(
                 f"Actividades de PNJ bloqueadas por precondiciones: {behavior_runtime['blocked']}."

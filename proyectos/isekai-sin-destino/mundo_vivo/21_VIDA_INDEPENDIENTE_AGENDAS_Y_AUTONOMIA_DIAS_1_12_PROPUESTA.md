@@ -436,11 +436,14 @@ Word Bot incorpora una primera capa genérica de perfiles de conducta, una agend
 - Las emociones configuradas se desgastan cuando avanza el tiempo de juego. Una pausa del chat no las modifica.
 - Agenda, ejecuciones y perfiles se incluyen en las copias de seguridad y snapshots de turno. Los reintentos no duplican una misma ejecución.
 - El protagonista no puede recibir agendas autónomas.
+- En cada avance real del reloj, el planificador puede crear la siguiente actividad para cada PNJ que tenga un perfil guardado y una acción del catálogo del mundo marcada explícitamente como apta para autonomía.
+- La selección usa la puntuación determinista de rasgos, necesidades conocidas, emociones, objetivos, foco y relaciones dirigidas. Evita las tres últimas acciones completadas y deja registrada la puntuación y sus motivos.
+- El planificador no adelanta el reloj, no mueve entidades, no consume recursos, no cambia relaciones ni modifica el estado del protagonista. Las acciones con condiciones ambientales desconocidas no se seleccionan.
 
-Esta fase es **autonomía parcial**, no un simulador completo. Las agendas se crean explícitamente mediante API; el motor aún no genera por sí mismo la agenda diaria de una aventurera ni decide cada mañana qué desea hacer.
+Esta fase sigue siendo **autonomía parcial**, no un simulador completo. Solo se programa una próxima actividad por PNJ cuando avanza el reloj; todavía no se construye una jornada completa ni una cadena anticipada de tareas.
 
 **Todavía no implementado como sistema completo:**
-- generación autónoma de agendas a partir de objetivos y decisiones del motor;
+- planificación de una jornada completa, con varias actividades futuras y replanificación durante el día;
 - administración visual de agendas (la primera versión se gestiona por API);
 - comprobación espacial de cada tarea, clima, distancia, rutas, presencia y testigos;
 - desplazamiento autónomo por el mapa;

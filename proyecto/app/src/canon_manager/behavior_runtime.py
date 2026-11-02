@@ -8,6 +8,7 @@ preconditions and evidence rules.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import uuid
 from typing import Any, Mapping
@@ -481,13 +482,180 @@ def process_due_behavior_agendas(
     return stats
 
 
+def plan_autonomous_behavior_agendas(
+    conn, session_id: str, current_total_minutes: int
+) -> int:
+    """Schedule at most one safe next activity for each configured NPC.
+
+    Planning runs inside the caller's clock transaction. It never changes the
+    clock, entity location, inventory, relationships, or protagonist state.
+    Only world-catalog actions explicitly marked autonomous_allowed can be
+    selected. Unknown environmental conditions and resource costs fail closed.
+    """
+    session = conn.execute(
+        "SELECT world_id,day,minute_of_day FROM sessions WHERE id=?", (session_id,)
+    ).fetchone()
+    if session is None:
+        return 0
+
+    world_id = str(session["world_id"])
+    catalog = _world_catalog(conn, world_id)
+    horizon_minutes = 240
+    patterns = catalog["patterns"]
+    safe_actions = []
+    action_map = {}
+    for raw_action in catalog["actions"]:
+        action = validate_action(raw_action)
+        if not action["autonomous_allowed"]:
+            continue
+        if action["duration_minutes"] <= 0 or action["duration_minutes"] > horizon_minutes:
+            continue
+        if action["category"].lower() == "movement":
+            continue
+        if {"movement", "travel"}.intersection(action["tags"]):
+            continue
+        if any(float(value) > 0 for value in action["resource_costs"].values()):
+            continue
+        safe_actions.append(action)
+        action_map[action["action_id"]] = action
+    if not safe_actions:
+        return 0
+
+    entities = conn.execute(
+        "SELECT e.id,e.kind,p.location AS entity_location "
+        "FROM entities e "
+        "JOIN session_entity_behavior_profiles b ON b.entity_id=e.id AND b.session_id=? "
+        "LEFT JOIN session_presence p ON p.session_id=? AND p.entity_id=e.id "
+        "WHERE e.world_id=? AND e.kind<>'protagonist' "
+        "ORDER BY e.id",
+        (session_id, session_id, world_id),
+    ).fetchall()
+
+    planned = 0
+    current_total = int(current_total_minutes)
+    scheduled_day = current_total // 1440 + 1
+    scheduled_minute = current_total % 1440
+
+    for entity in entities:
+        entity_id = str(entity["id"])
+        active = conn.execute(
+            "SELECT 1 FROM session_entity_agendas WHERE session_id=? AND entity_id=? "
+            "AND status IN ('scheduled','running') LIMIT 1",
+            (session_id, entity_id),
+        ).fetchone()
+        if active is not None:
+            continue
+
+        try:
+            profile = _profile_for(conn, session_id, entity_id)
+            context: dict[str, Any] = {
+                "conditions": {},
+                "available_minutes": horizon_minutes,
+                "world_day": scheduled_day,
+                "world_minute": scheduled_minute,
+            }
+            location = str(entity["entity_location"] or "").strip()
+            if location:
+                context["location"] = location
+
+            recent_rows = conn.execute(
+                "SELECT action_id FROM behavior_action_executions "
+                "WHERE session_id=? AND entity_id=? "
+                "ORDER BY completed_total_minutes DESC,id DESC LIMIT 3",
+                (session_id, entity_id),
+            ).fetchall()
+            recent_actions = {str(row["action_id"]) for row in recent_rows}
+
+            ranked = rank_actions(
+                profile, safe_actions, patterns, context=context, limit=100
+            )
+            selected = next(
+                (
+                    item for item in ranked
+                    if item["action_id"] not in recent_actions and float(item["score"]) > 0
+                ),
+                None,
+            )
+            if selected is None:
+                continue
+
+            action = action_map[selected["action_id"]]
+            duration = int(action["duration_minutes"])
+            agenda_context = dict(context)
+            agenda_context["available_minutes"] = duration
+            agenda_context["_autonomous_plan"] = {
+                "planner_version": 1,
+                "score": float(selected["score"]),
+                "reason_codes": list(selected["reason_codes"]),
+                "matched_patterns": list(selected["matched_patterns"]),
+            }
+            # Repeat the exact feasibility check used by manual scheduling.
+            if not rank_actions(profile, [action], patterns, context=agenda_context, limit=1):
+                continue
+
+            request_seed = (
+                f"{session_id}|{entity_id}|{current_total}|"
+                f"{action['action_id']}|autonomous-planner-v1"
+            )
+            request_id = "auto-" + hashlib.sha256(request_seed.encode("utf-8")).hexdigest()[:48]
+            duplicate = conn.execute(
+                "SELECT 1 FROM session_entity_agendas WHERE session_id=? AND request_id=?",
+                (session_id, request_id),
+            ).fetchone()
+            if duplicate is not None:
+                continue
+
+            end_total = current_total + duration
+            overlap = conn.execute(
+                "SELECT 1 FROM session_entity_agendas WHERE session_id=? AND entity_id=? "
+                "AND status IN ('scheduled','running') "
+                "AND scheduled_total_minutes < ? "
+                "AND (scheduled_total_minutes + duration_minutes) > ? LIMIT 1",
+                (session_id, entity_id, end_total, current_total),
+            ).fetchone()
+            if overlap is not None:
+                continue
+
+            agenda_id = uuid.uuid4().hex
+            encoded_context = json.dumps(
+                agenda_context, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+            )
+            encoded_action = json.dumps(
+                action, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+            )
+            encoded_patterns = json.dumps(
+                patterns, ensure_ascii=False, sort_keys=True, separators=(",", ":")
+            )
+            priority = max(0.0, min(100.0, 50.0 + float(selected["score"])))
+            conn.execute(
+                "INSERT INTO session_entity_agendas("
+                "id,session_id,entity_id,request_id,action_id,action_json,patterns_json,context_json,"
+                "scheduled_total_minutes,duration_minutes,priority,target_entity_id,status,result_json"
+                ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?, 'scheduled','{}')",
+                (
+                    agenda_id, session_id, entity_id, request_id, action["action_id"],
+                    encoded_action, encoded_patterns, encoded_context, current_total,
+                    duration, priority, "",
+                ),
+            )
+            planned += 1
+        except (BehaviorValidationError, BehaviorAgendaValidationError, ValueError, TypeError, KeyError):
+            # A malformed or incomplete NPC profile must not stop the rest of
+            # the world from advancing. That NPC simply receives no new plan.
+            continue
+
+    return planned
+
+
 def tick_behavior_runtime(
     conn, session_id: str, previous_total_minutes: int, current_total_minutes: int
 ) -> dict[str, int]:
-    """Apply per-emotion decay and agenda completions for an already-advanced clock."""
+    """Apply emotion decay, completed activities, and the next safe NPC plans."""
     elapsed = int(current_total_minutes) - int(previous_total_minutes)
     if elapsed <= 0:
-        return {"emotions_updated": 0, "started": 0, "completed": 0, "blocked": 0}
+        return {
+            "emotions_updated": 0, "started": 0, "completed": 0, "blocked": 0, "planned": 0
+        }
 
     updated = 0
     rows = conn.execute(
@@ -513,4 +681,5 @@ def tick_behavior_runtime(
     agenda_stats = process_due_behavior_agendas(
         conn, session_id, int(previous_total_minutes), int(current_total_minutes)
     )
-    return {"emotions_updated": updated, **agenda_stats}
+    planned = plan_autonomous_behavior_agendas(conn, session_id, int(current_total_minutes))
+    return {"emotions_updated": updated, **agenda_stats, "planned": planned}

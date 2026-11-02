@@ -268,6 +268,9 @@ def validate_action(action: Mapping[str, Any]) -> dict[str, Any]:
     if isinstance(duration, bool) or not isinstance(duration, int) or not 0 <= duration <= 10080:
         raise BehaviorValidationError("action.duration_minutes must be an integer from 0 to 10080")
     risk = _number(action.get("risk_level", 0), "action.risk_level", 0, 100)
+    autonomous_allowed = action.get("autonomous_allowed", False)
+    if not isinstance(autonomous_allowed, bool):
+        raise BehaviorValidationError("action.autonomous_allowed must be a boolean")
     tags = _string_list(action.get("tags", []), "action.tags", maximum_items=40)
     required_capabilities = _string_list(
         action.get("required_capabilities", []), "action.required_capabilities", maximum_items=40
@@ -297,6 +300,7 @@ def validate_action(action: Mapping[str, Any]) -> dict[str, Any]:
         "resource_costs": _number_map(action.get("resource_costs", {}), "action.resource_costs", 0, 1_000_000),
         "duration_minutes": duration,
         "risk_level": risk,
+        "autonomous_allowed": autonomous_allowed,
         "effects": _validate_action_effects(action.get("effects", {})),
     }
 
