@@ -89,14 +89,16 @@ def _merge_catalog(custom: Mapping[str, Any] | None) -> dict[str, Any]:
             actions[item["action_id"]] = dict(item)
         for item in custom.get("patterns", []):
             patterns[item["pattern_id"]] = dict(item)
+    custom_catalog = custom or {"schema_version": 1, "actions": [], "patterns": []}
     return {
         "schema_version": 1,
         "actions": [actions[key] for key in sorted(actions)],
         "patterns": [patterns[key] for key in sorted(patterns)],
+        "custom_catalog": custom_catalog,
         "default_action_count": len(DEFAULT_ACTIONS),
         "default_pattern_count": len(DEFAULT_PATTERNS),
-        "custom_action_count": len(custom.get("actions", [])) if custom else 0,
-        "custom_pattern_count": len(custom.get("patterns", [])) if custom else 0,
+        "custom_action_count": len(custom_catalog.get("actions", [])),
+        "custom_pattern_count": len(custom_catalog.get("patterns", [])),
     }
 
 
