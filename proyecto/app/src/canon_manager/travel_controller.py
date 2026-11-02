@@ -123,6 +123,24 @@ def register_map_region(
             "WHERE s.world_id=? AND t.region_id=? AND t.status IN ('running','paused') LIMIT 1",
             (world_id, region_id),
         ).fetchone()
+        existing = conn.execute(
+            "SELECT map_json FROM world_map_regions WHERE world_id=? AND region_id=?",
+            (world_id, region_id),
+        ).fetchone()
+        saved_exploration = conn.execute(
+            "SELECT 1 FROM session_map_states m JOIN sessions s ON s.id=m.session_id "
+            "WHERE s.world_id=? AND m.region_id=? LIMIT 1",
+            (world_id, region_id),
+        ).fetchone()
+        if existing is not None and saved_exploration is not None:
+            previous_config = json.loads(str(existing["map_json"]))
+            previous_cell_size = float(previous_config.get("cell_size_m", 250.0))
+            if not math.isclose(
+                previous_cell_size, world.cell_size_m, rel_tol=0, abs_tol=1e-9
+            ):
+                raise TravelConflictError(
+                    "No se puede cambiar el tamaño de celda: ya existe exploración guardada para esta región."
+                )
         if active_trip is not None:
             raise TravelConflictError(
                 "No se puede modificar la geometría mientras una partida recorre esta región."
