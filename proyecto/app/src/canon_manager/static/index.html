@@ -1574,29 +1574,102 @@ function setMapDrawStatus(message,isError) {
   node.textContent=message;
   node.classList.toggle("warn",!!isError);
 }
+function refreshMapEditFeatureOptions() {
+  const select=el("mapEditFeature"), previous=select.value;
+  select.innerHTML="";
+  const placeholder=document.createElement("option");
+  placeholder.value="";
+  placeholder.textContent="Selecciona una figura";
+  select.appendChild(placeholder);
+  if(mapConfig && Array.isArray(mapConfig.walkable_bounds) && mapConfig.walkable_bounds.length>=3) {
+    const option=document.createElement("option");
+    option.value=JSON.stringify(["walkable_bounds",""]);
+    option.textContent="Límite transitable";
+    select.appendChild(option);
+  }
+  const groups=[
+    ["areas","Zona"],
+    ["terrain_zones","Terreno"],
+    ["obstacles","Obstáculo"],
+    ["roads","Camino / puente"]
+  ];
+  const idKeys={areas:"area_id",terrain_zones:"terrain_id",obstacles:"obstacle_id",roads:"road_id"};
+  groups.forEach(([group,label])=>{
+    (mapConfig && mapConfig[group] || []).forEach(item=>{
+      const option=document.createElement("option");
+      option.value=JSON.stringify([group,item[idKeys[group]]]);
+      option.textContent=label+" · "+(item.name || item[idKeys[group]]);
+      select.appendChild(option);
+    });
+  });
+  if([...select.options].some(option=>option.value===previous))select.value=previous;
+}
 function updateMapDrawControls() {
   const kind=el("mapDrawKind").value;
   const bounds=kind==="walkable_bounds";
   const speed=kind==="terrain_zones" || kind==="roads";
   const obstacle=kind==="obstacles";
+  const busy=mapDrawingMode || mapPoiPlacementMode;
   el("mapDrawIdField").hidden=bounds;
   el("mapDrawNameField").hidden=bounds;
   el("mapDrawSpeedField").hidden=!speed;
   el("mapDrawObstacleKindField").hidden=!obstacle;
-  el("mapDrawKind").disabled=mapDrawingMode;
+  el("mapDrawKind").disabled=busy;
   ["mapDrawId","mapDrawName","mapDrawSpeed","mapDrawObstacleKind"].forEach(id=>{
-    el(id).disabled=mapDrawingMode || (bounds && (id==="mapDrawId" || id==="mapDrawName")) ||
+    el(id).disabled=busy || (bounds && (id==="mapDrawId" || id==="mapDrawName")) ||
       (!speed && id==="mapDrawSpeed") || (!obstacle && id==="mapDrawObstacleKind");
   });
-  el("mapDrawStart").disabled=mapDrawingMode;
-  el("mapDrawUndo").disabled=!mapDrawingMode || mapDraftVertices.length===0;
+  el("mapDrawStart").disabled=busy;
+  el("mapDrawUndo").disabled=!mapDrawingMode || !!mapEditingTarget || mapDraftVertices.length===0;
   el("mapDrawFinish").disabled=!mapDrawingMode || mapDraftVertices.length<3;
   el("mapDrawCancel").disabled=!mapDrawingMode;
-  el("worldMapSvg").classList.toggle("map-drawing",mapDrawingMode);
+  el("mapEditFeature").disabled=busy;
+  el("mapEditLoad").disabled=busy || !el("mapEditFeature").value;
+  el("mapEditCancel").disabled=!mapEditingTarget;
+  ["mapPoiId","mapPoiName","mapPoiIcon","mapPoiCategory","mapPoiDescription"].forEach(id=>{
+    el(id).disabled=mapPoiPlacementMode;
+  });
+  el("mapPoiPlace").disabled=busy;
+  el("mapPoiCancel").disabled=!mapPoiPlacementMode;
+  el("worldMapSvg").classList.toggle("map-drawing",busy);
+}
+function beginMapFeatureEdit() {
+  if(!currentWorld || !currentSession)throw new Error("Selecciona una partida antes de editar.");
+  if(mapDrawingMode || mapPoiPlacementMode)throw new Error("Termina o cancela la operación actual primero.");
+  const selected=el("mapEditFeature").value;
+  if(!selected)throw new Error("Selecciona una figura existente.");
+  let draftConfig;
+  try{draftConfig=JSON.parse(el("mapConfigInput").value);}
+  catch(err){throw new Error("El JSON de geometría no es válido: "+err.message);}
+  if(!draftConfig || typeof draftConfig!=="object" || Array.isArray(draftConfig)) {
+    throw new Error("La geometría actual no es un objeto JSON válido.");
+  }
+  mapDrawingWasPersisted=!!mapConfigPersisted && JSON.stringify(draftConfig)===JSON.stringify(mapConfig);
+  mapConfig=draftConfig;
+  mapConfigPersisted=false;
+  const [kind,id]=JSON.parse(selected);
+  let rawVertices;
+  if(kind==="walkable_bounds")rawVertices=mapConfig.walkable_bounds;
+  else {
+    const idKeys={areas:"area_id",terrain_zones:"terrain_id",obstacles:"obstacle_id",roads:"road_id"};
+    const entry=(mapConfig[kind] || []).find(item=>item[idKeys[kind]]===id);
+    if(!entry)throw new Error("La figura seleccionada ya no existe en el borrador.");
+    rawVertices=entry.vertices;
+  }
+  if(!Array.isArray(rawVertices) || rawVertices.length<3)throw new Error("La figura no tiene tres vértices editables.");
+  const view=el("worldMapSvg").getAttribute("viewBox").trim().split(" ").map(Number);
+  mapDrawingViewBox=view.length===4 && view.every(Number.isFinite)?view:null;
+  mapDraftVertices=rawVertices.map(mapPoint);
+  mapEditingTarget={kind,id};
+  mapDrawingMode=true;
+  updateMapDrawControls();
+  renderWorldMap();
+  updateTravelControls();
+  el("mapEditStatus").textContent="Edición activa · arrastra los puntos numerados para ajustar la forma. Confirma con «Cerrar y añadir polígono».";
 }
 function startMapDrawing() {
   if(!currentWorld || !currentSession)throw new Error("Selecciona un mundo y una partida antes de dibujar.");
-  if(mapDrawingMode)return;
+  if(mapDrawingMode || mapPoiPlacementMode)return;
   let draftConfig;
   try { draftConfig=JSON.parse(el("mapConfigInput").value); }
   catch(err) {
@@ -1612,11 +1685,14 @@ function startMapDrawing() {
   for(const group of ["areas","terrain_zones","obstacles","roads"]) {
     if(!Array.isArray(mapConfig[group]))mapConfig[group]=[];
   }
+  if(!Array.isArray(mapConfig.points_of_interest))mapConfig.points_of_interest=[];
   if(!("walkable_bounds" in mapConfig))mapConfig.walkable_bounds=null;
   const view=el("worldMapSvg").getAttribute("viewBox").trim().split(" ").map(Number);
   mapDrawingViewBox=view.length===4 && view.every(Number.isFinite)?view:null;
   mapDraftVertices=[];
+  mapEditingTarget=null;
   mapDrawingMode=true;
+  refreshMapEditFeatureOptions();
   updateMapDrawControls();
   renderWorldMap();
   updateTravelControls();
@@ -1626,6 +1702,8 @@ function cancelMapDrawing(message) {
   mapDrawingMode=false;
   mapDraftVertices=[];
   mapDrawingViewBox=null;
+  mapEditingTarget=null;
+  mapVertexDragIndex=null;
   mapConfigPersisted=mapDrawingWasPersisted;
   updateMapDrawControls();
   renderWorldMap();
@@ -1686,9 +1764,22 @@ function finishMapDrawing() {
     setMapDrawStatus(validated.error,true);
     return;
   }
-  const kind=el("mapDrawKind").value;
+  const kind=mapEditingTarget ? mapEditingTarget.kind : el("mapDrawKind").value;
   const vertices=validated.points.map(point=>[point.x,point.y]);
-  if(kind==="walkable_bounds") {
+  if(mapEditingTarget) {
+    if(kind==="walkable_bounds") {
+      mapConfig.walkable_bounds=vertices;
+    } else {
+      const idKeys={areas:"area_id",terrain_zones:"terrain_id",obstacles:"obstacle_id",roads:"road_id"};
+      const idKey=idKeys[kind];
+      const entry=(mapConfig[kind] || []).find(item=>item[idKey]===mapEditingTarget.id);
+      if(!entry) {
+        setMapDrawStatus("La figura seleccionada ya no existe en el borrador.",true);
+        return;
+      }
+      entry.vertices=vertices;
+    }
+  } else if(kind==="walkable_bounds") {
     mapConfig.walkable_bounds=vertices;
   } else {
     const id=el("mapDrawId").value.trim();
@@ -1732,13 +1823,18 @@ function finishMapDrawing() {
   el("mapConfigInput").value=JSON.stringify(mapConfig,null,2);
   mapConfigPersisted=false;
   const count=validated.points.length;
+  const wasEditing=!!mapEditingTarget;
   mapDrawingMode=false;
   mapDraftVertices=[];
   mapDrawingViewBox=null;
+  mapEditingTarget=null;
+  mapVertexDragIndex=null;
+  refreshMapEditFeatureOptions();
   updateMapDrawControls();
   renderWorldMap();
   updateTravelControls();
-  setMapDrawStatus(
+  if(wasEditing)el("mapEditStatus").textContent="Vértices actualizados en el borrador JSON. Guarda la geometría para persistir los cambios.";
+  else setMapDrawStatus(
     kind==="walkable_bounds"
       ? "Límite transitable añadido al borrador JSON. Guarda la geometría para persistirlo."
       : "Polígono añadido ("+count+" vértices) al borrador JSON. Guarda la geometría para persistirlo.",
@@ -1763,7 +1859,85 @@ el("mapDrawUndo").onclick=()=>{
 };
 el("mapDrawFinish").onclick=finishMapDrawing;
 el("mapDrawCancel").onclick=()=>cancelMapDrawing();
+el("mapEditLoad").onclick=()=>{
+  try{beginMapFeatureEdit();}
+  catch(err){el("mapEditStatus").textContent=err.message;}
+};
+el("mapEditCancel").onclick=()=>cancelMapDrawing("Edición descartada; se conserva la geometría anterior.");
+el("mapEditFeature").onchange=()=>updateMapDrawControls();
 updateMapDrawControls();
+
+function setMapPoiStatus(message,isError) {
+  const node=el("mapPoiStatus");
+  node.textContent=message;
+  node.classList.toggle("warn",!!isError);
+}
+function startMapPoiPlacement() {
+  if(!currentWorld || !currentSession)throw new Error("Selecciona un mundo y una partida antes de colocar puntos.");
+  if(mapDrawingMode || mapPoiPlacementMode)throw new Error("Termina o cancela la operación actual primero.");
+  let draftConfig;
+  try{draftConfig=JSON.parse(el("mapConfigInput").value);}
+  catch(err){throw new Error("El JSON de geometría no es válido: "+err.message);}
+  if(!draftConfig || typeof draftConfig!=="object" || Array.isArray(draftConfig)) {
+    throw new Error("La geometría actual no es un objeto JSON válido.");
+  }
+  mapPoiWasPersisted=!!mapConfigPersisted && JSON.stringify(draftConfig)===JSON.stringify(mapConfig);
+  mapConfig=draftConfig;
+  if(!Array.isArray(mapConfig.points_of_interest))mapConfig.points_of_interest=[];
+  mapConfigPersisted=false;
+  mapPoiPlacementMode=true;
+  updateMapDrawControls();
+  renderWorldMap();
+  updateTravelControls();
+  setMapPoiStatus("Colocación activa · haz un clic sobre el mapa para fijar el punto.",false);
+}
+function cancelMapPoiPlacement(message) {
+  mapPoiPlacementMode=false;
+  mapConfigPersisted=mapPoiWasPersisted;
+  updateMapDrawControls();
+  renderWorldMap();
+  updateTravelControls();
+  setMapPoiStatus(message || "Colocación cancelada; no se añadió ningún punto.",false);
+}
+function addMapPointOfInterestAt(point) {
+  const pointId=el("mapPoiId").value.trim();
+  const name=el("mapPoiName").value.trim();
+  const icon=el("mapPoiIcon").value;
+  const category=el("mapPoiCategory").value;
+  const description=el("mapPoiDescription").value.trim();
+  if(!pointId || !/^[a-zA-Z0-9._-]{1,120}$/.test(pointId)) {
+    setMapPoiStatus("Introduce un identificador único (letras, números, punto, guion o guion bajo).",true);
+    return;
+  }
+  if(!name || name.length>180) {
+    setMapPoiStatus("Introduce un nombre aprobado de hasta 180 caracteres.",true);
+    return;
+  }
+  if((mapConfig.points_of_interest || []).some(item=>item.point_id===pointId)) {
+    setMapPoiStatus("Ese identificador de punto ya existe en esta región.",true);
+    return;
+  }
+  if(description.length>500 || !icon || icon.length>8 || !category) {
+    setMapPoiStatus("Revisa el icono, categoría y descripción (máximo 500 caracteres).",true);
+    return;
+  }
+  mapConfig.points_of_interest.push({
+    point_id:pointId,name,x_m:point.x,y_m:point.y,icon,category,description
+  });
+  el("mapConfigInput").value=JSON.stringify(mapConfig,null,2);
+  mapConfigPersisted=false;
+  mapPoiPlacementMode=false;
+  refreshMapEditFeatureOptions();
+  updateMapDrawControls();
+  renderWorldMap();
+  updateTravelControls();
+  setMapPoiStatus("Punto añadido al borrador en "+mapPointLabel(point)+". Guarda la geometría para persistirlo.",false);
+}
+el("mapPoiPlace").onclick=()=>{
+  try{startMapPoiPlacement();}
+  catch(err){setMapPoiStatus(err.message,true);}
+};
+el("mapPoiCancel").onclick=()=>cancelMapPoiPlacement();
 
 function mapCreateRequestId() {
   if(window.crypto && typeof window.crypto.randomUUID==="function")return window.crypto.randomUUID();
