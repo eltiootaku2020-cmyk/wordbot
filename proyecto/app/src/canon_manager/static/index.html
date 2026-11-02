@@ -54,6 +54,13 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}label{font-size:13px;
 .travel-actions .wide{grid-column:1/-1}
 #travelStatus{margin:0;min-height:36px;font-size:12px;color:var(--muted)}
 #mapConfigInput{width:100%;min-height:150px;font:12px/1.45 ui-monospace,SFMono-Regular,Consolas,monospace}
+.map-draw-controls{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0}
+.map-draw-controls label{display:flex;flex-direction:column;gap:4px;min-width:0}
+.map-draw-controls input,.map-draw-controls select{width:100%;min-width:0}
+.map-draw-actions{display:flex;gap:7px;flex-wrap:wrap}
+#mapDrawStatus{margin:8px 0 0;min-height:20px;font-size:12px;color:var(--muted)}
+#worldMapSvg.map-drawing{cursor:crosshair}
+@media(max-width:700px){.map-draw-controls{grid-template-columns:1fr 1fr}}
 .map-config-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px}
 #mapConfigDetails{margin-top:10px}
 .map-config-note{font-size:12px;color:var(--muted);margin:7px 0 0}
@@ -178,6 +185,46 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}label{font-size:13px;
           <input id="mapConfigFile" type="file" accept=".json,application/json">
         </div>
         <p class="map-config-note">Coordenadas cartesianas locales: +X es este, +Y es norte. Una región vacía muestra solo el plano; no inventa aldeas, caminos ni distancias.</p>
+      </details>
+      <details id="mapVisualEditor" class="setup" open>
+        <summary>Editor visual de polígonos</summary>
+        <p class="map-config-note">Dibuja únicamente geometría aprobada. Cada clic añade un vértice en metros locales; al cerrar el polígono se incorpora al borrador JSON. No se guarda hasta pulsar «Guardar geometría de región» arriba.</p>
+        <div class="map-draw-controls">
+          <label for="mapDrawKind">Tipo de geometría
+            <select id="mapDrawKind">
+              <option value="areas">Zona / lugar conocido</option>
+              <option value="terrain_zones">Terreno</option>
+              <option value="obstacles">Obstáculo</option>
+              <option value="roads">Camino / puente</option>
+              <option value="walkable_bounds">Límite transitable</option>
+            </select>
+          </label>
+          <label id="mapDrawIdField" for="mapDrawId">Identificador único
+            <input id="mapDrawId" maxlength="120" placeholder="ej. claro-norte">
+          </label>
+          <label id="mapDrawNameField" for="mapDrawName">Nombre visible al descubrir
+            <input id="mapDrawName" maxlength="180" placeholder="Nombre aprobado">
+          </label>
+          <label id="mapDrawSpeedField" for="mapDrawSpeed">Multiplicador de velocidad
+            <input id="mapDrawSpeed" type="number" min="0.1" max="20" step="0.1" value="1.5">
+          </label>
+          <label id="mapDrawObstacleKindField" for="mapDrawObstacleKind">Clase de obstáculo
+            <select id="mapDrawObstacleKind">
+              <option value="terrain">Terreno</option>
+              <option value="river">Río sin cruce</option>
+              <option value="wall">Muro</option>
+              <option value="cliff">Acantilado</option>
+              <option value="other">Otro</option>
+            </select>
+          </label>
+        </div>
+        <div class="map-draw-actions">
+          <button id="mapDrawStart" type="button" class="primary">Iniciar dibujo</button>
+          <button id="mapDrawUndo" type="button" disabled>Deshacer punto</button>
+          <button id="mapDrawFinish" type="button" disabled>Cerrar y añadir polígono</button>
+          <button id="mapDrawCancel" type="button" disabled>Cancelar dibujo</button>
+        </div>
+        <p id="mapDrawStatus" aria-live="polite">Elige un tipo, completa sus datos y pulsa «Iniciar dibujo».</p>
       </details>
     </section>
 
@@ -1025,6 +1072,9 @@ let selectedMapPoint = null;
 let mapZoom = 1;
 let travelLoopRunning = false;
 let explorationLoadToken = 0;
+let mapDrawingMode = false;
+let mapDraftVertices = [];
+let mapDrawingViewBox = null;
 
 function mapSvgNode(tag, attrs, text) {
   const node = document.createElementNS(SVG_NS, tag);
@@ -1064,9 +1114,20 @@ function mapFeaturePoints(config) {
     (config && config[group] || []).forEach(item => (item.vertices || []).forEach(p => values.push(mapPoint(p))));
   }
   if(config && Array.isArray(config.walkable_bounds)) config.walkable_bounds.forEach(p=>values.push(mapPoint(p)));
+  if(mapDrawingMode)mapDraftVertices.forEach(point=>values.push(point));
   return values;
 }
 function mapViewport() {
+  const cell=Number((mapConfig && mapConfig.cell_size_m) || 250);
+  if(mapDrawingMode && mapDrawingViewBox) {
+    return {
+      minX:mapDrawingViewBox[0],
+      maxY:-mapDrawingViewBox[1],
+      width:mapDrawingViewBox[2],
+      height:mapDrawingViewBox[3],
+      cell
+    };
+  }
   const points=mapFeaturePoints(mapConfig || EMPTY_MAP_CONFIG);
   if(sessionMapState && sessionMapState.position) points.push(mapPoint(sessionMapState.position));
   if(travelState && Array.isArray(travelState.route)) travelState.route.forEach(p=>points.push(mapPoint(p)));
@@ -1074,7 +1135,6 @@ function mapViewport() {
   if(!points.length) points.push({x:0,y:0});
   let minX=Math.min(...points.map(p=>p.x)), maxX=Math.max(...points.map(p=>p.x));
   let minY=Math.min(...points.map(p=>p.y)), maxY=Math.max(...points.map(p=>p.y));
-  const cell=Number((mapConfig && mapConfig.cell_size_m) || 250);
   const margin=Math.max(120,cell*1.5);
   if(maxX-minX<cell*4){const mid=(minX+maxX)/2;minX=mid-cell*2;maxX=mid+cell*2;}
   if(maxY-minY<cell*4){const mid=(minY+maxY)/2;minY=mid-cell*2;maxY=mid+cell*2;}
@@ -1219,6 +1279,34 @@ function renderWorldMap() {
       },item.name || "Zona conocida"));
     });
   });
+
+  if(mapDrawingMode && mapDraftVertices.length) {
+    const draftPoints=mapDraftVertices.map(point=>point.x+","+(-point.y)).join(" ");
+    if(mapDraftVertices.length>=3) {
+      layer.appendChild(mapSvgNode("polygon",{
+        points:draftPoints,fill:"#83b8ff","fill-opacity":0.16,
+        stroke:"#9dc7ff","stroke-width":2,"stroke-dasharray":"7 5",
+        "vector-effect":"non-scaling-stroke"
+      }));
+    }
+    layer.appendChild(mapSvgNode("polyline",{
+      points:draftPoints,fill:"none",stroke:"#9dc7ff","stroke-width":3,
+      "stroke-linecap":"round","stroke-linejoin":"round",
+      "stroke-dasharray":"7 5","vector-effect":"non-scaling-stroke"
+    }));
+    mapDraftVertices.forEach((point,index)=>{
+      layer.appendChild(mapSvgNode("circle",{
+        cx:point.x,cy:-point.y,r:6,fill:"#ffffff",
+        stroke:"#3978c7","stroke-width":2,
+        "vector-effect":"non-scaling-stroke"
+      }));
+      layer.appendChild(mapSvgNode("text",{
+        x:point.x+10,y:-point.y-10,fill:"#ffffff",
+        "font-size":12,"font-weight":700,
+        "paint-order":"stroke",stroke:"#152235","stroke-width":3
+      },String(index+1)));
+    });
+  }
 
   if(travelState && Array.isArray(travelState.route) && travelState.route.length>1) {
     const line=travelState.route.map(raw=>{const p=mapPoint(raw);return p.x+","+(-p.y);}).join(" ");
@@ -1369,6 +1457,206 @@ function selectMapDestination(point) {
   el("mapSelectedDestination").textContent=mapPointLabel(point);
   renderWorldMap();
 }
+function mapScreenToWorldPoint(event) {
+  const svg=el("worldMapSvg");
+  const rect=svg.getBoundingClientRect();
+  const view=svg.getAttribute("viewBox").trim().split(" ").map(Number);
+  if(rect.width<=0 || rect.height<=0 || view.length!==4 || view.some(value=>!Number.isFinite(value)))return null;
+  // Match SVG xMidYMid meet letterboxing; never stretch local metre coordinates.
+  const scale=Math.min(rect.width/view[2],rect.height/view[3]);
+  const drawnWidth=view[2]*scale, drawnHeight=view[3]*scale;
+  const offsetX=(rect.width-drawnWidth)/2, offsetY=(rect.height-drawnHeight)/2;
+  const localX=(event.clientX-rect.left-offsetX)/scale;
+  const localY=(event.clientY-rect.top-offsetY)/scale;
+  if(localX<0 || localX>view[2] || localY<0 || localY>view[3])return null;
+  return {x:view[0]+localX,y:-(view[1]+localY)};
+}
+function setMapDrawStatus(message,isError) {
+  const node=el("mapDrawStatus");
+  node.textContent=message;
+  node.classList.toggle("warn",!!isError);
+}
+function updateMapDrawControls() {
+  const kind=el("mapDrawKind").value;
+  const bounds=kind==="walkable_bounds";
+  const speed=kind==="terrain_zones" || kind==="roads";
+  const obstacle=kind==="obstacles";
+  el("mapDrawIdField").hidden=bounds;
+  el("mapDrawNameField").hidden=bounds;
+  el("mapDrawSpeedField").hidden=!speed;
+  el("mapDrawObstacleKindField").hidden=!obstacle;
+  el("mapDrawKind").disabled=mapDrawingMode;
+  ["mapDrawId","mapDrawName","mapDrawSpeed","mapDrawObstacleKind"].forEach(id=>{
+    el(id).disabled=mapDrawingMode || (bounds && (id==="mapDrawId" || id==="mapDrawName")) ||
+      (!speed && id==="mapDrawSpeed") || (!obstacle && id==="mapDrawObstacleKind");
+  });
+  el("mapDrawStart").disabled=mapDrawingMode;
+  el("mapDrawUndo").disabled=!mapDrawingMode || mapDraftVertices.length===0;
+  el("mapDrawFinish").disabled=!mapDrawingMode || mapDraftVertices.length<3;
+  el("mapDrawCancel").disabled=!mapDrawingMode;
+  el("worldMapSvg").classList.toggle("map-drawing",mapDrawingMode);
+}
+function startMapDrawing() {
+  if(!currentWorld || !currentSession)throw new Error("Selecciona un mundo y una partida antes de dibujar.");
+  if(mapDrawingMode)return;
+  if(!mapConfig) {
+    try { mapConfig=JSON.parse(el("mapConfigInput").value); }
+    catch (_) { mapConfig=JSON.parse(JSON.stringify(EMPTY_MAP_CONFIG)); }
+  }
+  if(!mapConfig || typeof mapConfig!=="object" || Array.isArray(mapConfig)) {
+    throw new Error("La geometría actual no es un objeto JSON válido.");
+  }
+  for(const group of ["areas","terrain_zones","obstacles","roads"]) {
+    if(!Array.isArray(mapConfig[group]))mapConfig[group]=[];
+  }
+  if(!("walkable_bounds" in mapConfig))mapConfig.walkable_bounds=null;
+  const view=el("worldMapSvg").getAttribute("viewBox").trim().split(" ").map(Number);
+  mapDrawingViewBox=view.length===4 && view.every(Number.isFinite)?view:null;
+  mapDraftVertices=[];
+  mapDrawingMode=true;
+  updateMapDrawControls();
+  renderWorldMap();
+  setMapDrawStatus("Dibujo activo · haz clic en el mapa para añadir vértices. Se necesitan al menos tres.",false);
+}
+function cancelMapDrawing(message) {
+  mapDrawingMode=false;
+  mapDraftVertices=[];
+  mapDrawingViewBox=null;
+  updateMapDrawControls();
+  renderWorldMap();
+  setMapDrawStatus(message || "Dibujo cancelado; no se modificó la geometría.",false);
+}
+function mapCross(a,b,c) {
+  return (b.x-a.x)*(c.y-a.y)-(b.y-a.y)*(c.x-a.x);
+}
+function mapPointOnSegment(p,a,b) {
+  const epsilon=1e-8;
+  return Math.abs(mapCross(a,b,p))<=epsilon &&
+    p.x>=Math.min(a.x,b.x)-epsilon && p.x<=Math.max(a.x,b.x)+epsilon &&
+    p.y>=Math.min(a.y,b.y)-epsilon && p.y<=Math.max(a.y,b.y)+epsilon;
+}
+function mapSegmentsIntersect(a,b,c,d) {
+  const abC=mapCross(a,b,c), abD=mapCross(a,b,d);
+  const cdA=mapCross(c,d,a), cdB=mapCross(c,d,b);
+  if(((abC>0 && abD<0)||(abC<0 && abD>0)) &&
+     ((cdA>0 && cdB<0)||(cdA<0 && cdB>0)))return true;
+  return (Math.abs(abC)<=1e-8 && mapPointOnSegment(c,a,b)) ||
+    (Math.abs(abD)<=1e-8 && mapPointOnSegment(d,a,b)) ||
+    (Math.abs(cdA)<=1e-8 && mapPointOnSegment(a,c,d)) ||
+    (Math.abs(cdB)<=1e-8 && mapPointOnSegment(b,c,d));
+}
+function validateMapDraftPolygon(vertices) {
+  let points=vertices.slice();
+  if(points.length>3) {
+    const first=points[0], last=points[points.length-1];
+    if(Math.hypot(first.x-last.x,first.y-last.y)<0.01)points=points.slice(0,-1);
+  }
+  const unique=[];
+  for(const point of points) {
+    if(!unique.some(other=>Math.hypot(point.x-other.x,point.y-other.y)<0.01))unique.push(point);
+  }
+  if(unique.length<3)return {error:"El polígono necesita al menos tres vértices distintos.",points};
+  let twiceArea=0;
+  for(let i=0;i<points.length;i++) {
+    const a=points[i],b=points[(i+1)%points.length];
+    if(Math.hypot(a.x-b.x,a.y-b.y)<0.01)return {error:"Hay dos vértices consecutivos repetidos.",points};
+    twiceArea+=a.x*b.y-b.x*a.y;
+  }
+  if(Math.abs(twiceArea)<0.02)return {error:"El polígono tiene un área nula o demasiado pequeña.",points};
+  for(let i=0;i<points.length;i++) {
+    const a=points[i],b=points[(i+1)%points.length];
+    for(let j=i+1;j<points.length;j++) {
+      if(j===i || j===(i+1)%points.length || (j+1)%points.length===i)continue;
+      const c=points[j],d=points[(j+1)%points.length];
+      if(mapSegmentsIntersect(a,b,c,d))return {error:"El polígono se cruza consigo mismo; revisa el orden de los vértices.",points};
+    }
+  }
+  return {error:"",points};
+}
+function finishMapDrawing() {
+  if(!mapDrawingMode)return;
+  const validated=validateMapDraftPolygon(mapDraftVertices);
+  if(validated.error) {
+    setMapDrawStatus(validated.error,true);
+    return;
+  }
+  const kind=el("mapDrawKind").value;
+  const vertices=validated.points.map(point=>[point.x,point.y]);
+  if(kind==="walkable_bounds") {
+    mapConfig.walkable_bounds=vertices;
+  } else {
+    const id=el("mapDrawId").value.trim();
+    const name=el("mapDrawName").value.trim();
+    const idKeys={
+      areas:"area_id",terrain_zones:"terrain_id",obstacles:"obstacle_id",roads:"road_id"
+    };
+    const idKey=idKeys[kind];
+    if(!id || !/^[a-zA-Z0-9._-]{1,120}$/.test(id)) {
+      setMapDrawStatus("Introduce un identificador único (letras, números, punto, guion o guion bajo).",true);
+      return;
+    }
+    if(!name) {
+      setMapDrawStatus("Introduce el nombre aprobado de la zona.",true);
+      return;
+    }
+    if((mapConfig[kind] || []).some(item=>item[idKey]===id)) {
+      setMapDrawStatus("Ese identificador ya existe en esta categoría.",true);
+      return;
+    }
+    const item={[idKey]:id,name,vertices};
+    if(kind==="terrain_zones") {
+      const speed=Number(el("mapDrawSpeed").value);
+      if(!Number.isFinite(speed) || speed<=0 || speed>20) {
+        setMapDrawStatus("El multiplicador de terreno debe ser mayor que 0 y no superar 20.",true);
+        return;
+      }
+      item.speed_multiplier=speed;
+    } else if(kind==="roads") {
+      const speed=Number(el("mapDrawSpeed").value);
+      if(!Number.isFinite(speed) || speed<=1 || speed>20) {
+        setMapDrawStatus("El multiplicador de camino debe ser mayor que 1 y no superar 20.",true);
+        return;
+      }
+      item.speed_multiplier=speed;
+    } else if(kind==="obstacles") {
+      item.kind=el("mapDrawObstacleKind").value;
+    }
+    mapConfig[kind].push(item);
+  }
+  el("mapConfigInput").value=JSON.stringify(mapConfig,null,2);
+  const count=validated.points.length;
+  mapDrawingMode=false;
+  mapDraftVertices=[];
+  mapDrawingViewBox=null;
+  updateMapDrawControls();
+  renderWorldMap();
+  setMapDrawStatus(
+    kind==="walkable_bounds"
+      ? "Límite transitable añadido al borrador JSON. Guarda la geometría para persistirlo."
+      : "Polígono añadido ("+count+" vértices) al borrador JSON. Guarda la geometría para persistirlo.",
+    false
+  );
+}
+el("mapDrawKind").onchange=()=>{
+  if(el("mapDrawKind").value==="roads")el("mapDrawSpeed").value="1.5";
+  else if(el("mapDrawKind").value==="terrain_zones")el("mapDrawSpeed").value="1";
+  updateMapDrawControls();
+};
+el("mapDrawStart").onclick=()=>{
+  try{startMapDrawing();}
+  catch(err){setMapDrawStatus(err.message,true);}
+};
+el("mapDrawUndo").onclick=()=>{
+  if(!mapDrawingMode || !mapDraftVertices.length)return;
+  mapDraftVertices.pop();
+  renderWorldMap();
+  updateMapDrawControls();
+  setMapDrawStatus(mapDraftVertices.length+" vértices en el borrador.",false);
+};
+el("mapDrawFinish").onclick=finishMapDrawing;
+el("mapDrawCancel").onclick=()=>cancelMapDrawing();
+updateMapDrawControls();
+
 function mapCreateRequestId() {
   if(window.crypto && typeof window.crypto.randomUUID==="function")return window.crypto.randomUUID();
   return "travel-"+Date.now()+"-"+Math.random().toString(36).slice(2,12);
@@ -1511,29 +1799,23 @@ el("mapConfigFile").onchange=async()=>{
   }
 };
 el("worldMapSvg").addEventListener("click",event=>{
-  if(!mapConfig)return;
-  const rect=el("worldMapSvg").getBoundingClientRect();
-  const view=el("worldMapSvg").getAttribute("viewBox").split(/\s+/).map(Number);
-  if(rect.width<=0 || rect.height<=0 || view.length!==4)return;
-  // Account for SVG's default xMidYMid meet letterboxing so clicks map
-  // to the same local metre coordinates without stretching the geometry.
-  const scale=Math.min(rect.width/view[2],rect.height/view[3]);
-  const drawnWidth=view[2]*scale, drawnHeight=view[3]*scale;
-  const offsetX=(rect.width-drawnWidth)/2, offsetY=(rect.height-drawnHeight)/2;
-  const localX=(event.clientX-rect.left-offsetX)/scale;
-  const localY=(event.clientY-rect.top-offsetY)/scale;
-  if(localX<0 || localX>view[2] || localY<0 || localY>view[3])return;
-  const point={
-    x:view[0]+localX,
-    y:-(view[1]+localY)
-  };
+  if(!mapConfig && !mapDrawingMode)return;
+  const point=mapScreenToWorldPoint(event);
+  if(!point)return;
+  if(mapDrawingMode) {
+    mapDraftVertices.push(point);
+    renderWorldMap();
+    updateMapDrawControls();
+    setMapDrawStatus(mapDraftVertices.length+" vértices · último: "+mapPointLabel(point),false);
+    return;
+  }
   selectMapDestination(point);
 });
 el("destinationX").onchange=()=>{try{selectedMapPoint=mapDestinationInput();renderWorldMap();updateTravelControls();}catch(err){selectedMapPoint=null;renderWorldMap();}};
 el("destinationY").onchange=()=>{try{selectedMapPoint=mapDestinationInput();renderWorldMap();updateTravelControls();}catch(err){selectedMapPoint=null;renderWorldMap();}};
-el("mapZoomIn").onclick=()=>{mapZoom=Math.min(4,mapZoom*1.3);renderWorldMap();};
-el("mapZoomOut").onclick=()=>{mapZoom=Math.max(0.5,mapZoom/1.3);renderWorldMap();};
-el("mapFitButton").onclick=()=>{mapZoom=1;renderWorldMap();};
+el("mapZoomIn").onclick=()=>{if(mapDrawingMode)return;mapZoom=Math.min(4,mapZoom*1.3);renderWorldMap();};
+el("mapZoomOut").onclick=()=>{if(mapDrawingMode)return;mapZoom=Math.max(0.5,mapZoom/1.3);renderWorldMap();};
+el("mapFitButton").onclick=()=>{if(mapDrawingMode)return;mapZoom=1;renderWorldMap();};
 el("planTravelButton").onclick=async()=>{
   try{setStatus("Calculando ruta…",false);await planSelectedTravel();setStatus("Ruta calculada.",true);}
   catch(err){mapSetTravelStatus(err.message,true);setStatus(err.message,false);}
