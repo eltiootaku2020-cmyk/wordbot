@@ -5058,6 +5058,17 @@ def test_travel_api_persists_region_and_executes_one_step():
             "terrain_zones": [],
             "obstacles": [],
             "roads": [],
+            "points_of_interest": [
+                {
+                    "point_id": "north-shrine",
+                    "name": "Santuario del Norte",
+                    "x_m": 500,
+                    "y_m": 300,
+                    "icon": "⛩️",
+                    "category": "landmark",
+                    "description": "Marcador de ejemplo para verificar persistencia.",
+                }
+            ],
             "walkable_bounds": None,
         }
 
@@ -5071,6 +5082,7 @@ def test_travel_api_persists_region_and_executes_one_step():
         )
         assert loaded_region.status_code == 200
         assert loaded_region.json()["config"]["cell_size_m"] == 100
+        assert loaded_region.json()["config"]["points_of_interest"] == region_config["points_of_interest"]
 
         planned = client.post(
             f"/api/sessions/{session_id}/travel/plan",
