@@ -39,7 +39,7 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}label{font-size:13px;
 .map-legend{display:flex;gap:10px;flex-wrap:wrap;margin:8px 0 4px}
 .map-legend span{display:inline-flex;align-items:center;gap:5px;color:var(--muted);font-size:12px}
 .legend-swatch{display:inline-block;width:12px;height:12px;border-radius:3px;border:1px solid #788396}
-.legend-terrain{background:#526b50}.legend-road{background:#c4a875}.legend-obstacle{background:#777d89}.legend-area{background:#396b78}.legend-fog{background:#0b1018}.legend-route{height:3px;border:0;background:#e8c66b}
+.legend-terrain{background:#526b50}.legend-road{background:#c4a875}.legend-obstacle{background:#777d89}.legend-area{background:#396b78}.legend-fog{background:#0b1018}.legend-route{height:3px;border:0;background:#e8c66b}.legend-player{border-radius:50%;background:#f1f4fa;border:3px solid #355b9b}.legend-destination{border-radius:50%;background:#e3a5ff;border-color:#291631}
 .map-hint{margin:7px 0 0;color:var(--muted);font-size:12px;min-height:34px}
 .travel-controls{display:flex;flex-direction:column;gap:9px;min-width:0}
 .travel-readout{border:1px solid var(--line);border-radius:9px;padding:9px;background:#151820}
@@ -117,6 +117,8 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}label{font-size:13px;
             <span><i class="legend-swatch legend-area"></i>Zona conocida</span>
             <span><i class="legend-swatch legend-fog"></i>No explorado</span>
             <span><i class="legend-swatch legend-route"></i>Ruta</span>
+            <span><i class="legend-swatch legend-player"></i>Posición actual</span>
+            <span><i class="legend-swatch legend-destination"></i>Destino elegido</span>
           </div>
           <p id="mapHint" class="map-hint" aria-live="polite">Selecciona una partida y registra la geometría autorizada de una región para comenzar.</p>
         </div>
@@ -172,6 +174,8 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}label{font-size:13px;
         <div class="map-config-actions">
           <button id="saveMapConfigButton" type="button">Guardar geometría de región</button>
           <button id="copyMapConfigTemplate" type="button">Cargar plantilla vacía</button>
+          <label for="mapConfigFile">Importar JSON desde archivo</label>
+          <input id="mapConfigFile" type="file" accept=".json,application/json">
         </div>
         <p class="map-config-note">Coordenadas cartesianas locales: +X es este, +Y es norte. Una región vacía muestra solo el plano; no inventa aldeas, caminos ni distancias.</p>
       </details>
@@ -578,7 +582,11 @@ async function loadSession(sessionId) {
   await loadExplorationData();
   await refreshBackups();
 }
-el("worldSelect").onchange = async () => { currentSession = ""; await refreshSessions(); };
+el("worldSelect").onchange = async () => {
+  currentSession = "";
+  await refreshSessions();
+  await loadExplorationData();
+};
 el("sessionSelect").onchange = async () => { if (el("sessionSelect").value) await loadSession(el("sessionSelect").value); };
 el("createWorldForm").onsubmit = async event => {
   event.preventDefault();
@@ -1016,7 +1024,7 @@ let travelState = null;
 let selectedMapPoint = null;
 let mapZoom = 1;
 let travelLoopRunning = false;
-let pendingTravelRequestId = "";
+let explorationLoadToken = 0;
 
 function mapSvgNode(tag, attrs, text) {
   const node = document.createElementNS(SVG_NS, tag);
@@ -1259,13 +1267,17 @@ function renderExploration() {
   updateTravelControls();
 }
 async function loadExplorationData() {
+  const loadToken=++explorationLoadToken;
+  const requestedSession=currentSession;
+  const requestedWorld=currentWorld;
+  const requestedRegion=el("mapRegionId").value.trim();
   if(!currentSession) {
     mapConfig=null;sessionMapState=null;travelState=null;selectedMapPoint=null;
     renderExploration();
     mapSetHint("Selecciona una partida para ver su mapa.",false);
     return;
   }
-  const regionId=el("mapRegionId").value.trim();
+  const regionId=requestedRegion;
   if(!regionId) {
     mapConfig=null;sessionMapState=null;travelState=null;
     renderExploration();
@@ -1274,10 +1286,12 @@ async function loadExplorationData() {
   }
   try {
     const [region,state,travel]=await Promise.all([
-      api("/api/worlds/"+currentWorld+"/map/regions/"+encodeURIComponent(regionId)),
-      api("/api/sessions/"+currentSession+"/map/regions/"+encodeURIComponent(regionId)+"/state"),
-      api("/api/sessions/"+currentSession+"/travel")
+      api("/api/worlds/"+requestedWorld+"/map/regions/"+encodeURIComponent(regionId)),
+      api("/api/sessions/"+requestedSession+"/map/regions/"+encodeURIComponent(regionId)+"/state"),
+      api("/api/sessions/"+requestedSession+"/travel")
     ]);
+    if(loadToken!==explorationLoadToken || requestedSession!==currentSession ||
+       requestedWorld!==currentWorld || regionId!==el("mapRegionId").value.trim())return;
     mapConfig=region.config;
     sessionMapState=state;
     travelState=travel.status==="idle"?null:travel;
@@ -1290,6 +1304,8 @@ async function loadExplorationData() {
     renderExploration();
     el("mapConfigInput").value=JSON.stringify(mapConfig,null,2);
   } catch(err) {
+    if(loadToken!==explorationLoadToken || requestedSession!==currentSession ||
+       requestedWorld!==currentWorld || regionId!==el("mapRegionId").value.trim())return;
     mapConfig=null;sessionMapState=null;travelState=null;
     renderExploration();
     if(err.status===404)mapSetHint("Esta región aún no tiene geometría registrada. Importa una definición geográfica aprobada en «Configurar geometría».",false);
@@ -1306,6 +1322,19 @@ function selectMapDestination(point) {
 function mapCreateRequestId() {
   if(window.crypto && typeof window.crypto.randomUUID==="function")return window.crypto.randomUUID();
   return "travel-"+Date.now()+"-"+Math.random().toString(36).slice(2,12);
+}
+function getPendingTravelRequestId(sessionId) {
+  const key="wordbot:pending-travel-step:"+sessionId;
+  try {
+    let id=sessionStorage.getItem(key) || "";
+    if(!id){id=mapCreateRequestId();sessionStorage.setItem(key,id);}
+    return id;
+  } catch (_) {
+    return mapCreateRequestId();
+  }
+}
+function clearPendingTravelRequestId(sessionId) {
+  try{sessionStorage.removeItem("wordbot:pending-travel-step:"+sessionId);}catch(_){}
 }
 async function saveMapGeometry() {
   if(!currentWorld || !currentSession)throw new Error("Selecciona un mundo y una partida.");
@@ -1345,16 +1374,19 @@ async function refreshTravelStatus() {
   travelState=state.status==="idle"?null:state;
   await loadExplorationData();
 }
-async function advanceOneTravelLeg() {
-  if(!currentSession)throw new Error("Selecciona una partida.");
-  if(!pendingTravelRequestId)pendingTravelRequestId=mapCreateRequestId();
+async function advanceOneTravelLeg(sessionId) {
+  const targetSession=sessionId || currentSession;
+  if(!targetSession)throw new Error("Selecciona una partida.");
+  const requestId=getPendingTravelRequestId(targetSession);
   try {
-    const result=await api("/api/sessions/"+currentSession+"/travel/step",{
-      method:"POST",body:JSON.stringify({request_id:pendingTravelRequestId})
+    const result=await api("/api/sessions/"+targetSession+"/travel/step",{
+      method:"POST",body:JSON.stringify({request_id:requestId})
     });
-    pendingTravelRequestId="";
-    travelState=result.travel;
-    await loadExplorationData();
+    clearPendingTravelRequestId(targetSession);
+    if(targetSession===currentSession) {
+      travelState=result.travel;
+      await loadExplorationData();
+    }
     const discovered=result.segment.newly_discovered_cells.length;
     mapSetTravelStatus(
       "Tramo completado · "+Math.round(result.segment.distance_m)+" m · "+
@@ -1363,26 +1395,27 @@ async function advanceOneTravelLeg() {
     );
     return result;
   } catch(err) {
-    await loadExplorationData();
+    if(targetSession===currentSession)await loadExplorationData();
     throw err;
   }
 }
 async function runTravelToEnd() {
   if(travelLoopRunning)return;
   if(!travelState || travelState.status!=="running")throw new Error("Primero planifica una ruta o reanuda el recorrido.");
+  const sessionId=currentSession;
   travelLoopRunning=true;
   updateTravelControls();
   try {
-    while(currentSession) {
-      const current=await api("/api/sessions/"+currentSession+"/travel");
+    while(currentSession===sessionId) {
+      const current=await api("/api/sessions/"+sessionId+"/travel");
       if(current.status!=="running") {
-        travelState=current.status==="idle"?null:current;
+        if(currentSession===sessionId)travelState=current.status==="idle"?null:current;
         break;
       }
-      await advanceOneTravelLeg();
+      await advanceOneTravelLeg(sessionId);
       await new Promise(resolve=>setTimeout(resolve,110));
     }
-    await loadExplorationData();
+    if(currentSession===sessionId)await loadExplorationData();
   } finally {
     travelLoopRunning=false;
     updateTravelControls();
@@ -1390,7 +1423,9 @@ async function runTravelToEnd() {
 }
 async function changeTravelStatus(action) {
   if(!currentSession)throw new Error("Selecciona una partida.");
-  const result=await api("/api/sessions/"+currentSession+"/travel/"+action,{method:"POST",body:"{}"});
+  const sessionId=currentSession;
+  const result=await api("/api/sessions/"+sessionId+"/travel/"+action,{method:"POST",body:"{}"});
+  if(currentSession!==sessionId)return;
   travelState=result;
   await loadExplorationData();
   if(action==="resume") {
@@ -1410,6 +1445,21 @@ el("saveMapConfigButton").onclick=async()=>{
   catch(err){setStatus(err.message,false);}
 };
 el("copyMapConfigTemplate").onclick=()=>{el("mapConfigInput").value=JSON.stringify(EMPTY_MAP_CONFIG,null,2);};
+
+el("mapConfigFile").onchange=async()=>{
+  const file=el("mapConfigFile").files && el("mapConfigFile").files[0];
+  if(!file)return;
+  try {
+    const text=await file.text();
+    JSON.parse(text);
+    el("mapConfigInput").value=text;
+    setStatus("JSON cargado en el editor. Revísalo y pulsa «Guardar geometría de región».",true);
+  } catch(err) {
+    setStatus("No se pudo leer el JSON: "+err.message,false);
+  } finally {
+    el("mapConfigFile").value="";
+  }
+};
 el("worldMapSvg").addEventListener("click",event=>{
   if(!mapConfig)return;
   const rect=el("worldMapSvg").getBoundingClientRect();
