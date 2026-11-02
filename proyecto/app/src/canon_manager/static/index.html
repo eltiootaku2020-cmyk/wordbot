@@ -431,6 +431,9 @@ hr{border:0;border-top:1px solid var(--line);margin:14px 0}label{font-size:13px;
   "available_minutes": 60,
   "conditions": {}
 }</textarea>
+      <label for="behaviorFocusCandidatesInput">Focos posibles (lista JSON)</label>
+      <textarea id="behaviorFocusCandidatesInput" rows="4" spellcheck="false">[]</textarea>
+      <p class="muted">Cada candidato puede ser entity, group, place, object, task, threat, knowledge, event, resource o self, con target_id, tags y salience. Se ordenan sin cambiar el foco guardado.</p>
       <div class="behavior-actions">
         <button id="previewBehavior" type="button">Previsualizar decisiones</button>
       </div>
@@ -588,11 +591,14 @@ async function saveBehaviorProfile() {
 }
 async function previewBehaviorProfile() {
   const entity=behaviorSelectedEntity();
-  let context;
+  let context,focusCandidates;
   try{context=JSON.parse(el("behaviorContextInput").value);}
   catch(err){throw new Error("El JSON del contexto no es válido: "+err.message);}
+  try{focusCandidates=JSON.parse(el("behaviorFocusCandidatesInput").value);}
+  catch(err){throw new Error("La lista de focos no es JSON válido: "+err.message);}
+  if(!Array.isArray(focusCandidates))throw new Error("Los focos posibles deben ser una lista JSON.");
   const result=await api("/api/sessions/"+currentSession+"/entities/"+encodeURIComponent(entity.id)+"/behavior/preview",{
-    method:"POST",body:JSON.stringify({context,limit:15})
+    method:"POST",body:JSON.stringify({context,focus_candidates:focusCandidates,limit:15})
   });
   el("behaviorPreview").textContent=JSON.stringify(result,null,2);
   behaviorSetStatus(
