@@ -668,6 +668,8 @@ async function refreshSessions() {
   clearChildren(el("sessionSelect")); addOption(el("sessionSelect"), "", "Selecciona partida");
   clearChildren(el("recipientSelect")); addOption(el("recipientSelect"), "", "Escena / grupo");
   entityNames = {};
+  behaviorEntities = [];
+  refreshBehaviorEntityOptions();
   if (!currentWorld) return;
   const sessions = await api("/api/worlds/" + currentWorld + "/sessions");
   sessions.forEach(s => addOption(el("sessionSelect"), s.id, s.name + " — Día " + s.day));
