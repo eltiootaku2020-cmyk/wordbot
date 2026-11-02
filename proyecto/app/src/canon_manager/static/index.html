@@ -1156,22 +1156,45 @@ function renderWorldMap() {
   },"Camino / puente"));
 
   const known=mapDiscoveredSet();
-  const startX=Math.floor(minX/cell), endX=Math.ceil((minX+width)/cell);
-  const startY=Math.floor(minY/cell), endY=Math.ceil(maxY/cell);
-  const cellCount=(endX-startX+1)*(endY-startY+1);
-  const fogLimit=7000;
-  if(cellCount<=fogLimit) {
-    for(let ix=startX;ix<=endX;ix++) for(let iy=startY;iy<=endY;iy++) {
-      const center={x:(ix+0.5)*cell,y:(iy+0.5)*cell};
-      if(Array.isArray(boundary) && !mapPointInPolygon(center,boundary))continue;
-      const isKnown=known.has(ix+","+iy);
+  // One fog rectangle with a mask scales with explored cells, not all possible
+  // cells in a large region. White keeps fog visible; black opens explored cells.
+  const defs=mapSvgNode("defs",{});
+  const fogMask=mapSvgNode("mask",{
+    id:"mapFogMask",
+    maskUnits:"userSpaceOnUse",
+    maskContentUnits:"userSpaceOnUse",
+    x:minX,y:-maxY,width,height
+  });
+  fogMask.appendChild(mapSvgNode("rect",{
+    x:minX,y:-maxY,width,height,fill:"#ffffff"
+  }));
+  for(const key of known) {
+    const parts=key.split(",").map(Number);
+    const ix=parts[0], iy=parts[1];
+    const x=ix*cell, y=-(iy+1)*cell;
+    if(x+cell<minX || x>minX+width || y+cell< -maxY || y> -minY)continue;
+    fogMask.appendChild(mapSvgNode("rect",{
+      x,y,width:cell,height:cell,fill:"#000000"
+    }));
+  }
+  defs.appendChild(fogMask);
+  layer.appendChild(defs);
+  layer.appendChild(mapSvgNode("rect",{
+    x:minX,y:-maxY,width,height,
+    fill:"#080d14","fill-opacity":0.9,
+    mask:"url(#mapFogMask)"
+  }));
+  // Subtle grid edges are useful on ordinary-sized explored patches. They are
+  // omitted for very large saves; the exploration mask itself remains complete.
+  if(known.size<=4000) {
+    for(const key of known) {
+      const parts=key.split(",").map(Number);
+      const ix=parts[0], iy=parts[1];
+      const x=ix*cell, y=-(iy+1)*cell;
+      if(x+cell<minX || x>minX+width || y+cell< -maxY || y> -minY)continue;
       layer.appendChild(mapSvgNode("rect",{
-        x:ix*cell,y:-(iy+1)*cell,width:cell,height:cell,
-        fill:isKnown?"#9cc7a0":"#080d14",
-        "fill-opacity":isKnown?0.12:0.88,
-        stroke:isKnown?"#a5dfb0":"#26303b",
-        "stroke-opacity":isKnown?0.26:0.42,
-        "stroke-width":0.7,
+        x,y,width:cell,height:cell,fill:"none",
+        stroke:"#a5dfb0","stroke-opacity":0.3,"stroke-width":0.7,
         "vector-effect":"non-scaling-stroke"
       }));
     }
@@ -1231,8 +1254,7 @@ function renderWorldMap() {
       "font-weight":700,"paint-order":"stroke",stroke:"#101720","stroke-width":3
     },"Tú"));
   }
-  if(cellCount>fogLimit)mapSetHint("La vista contiene demasiadas celdas para dibujar toda la niebla de una vez. Acerca el mapa o reduce su extensión.",true);
-  else if(!mapConfig)mapSetHint("No hay geometría registrada para esta región. Abre «Configurar geometría» e importa polígonos aprobados; no se han inventado lugares ni coordenadas.",false);
+  if(!mapConfig)mapSetHint("No hay geometría registrada para esta región. Abre «Configurar geometría» e importa polígonos aprobados; no se han inventado lugares ni coordenadas.",false);
   else if(!(mapConfig.areas||[]).length && !(mapConfig.terrain_zones||[]).length &&
           !(mapConfig.obstacles||[]).length && !(mapConfig.roads||[]).length) {
     mapSetHint("Región geométrica vacía: el plano está listo, pero aún no contiene terrenos, caminos, obstáculos ni lugares definidos.",false);
