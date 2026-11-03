@@ -5725,7 +5725,7 @@ def test_clock_tick_plans_one_safe_autonomous_activity_and_avoids_immediate_repe
         assert agenda["action_id"] == "field_research"
         assert agenda["status"] == "scheduled"
         assert agenda["scheduled_total_minutes"] == 481
-        assert agenda["context"]["_autonomous_plan"]["planner_version"] == 1
+        assert agenda["context"]["_autonomous_plan"]["planner_version"] == 2
 
         # Reaching the scheduled end completes the task exactly once. The
         # planner does not repeat the same action immediately afterwards.
