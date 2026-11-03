@@ -3614,9 +3614,9 @@ RESTORE_SESSION_TABLES = (
     "relationships",
     "ability_uses",
     "session_timeline_events",
-    "session_environment_observations",
     "messages",
     "events",
+    "session_environment_observations",
     "state_changes",
     "snapshots",
 )
