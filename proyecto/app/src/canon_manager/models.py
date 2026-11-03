@@ -86,10 +86,21 @@ class EnvironmentObservationProposal(StrictModel):
     valid_for_minutes: int = Field(default=60, ge=1, le=240)
 
 
+class KnowledgeTransmissionProposal(StrictModel):
+    event_ref: str = Field(min_length=1, max_length=40)
+    source_event_id: str = Field(min_length=1, max_length=80)
+    sender_entity_id: str = Field(min_length=1, max_length=120)
+    recipient_entity_id: str = Field(min_length=1, max_length=120)
+    transmission_kind: Literal["testimony", "rumor"]
+    version_text: str = Field(min_length=1, max_length=600)
+    parent_transmission_id: str = Field(default="", max_length=80)
+
+
 class NarratorResponse(StrictModel):
     narration: str = Field(min_length=1, max_length=12000)
     events: list[EventProposal] = Field(default_factory=list, max_length=30)
     environment_observations: list[EnvironmentObservationProposal] = Field(default_factory=list, max_length=60)
+    knowledge_transmissions: list[KnowledgeTransmissionProposal] = Field(default_factory=list, max_length=30)
     state_changes: list[StateChangeProposal] = Field(default_factory=list, max_length=40)
     elapsed_minutes: int = Field(default=1, ge=0, le=10080)
     movements: list[MovementProposal] = Field(default_factory=list, max_length=20)
