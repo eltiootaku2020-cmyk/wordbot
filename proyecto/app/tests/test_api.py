@@ -7452,3 +7452,157 @@ def test_planner_v4_keeps_legacy_signature_until_a_new_report_arrives():
     # New v5 plans always bind the full attributed-report metadata.
     assert _planner_perception_metadata(legacy, 5) == legacy
     assert _planner_perception_metadata(with_report, 5) == with_report
+
+
+
+def test_rejecting_communication_event_never_persists_the_proposed_transmission():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        ids = _entity_ids_by_name(client, world_id)
+        protagonist_id = next(
+            value for name, value in ids.items()
+            if name.lower() in {"protagonista", "protagonist"}
+        )
+        brina_id = ids["Brina Solcor"]
+        source_event_id = _record_source_event(session_id, protagonist_id, "rejected-transmission-source")
+
+        proposal = NarratorResponse(
+            narration="El protagonista le cuenta algo a Brina, pero la conversación se rechaza.",
+            events=[EventProposal(
+                ref="rejected-testimony",
+                kind="knowledge",
+                entity_id=protagonist_id,
+                description="El protagonista intenta contar a Brina lo que observó.",
+                witness_ids=[protagonist_id, brina_id],
+            )],
+            knowledge_transmissions=[KnowledgeTransmissionProposal(
+                event_ref="rejected-testimony",
+                source_event_id=source_event_id,
+                sender_entity_id=protagonist_id,
+                recipient_entity_id=brina_id,
+                transmission_kind="testimony",
+                version_text="Vi una señal junto al sendero.",
+            )],
+        )
+        turn_id, _, _ = _apply_synthetic_result(
+            session_id, "Le cuento a Brina lo que observé.", proposal
+        )
+        with database.connection() as conn:
+            communication = conn.execute(
+                "SELECT id,status FROM events WHERE session_id=? AND turn_id=?",
+                (session_id, turn_id),
+            ).fetchone()
+            ledger = conn.execute(
+                "SELECT id,status FROM state_changes WHERE session_id=? AND turn_id=? "
+                "AND field='knowledge_transmission'",
+                (session_id, turn_id),
+            ).fetchone()
+        assert communication["status"] == "pending"
+        assert ledger["status"] == "pending"
+
+        rejected = client.post(
+            f"/api/sessions/{session_id}/events/{communication['id']}/reject"
+        )
+        assert rejected.status_code == 200, rejected.text
+        with database.connection() as conn:
+            event_status = conn.execute(
+                "SELECT status FROM events WHERE id=?", (communication["id"],)
+            ).fetchone()["status"]
+            ledger_status = conn.execute(
+                "SELECT status FROM state_changes WHERE id=?", (ledger["id"],)
+            ).fetchone()["status"]
+            count = conn.execute(
+                "SELECT COUNT(*) FROM session_knowledge_transmissions WHERE session_id=?",
+                (session_id,),
+            ).fetchone()[0]
+        assert event_status == "rejected"
+        assert ledger_status == "rejected"
+        assert count == 0
+
+        with database.connection() as conn:
+            _, brina_metadata = _entity_perception_context(conn, session_id, brina_id)
+        assert brina_metadata["knowledge_reports"] == []
+
+
+def test_session_backup_restores_attributed_knowledge_transmissions():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        ids = _entity_ids_by_name(client, world_id)
+        protagonist_id = next(
+            value for name, value in ids.items()
+            if name.lower() in {"protagonista", "protagonist"}
+        )
+        brina_id = ids["Brina Solcor"]
+        source_event_id = uuid.uuid4().hex
+        communication_event_id = uuid.uuid4().hex
+        transmission_id = uuid.uuid4().hex
+        with database.transaction() as conn:
+            conn.execute(
+                "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,"
+                "witnesses_json,continuity,importance,status) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    source_event_id, session_id, "backup-knowledge-source", "backup-source",
+                    "clue", protagonist_id, "El protagonista vio una señal en una roca.",
+                    json.dumps([protagonist_id]), 1, 4, "recorded",
+                )
+            )
+            conn.execute(
+                "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,"
+                "witnesses_json,continuity,importance,status) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    communication_event_id, session_id, "backup-knowledge-conversation",
+                    "backup-communication", "knowledge", protagonist_id,
+                    "El protagonista contó a Brina lo que vio.",
+                    json.dumps([protagonist_id, brina_id]), 0, 1, "recorded",
+                )
+            )
+            conn.execute(
+                "INSERT INTO session_knowledge_transmissions("
+                "id,session_id,request_id,source_event_id,communication_event_id,"
+                "sender_entity_id,recipient_entity_id,transmission_kind,version_text,"
+                "location,transmitted_total_minutes,parent_transmission_id"
+                ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    transmission_id, session_id, "backup-knowledge-request",
+                    source_event_id, communication_event_id, protagonist_id, brina_id,
+                    "testimony", "Vi una señal reciente en la roca.",
+                    "Claro del bosque", 480, "",
+                )
+            )
+
+        backup = client.post(f"/api/sessions/{session_id}/backup")
+        assert backup.status_code == 200, backup.text
+        backup_name = backup.json()["backup_name"]
+        with database.transaction() as conn:
+            conn.execute(
+                "DELETE FROM session_knowledge_transmissions WHERE session_id=?",
+                (session_id,),
+            )
+        with database.connection() as conn:
+            assert conn.execute(
+                "SELECT 1 FROM session_knowledge_transmissions WHERE id=?",
+                (transmission_id,),
+            ).fetchone() is None
+
+        restored = client.post(
+            f"/api/sessions/{session_id}/restore",
+            json={"backup_name": backup_name, "confirmation": "RESTAURAR"},
+        )
+        assert restored.status_code == 200, restored.text
+        with database.connection() as conn:
+            row = conn.execute(
+                "SELECT source_event_id,communication_event_id,sender_entity_id,recipient_entity_id,"
+                "transmission_kind,version_text,parent_transmission_id "
+                "FROM session_knowledge_transmissions WHERE id=?",
+                (transmission_id,),
+            ).fetchone()
+        assert row is not None
+        assert row["source_event_id"] == source_event_id
+        assert row["communication_event_id"] == communication_event_id
+        assert row["sender_entity_id"] == protagonist_id
+        assert row["recipient_entity_id"] == brina_id
+        assert row["transmission_kind"] == "testimony"
+        assert row["version_text"] == "Vi una señal reciente en la roca."
+        assert row["parent_transmission_id"] == ""
