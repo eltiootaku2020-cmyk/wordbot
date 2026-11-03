@@ -795,15 +795,40 @@ function renderState(payload) {
         note.textContent = "Confirmar este evento también registrará estas observaciones personales y podrá replanificar las actividades futuras de esos personajes. El reloj no avanzará.";
         environmentNote = note;
       }
+      const transmissionProposals = item.knowledge_transmission_proposals || [];
+      const transmissionDetails = [];
+      transmissionProposals.forEach(proposal => {
+        const detail = document.createElement("p"); detail.className = "muted";
+        const sender = entityNames[proposal.sender_entity_id] || proposal.sender_entity_id;
+        const recipient = entityNames[proposal.recipient_entity_id] || proposal.recipient_entity_id;
+        const kind = proposal.transmission_kind === "testimony" ? "Testimonio directo" : "Rumor retransmitido";
+        detail.textContent = kind + " · " + sender + " → " + recipient
+          + " · evento de origen: " + proposal.source_event_id
+          + (proposal.parent_transmission_id ? " · versión previa: " + proposal.parent_transmission_id : "")
+          + " · versión comunicada: " + proposal.version_text
+          + (proposal.observed_location ? " · lugar: " + proposal.observed_location : "");
+        transmissionDetails.push(detail);
+      });
+      let transmissionNote = null;
+      if (transmissionProposals.length) {
+        const note = document.createElement("p"); note.className = "muted";
+        note.textContent = "Confirmar registrará únicamente que el destinatario recibió esta versión atribuida. No convertirá el evento original ni el rumor en un hecho conocido o verificado.";
+        transmissionNote = note;
+      }
+      const hasLinkedProposals = environmentProposals.length > 0 || transmissionProposals.length > 0;
       const actions = document.createElement("div"); actions.className = "actions";
       const approve = document.createElement("button");
-      approve.textContent = environmentProposals.length ? "Confirmar evento y observaciones" : "Confirmar evento";
+      approve.textContent = hasLinkedProposals ? "Confirmar evento y propuestas" : "Confirmar evento";
       approve.onclick = async () => {
         try {
           const approval = await api("/api/sessions/" + currentSession + "/events/" + item.id + "/approve", {method:"POST",body:"{}"});
-          const count = (approval.environment_observations || []).length;
-          setStatus(count
-            ? "Evento confirmado y " + count + " observación(es) personal(es) registrada(s); agendas revisadas sin avanzar el reloj"
+          const environmentCount = (approval.environment_observations || []).length;
+          const transmissionCount = (approval.knowledge_transmissions || []).length;
+          const changes = [];
+          if (environmentCount) changes.push(environmentCount + " observación(es) personal(es)");
+          if (transmissionCount) changes.push(transmissionCount + " transmisión(es) atribuida(s)");
+          setStatus(changes.length
+            ? "Evento confirmado; " + changes.join(" y ") + " registrada(s), sin avanzar el reloj"
             : "Evento confirmado; sus cambios vinculados siguen sujetos a revisión", true);
           await loadState();
         } catch (err) { setStatus(err.message, false); }
@@ -819,6 +844,8 @@ function renderState(payload) {
       actions.append(approve, reject); card.append(title, description, witnesses);
       environmentDetails.forEach(detail => card.appendChild(detail));
       if (environmentNote) card.appendChild(environmentNote);
+      transmissionDetails.forEach(detail => card.appendChild(detail));
+      if (transmissionNote) card.appendChild(transmissionNote);
       card.appendChild(actions);
       el("pendingEvents").appendChild(card);
     });
