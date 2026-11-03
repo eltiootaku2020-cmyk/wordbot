@@ -1527,6 +1527,19 @@ def apply_narrator_result(
         elif proposal.value_key == "unknown":
             reason = "unknown representa ausencia de observación y no es un estado conocido"
 
+        observer_location = ""
+        if not reason:
+            if proposal.observer_entity_id == session["protagonist_entity_id"]:
+                observer_location = str(session["current_location"] or "").strip()
+            else:
+                presence = conn.execute(
+                    "SELECT location FROM session_presence WHERE session_id=? AND entity_id=?",
+                    (session["id"], proposal.observer_entity_id)
+                ).fetchone()
+                observer_location = str(presence["location"] or "").strip() if presence else ""
+            if not observer_location:
+                reason = "el observador no tiene una ubicación autoritativa en el momento del evento"
+
         signature = (
             proposal.event_ref, proposal.observer_entity_id, proposal.observation_kind
         )
@@ -1590,6 +1603,10 @@ def apply_narrator_result(
             continue
         proposal_data = proposal.model_dump()
         proposal_data["event_ref"] = proposal.event_ref
+        proposal_data["observed_location"] = observer_location
+        proposal_data["observed_total_minutes"] = (
+            (int(session["day"]) - 1) * 1440 + int(session["minute_of_day"])
+        )
         save_change(
             conn, session["id"], turn_id,
             f"environment-observation-{proposal_index}-{new_id()[:8]}",
@@ -3701,6 +3718,8 @@ def approve_event(session_id: str, event_id: str):
                 value_key = proposal.get("value_key")
                 details = proposal.get("details", "")
                 valid_for = proposal.get("valid_for_minutes", 60)
+                observed_location = proposal.get("observed_location")
+                observed_total = proposal.get("observed_total_minutes")
                 if (
                     proposal.get("observer_entity_id") != observer_id
                     or proposal.get("event_ref") != source["external_ref"]
@@ -3710,6 +3729,12 @@ def approve_event(session_id: str, event_id: str):
                     or value_key == "unknown"
                     or not isinstance(details, str)
                     or len(details) > 300
+                    or not isinstance(observed_location, str)
+                    or not observed_location.strip()
+                    or isinstance(observed_total, bool)
+                    or not isinstance(observed_total, int)
+                    or observed_total < 0
+                    or observed_total > current_total
                     or isinstance(valid_for, bool)
                     or not isinstance(valid_for, int)
                     or not 1 <= valid_for <= 240
@@ -3728,22 +3753,12 @@ def approve_event(session_id: str, event_id: str):
                 if observer is None:
                     raise HTTPException(status_code=404, detail="El observador no pertenece a este mundo.")
 
-                if str(observer["kind"]) == "protagonist":
-                    location = str(session["current_location"] or "").strip()
-                else:
-                    presence = conn.execute(
-                        "SELECT location FROM session_presence WHERE session_id=? AND entity_id=?",
-                        (session_id, observer_id)
-                    ).fetchone()
-                    location = str(presence["location"] or "").strip() if presence else ""
-                if not location:
-                    raise HTTPException(
-                        status_code=409,
-                        detail="El observador no tiene ubicación registrada; la observación no puede aplicarse."
-                    )
-
+                # The observation belongs to the place/time where the source
+                # event was witnessed, not wherever the NPC happens to be when
+                # the player later approves the pending proposal.
+                location = observed_location.strip()
                 observation_id = new_id()
-                valid_until = current_total + valid_for
+                valid_until = observed_total + valid_for
                 request_id = f"narrator-event-approval-{proposal_row['id']}"
                 conn.execute(
                     "INSERT INTO session_environment_observations("
@@ -3752,7 +3767,7 @@ def approve_event(session_id: str, event_id: str):
                     ") VALUES(?,?,?,?,?,?,?,?,?,?,?)",
                     (
                         observation_id, session_id, request_id, observer_id, location,
-                        observation_kind, value_key, details, current_total, valid_until, event_id
+                        observation_kind, value_key, details, observed_total, valid_until, event_id
                     )
                 )
                 accepted_value = {
@@ -3762,7 +3777,7 @@ def approve_event(session_id: str, event_id: str):
                     "observation_kind": observation_kind,
                     "value_key": value_key,
                     "details": details,
-                    "observed_total_minutes": current_total,
+                    "observed_total_minutes": observed_total,
                     "valid_until_total_minutes": valid_until,
                     "source_event_id": event_id
                 }
