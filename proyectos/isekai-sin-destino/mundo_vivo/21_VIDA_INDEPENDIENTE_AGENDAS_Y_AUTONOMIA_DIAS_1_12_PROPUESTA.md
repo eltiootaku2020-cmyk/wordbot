@@ -436,14 +436,15 @@ Word Bot incorpora una primera capa genérica de perfiles de conducta, una agend
 - Las emociones configuradas se desgastan cuando avanza el tiempo de juego. Una pausa del chat no las modifica.
 - Agenda, ejecuciones y perfiles se incluyen en las copias de seguridad y snapshots de turno. Los reintentos no duplican una misma ejecución.
 - El protagonista no puede recibir agendas autónomas.
-- En cada avance real del reloj, el planificador puede crear la siguiente actividad para cada PNJ que tenga un perfil guardado y una acción del catálogo del mundo marcada explícitamente como apta para autonomía.
-- La selección usa la puntuación determinista de rasgos, necesidades conocidas, emociones, objetivos, foco y relaciones dirigidas. Evita las tres últimas acciones completadas y deja registrada la puntuación y sus motivos.
-- El planificador no adelanta el reloj, no mueve entidades, no consume recursos, no cambia relaciones ni modifica el estado del protagonista. Las acciones con condiciones ambientales desconocidas no se seleccionan.
+- En cada avance real del reloj, el planificador puede crear varias actividades secuenciales para el resto del día de cada PNJ que tenga perfil guardado y acciones autorizadas en el catálogo del mundo.
+- La selección usa la puntuación determinista de rasgos, necesidades conocidas, emociones, objetivos, foco y relaciones dirigidas. Se evitan repeticiones en una misma jornada salvo autorización explícita y se dejan pausas entre actividades.
+- Si cambia de forma material el perfil, el catálogo o la ubicación, se cancelan y recalculan las actividades autónomas que todavía no comenzaron. Las tareas en curso y los compromisos manuales se conservan.
+- El planificador no adelanta el reloj, no mueve entidades, no consume recursos, no cambia relaciones ni modifica el estado del protagonista. Las condiciones ambientales desconocidas no se seleccionan.
 
-Esta fase sigue siendo **autonomía parcial**, no un simulador completo. Solo se programa una próxima actividad por PNJ cuando avanza el reloj; todavía no se construye una jornada completa ni una cadena anticipada de tareas.
+Esta fase sigue siendo **autonomía parcial**, no un simulador completo. La planificación cubre el resto del día actual, con un máximo acotado de tareas; no programa días futuros sin un nuevo avance de reloj.
 
 **Todavía no implementado como sistema completo:**
-- planificación de una jornada completa, con varias actividades futuras y replanificación durante el día;
+- replanificación directa por clima, sucesos mundiales y conocimiento individual;
 - administración visual de agendas (la primera versión se gestiona por API);
 - comprobación espacial de cada tarea, clima, distancia, rutas, presencia y testigos;
 - desplazamiento autónomo por el mapa;

@@ -5725,7 +5725,7 @@ def test_clock_tick_plans_one_safe_autonomous_activity_and_avoids_immediate_repe
         assert agenda["action_id"] == "field_research"
         assert agenda["status"] == "scheduled"
         assert agenda["scheduled_total_minutes"] == 481
-        assert agenda["context"]["_autonomous_plan"]["planner_version"] == 1
+        assert agenda["context"]["_autonomous_plan"]["planner_version"] == 2
 
         # Reaching the scheduled end completes the task exactly once. The
         # planner does not repeat the same action immediately afterwards.
@@ -5802,3 +5802,505 @@ def test_autonomous_planner_requires_explicit_opt_in_and_known_conditions():
         )
         assert agendas.status_code == 200, agendas.text
         assert agendas.json() == []
+
+
+
+def test_autonomous_planner_builds_multiple_non_overlapping_activities_for_the_day():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        maelis_id = f"{world_id}:maelis-orven"
+        profile = {
+            "traits": {"curiosity": 80, "discipline": 75},
+            "needs": {"fatigue": 20},
+            "emotions": [],
+            "goals": [],
+            "capabilities": ["investigate", "practice", "study"],
+            "resources": {},
+        }
+        saved = client.put(
+            f"/api/sessions/{session_id}/entities/{maelis_id}/behavior",
+            json={"profile": profile},
+        )
+        assert saved.status_code == 200, saved.text
+
+        catalog = {
+            "schema_version": 1,
+            "actions": [
+                {
+                    "action_id": "research_notes",
+                    "category": "research",
+                    "base_priority": 12,
+                    "tags": ["research", "evidence"],
+                    "required_capabilities": ["investigate"],
+                    "duration_minutes": 40,
+                    "autonomous_allowed": True,
+                },
+                {
+                    "action_id": "practice_skill",
+                    "category": "development",
+                    "base_priority": 11,
+                    "tags": ["training", "skill"],
+                    "required_capabilities": ["practice"],
+                    "duration_minutes": 35,
+                    "autonomous_allowed": True,
+                },
+                {
+                    "action_id": "study_records",
+                    "category": "development",
+                    "base_priority": 10,
+                    "tags": ["study", "knowledge"],
+                    "required_capabilities": ["study"],
+                    "duration_minutes": 30,
+                    "autonomous_allowed": True,
+                },
+            ],
+            "patterns": [],
+        }
+        catalog_response = client.put(
+            f"/api/worlds/{world_id}/behavior/catalog", json=catalog
+        )
+        assert catalog_response.status_code == 200, catalog_response.text
+
+        with database.transaction() as conn:
+            conn.execute(
+                "UPDATE sessions SET day=1,minute_of_day=481 WHERE id=?", (session_id,)
+            )
+            tick = tick_behavior_runtime(conn, session_id, 480, 481)
+        assert tick["planned"] == 3
+
+        agendas = client.get(
+            f"/api/sessions/{session_id}/agendas", params={"entity_id": maelis_id}
+        ).json()
+        automatic = [
+            item for item in agendas
+            if item["status"] == "scheduled" and item["context"].get("_autonomous_plan")
+        ]
+        assert len(automatic) == 3
+        assert len({item["action_id"] for item in automatic}) == 3
+        automatic.sort(key=lambda item: item["scheduled_total_minutes"])
+        for previous, current in zip(automatic, automatic[1:]):
+            previous_end = previous["scheduled_total_minutes"] + previous["duration_minutes"]
+            assert previous_end <= current["scheduled_total_minutes"]
+        assert all(item["context"]["_autonomous_plan"]["planner_version"] == 2 for item in automatic)
+        assert all(item["scheduled_total_minutes"] + item["duration_minutes"] <= 1440 for item in automatic)
+
+
+def test_autonomous_planner_replans_future_tasks_when_material_profile_changes():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        maelis_id = f"{world_id}:maelis-orven"
+
+        def save_profile(curiosity, discipline):
+            profile = {
+                "traits": {"curiosity": curiosity, "discipline": discipline},
+                "needs": {},
+                "emotions": [],
+                "goals": [],
+                "capabilities": ["investigate", "practice"],
+                "resources": {},
+            }
+            response = client.put(
+                f"/api/sessions/{session_id}/entities/{maelis_id}/behavior",
+                json={"profile": profile},
+            )
+            assert response.status_code == 200, response.text
+
+        catalog = {
+            "schema_version": 1,
+            "actions": [
+                {
+                    "action_id": "investigate_archive",
+                    "category": "research",
+                    "base_priority": 0,
+                    "tags": ["research"],
+                    "required_capabilities": ["investigate"],
+                    "trait_affinity": {"curiosity": 1},
+                    "duration_minutes": 40,
+                    "autonomous_allowed": True,
+                },
+                {
+                    "action_id": "practice_form",
+                    "category": "development",
+                    "base_priority": 0,
+                    "tags": ["training"],
+                    "required_capabilities": ["practice"],
+                    "trait_affinity": {"discipline": 1},
+                    "duration_minutes": 40,
+                    "autonomous_allowed": True,
+                },
+            ],
+            "patterns": [],
+        }
+        catalog_response = client.put(
+            f"/api/worlds/{world_id}/behavior/catalog", json=catalog
+        )
+        assert catalog_response.status_code == 200, catalog_response.text
+        save_profile(100, 60)
+
+        with database.transaction() as conn:
+            conn.execute(
+                "UPDATE sessions SET day=1,minute_of_day=481 WHERE id=?", (session_id,)
+            )
+            first_tick = tick_behavior_runtime(conn, session_id, 480, 481)
+        assert first_tick["planned"] == 2
+
+        before = client.get(
+            f"/api/sessions/{session_id}/agendas", params={"entity_id": maelis_id}
+        ).json()
+        first_auto = [
+            item for item in before
+            if item["context"].get("_autonomous_plan")
+            and item["status"] == "scheduled"
+        ]
+        assert {item["action_id"] for item in first_auto} == {
+            "investigate_archive", "practice_form"
+        }
+        first_activity = next(item for item in first_auto if item["action_id"] == "investigate_archive")
+        future_activity = next(item for item in first_auto if item["action_id"] == "practice_form")
+
+        # The first task is started on a normal clock advance while the
+        # second remains a future commitment.
+        with database.transaction() as conn:
+            conn.execute(
+                "UPDATE sessions SET day=1,minute_of_day=482 WHERE id=?", (session_id,)
+            )
+            start_tick = tick_behavior_runtime(conn, session_id, 481, 482)
+        assert start_tick["planned"] == 0
+
+        save_profile(0, 100)
+        with database.transaction() as conn:
+            conn.execute(
+                "UPDATE sessions SET day=1,minute_of_day=483 WHERE id=?", (session_id,)
+            )
+            second_tick = tick_behavior_runtime(conn, session_id, 482, 483)
+        assert second_tick["planned"] == 1
+
+        after = client.get(
+            f"/api/sessions/{session_id}/agendas", params={"entity_id": maelis_id}
+        ).json()
+        running_activity = next(item for item in after if item["agenda_id"] == first_activity["agenda_id"])
+        cancelled = next(item for item in after if item["agenda_id"] == future_activity["agenda_id"])
+        replacement = [
+            item for item in after
+            if item["action_id"] == "practice_form" and item["status"] == "scheduled"
+            and item["agenda_id"] != future_activity["agenda_id"]
+        ]
+        assert running_activity["status"] == "running"
+        assert cancelled["status"] == "cancelled"
+        assert cancelled["result"]["replanned"] is True
+        assert len(replacement) == 1
+        assert replacement[0]["scheduled_total_minutes"] == 531
+
+
+def test_autonomous_planner_preserves_manual_commitments_and_rejects_reserved_context():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        maelis_id = f"{world_id}:maelis-orven"
+        profile = {
+            "traits": {"curiosity": 80},
+            "needs": {},
+            "emotions": [],
+            "goals": [],
+            "capabilities": ["investigate"],
+            "resources": {},
+        }
+        assert client.put(
+            f"/api/sessions/{session_id}/entities/{maelis_id}/behavior",
+            json={"profile": profile},
+        ).status_code == 200
+
+        catalog = {
+            "schema_version": 1,
+            "actions": [
+                {
+                    "action_id": "short_research",
+                    "category": "research",
+                    "base_priority": 8,
+                    "duration_minutes": 30,
+                    "required_capabilities": ["investigate"],
+                    "autonomous_allowed": True,
+                },
+                {
+                    "action_id": "manual_commitment",
+                    "category": "social",
+                    "base_priority": 5,
+                    "duration_minutes": 45,
+                    "required_capabilities": ["investigate"],
+                },
+            ],
+            "patterns": [],
+        }
+        assert client.put(
+            f"/api/worlds/{world_id}/behavior/catalog", json=catalog
+        ).status_code == 200
+
+        manual = client.post(
+            f"/api/sessions/{session_id}/entities/{maelis_id}/agendas",
+            json={
+                "request_id": "manual-commit-0001",
+                "action_id": "manual_commitment",
+                "scheduled_day": 1,
+                "scheduled_minute": 540,
+            },
+        )
+        assert manual.status_code == 200, manual.text
+
+        spoofed = client.post(
+            f"/api/sessions/{session_id}/entities/{maelis_id}/agendas",
+            json={
+                "request_id": "manual-spoof-0001",
+                "action_id": "manual_commitment",
+                "scheduled_day": 1,
+                "scheduled_minute": 600,
+                "context": {"_autonomous_plan": {"planner_version": 2}},
+            },
+        )
+        assert spoofed.status_code == 422
+
+        with database.transaction() as conn:
+            conn.execute(
+                "UPDATE sessions SET day=1,minute_of_day=481 WHERE id=?", (session_id,)
+            )
+            tick = tick_behavior_runtime(conn, session_id, 480, 481)
+
+        agendas = client.get(
+            f"/api/sessions/{session_id}/agendas", params={"entity_id": maelis_id}
+        ).json()
+        manual_item = next(item for item in agendas if item["agenda_id"] == manual.json()["agenda_id"])
+        autos = [
+            item for item in agendas
+            if item["status"] == "scheduled" and item["context"].get("_autonomous_plan")
+        ]
+        assert manual_item["status"] == "scheduled"
+        assert len(autos) >= 1
+        for auto in autos:
+            auto_start = auto["scheduled_total_minutes"]
+            auto_end = auto_start + auto["duration_minutes"]
+            manual_start = manual_item["scheduled_total_minutes"]
+            manual_end = manual_start + manual_item["duration_minutes"]
+            assert auto_end <= manual_start or auto_start >= manual_end
+
+
+
+def test_autonomous_repeatable_actions_can_recur_with_daily_limit_and_breaks():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        brina_id = f"{world_id}:brina-solcor"
+        profile = {
+            "traits": {"discipline": 80, "caution": 70},
+            "needs": {},
+            "emotions": [],
+            "goals": [],
+            "capabilities": ["guard"],
+            "resources": {},
+        }
+        saved = client.put(
+            f"/api/sessions/{session_id}/entities/{brina_id}/behavior",
+            json={"profile": profile},
+        )
+        assert saved.status_code == 200, saved.text
+        catalog = {
+            "schema_version": 1,
+            "actions": [{
+                "action_id": "perimeter_watch",
+                "category": "safety",
+                "base_priority": 12,
+                "tags": ["safety", "watch"],
+                "required_capabilities": ["guard"],
+                "duration_minutes": 30,
+                "risk_level": 10,
+                "autonomous_allowed": True,
+                "autonomous_repeatable": True,
+            }],
+            "patterns": [],
+        }
+        saved_catalog = client.put(
+            f"/api/worlds/{world_id}/behavior/catalog", json=catalog
+        )
+        assert saved_catalog.status_code == 200, saved_catalog.text
+
+        with database.transaction() as conn:
+            conn.execute(
+                "UPDATE sessions SET day=1,minute_of_day=481 WHERE id=?", (session_id,)
+            )
+            tick = tick_behavior_runtime(conn, session_id, 480, 481)
+        assert tick["planned"] == 3
+
+        agendas = client.get(
+            f"/api/sessions/{session_id}/agendas", params={"entity_id": brina_id}
+        ).json()
+        automatic = [
+            item for item in agendas
+            if item["status"] == "scheduled" and item["context"].get("_autonomous_plan")
+        ]
+        assert len(automatic) == 3
+        automatic.sort(key=lambda item: item["scheduled_total_minutes"])
+        assert len({item["action_id"] for item in automatic}) == 1
+        for previous, current in zip(automatic, automatic[1:]):
+            previous_end = previous["scheduled_total_minutes"] + previous["duration_minutes"]
+            assert current["scheduled_total_minutes"] >= previous_end + 10
+
+
+def test_autonomous_planner_excludes_high_risk_movement_and_resource_actions():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        maelis_id = f"{world_id}:maelis-orven"
+        profile = {
+            "traits": {"curiosity": 90},
+            "needs": {},
+            "emotions": [],
+            "goals": [],
+            "capabilities": ["investigate", "travel", "repair"],
+            "resources": {"materials": 10},
+        }
+        assert client.put(
+            f"/api/sessions/{session_id}/entities/{maelis_id}/behavior",
+            json={"profile": profile},
+        ).status_code == 200
+
+        catalog = {
+            "schema_version": 1,
+            "actions": [
+                {
+                    "action_id": "dangerous_scouting",
+                    "category": "research",
+                    "base_priority": 30,
+                    "required_capabilities": ["investigate"],
+                    "duration_minutes": 30,
+                    "risk_level": 45,
+                    "autonomous_allowed": True,
+                },
+                {
+                    "action_id": "unvalidated_trip",
+                    "category": "movement",
+                    "base_priority": 25,
+                    "required_capabilities": ["travel"],
+                    "duration_minutes": 30,
+                    "autonomous_allowed": True,
+                },
+                {
+                    "action_id": "costly_repair",
+                    "category": "craft",
+                    "base_priority": 20,
+                    "required_capabilities": ["repair"],
+                    "duration_minutes": 30,
+                    "resource_costs": {"materials": 1},
+                    "autonomous_allowed": True,
+                },
+            ],
+            "patterns": [],
+        }
+        catalog_response = client.put(
+            f"/api/worlds/{world_id}/behavior/catalog", json=catalog
+        )
+        assert catalog_response.status_code == 200, catalog_response.text
+        with database.transaction() as conn:
+            conn.execute(
+                "UPDATE sessions SET day=1,minute_of_day=481 WHERE id=?", (session_id,)
+            )
+            tick = tick_behavior_runtime(conn, session_id, 480, 481)
+        assert tick["planned"] == 0
+        agendas = client.get(
+            f"/api/sessions/{session_id}/agendas", params={"entity_id": maelis_id}
+        ).json()
+        assert agendas == []
+
+
+
+def test_autonomous_task_is_blocked_when_profile_changes_before_it_starts():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        maelis_id = f"{world_id}:maelis-orven"
+
+        def save_profile(curiosity, discipline):
+            profile = {
+                "traits": {"curiosity": curiosity, "discipline": discipline},
+                "needs": {"fatigue": 50},
+                "emotions": [],
+                "goals": [],
+                "capabilities": ["investigate", "practice"],
+                "resources": {},
+            }
+            result = client.put(
+                f"/api/sessions/{session_id}/entities/{maelis_id}/behavior",
+                json={"profile": profile},
+            )
+            assert result.status_code == 200, result.text
+
+        catalog = {
+            "schema_version": 1,
+            "actions": [
+                {
+                    "action_id": "research_before_change",
+                    "category": "research",
+                    "base_priority": 0,
+                    "tags": ["research"],
+                    "required_capabilities": ["investigate"],
+                    "trait_affinity": {"curiosity": 1},
+                    "duration_minutes": 40,
+                    "autonomous_allowed": True,
+                    "effects": {"need_deltas": {"fatigue": -20}},
+                },
+                {
+                    "action_id": "practice_after_change",
+                    "category": "development",
+                    "base_priority": 0,
+                    "tags": ["training"],
+                    "required_capabilities": ["practice"],
+                    "trait_affinity": {"discipline": 1},
+                    "duration_minutes": 40,
+                    "autonomous_allowed": True,
+                },
+            ],
+            "patterns": [],
+        }
+        assert client.put(
+            f"/api/worlds/{world_id}/behavior/catalog", json=catalog
+        ).status_code == 200
+        save_profile(100, 0)
+
+        with database.transaction() as conn:
+            conn.execute(
+                "UPDATE sessions SET day=1,minute_of_day=481 WHERE id=?", (session_id,)
+            )
+            first_tick = tick_behavior_runtime(conn, session_id, 480, 481)
+        assert first_tick["planned"] == 1
+
+        before = client.get(
+            f"/api/sessions/{session_id}/agendas", params={"entity_id": maelis_id}
+        ).json()
+        old_task = next(
+            item for item in before
+            if item["action_id"] == "research_before_change"
+            and item["context"].get("_autonomous_plan")
+        )
+
+        save_profile(0, 100)
+        with database.transaction() as conn:
+            conn.execute(
+                "UPDATE sessions SET day=1,minute_of_day=482 WHERE id=?", (session_id,)
+            )
+            second_tick = tick_behavior_runtime(conn, session_id, 481, 482)
+        assert second_tick["blocked"] == 1
+        assert second_tick["planned"] == 1
+
+        after = client.get(
+            f"/api/sessions/{session_id}/agendas", params={"entity_id": maelis_id}
+        ).json()
+        old_task_after = next(item for item in after if item["agenda_id"] == old_task["agenda_id"])
+        assert old_task_after["status"] == "blocked"
+        profile_after = client.get(
+            f"/api/sessions/{session_id}/entities/{maelis_id}/behavior"
+        ).json()["profile"]
+        assert profile_after["needs"]["fatigue"] == 50
+        assert any(
+            item["action_id"] == "practice_after_change"
+            and item["status"] == "scheduled"
+            for item in after
+        )

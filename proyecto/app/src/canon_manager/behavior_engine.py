@@ -271,6 +271,9 @@ def validate_action(action: Mapping[str, Any]) -> dict[str, Any]:
     autonomous_allowed = action.get("autonomous_allowed", False)
     if not isinstance(autonomous_allowed, bool):
         raise BehaviorValidationError("action.autonomous_allowed must be a boolean")
+    autonomous_repeatable = action.get("autonomous_repeatable", False)
+    if not isinstance(autonomous_repeatable, bool):
+        raise BehaviorValidationError("action.autonomous_repeatable must be a boolean")
     tags = _string_list(action.get("tags", []), "action.tags", maximum_items=40)
     required_capabilities = _string_list(
         action.get("required_capabilities", []), "action.required_capabilities", maximum_items=40
@@ -301,6 +304,7 @@ def validate_action(action: Mapping[str, Any]) -> dict[str, Any]:
         "duration_minutes": duration,
         "risk_level": risk,
         "autonomous_allowed": autonomous_allowed,
+        "autonomous_repeatable": autonomous_repeatable,
         "effects": _validate_action_effects(action.get("effects", {})),
     }
 
