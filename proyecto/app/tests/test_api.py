@@ -6073,3 +6073,130 @@ def test_autonomous_planner_preserves_manual_commitments_and_rejects_reserved_co
             manual_start = manual_item["scheduled_total_minutes"]
             manual_end = manual_start + manual_item["duration_minutes"]
             assert auto_end <= manual_start or auto_start >= manual_end
+
+
+
+def test_autonomous_repeatable_actions_can_recur_with_daily_limit_and_breaks():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        brina_id = f"{world_id}:brina-solcor"
+        profile = {
+            "traits": {"discipline": 80, "caution": 70},
+            "needs": {},
+            "emotions": [],
+            "goals": [],
+            "capabilities": ["guard"],
+            "resources": {},
+        }
+        saved = client.put(
+            f"/api/sessions/{session_id}/entities/{brina_id}/behavior",
+            json={"profile": profile},
+        )
+        assert saved.status_code == 200, saved.text
+        catalog = {
+            "schema_version": 1,
+            "actions": [{
+                "action_id": "perimeter_watch",
+                "category": "safety",
+                "base_priority": 12,
+                "tags": ["safety", "watch"],
+                "required_capabilities": ["guard"],
+                "duration_minutes": 30,
+                "risk_level": 10,
+                "autonomous_allowed": True,
+                "autonomous_repeatable": True,
+            }],
+            "patterns": [],
+        }
+        saved_catalog = client.put(
+            f"/api/worlds/{world_id}/behavior/catalog", json=catalog
+        )
+        assert saved_catalog.status_code == 200, saved_catalog.text
+
+        with database.transaction() as conn:
+            conn.execute(
+                "UPDATE sessions SET day=1,minute_of_day=481 WHERE id=?", (session_id,)
+            )
+            tick = tick_behavior_runtime(conn, session_id, 480, 481)
+        assert tick["planned"] == 3
+
+        agendas = client.get(
+            f"/api/sessions/{session_id}/agendas", params={"entity_id": brina_id}
+        ).json()
+        automatic = [
+            item for item in agendas
+            if item["status"] == "scheduled" and item["context"].get("_autonomous_plan")
+        ]
+        assert len(automatic) == 3
+        automatic.sort(key=lambda item: item["scheduled_total_minutes"])
+        assert len({item["action_id"] for item in automatic}) == 1
+        for previous, current in zip(automatic, automatic[1:]):
+            previous_end = previous["scheduled_total_minutes"] + previous["duration_minutes"]
+            assert current["scheduled_total_minutes"] >= previous_end + 10
+
+
+def test_autonomous_planner_excludes_high_risk_movement_and_resource_actions():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        maelis_id = f"{world_id}:maelis-orven"
+        profile = {
+            "traits": {"curiosity": 90},
+            "needs": {},
+            "emotions": [],
+            "goals": [],
+            "capabilities": ["investigate", "travel", "repair"],
+            "resources": {"materials": 10},
+        }
+        assert client.put(
+            f"/api/sessions/{session_id}/entities/{maelis_id}/behavior",
+            json={"profile": profile},
+        ).status_code == 200
+
+        catalog = {
+            "schema_version": 1,
+            "actions": [
+                {
+                    "action_id": "dangerous_scouting",
+                    "category": "research",
+                    "base_priority": 30,
+                    "required_capabilities": ["investigate"],
+                    "duration_minutes": 30,
+                    "risk_level": 45,
+                    "autonomous_allowed": True,
+                },
+                {
+                    "action_id": "unvalidated_trip",
+                    "category": "movement",
+                    "base_priority": 25,
+                    "required_capabilities": ["travel"],
+                    "duration_minutes": 30,
+                    "autonomous_allowed": True,
+                },
+                {
+                    "action_id": "costly_repair",
+                    "category": "craft",
+                    "base_priority": 20,
+                    "required_capabilities": ["repair"],
+                    "duration_minutes": 30,
+                    "resource_costs": {"materials": 1},
+                    "autonomous_allowed": True,
+                },
+            ],
+            "patterns": [],
+        }
+        catalog_response = client.put(
+            f"/api/worlds/{world_id}/behavior/catalog", json=catalog
+        )
+        assert catalog_response.status_code == 200, catalog_response.text
+        with database.transaction() as conn:
+            conn.execute(
+                "UPDATE sessions SET day=1,minute_of_day=481 WHERE id=?", (session_id,)
+            )
+            tick = tick_behavior_runtime(conn, session_id, 480, 481)
+        assert tick["planned"] == 0
+        agendas = client.get(
+            f"/api/sessions/{session_id}/agendas", params={"entity_id": maelis_id}
+        ).json()
+        assert agendas == []
