@@ -5937,14 +5937,14 @@ def test_autonomous_planner_replans_future_tasks_when_material_profile_changes()
             f"/api/worlds/{world_id}/behavior/catalog", json=catalog
         )
         assert catalog_response.status_code == 200, catalog_response.text
-        save_profile(100, 0)
+        save_profile(100, 60)
 
         with database.transaction() as conn:
             conn.execute(
                 "UPDATE sessions SET day=1,minute_of_day=481 WHERE id=?", (session_id,)
             )
             first_tick = tick_behavior_runtime(conn, session_id, 480, 481)
-        assert first_tick["planned"] == 1
+        assert first_tick["planned"] == 2
 
         before = client.get(
             f"/api/sessions/{session_id}/agendas", params={"entity_id": maelis_id}
@@ -5954,7 +5954,11 @@ def test_autonomous_planner_replans_future_tasks_when_material_profile_changes()
             if item["context"].get("_autonomous_plan")
             and item["status"] == "scheduled"
         ]
-        assert [item["action_id"] for item in first_auto] == ["investigate_archive"]
+        assert {item["action_id"] for item in first_auto} == {
+            "investigate_archive", "practice_form"
+        }
+        first_activity = next(item for item in first_auto if item["action_id"] == "investigate_archive")
+        future_activity = next(item for item in first_auto if item["action_id"] == "practice_form")
 
         save_profile(0, 100)
         with database.transaction() as conn:
@@ -5967,17 +5971,18 @@ def test_autonomous_planner_replans_future_tasks_when_material_profile_changes()
         after = client.get(
             f"/api/sessions/{session_id}/agendas", params={"entity_id": maelis_id}
         ).json()
-        cancelled = [
-            item for item in after
-            if item["action_id"] == "investigate_archive" and item["status"] == "cancelled"
-        ]
+        running_activity = next(item for item in after if item["agenda_id"] == first_activity["agenda_id"])
+        cancelled = next(item for item in after if item["agenda_id"] == future_activity["agenda_id"])
         replacement = [
             item for item in after
             if item["action_id"] == "practice_form" and item["status"] == "scheduled"
+            and item["agenda_id"] != future_activity["agenda_id"]
         ]
-        assert len(cancelled) == 1
-        assert cancelled[0]["result"]["replanned"] is True
+        assert running_activity["status"] == "running"
+        assert cancelled["status"] == "cancelled"
+        assert cancelled["result"]["replanned"] is True
         assert len(replacement) == 1
+        assert replacement[0]["scheduled_total_minutes"] == 531
 
 
 def test_autonomous_planner_preserves_manual_commitments_and_rejects_reserved_context():
