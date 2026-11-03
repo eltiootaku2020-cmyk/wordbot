@@ -1506,6 +1506,16 @@ def apply_narrator_result(
             reason = "no referencia a un evento único de esta respuesta"
         elif source_event.kind != "observation":
             reason = "el evento fuente no es de tipo observation"
+        elif source_event.entity_id and source_event.entity_id not in valid_ids:
+            reason = "la entidad del evento fuente no pertenece a este mundo"
+        elif any(witness not in valid_ids for witness in source_event.witness_ids):
+            reason = "el evento fuente contiene testigos no registrados"
+        elif any(witness not in allowed_witnesses for witness in source_event.witness_ids):
+            reason = "el evento fuente contiene testigos fuera de la audiencia autorizada"
+        elif private_subject_ids is not None and any(
+            witness not in private_subject_ids for witness in source_event.witness_ids
+        ):
+            reason = "el evento fuente contiene testigos fuera del mensaje privado"
         elif proposal.observer_entity_id not in valid_ids:
             reason = "el observador no pertenece a este mundo"
         elif proposal.observer_entity_id not in source_event.witness_ids:
