@@ -35,7 +35,7 @@ from .behavior_runtime import (
     list_behavior_agendas, plan_autonomous_behavior_agendas, schedule_behavior_agenda,
     tick_behavior_runtime,
 )
-from .models import ApprovalRequest, BehaviorAgendaCreateRequest, BehaviorCatalogRequest, BehaviorPreviewRequest, BehaviorProfileRequest, ContextPreviewRequest, EntityCreate, EnvironmentObservationRequest, LocalCommandRequest, LocalSettingsUpdate, ManualPromptRequest, MapRegionConfigRequest, NarratorResponse, SessionCreate, SessionRestoreRequest, TravelPlanRequest, TravelStepRequest, TurnRequest, WorldCreate, WorldStartCreate, WorldTimelineEventCreate, WorldTimelineEventUpdate
+from .models import ApprovalRequest, BehaviorAgendaCreateRequest, BehaviorCatalogRequest, BehaviorPreviewRequest, BehaviorProfileRequest, ContextPreviewRequest, EntityCreate, EnvironmentObservationProposal, EnvironmentObservationRequest, LocalCommandRequest, LocalSettingsUpdate, ManualPromptRequest, MapRegionConfigRequest, NarratorResponse, SessionCreate, SessionRestoreRequest, TravelPlanRequest, TravelStepRequest, TurnRequest, WorldCreate, WorldStartCreate, WorldTimelineEventCreate, WorldTimelineEventUpdate
 from .providers import ProviderError, build_manual_prompt, make_provider
 from .timeline import fire_due_world_events
 from .travel_controller import (
@@ -1396,7 +1396,7 @@ def apply_narrator_result(
     if authorized_skip:
         # A time skip is a direct user command, not permission to invent loot,
         # relationships, powers or NPC movements while the protagonist is absent.
-        side_effect_fields = ("events", "state_changes", "movements", "inventory_ops", "resource_ops", "power_uses")
+        side_effect_fields = ("events", "state_changes", "movements", "inventory_ops", "resource_ops", "power_uses", "environment_observations")
         ignored = sum(len(getattr(result, field)) for field in side_effect_fields)
         pending = list(result.pending)
         if ignored:
@@ -1407,7 +1407,7 @@ def apply_narrator_result(
                 pending.append(note)
         result = result.model_copy(update={
             "events": [], "state_changes": [], "movements": [],
-            "inventory_ops": [], "resource_ops": [], "power_uses": [],
+            "inventory_ops": [], "resource_ops": [], "power_uses": [], "environment_observations": [],
             "elapsed_minutes": int(authorized_skip["minutes"]),
             "pending": pending
         })
@@ -1488,6 +1488,49 @@ def apply_narrator_result(
     for event in result.events:
         event_ref_counts[event.ref] = event_ref_counts.get(event.ref, 0) + 1
     duplicate_event_refs = {ref for ref, count in event_ref_counts.items() if count > 1}
+
+    # Environmental facts proposed by a narrator are never written straight into
+    # personal perception. They first become pending event-linked proposals that
+    # the user must approve through the existing event review workflow.
+    unique_events = {
+        event.ref: event for event in result.events
+        if event.ref not in duplicate_event_refs
+    }
+    valid_environment_proposals: list[EnvironmentObservationProposal] = []
+    environment_proposals_by_ref: dict[str, list[EnvironmentObservationProposal]] = {}
+    seen_environment_keys: set[tuple[str, str, str]] = set()
+    for proposal in result.environment_observations:
+        source_event = unique_events.get(proposal.event_ref)
+        reason = ""
+        if source_event is None:
+            reason = "no referencia a un evento único de esta respuesta"
+        elif source_event.kind != "observation":
+            reason = "el evento fuente no es de tipo observation"
+        elif proposal.observer_entity_id not in valid_ids:
+            reason = "el observador no pertenece a este mundo"
+        elif proposal.observer_entity_id not in source_event.witness_ids:
+            reason = "el observador no figura como testigo explícito del evento fuente"
+        elif proposal.observer_entity_id not in allowed_witnesses:
+            reason = "el observador no pertenece a la audiencia autorizada de este turno"
+        elif private_subject_ids is not None and proposal.observer_entity_id not in private_subject_ids:
+            reason = "el observador queda fuera del alcance del mensaje privado"
+        elif proposal.value_key == "unknown":
+            reason = "unknown representa ausencia de observación y no es un estado conocido"
+
+        signature = (
+            proposal.event_ref, proposal.observer_entity_id, proposal.observation_kind
+        )
+        if not reason and signature in seen_environment_keys:
+            reason = "hay más de un valor propuesto para el mismo observador y dominio en un evento"
+        if reason:
+            pending_notes.append(
+                f"Observación ambiental {proposal.observation_kind}/{proposal.value_key}: {reason}; no se registró."
+            )
+            continue
+        seen_environment_keys.add(signature)
+        valid_environment_proposals.append(proposal)
+        environment_proposals_by_ref.setdefault(proposal.event_ref, []).append(proposal)
+
     seen_refs: set[str] = set()
     for event in result.events:
         if event.ref in seen_refs:
@@ -1511,6 +1554,14 @@ def apply_narrator_result(
             pending_notes.append(
                 f"Evento {event.ref} requiere revisión: falta una acción afirmativa del usuario en el mensaje actual."
             )
+        elif event.ref in environment_proposals_by_ref:
+            # An environmental proposal is a suggestion, not an authoritative
+            # fact. Keep its source event pending until the user reviews it.
+            conn.execute("UPDATE events SET status='pending' WHERE id=?", (event_id,))
+            status = "pending"
+            pending_notes.append(
+                f"Evento {event.ref}: observación ambiental propuesta; requiere aprobación antes de influir en agendas."
+            )
         elif status == "pending":
             pending_notes.append(
                 f"Evento {event.ref} requiere revisión: entidad o testigo fuera del alcance autorizado."
@@ -1519,6 +1570,24 @@ def apply_narrator_result(
             "id": event_id, "status": status, "kind": event.kind,
             "entity_id": event.entity_id, "description": event.description
         }
+
+    # Reuse the existing transactional state-change ledger for pending
+    # environmental proposals. This keeps them in snapshots/backups and lets
+    # event rejection mark them rejected without introducing a second table.
+    for proposal_index, proposal in enumerate(valid_environment_proposals):
+        source = event_map.get(proposal.event_ref)
+        if source is None:
+            continue
+        proposal_data = proposal.model_dump()
+        proposal_data["event_ref"] = proposal.event_ref
+        save_change(
+            conn, session["id"], turn_id,
+            f"environment-observation-{proposal_index}-{new_id()[:8]}",
+            proposal.observer_entity_id, "environment_observation", "propose",
+            None, proposal_data, None, "pending",
+            "La propuesta ambiental requiere aprobación explícita del evento fuente.",
+            source["id"]
+        )
 
     applied = []
     purchase_event_refs: set[str] = set()
@@ -2128,7 +2197,7 @@ def load_state(conn, session_id: str) -> dict[str, Any]:
     ).fetchall()]
     pending = [dict(row) for row in conn.execute(
         "SELECT id,entity_id,field,operation,proposed_value_json,reason,created_at FROM state_changes "
-        "WHERE session_id=? AND status='pending' ORDER BY created_at DESC LIMIT 100", (session_id,)
+        "WHERE session_id=? AND status='pending' AND field<>'environment_observation' ORDER BY created_at DESC LIMIT 100", (session_id,)
     ).fetchall()]
     for item in pending:
         item["proposed_value"] = json.loads(item.pop("proposed_value_json"))
@@ -2138,6 +2207,25 @@ def load_state(conn, session_id: str) -> dict[str, Any]:
     ).fetchall()]
     for event in pending_events:
         event["witness_ids"] = json.loads(event.pop("witnesses_json"))
+        proposal_rows = conn.execute(
+            "SELECT id,entity_id,proposed_value_json,reason FROM state_changes "
+            "WHERE session_id=? AND source_event_id=? AND field='environment_observation' "
+            "AND status='pending' ORDER BY created_at,id",
+            (session_id, event["id"])
+        ).fetchall()
+        event["environment_observation_proposals"] = []
+        for proposal_row in proposal_rows:
+            try:
+                proposal_data = json.loads(str(proposal_row["proposed_value_json"]))
+            except (TypeError, ValueError, json.JSONDecodeError):
+                proposal_data = None
+            if isinstance(proposal_data, dict):
+                event["environment_observation_proposals"].append({
+                    "proposal_id": str(proposal_row["id"]),
+                    "observer_entity_id": str(proposal_row["entity_id"]),
+                    **proposal_data,
+                    "reason": str(proposal_row["reason"] or "")
+                })
     eco = [dict(row) for row in conn.execute(
         "SELECT target_entity_id,COUNT(*) AS attempts FROM ability_uses "
         "WHERE session_id=? AND ability_key IN ('eco','eco_humano','hipnosis') GROUP BY target_entity_id",
@@ -3556,11 +3644,141 @@ def approve_event(session_id: str, event_id: str):
         valid_ids = world_entity_ids(conn, session["world_id"])
         if event["entity_id"] and event["entity_id"] not in valid_ids:
             raise HTTPException(status_code=422, detail="La entidad del evento no existe; corrige la ficha o rechaza el evento.")
-        witnesses = json.loads(event["witnesses_json"])
-        if any(witness not in valid_ids for witness in witnesses):
+        try:
+            witnesses = json.loads(str(event["witnesses_json"] or "[]"))
+        except (TypeError, ValueError, json.JSONDecodeError) as exc:
+            raise HTTPException(status_code=422, detail="La lista de testigos del evento está dañada.") from exc
+        if not isinstance(witnesses, list) or any(
+            not isinstance(witness, str) or witness not in valid_ids for witness in witnesses
+        ):
             raise HTTPException(status_code=422, detail="Hay testigos no registrados; el evento no puede confirmarse.")
+
+        pending_proposals = conn.execute(
+            "SELECT * FROM state_changes WHERE session_id=? AND source_event_id=? "
+            "AND field='environment_observation' AND status='pending' ORDER BY created_at,id",
+            (session_id, event_id)
+        ).fetchall()
+
+        # Approval and conversion happen in the same transaction. A failed
+        # provenance/location check leaves the event pending and creates no fact.
         conn.execute("UPDATE events SET status='recorded' WHERE id=?", (event_id,))
-    return {"approved": True, "event_id": event_id}
+        approved_observations = []
+        if pending_proposals:
+            source = conn.execute(
+                "SELECT e.id,e.kind,e.status,e.external_ref,e.witnesses_json,e.source_message_id,"
+                "m.recipient_entity_id AS source_recipient_id,m.metadata_json AS source_metadata_json "
+                "FROM events e LEFT JOIN messages m ON m.id=e.source_message_id "
+                "WHERE e.id=? AND e.session_id=?",
+                (event_id, session_id)
+            ).fetchone()
+            if source is None or source["kind"] != "observation" or source["status"] != "recorded":
+                raise HTTPException(
+                    status_code=422,
+                    detail="Las propuestas ambientales solo pueden aprobarse con un evento observation registrado."
+                )
+
+            current_total = (int(session["day"]) - 1) * 1440 + int(session["minute_of_day"])
+            for proposal_row in pending_proposals:
+                try:
+                    proposal = json.loads(str(proposal_row["proposed_value_json"]))
+                except (TypeError, ValueError, json.JSONDecodeError) as exc:
+                    raise HTTPException(status_code=422, detail="La propuesta ambiental está dañada.") from exc
+                if not isinstance(proposal, dict):
+                    raise HTTPException(status_code=422, detail="La propuesta ambiental no contiene un objeto válido.")
+
+                observer_id = str(proposal_row["entity_id"] or "")
+                observation_kind = proposal.get("observation_kind")
+                value_key = proposal.get("value_key")
+                details = proposal.get("details", "")
+                valid_for = proposal.get("valid_for_minutes", 60)
+                if (
+                    proposal.get("observer_entity_id") != observer_id
+                    or proposal.get("event_ref") != source["external_ref"]
+                    or observation_kind not in {"weather", "local_safety"}
+                    or not isinstance(value_key, str)
+                    or not re.fullmatch(r"[a-z][a-z0-9_-]{0,39}", value_key)
+                    or value_key == "unknown"
+                    or not isinstance(details, str)
+                    or len(details) > 300
+                    or isinstance(valid_for, bool)
+                    or not isinstance(valid_for, int)
+                    or not 1 <= valid_for <= 240
+                ):
+                    raise HTTPException(status_code=422, detail="Los datos de la propuesta ambiental no superan la validación.")
+
+                if observer_id not in witnesses:
+                    raise HTTPException(status_code=422, detail="El observador propuesto no figura entre los testigos del evento.")
+                if not _event_known_to_entity(source, observer_id):
+                    raise HTTPException(status_code=403, detail="La audiencia o procedencia del evento no autoriza al observador.")
+
+                observer = conn.execute(
+                    "SELECT id,kind FROM entities WHERE id=? AND world_id=?",
+                    (observer_id, session["world_id"])
+                ).fetchone()
+                if observer is None:
+                    raise HTTPException(status_code=404, detail="El observador no pertenece a este mundo.")
+
+                if str(observer["kind"]) == "protagonist":
+                    location = str(session["current_location"] or "").strip()
+                else:
+                    presence = conn.execute(
+                        "SELECT location FROM session_presence WHERE session_id=? AND entity_id=?",
+                        (session_id, observer_id)
+                    ).fetchone()
+                    location = str(presence["location"] or "").strip() if presence else ""
+                if not location:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="El observador no tiene ubicación registrada; la observación no puede aplicarse."
+                    )
+
+                observation_id = new_id()
+                valid_until = current_total + valid_for
+                request_id = f"narrator-event-approval-{proposal_row['id']}"
+                conn.execute(
+                    "INSERT INTO session_environment_observations("
+                    "id,session_id,request_id,observer_entity_id,location,observation_kind,value_key,"
+                    "details,observed_total_minutes,valid_until_total_minutes,source_event_id"
+                    ") VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                    (
+                        observation_id, session_id, request_id, observer_id, location,
+                        observation_kind, value_key, details, current_total, valid_until, event_id
+                    )
+                )
+                accepted_value = {
+                    "observation_id": observation_id,
+                    "observer_entity_id": observer_id,
+                    "location": location,
+                    "observation_kind": observation_kind,
+                    "value_key": value_key,
+                    "details": details,
+                    "observed_total_minutes": current_total,
+                    "valid_until_total_minutes": valid_until,
+                    "source_event_id": event_id
+                }
+                conn.execute(
+                    "UPDATE state_changes SET status='accepted',accepted_value_json=?,"
+                    "reason='Aprobada junto con el evento fuente.',applied_at=? "
+                    "WHERE id=? AND status='pending'",
+                    (
+                        json.dumps(accepted_value, ensure_ascii=False),
+                        datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                        proposal_row["id"]
+                    )
+                )
+                approved_observations.append(accepted_value)
+
+        planned = (
+            plan_autonomous_behavior_agendas(conn, session_id, current_total)
+            if approved_observations else 0
+        )
+    return {
+        "approved": True,
+        "event_id": event_id,
+        "environment_observations": approved_observations,
+        "planned_activities": planned,
+        "clock_advanced": False
+    }
 
 
 @app.post("/api/sessions/{session_id}/events/{event_id}/reject")
