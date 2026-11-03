@@ -777,6 +777,7 @@ function renderState(payload) {
       const witnesses = document.createElement("p"); witnesses.className = "muted";
       witnesses.textContent = "Testigos: " + ((item.witness_ids || []).map(id => entityNames[id] || id).join(", ") || "ninguno registrado");
       const environmentProposals = item.environment_observation_proposals || [];
+      const environmentDetails = [];
       environmentProposals.forEach(proposal => {
         const detail = document.createElement("p"); detail.className = "muted";
         const observer = entityNames[proposal.observer_entity_id] || proposal.observer_entity_id;
@@ -785,12 +786,13 @@ function renderState(payload) {
         detail.textContent = "Propuesta ambiental pendiente · " + observer + " · " + domain + ": " + proposal.value_key
           + (proposal.details ? " · " + proposal.details : "")
           + " · vigencia: " + validity + " min desde la aprobación";
-        card.appendChild(detail);
+        environmentDetails.push(detail);
       });
+      let environmentNote = null;
       if (environmentProposals.length) {
         const note = document.createElement("p"); note.className = "muted";
         note.textContent = "Confirmar este evento también registrará estas observaciones personales y podrá replanificar las actividades futuras de esos personajes. El reloj no avanzará.";
-        card.appendChild(note);
+        environmentNote = note;
       }
       const actions = document.createElement("div"); actions.className = "actions";
       const approve = document.createElement("button");
@@ -813,7 +815,10 @@ function renderState(payload) {
           await loadState();
         } catch (err) { setStatus(err.message, false); }
       };
-      actions.append(approve, reject); card.append(title, description, witnesses, actions);
+      actions.append(approve, reject); card.append(title, description, witnesses);
+      environmentDetails.forEach(detail => card.appendChild(detail));
+      if (environmentNote) card.appendChild(environmentNote);
+      card.appendChild(actions);
       el("pendingEvents").appendChild(card);
     });
   }
