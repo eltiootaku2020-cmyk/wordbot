@@ -417,6 +417,22 @@ def process_due_behavior_agendas(
                 )
             profile["relationships"] = relationships
             context = json.loads(str(row["context_json"]))
+            auto_metadata = context.get("_autonomous_plan")
+            if (
+                str(row["status"]) == "scheduled"
+                and isinstance(auto_metadata, Mapping)
+                and auto_metadata.get("planner_version") == 2
+            ):
+                _, _, _, catalog_signature = _safe_autonomous_catalog(
+                    conn, str(entity["world_id"])
+                )
+                current_signature = _autonomous_state_signature(
+                    profile, catalog_signature, current_location
+                )
+                if auto_metadata.get("state_signature") != current_signature:
+                    raise BehaviorAgendaValidationError(
+                        "La decisión autónoma quedó obsoleta antes de comenzar; no se aplicaron sus efectos."
+                    )
             context["available_minutes"] = int(row["duration_minutes"])
             patterns = json.loads(str(row["patterns_json"]))
             feasible = rank_actions(profile, [action], patterns, context=context, limit=1)
@@ -490,6 +506,36 @@ AUTONOMOUS_BREAK_MINUTES = 10
 AUTONOMOUS_MAX_RISK_LEVEL = 20
 
 
+def _safe_autonomous_catalog(conn, world_id: str):
+    catalog = _world_catalog(conn, world_id)
+    patterns = catalog["patterns"]
+    safe_actions: list[dict[str, Any]] = []
+    action_map: dict[str, dict[str, Any]] = {}
+    for raw_action in catalog["actions"]:
+        action = validate_action(raw_action)
+        if not action["autonomous_allowed"]:
+            continue
+        if action["duration_minutes"] <= 0 or action["duration_minutes"] > AUTONOMOUS_MAX_DURATION_MINUTES:
+            continue
+        if action["risk_level"] > AUTONOMOUS_MAX_RISK_LEVEL:
+            continue
+        if action["category"].lower() in {"movement", "travel", "exploration"}:
+            continue
+        if {"movement", "travel", "exploration", "journey", "pathfinding"}.intersection(action["tags"]):
+            continue
+        if any(float(value) > 0 for value in action["resource_costs"].values()):
+            continue
+        safe_actions.append(action)
+        action_map[action["action_id"]] = action
+
+    catalog_payload = json.dumps(
+        {"actions": safe_actions, "patterns": patterns},
+        ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+    )
+    catalog_signature = hashlib.sha256(catalog_payload.encode("utf-8")).hexdigest()
+    return patterns, safe_actions, action_map, catalog_signature
+
+
 def _signature_bucket(value: Any) -> int | None:
     if value is None:
         return None
@@ -547,6 +593,16 @@ def _autonomous_profile_signature(profile: Mapping[str, Any]) -> str:
     return hashlib.sha256(encoded.encode("utf-8")).hexdigest()
 
 
+def _autonomous_state_signature(
+    profile: Mapping[str, Any], catalog_signature: str, location: str
+) -> str:
+    profile_signature = _autonomous_profile_signature(profile)
+    location_signature = hashlib.sha256(location.encode("utf-8")).hexdigest()
+    return hashlib.sha256(
+        f"{profile_signature}|{catalog_signature}|{location_signature}".encode("utf-8")
+    ).hexdigest()
+
+
 def _agenda_autonomous_metadata(row) -> dict[str, Any] | None:
     try:
         context = json.loads(str(row["context_json"]))
@@ -587,34 +643,9 @@ def plan_autonomous_behavior_agendas(
         return 0
 
     world_id = str(session["world_id"])
-    catalog = _world_catalog(conn, world_id)
-    patterns = catalog["patterns"]
-    safe_actions: list[dict[str, Any]] = []
-    action_map: dict[str, dict[str, Any]] = {}
-    for raw_action in catalog["actions"]:
-        action = validate_action(raw_action)
-        if not action["autonomous_allowed"]:
-            continue
-        if action["duration_minutes"] <= 0 or action["duration_minutes"] > AUTONOMOUS_MAX_DURATION_MINUTES:
-            continue
-        if action["risk_level"] > AUTONOMOUS_MAX_RISK_LEVEL:
-            continue
-        if action["category"].lower() in {"movement", "travel", "exploration"}:
-            continue
-        if {"movement", "travel", "exploration", "journey", "pathfinding"}.intersection(action["tags"]):
-            continue
-        if any(float(value) > 0 for value in action["resource_costs"].values()):
-            continue
-        safe_actions.append(action)
-        action_map[action["action_id"]] = action
-    if not safe_actions:
-        return 0
-
-    catalog_payload = json.dumps(
-        {"actions": safe_actions, "patterns": patterns},
-        ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+    patterns, safe_actions, action_map, catalog_signature = _safe_autonomous_catalog(
+        conn, world_id
     )
-    catalog_signature = hashlib.sha256(catalog_payload.encode("utf-8")).hexdigest()
 
     entities = conn.execute(
         "SELECT e.id,e.kind,p.location AS entity_location "
@@ -637,10 +668,9 @@ def plan_autonomous_behavior_agendas(
         try:
             profile = _profile_for(conn, session_id, entity_id)
             profile_signature = _autonomous_profile_signature(profile)
-            location_signature = hashlib.sha256(location.encode("utf-8")).hexdigest()
-            state_signature = hashlib.sha256(
-                f"{profile_signature}|{catalog_signature}|{location_signature}".encode("utf-8")
-            ).hexdigest()
+            state_signature = _autonomous_state_signature(
+                profile, catalog_signature, location
+            )
         except (BehaviorValidationError, BehaviorAgendaConflictError, ValueError, TypeError):
             continue
 
@@ -670,8 +700,6 @@ def plan_autonomous_behavior_agendas(
                     "El perfil, el catálogo autorizado o la ubicación cambió; se descartó el tramo futuro para replanificar.",
                 )
 
-        # Running tasks are never interrupted. New plans may begin only after
-        # their reserved interval ends.
         reservations: list[tuple[int, int]] = []
         for row in active_rows:
             if str(row["status"]) == "scheduled" and _agenda_autonomous_metadata(row) is not None:
@@ -682,6 +710,9 @@ def plan_autonomous_behavior_agendas(
             if end > current_total:
                 reservations.append((start, end))
         reservations.sort()
+
+        if not safe_actions:
+            continue
 
         cursor = max(current_total, day_start)
         if cursor >= day_end:
@@ -695,21 +726,22 @@ def plan_autonomous_behavior_agendas(
             (session_id, entity_id, day_start, day_end),
         ).fetchall()
         used_today = {str(row["action_id"]): int(row["n"]) for row in completed_rows}
-        last_planned_action = ""
 
+        last_planned_action = ""
         recent = conn.execute(
-            "SELECT action_id FROM behavior_action_executions "
+            "SELECT action_id,completed_total_minutes FROM behavior_action_executions "
             "WHERE session_id=? AND entity_id=? "
             "ORDER BY completed_total_minutes DESC,id DESC LIMIT 1",
             (session_id, entity_id),
         ).fetchone()
         if recent is not None:
-            last_planned_action = str(recent["action_id"])
+            last_end = int(recent["completed_total_minutes"])
+            if current_total < last_end + AUTONOMOUS_BREAK_MINUTES:
+                last_planned_action = str(recent["action_id"])
+                cursor = max(cursor, last_end + AUTONOMOUS_BREAK_MINUTES)
 
         activity_count = 0
         while cursor < day_end and activity_count < AUTONOMOUS_MAX_ACTIVITIES_PER_DAY:
-            # Locate the next explicit/running commitment and only plan inside
-            # the free interval before it. This preserves the manual agenda.
             next_reservation = next(
                 ((start, end) for start, end in reservations if end > cursor),
                 None,
@@ -770,8 +802,6 @@ def plan_autonomous_behavior_agendas(
             action = action_map[selected["action_id"]]
             duration = int(action["duration_minutes"])
             if duration > available_minutes:
-                # rank_actions has already checked the duration bound; this
-                # defensive branch protects a future change in its contract.
                 break
 
             agenda_context = dict(context)
@@ -798,8 +828,6 @@ def plan_autonomous_behavior_agendas(
                 (session_id, request_id),
             ).fetchone()
             if duplicate is not None:
-                # An identical request was already attempted/cancelled. Do not
-                # resurrect it through an automatic retry.
                 break
 
             end_total = cursor + duration
