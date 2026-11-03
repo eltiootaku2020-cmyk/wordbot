@@ -6440,14 +6440,14 @@ def test_environment_observations_are_personal_source_backed_and_replan_agendas(
         for entity_id in (brina_id, maelis_id):
             saved = client.put(
                 f"/api/sessions/{session_id}/entities/{entity_id}/behavior",
-                json={
+                json={"profile": {
                     "traits": {"caution": 70},
                     "needs": {},
                     "emotions": [],
                     "goals": [],
                     "capabilities": ["observe"],
                     "resources": {},
-                },
+                }},
             )
             assert saved.status_code == 200, saved.text
 
