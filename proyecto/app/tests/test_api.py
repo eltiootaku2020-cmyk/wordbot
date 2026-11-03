@@ -5960,12 +5960,21 @@ def test_autonomous_planner_replans_future_tasks_when_material_profile_changes()
         first_activity = next(item for item in first_auto if item["action_id"] == "investigate_archive")
         future_activity = next(item for item in first_auto if item["action_id"] == "practice_form")
 
-        save_profile(0, 100)
+        # The first task is started on a normal clock advance while the
+        # second remains a future commitment.
         with database.transaction() as conn:
             conn.execute(
                 "UPDATE sessions SET day=1,minute_of_day=482 WHERE id=?", (session_id,)
             )
-            second_tick = tick_behavior_runtime(conn, session_id, 481, 482)
+            start_tick = tick_behavior_runtime(conn, session_id, 481, 482)
+        assert start_tick["planned"] == 0
+
+        save_profile(0, 100)
+        with database.transaction() as conn:
+            conn.execute(
+                "UPDATE sessions SET day=1,minute_of_day=483 WHERE id=?", (session_id,)
+            )
+            second_tick = tick_behavior_runtime(conn, session_id, 482, 483)
         assert second_tick["planned"] == 1
 
         after = client.get(
@@ -6200,3 +6209,98 @@ def test_autonomous_planner_excludes_high_risk_movement_and_resource_actions():
             f"/api/sessions/{session_id}/agendas", params={"entity_id": maelis_id}
         ).json()
         assert agendas == []
+
+
+
+def test_autonomous_task_is_blocked_when_profile_changes_before_it_starts():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        maelis_id = f"{world_id}:maelis-orven"
+
+        def save_profile(curiosity, discipline):
+            profile = {
+                "traits": {"curiosity": curiosity, "discipline": discipline},
+                "needs": {"fatigue": 50},
+                "emotions": [],
+                "goals": [],
+                "capabilities": ["investigate", "practice"],
+                "resources": {},
+            }
+            result = client.put(
+                f"/api/sessions/{session_id}/entities/{maelis_id}/behavior",
+                json={"profile": profile},
+            )
+            assert result.status_code == 200, result.text
+
+        catalog = {
+            "schema_version": 1,
+            "actions": [
+                {
+                    "action_id": "research_before_change",
+                    "category": "research",
+                    "base_priority": 0,
+                    "tags": ["research"],
+                    "required_capabilities": ["investigate"],
+                    "trait_affinity": {"curiosity": 1},
+                    "duration_minutes": 40,
+                    "autonomous_allowed": True,
+                    "effects": {"need_deltas": {"fatigue": -20}},
+                },
+                {
+                    "action_id": "practice_after_change",
+                    "category": "development",
+                    "base_priority": 0,
+                    "tags": ["training"],
+                    "required_capabilities": ["practice"],
+                    "trait_affinity": {"discipline": 1},
+                    "duration_minutes": 40,
+                    "autonomous_allowed": True,
+                },
+            ],
+            "patterns": [],
+        }
+        assert client.put(
+            f"/api/worlds/{world_id}/behavior/catalog", json=catalog
+        ).status_code == 200
+        save_profile(100, 0)
+
+        with database.transaction() as conn:
+            conn.execute(
+                "UPDATE sessions SET day=1,minute_of_day=481 WHERE id=?", (session_id,)
+            )
+            first_tick = tick_behavior_runtime(conn, session_id, 480, 481)
+        assert first_tick["planned"] == 1
+
+        before = client.get(
+            f"/api/sessions/{session_id}/agendas", params={"entity_id": maelis_id}
+        ).json()
+        old_task = next(
+            item for item in before
+            if item["action_id"] == "research_before_change"
+            and item["context"].get("_autonomous_plan")
+        )
+
+        save_profile(0, 100)
+        with database.transaction() as conn:
+            conn.execute(
+                "UPDATE sessions SET day=1,minute_of_day=482 WHERE id=?", (session_id,)
+            )
+            second_tick = tick_behavior_runtime(conn, session_id, 481, 482)
+        assert second_tick["blocked"] == 1
+        assert second_tick["planned"] == 1
+
+        after = client.get(
+            f"/api/sessions/{session_id}/agendas", params={"entity_id": maelis_id}
+        ).json()
+        old_task_after = next(item for item in after if item["agenda_id"] == old_task["agenda_id"])
+        assert old_task_after["status"] == "blocked"
+        profile_after = client.get(
+            f"/api/sessions/{session_id}/entities/{maelis_id}/behavior"
+        ).json()["profile"]
+        assert profile_after["needs"]["fatigue"] == 50
+        assert any(
+            item["action_id"] == "practice_after_change"
+            and item["status"] == "scheduled"
+            for item in after
+        )
