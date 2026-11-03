@@ -432,18 +432,22 @@ def process_due_behavior_agendas(
             if (
                 str(row["status"]) == "scheduled"
                 and isinstance(auto_metadata, Mapping)
-                and auto_metadata.get("planner_version") in {2, 3}
+                and auto_metadata.get("planner_version") in {2, 3, 4}
             ):
                 _, _, _, catalog_signature = _safe_autonomous_catalog(
                     conn, str(entity["world_id"])
                 )
                 perceived_conditions = None
-                if auto_metadata.get("planner_version") == 3:
-                    perceived_conditions, _ = _entity_perception_context(
+                perception_metadata = None
+                if auto_metadata.get("planner_version") in {3, 4}:
+                    perceived_conditions, perception_summary = _entity_perception_context(
                         conn, session_id, str(row["entity_id"])
                     )
+                    if auto_metadata.get("planner_version") == 4:
+                        perception_metadata = perception_summary
                 current_signature = _autonomous_state_signature(
-                    profile, catalog_signature, current_location, perceived_conditions
+                    profile, catalog_signature, current_location,
+                    perceived_conditions, perception_metadata,
                 )
                 if auto_metadata.get("state_signature") != current_signature:
                     raise BehaviorAgendaValidationError(
@@ -552,16 +556,85 @@ def _safe_autonomous_catalog(conn, world_id: str):
     return patterns, safe_actions, action_map, catalog_signature
 
 
+def _event_known_to_entity(row, entity_id: str) -> bool:
+    """Check an event's explicit witness/audience provenance for one entity."""
+    try:
+        witnesses = json.loads(str(row["witnesses_json"] or "[]"))
+        metadata = json.loads(str(row["source_metadata_json"] or "{}"))
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return False
+    if (
+        not isinstance(witnesses, list)
+        or any(not isinstance(value, str) for value in witnesses)
+        or not isinstance(metadata, Mapping)
+    ):
+        return False
+
+    audience_raw = metadata.get("audience_ids") or []
+    if not isinstance(audience_raw, list) or any(
+        not isinstance(value, str) for value in audience_raw
+    ):
+        return False
+    audience = set(audience_raw)
+    witnesses_set = set(witnesses)
+    visibility = metadata.get("visibility")
+    recipient_id = str(row["source_recipient_id"] or "").strip()
+
+    if visibility not in {None, "", "private", "scene", "public"}:
+        return False
+    if visibility == "private":
+        if not audience and recipient_id:
+            audience = {recipient_id}
+        if entity_id not in audience:
+            return False
+    elif audience and entity_id not in audience:
+        return False
+    elif not visibility and recipient_id and entity_id != recipient_id:
+        return False
+
+    has_explicit_path = entity_id in witnesses_set or entity_id in audience
+    if not visibility and recipient_id and entity_id == recipient_id:
+        has_explicit_path = True
+    if not row["source_message_id"] and not witnesses_set:
+        return False
+    return has_explicit_path
+
+
+def _perception_token(value: Any) -> str:
+    raw = str(value or "").strip().casefold()
+    return "".join(
+        char if char.isalnum() or char in "-_" else "_"
+        for char in raw
+    ).strip("_")[:120]
+
+
 def _entity_perception_context(
     conn, session_id: str, entity_id: str
 ) -> tuple[dict[str, bool], dict[str, Any]]:
-    """Build action conditions only from facts this NPC could actually know.
+    """Build event and environmental conditions for one entity, never globally.
 
-    A recorded event is usable when the NPC is an explicit witness or belongs
-    to the source message's explicit audience. Private messages are restricted
-    to their recorded audience/recipient. World timeline events are deliberately
-    excluded: a fact occurring in the world does not make every NPC aware of it.
+    Events require explicit witness/audience provenance. Environmental readings
+    are personal, location-bound observations with a game-time expiry and a
+    still-recorded source event. Weather and local safety remain separate keys.
     """
+    session_state = conn.execute(
+        "SELECT s.day,s.minute_of_day,s.current_location,e.kind,"
+        "p.location AS entity_location "
+        "FROM sessions s JOIN entities e ON e.id=? AND e.world_id=s.world_id "
+        "LEFT JOIN session_presence p ON p.session_id=s.id AND p.entity_id=e.id "
+        "WHERE s.id=?",
+        (entity_id, session_id),
+    ).fetchone()
+    if session_state is None:
+        return {}, {"source_event_ids": [], "event_kinds": [], "environment_observations": []}
+
+    current_total = _total_minutes(
+        int(session_state["day"]), int(session_state["minute_of_day"])
+    )
+    location = str(session_state["entity_location"] or "").strip()
+    if not location and str(session_state["kind"]) == "protagonist":
+        location = str(session_state["current_location"] or "").strip()
+
     rows = conn.execute(
         "SELECT e.id,e.external_ref,e.kind,e.witnesses_json,e.source_message_id,"
         "m.recipient_entity_id AS source_recipient_id,m.metadata_json AS source_metadata_json "
@@ -574,70 +647,75 @@ def _entity_perception_context(
     conditions: dict[str, bool] = {}
     source_event_ids: list[str] = []
     event_kinds: set[str] = set()
-
-    def token(value: Any) -> str:
-        raw = str(value or "").strip().casefold()
-        return "".join(char if char.isalnum() or char in "-_" else "_" for char in raw).strip("_")[:120]
-
     for row in rows:
-        try:
-            witnesses = json.loads(str(row["witnesses_json"] or "[]"))
-            metadata = json.loads(str(row["source_metadata_json"] or "{}"))
-        except (TypeError, ValueError, json.JSONDecodeError):
+        if not _event_known_to_entity(row, entity_id):
             continue
-        if (
-            not isinstance(witnesses, list)
-            or any(not isinstance(value, str) for value in witnesses)
-            or not isinstance(metadata, Mapping)
-        ):
-            continue
-
-        audience_raw = metadata.get("audience_ids") or []
-        if not isinstance(audience_raw, list) or any(
-            not isinstance(value, str) for value in audience_raw
-        ):
-            continue
-        audience = set(audience_raw)
-        witnesses_set = set(witnesses)
-        source_visibility = metadata.get("visibility")
-        recipient_id = str(row["source_recipient_id"] or "").strip()
-
-        if source_visibility not in {None, "", "private", "scene", "public"}:
-            continue
-        if source_visibility == "private":
-            if not audience and recipient_id:
-                audience = {recipient_id}
-            if entity_id not in audience:
-                continue
-        elif audience and entity_id not in audience:
-            continue
-        elif not source_visibility and recipient_id and entity_id != recipient_id:
-            continue
-
-        has_explicit_path = entity_id in witnesses_set or entity_id in audience
-        if not source_visibility and recipient_id and entity_id == recipient_id:
-            has_explicit_path = True
-        if not row["source_message_id"] and not witnesses_set:
-            continue
-        if not has_explicit_path:
-            continue
-
         event_id = str(row["id"] or "").strip()
-        kind = token(row["kind"])
-        external_ref = token(row["external_ref"])
+        kind = _perception_token(row["kind"])
+        external_ref = _perception_token(row["external_ref"])
         if not event_id or not kind:
             continue
-
         conditions[f"knows_event_kind:{kind}"] = True
-        conditions[f"knows_event_id:{token(event_id)}"] = True
+        conditions[f"knows_event_id:{_perception_token(event_id)}"] = True
         if external_ref:
             conditions[f"knows_event_ref:{external_ref}"] = True
         source_event_ids.append(event_id)
         event_kinds.add(kind)
 
+    environment_summary: list[dict[str, Any]] = []
+    if location:
+        environment_rows = conn.execute(
+            "SELECT o.*,e.status AS source_status,e.kind AS source_event_kind,e.witnesses_json,"
+            "e.source_message_id,m.recipient_entity_id AS source_recipient_id,"
+            "m.metadata_json AS source_metadata_json "
+            "FROM session_environment_observations o "
+            "JOIN events e ON e.id=o.source_event_id AND e.session_id=o.session_id "
+            "LEFT JOIN messages m ON m.id=e.source_message_id "
+            "WHERE o.session_id=? AND o.observer_entity_id=? AND LOWER(o.location)=LOWER(?) "
+            "AND o.observed_total_minutes<=? AND o.valid_until_total_minutes>? "
+            "AND e.status='recorded' "
+            "ORDER BY o.observed_total_minutes DESC,o.created_at DESC,o.id DESC LIMIT 20",
+            (session_id, entity_id, location, current_total, current_total),
+        ).fetchall()
+        latest_by_kind: set[str] = set()
+        for observation in environment_rows:
+            kind = str(observation["observation_kind"])
+            if kind in latest_by_kind:
+                continue
+            if observation["source_event_kind"] != "observation":
+                continue
+            try:
+                observation_witnesses = json.loads(str(observation["witnesses_json"] or "[]"))
+            except (TypeError, ValueError, json.JSONDecodeError):
+                continue
+            if (
+                not isinstance(observation_witnesses, list)
+                or entity_id not in observation_witnesses
+                or not _event_known_to_entity(observation, entity_id)
+            ):
+                continue
+            value_key = _perception_token(observation["value_key"])
+            if not value_key or value_key == "unknown":
+                continue
+            latest_by_kind.add(kind)
+            condition_name = (
+                "observes_weather" if kind == "weather" else "observes_local_safety"
+            )
+            conditions[f"{condition_name}:{value_key}"] = True
+            environment_summary.append({
+                "observation_id": str(observation["id"]),
+                "observation_kind": kind,
+                "value_key": value_key,
+                "location": str(observation["location"]),
+                "observed_total_minutes": int(observation["observed_total_minutes"]),
+                "valid_until_total_minutes": int(observation["valid_until_total_minutes"]),
+                "source_event_id": str(observation["source_event_id"]),
+            })
+
     return conditions, {
         "source_event_ids": source_event_ids[:20],
         "event_kinds": sorted(event_kinds),
+        "environment_observations": environment_summary[:10],
     }
 
 
@@ -703,6 +781,7 @@ def _autonomous_state_signature(
     catalog_signature: str,
     location: str,
     perceived_conditions: Mapping[str, bool] | None = None,
+    perception_metadata: Mapping[str, Any] | None = None,
 ) -> str:
     profile_signature = _autonomous_profile_signature(profile)
     location_signature = hashlib.sha256(location.encode("utf-8")).hexdigest()
@@ -711,10 +790,20 @@ def _autonomous_state_signature(
         return hashlib.sha256(
             f"{profile_signature}|{catalog_signature}|{location_signature}".encode("utf-8")
         ).hexdigest()
-    perception_payload = json.dumps(
-        dict(sorted(perceived_conditions.items())),
-        ensure_ascii=False, sort_keys=True, separators=(",", ":"),
-    )
+    if perception_metadata is None:
+        # Preserve the original v3 signature for agendas created by PR #50.
+        perception_payload = json.dumps(
+            dict(sorted(perceived_conditions.items())),
+            ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+        )
+    else:
+        perception_payload = json.dumps(
+            {
+                "conditions": dict(sorted(perceived_conditions.items())),
+                "metadata": perception_metadata,
+            },
+            ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+        )
     perception_signature = hashlib.sha256(perception_payload.encode("utf-8")).hexdigest()
     return hashlib.sha256(
         f"{profile_signature}|{catalog_signature}|{location_signature}|{perception_signature}".encode("utf-8")
@@ -748,7 +837,7 @@ def _cancel_stale_autonomous_agenda(conn, row, reason: str) -> None:
 def _autonomous_agenda_state_matches(conn, session_id: str, row) -> bool:
     """Fail closed if a not-yet-started automatic agenda no longer matches state."""
     metadata = _agenda_autonomous_metadata(row)
-    if metadata is None or metadata.get("planner_version") not in {2, 3}:
+    if metadata is None or metadata.get("planner_version") not in {2, 3, 4}:
         return True
     try:
         entity = conn.execute(
@@ -763,13 +852,16 @@ def _autonomous_agenda_state_matches(conn, session_id: str, row) -> bool:
         profile = _profile_for(conn, session_id, str(row["entity_id"]))
         _, _, _, catalog_signature = _safe_autonomous_catalog(conn, str(entity["world_id"]))
         perceived_conditions = None
-        if metadata.get("planner_version") == 3:
-            perceived_conditions, _ = _entity_perception_context(
+        perception_metadata = None
+        if metadata.get("planner_version") in {3, 4}:
+            perceived_conditions, perception_summary = _entity_perception_context(
                 conn, session_id, str(row["entity_id"])
             )
+            if metadata.get("planner_version") == 4:
+                perception_metadata = perception_summary
         current_signature = _autonomous_state_signature(
             profile, catalog_signature, str(entity["entity_location"] or "").strip(),
-            perceived_conditions,
+            perceived_conditions, perception_metadata,
         )
         return metadata.get("state_signature") == current_signature
     except (BehaviorValidationError, BehaviorAgendaConflictError, ValueError, TypeError, KeyError):
@@ -821,7 +913,7 @@ def plan_autonomous_behavior_agendas(
                 conn, session_id, entity_id
             )
             state_signature = _autonomous_state_signature(
-                profile, catalog_signature, location, perceived_conditions
+                profile, catalog_signature, location, perceived_conditions, perception_summary
             )
         except (BehaviorValidationError, BehaviorAgendaConflictError, ValueError, TypeError):
             continue
@@ -838,11 +930,27 @@ def plan_autonomous_behavior_agendas(
             if str(row["status"]) == "scheduled" and _agenda_autonomous_metadata(row) is not None
         ]
         if auto_scheduled:
-            signatures_match = all(
-                _agenda_autonomous_metadata(row).get("state_signature") == state_signature
-                and _agenda_autonomous_metadata(row).get("planner_version") == 3
-                for row in auto_scheduled
-            )
+            def scheduled_signature_matches(row) -> bool:
+                metadata = _agenda_autonomous_metadata(row) or {}
+                version = metadata.get("planner_version")
+                if version == 2:
+                    expected_signature = _autonomous_state_signature(
+                        profile, catalog_signature, location
+                    )
+                elif version == 3:
+                    expected_signature = _autonomous_state_signature(
+                        profile, catalog_signature, location, perceived_conditions
+                    )
+                elif version == 4:
+                    expected_signature = _autonomous_state_signature(
+                        profile, catalog_signature, location,
+                        perceived_conditions, perception_summary,
+                    )
+                else:
+                    return False
+                return metadata.get("state_signature") == expected_signature
+
+            signatures_match = all(scheduled_signature_matches(row) for row in auto_scheduled)
             if signatures_match:
                 # A complete future plan for this state already exists.
                 continue
@@ -962,7 +1070,7 @@ def plan_autonomous_behavior_agendas(
             agenda_context = dict(context)
             agenda_context["available_minutes"] = duration
             agenda_context["_autonomous_plan"] = {
-                "planner_version": 3,
+                "planner_version": 4,
                 "state_signature": state_signature,
                 "profile_signature": profile_signature,
                 "catalog_signature": catalog_signature,

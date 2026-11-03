@@ -112,6 +112,16 @@ class WorldTimelineEventUpdate(StrictModel):
     enabled: bool | None = None
 
 
+class EnvironmentObservationRequest(StrictModel):
+    request_id: str = Field(min_length=8, max_length=120)
+    observer_entity_id: str = Field(min_length=1, max_length=120)
+    observation_kind: Literal["weather", "local_safety"]
+    value_key: str = Field(min_length=1, max_length=40, pattern=r"^[a-z][a-z0-9_-]{0,39}$")
+    source_event_id: str = Field(min_length=1, max_length=80)
+    details: str = Field(default="", max_length=300)
+    valid_for_minutes: int = Field(default=60, ge=1, le=240)
+
+
 class EntityCreate(StrictModel):
     name: str = Field(min_length=1, max_length=120)
     kind: Literal["protagonist", "character", "creature", "npc", "other"] = "character"
