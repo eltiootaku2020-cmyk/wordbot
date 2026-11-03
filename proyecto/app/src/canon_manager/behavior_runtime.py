@@ -567,7 +567,7 @@ def _entity_perception_context(
         "m.recipient_entity_id AS source_recipient_id,m.metadata_json AS source_metadata_json "
         "FROM events e LEFT JOIN messages m ON m.id=e.source_message_id "
         "WHERE e.session_id=? AND e.status='recorded' "
-        "ORDER BY e.created_at DESC,e.rowid DESC LIMIT 200",
+        "ORDER BY e.created_at DESC,e.rowid DESC LIMIT 40",
         (session_id,),
     ).fetchall()
 
@@ -577,7 +577,7 @@ def _entity_perception_context(
 
     def token(value: Any) -> str:
         raw = str(value or "").strip().casefold()
-        return "".join(char if char.isalnum() or char in "-_" else "_" for char in raw).strip("_")[:80]
+        return "".join(char if char.isalnum() or char in "-_" else "_" for char in raw).strip("_")[:120]
 
     for row in rows:
         try:
@@ -634,7 +634,7 @@ def _entity_perception_context(
         event_kinds.add(kind)
 
     return conditions, {
-        "source_event_ids": source_event_ids[:40],
+        "source_event_ids": source_event_ids[:20],
         "event_kinds": sorted(event_kinds),
     }
 
