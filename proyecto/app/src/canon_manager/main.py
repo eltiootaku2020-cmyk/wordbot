@@ -31,11 +31,11 @@ from .behavior_controller import (
 from .behavior_engine import BehaviorValidationError
 from .behavior_runtime import (
     BehaviorAgendaConflictError, BehaviorAgendaNotFoundError, BehaviorAgendaValidationError,
-    _event_known_to_entity, cancel_behavior_agenda,
+    _entity_perception_context, _event_known_to_entity, cancel_behavior_agenda,
     list_behavior_agendas, plan_autonomous_behavior_agendas, schedule_behavior_agenda,
     tick_behavior_runtime,
 )
-from .models import ApprovalRequest, BehaviorAgendaCreateRequest, BehaviorCatalogRequest, BehaviorPreviewRequest, BehaviorProfileRequest, ContextPreviewRequest, EntityCreate, EnvironmentObservationProposal, EnvironmentObservationRequest, LocalCommandRequest, LocalSettingsUpdate, ManualPromptRequest, MapRegionConfigRequest, NarratorResponse, SessionCreate, SessionRestoreRequest, TravelPlanRequest, TravelStepRequest, TurnRequest, WorldCreate, WorldStartCreate, WorldTimelineEventCreate, WorldTimelineEventUpdate
+from .models import ApprovalRequest, BehaviorAgendaCreateRequest, BehaviorCatalogRequest, BehaviorPreviewRequest, BehaviorProfileRequest, ContextPreviewRequest, EntityCreate, EnvironmentObservationProposal, EnvironmentObservationRequest, KnowledgeTransmissionProposal, LocalCommandRequest, LocalSettingsUpdate, ManualPromptRequest, MapRegionConfigRequest, NarratorResponse, SessionCreate, SessionRestoreRequest, TravelPlanRequest, TravelStepRequest, TurnRequest, WorldCreate, WorldStartCreate, WorldTimelineEventCreate, WorldTimelineEventUpdate
 from .providers import ProviderError, build_manual_prompt, make_provider
 from .timeline import fire_due_world_events
 from .travel_controller import (
@@ -632,6 +632,11 @@ def capture_turn_state(conn, session_id: str) -> dict[str, Any]:
         "environment_observations": [dict(row) for row in conn.execute(
             "SELECT * FROM session_environment_observations WHERE session_id=? ORDER BY observed_total_minutes,id",
             (session_id,)
+        ).fetchall()],
+        "knowledge_transmissions": [dict(row) for row in conn.execute(
+            "SELECT * FROM session_knowledge_transmissions WHERE session_id=? "
+            "ORDER BY transmitted_total_minutes,id",
+            (session_id,)
         ).fetchall()]
     }
 
@@ -673,7 +678,8 @@ def restore_turn_state(conn, session_id: str, state: dict[str, Any]) -> None:
         ("session_entity_behavior_profiles", state.get("behavior_profiles", [])),
         ("session_entity_agendas", state.get("behavior_agendas", [])),
         ("behavior_action_executions", state.get("behavior_executions", [])),
-        ("session_environment_observations", state.get("environment_observations", []))
+        ("session_environment_observations", state.get("environment_observations", [])),
+        ("session_knowledge_transmissions", state.get("knowledge_transmissions", []))
     ]
     for table, rows in table_rows:
         conn.execute(f"DELETE FROM {table} WHERE session_id=?", (session_id,))
@@ -744,6 +750,15 @@ def build_context(
         if recipient_id not in participant_ids:
             participants.append(recipient)
             participant_ids.add(recipient_id)
+
+    # Attach incoming statements to each character separately. This is not a
+    # shared history: the narrator sees who heard which version and from whom.
+    for participant in participants:
+        _, perception = _entity_perception_context(conn, session["id"], participant["id"])
+        participant["knowledge_reports"] = perception.get("knowledge_reports", [])
+    if recipient is not None:
+        _, perception = _entity_perception_context(conn, session["id"], recipient["id"])
+        recipient["knowledge_reports"] = perception.get("knowledge_reports", [])
 
     relationship = []
     if recipient_id:
@@ -1101,6 +1116,7 @@ def build_context(
             continue
         event_description = row["description"] or ""
         recent_events.append({
+            "event_id": str(row["id"]),
             "kind": row["kind"], "entity_id": row["entity_id"],
             "description": event_description[:MAX_EVENT_DESCRIPTION_CHARS],
             "description_truncated": len(event_description) > MAX_EVENT_DESCRIPTION_CHARS,
@@ -1157,6 +1173,10 @@ def build_context(
         },
         "visibility": visibility,
         "audience_ids": sorted(allowed_audience),
+        "knowledge_boundary": (
+            "knowledge_reports por personaje son versiones atribuidas, no hechos verificados. "
+            "No conviertas un testimonio o rumor recibido en conocimiento directo del evento original."
+        ),
         "participants": participants,
         "recipient": recipient or {},
         "relationship_to_recipient": relationship,
@@ -1396,7 +1416,7 @@ def apply_narrator_result(
     if authorized_skip:
         # A time skip is a direct user command, not permission to invent loot,
         # relationships, powers or NPC movements while the protagonist is absent.
-        side_effect_fields = ("events", "state_changes", "movements", "inventory_ops", "resource_ops", "power_uses", "environment_observations")
+        side_effect_fields = ("events", "state_changes", "movements", "inventory_ops", "resource_ops", "power_uses", "environment_observations", "knowledge_transmissions")
         ignored = sum(len(getattr(result, field)) for field in side_effect_fields)
         pending = list(result.pending)
         if ignored:
@@ -1408,6 +1428,7 @@ def apply_narrator_result(
         result = result.model_copy(update={
             "events": [], "state_changes": [], "movements": [],
             "inventory_ops": [], "resource_ops": [], "power_uses": [], "environment_observations": [],
+            "knowledge_transmissions": [],
             "elapsed_minutes": int(authorized_skip["minutes"]),
             "pending": pending
         })
