@@ -107,7 +107,7 @@ API: `POST /api/sessions/{session_id}/entities/{entity_id}/agendas`, `GET /api/s
 ### Límites pendientes
 
 - La planificación cubre el resto del día actual, hasta seis tareas, sin programar automáticamente días futuros. Un PNJ sin perfil válido o sin acciones autorizadas permanece inactivo.
-- La replanificación responde a cambios materiales del perfil, catálogo, ubicación y percepción individual derivada de eventos registrados.
+- La replanificación responde a cambios materiales del perfil, catálogo, ubicación, conocimiento individual y observaciones ambientales vigentes.
 - Ninguna acción se habilita por defecto para ejecución autónoma: el catálogo de cada mundo debe marcarla explícitamente.
 - No hay panel visual para administrar, reordenar o inspeccionar agendas; la primera interfaz disponible es la API.
 - Las actividades todavía no calculan rutas ni distancias. El clima/seguridad disponibles son observaciones explícitas y caducables, no una simulación meteorológica automática ni una evaluación global por región. Las acciones que impliquen desplazamiento físico siguen excluidas.
@@ -115,7 +115,7 @@ API: `POST /api/sessions/{session_id}/entities/{entity_id}/agendas`, `GET /api/s
 - Los efectos no modifican inventario, ubicación, relaciones ni poderes. No hay aún movimiento autónomo por el mapa.
 - Las emociones se desgastan al avanzar el reloj, pero los acontecimientos aceptados todavía no generan emociones de forma automática.
 - No hay agenda con interrupciones, reanudación parcial, cambios de prioridad mientras está en curso ni resolución de conflictos entre PNJ.
-- La transmisión persistente de testimonios/rumores y las condiciones ambientales estructuradas (clima y seguridad local) siguen pendientes. Los sucesos mundiales de cronología no se comparten automáticamente con los PNJ.
+- La transmisión persistente de testimonios/rumores sigue pendiente. Los sucesos mundiales de cronología no se comparten automáticamente con los PNJ. Las observaciones ambientales actuales son explícitas y caducables; todavía no existe simulación automática del tiempo atmosférico.
 - Continúan pendientes el editor visual de perfiles, el registro de razones para todas las propuestas descartadas y la prueba E2E real del navegador.
 
 La previsualización `rank_actions()` sigue sin producir efectos. Es una lista de propuestas. La ejecución solo ocurre para una actividad que ha sido guardada como agenda y cuyo intervalo ya ha transcurrido en el reloj real de la partida.
