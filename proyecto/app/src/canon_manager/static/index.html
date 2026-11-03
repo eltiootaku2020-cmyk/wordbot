@@ -740,6 +740,20 @@ function renderState(payload) {
     p => p.kind !== "protagonist" && p.presence_status === "present"
   );
   el("state").appendChild(makeCard("Presentes: " + payload.participants.filter(p => p.presence_status === "present").map(p => p.name).join(", ")));
+  const receivedReports = payload.participants.flatMap(person =>
+    (person.knowledge_reports || []).map(report => ({
+      person: person.name,
+      sender: entityNames[report.sender_entity_id] || report.sender_entity_id,
+      kind: report.transmission_kind === "testimony" ? "testimonio" : "rumor",
+      version: report.reported_version
+    }))
+  );
+  if (receivedReports.length) {
+    const summary = receivedReports.map(report =>
+      report.person + " recibió " + report.kind + " de " + report.sender + ": «" + report.version + "» (no verificado)"
+    ).join(" · ");
+    el("state").appendChild(makeCard("Información recibida por personaje: " + summary));
+  }
   const previousRecipient = el("recipientSelect").value;
   clearChildren(el("recipientSelect"));
   addOption(el("recipientSelect"), "", "Escena / grupo");
