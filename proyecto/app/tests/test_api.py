@@ -6903,7 +6903,8 @@ def test_narrator_environment_proposals_wait_for_event_approval_then_replan_only
 
         with database.connection() as conn:
             rows = conn.execute(
-                "SELECT observer_entity_id,location,observation_kind,value_key,source_event_id "
+                "SELECT observer_entity_id,location,observation_kind,value_key,source_event_id,"
+                "observed_total_minutes,valid_until_total_minutes "
                 "FROM session_environment_observations WHERE session_id=?",
                 (session_id,),
             ).fetchall()
