@@ -776,12 +776,35 @@ function renderState(payload) {
       const description = document.createElement("p"); description.textContent = item.description;
       const witnesses = document.createElement("p"); witnesses.className = "muted";
       witnesses.textContent = "Testigos: " + ((item.witness_ids || []).map(id => entityNames[id] || id).join(", ") || "ninguno registrado");
+      const environmentProposals = item.environment_observation_proposals || [];
+      const environmentDetails = [];
+      environmentProposals.forEach(proposal => {
+        const detail = document.createElement("p"); detail.className = "muted";
+        const observer = entityNames[proposal.observer_entity_id] || proposal.observer_entity_id;
+        const domain = proposal.observation_kind === "weather" ? "Clima observado" : "Seguridad local observada";
+        const validity = Number.isInteger(proposal.valid_for_minutes) ? proposal.valid_for_minutes : 60;
+        detail.textContent = "Propuesta ambiental pendiente · " + observer + " · " + domain + ": " + proposal.value_key
+          + (proposal.details ? " · " + proposal.details : "")
+          + (proposal.observed_location ? " · lugar observado: " + proposal.observed_location : "")
+          + " · vigencia: " + validity + " min desde la observación";
+        environmentDetails.push(detail);
+      });
+      let environmentNote = null;
+      if (environmentProposals.length) {
+        const note = document.createElement("p"); note.className = "muted";
+        note.textContent = "Confirmar este evento también registrará estas observaciones personales y podrá replanificar las actividades futuras de esos personajes. El reloj no avanzará.";
+        environmentNote = note;
+      }
       const actions = document.createElement("div"); actions.className = "actions";
-      const approve = document.createElement("button"); approve.textContent = "Confirmar evento";
+      const approve = document.createElement("button");
+      approve.textContent = environmentProposals.length ? "Confirmar evento y observaciones" : "Confirmar evento";
       approve.onclick = async () => {
         try {
-          await api("/api/sessions/" + currentSession + "/events/" + item.id + "/approve", {method:"POST",body:"{}"});
-          setStatus("Evento confirmado; sus cambios vinculados siguen sujetos a revisión", true);
+          const approval = await api("/api/sessions/" + currentSession + "/events/" + item.id + "/approve", {method:"POST",body:"{}"});
+          const count = (approval.environment_observations || []).length;
+          setStatus(count
+            ? "Evento confirmado y " + count + " observación(es) personal(es) registrada(s); agendas revisadas sin avanzar el reloj"
+            : "Evento confirmado; sus cambios vinculados siguen sujetos a revisión", true);
           await loadState();
         } catch (err) { setStatus(err.message, false); }
       };
@@ -793,7 +816,10 @@ function renderState(payload) {
           await loadState();
         } catch (err) { setStatus(err.message, false); }
       };
-      actions.append(approve, reject); card.append(title, description, witnesses, actions);
+      actions.append(approve, reject); card.append(title, description, witnesses);
+      environmentDetails.forEach(detail => card.appendChild(detail));
+      if (environmentNote) card.appendChild(environmentNote);
+      card.appendChild(actions);
       el("pendingEvents").appendChild(card);
     });
   }

@@ -77,9 +77,19 @@ class PowerUseProposal(StrictModel):
 PendingNote = Annotated[str, Field(min_length=1, max_length=500)]
 
 
+class EnvironmentObservationProposal(StrictModel):
+    event_ref: str = Field(min_length=1, max_length=40)
+    observer_entity_id: str = Field(min_length=1, max_length=120)
+    observation_kind: Literal["weather", "local_safety"]
+    value_key: str = Field(min_length=1, max_length=40, pattern=r"^[a-z][a-z0-9_-]{0,39}$")
+    details: str = Field(default="", max_length=300)
+    valid_for_minutes: int = Field(default=60, ge=1, le=240)
+
+
 class NarratorResponse(StrictModel):
     narration: str = Field(min_length=1, max_length=12000)
     events: list[EventProposal] = Field(default_factory=list, max_length=30)
+    environment_observations: list[EnvironmentObservationProposal] = Field(default_factory=list, max_length=60)
     state_changes: list[StateChangeProposal] = Field(default_factory=list, max_length=40)
     elapsed_minutes: int = Field(default=1, ge=0, le=10080)
     movements: list[MovementProposal] = Field(default_factory=list, max_length=20)

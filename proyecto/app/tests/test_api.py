@@ -15,7 +15,7 @@ from fastapi.testclient import TestClient
 
 import canon_manager.main as main_module
 from canon_manager.main import app, database, build_context, session_row, apply_narrator_result, relevance_terms
-from canon_manager.models import NarratorResponse, EventProposal, StateChangeProposal, InventoryOperation, MovementProposal, PowerUseProposal, ResourceOperation
+from canon_manager.models import NarratorResponse, EventProposal, EnvironmentObservationProposal, StateChangeProposal, InventoryOperation, MovementProposal, PowerUseProposal, ResourceOperation
 from canon_manager.behavior_runtime import tick_behavior_runtime
 
 
@@ -6806,3 +6806,325 @@ def test_environment_aware_planner_keeps_legacy_v2_and_v3_signature_formats():
     assert _autonomous_state_signature(
         profile, catalog_signature, location, conditions, {"environment_observations": []}
     ) != expected_v3
+
+
+
+def test_narrator_environment_proposals_wait_for_event_approval_then_replan_only_for_observers():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        brina_id = f"{world_id}:brina-solcor"
+        maelis_id = f"{world_id}:maelis-orven"
+
+        profile = {
+            "traits": {"caution": 70},
+            "needs": {},
+            "emotions": [],
+            "goals": [],
+            "capabilities": ["observe"],
+            "resources": {},
+        }
+        saved_profile = client.put(
+            f"/api/sessions/{session_id}/entities/{brina_id}/behavior",
+            json={"profile": profile},
+        )
+        assert saved_profile.status_code == 200, saved_profile.text
+        catalog = {
+            "schema_version": 1,
+            "actions": [{
+                "action_id": "prepare_for_rain",
+                "category": "safety",
+                "base_priority": 12,
+                "tags": ["weather", "safety"],
+                "required_capabilities": ["observe"],
+                "required_conditions": {"observes_weather:rainy": True},
+                "duration_minutes": 30,
+                "risk_level": 5,
+                "autonomous_allowed": True,
+            }],
+            "patterns": [],
+        }
+        assert client.put(
+            f"/api/worlds/{world_id}/behavior/catalog", json=catalog
+        ).status_code == 200
+
+        result = NarratorResponse(
+            narration="Brina observa que empieza a llover.",
+            events=[EventProposal(
+                ref="weather-event-01",
+                kind="observation",
+                description="Brina observa lluvia en la ubicación actual.",
+                witness_ids=[brina_id],
+            )],
+            environment_observations=[EnvironmentObservationProposal(
+                event_ref="weather-event-01",
+                observer_entity_id=brina_id,
+                observation_kind="weather",
+                value_key="rainy",
+                details="Lluvia visible.",
+                valid_for_minutes=45,
+            )],
+        )
+        turn_id, _, pending_notes = _apply_synthetic_result(
+            session_id, "Observo con Brina que empieza a llover.", result
+        )
+
+        with database.connection() as conn:
+            event = conn.execute(
+                "SELECT id,status FROM events WHERE session_id=? AND turn_id=?",
+                (session_id, turn_id),
+            ).fetchone()
+            proposal = conn.execute(
+                "SELECT id,status,field FROM state_changes WHERE session_id=? AND turn_id=?",
+                (session_id, turn_id),
+            ).fetchone()
+            observations_before = conn.execute(
+                "SELECT COUNT(*) FROM session_environment_observations WHERE session_id=?",
+                (session_id,),
+            ).fetchone()[0]
+        assert event["status"] == "pending"
+        assert proposal["status"] == "pending"
+        assert proposal["field"] == "environment_observation"
+        assert observations_before == 0
+        assert any("requiere aprobación" in note for note in pending_notes)
+
+        state_before = client.get(f"/api/sessions/{session_id}/state").json()
+        pending_event = next(item for item in state_before["pending_events"] if item["id"] == event["id"])
+        assert len(pending_event["environment_observation_proposals"]) == 1
+        assert pending_event["environment_observation_proposals"][0]["value_key"] == "rainy"
+        assert all(item["field"] != "environment_observation" for item in state_before["pending_changes"])
+
+        approved = client.post(f"/api/sessions/{session_id}/events/{event['id']}/approve")
+        assert approved.status_code == 200, approved.text
+        approved_data = approved.json()
+        assert len(approved_data["environment_observations"]) == 1
+        assert approved_data["planned_activities"] == 1
+        assert approved_data["clock_advanced"] is False
+
+        with database.connection() as conn:
+            rows = conn.execute(
+                "SELECT observer_entity_id,location,observation_kind,value_key,source_event_id,"
+                "observed_total_minutes,valid_until_total_minutes "
+                "FROM session_environment_observations WHERE session_id=?",
+                (session_id,),
+            ).fetchall()
+            proposal_after = conn.execute(
+                "SELECT status FROM state_changes WHERE id=?", (proposal["id"],)
+            ).fetchone()
+        assert len(rows) == 1
+        assert rows[0]["observer_entity_id"] == brina_id
+        assert rows[0]["location"] == state_before["state"]["location"]
+        assert rows[0]["observation_kind"] == "weather"
+        assert rows[0]["value_key"] == "rainy"
+        assert rows[0]["source_event_id"] == event["id"]
+        assert rows[0]["observed_total_minutes"] == 480
+        assert rows[0]["valid_until_total_minutes"] == 525
+        assert proposal_after["status"] == "accepted"
+        assert client.get(f"/api/sessions/{session_id}/state").json()["state"]["minute_of_day"] == state_before["state"]["minute_of_day"]
+
+        brina_agendas = client.get(
+            f"/api/sessions/{session_id}/agendas", params={"entity_id": brina_id}
+        ).json()
+        automatic = [
+            item for item in brina_agendas
+            if item["status"] == "scheduled" and item["context"].get("_autonomous_plan")
+        ]
+        assert len(automatic) == 1
+        assert automatic[0]["action_id"] == "prepare_for_rain"
+        assert automatic[0]["context"]["conditions"]["observes_weather:rainy"] is True
+
+        with database.connection() as conn:
+            maelis_count = conn.execute(
+                "SELECT COUNT(*) FROM session_environment_observations "
+                "WHERE session_id=? AND observer_entity_id=?",
+                (session_id, maelis_id),
+            ).fetchone()[0]
+        assert maelis_count == 0
+
+        duplicate_approval = client.post(f"/api/sessions/{session_id}/events/{event['id']}/approve")
+        assert duplicate_approval.status_code == 404
+
+
+def test_rejecting_narrator_environment_event_discards_its_observation_proposal():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        brina_id = f"{world_id}:brina-solcor"
+        result = NarratorResponse(
+            narration="Brina observa que el sendero está bloqueado.",
+            events=[EventProposal(
+                ref="safety-event-01",
+                kind="observation",
+                description="Brina observa un bloqueo en el sendero.",
+                witness_ids=[brina_id],
+            )],
+            environment_observations=[EnvironmentObservationProposal(
+                event_ref="safety-event-01",
+                observer_entity_id=brina_id,
+                observation_kind="local_safety",
+                value_key="danger",
+                details="El paso está bloqueado.",
+            )],
+        )
+        turn_id, _, _ = _apply_synthetic_result(
+            session_id, "Brina observa el sendero bloqueado.", result
+        )
+        with database.connection() as conn:
+            event = conn.execute(
+                "SELECT id,status FROM events WHERE session_id=? AND turn_id=?",
+                (session_id, turn_id),
+            ).fetchone()
+        assert event["status"] == "pending"
+
+        rejected = client.post(f"/api/sessions/{session_id}/events/{event['id']}/reject")
+        assert rejected.status_code == 200
+        with database.connection() as conn:
+            status = conn.execute(
+                "SELECT status FROM state_changes WHERE session_id=? AND turn_id=? "
+                "AND field='environment_observation'",
+                (session_id, turn_id),
+            ).fetchone()
+            count = conn.execute(
+                "SELECT COUNT(*) FROM session_environment_observations "
+                "WHERE session_id=? AND source_event_id=?",
+                (session_id, event["id"]),
+            ).fetchone()[0]
+        assert status["status"] == "rejected"
+        assert count == 0
+
+
+def test_environment_proposal_for_non_witness_is_discarded_without_pending_effect():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        brina_id = f"{world_id}:brina-solcor"
+        maelis_id = f"{world_id}:maelis-orven"
+        result = NarratorResponse(
+            narration="Brina observa el sendero.",
+            events=[EventProposal(
+                ref="invalid-observer-event",
+                kind="observation",
+                description="Brina inspecciona el sendero.",
+                witness_ids=[brina_id],
+            )],
+            environment_observations=[EnvironmentObservationProposal(
+                event_ref="invalid-observer-event",
+                observer_entity_id=maelis_id,
+                observation_kind="local_safety",
+                value_key="danger",
+            )],
+        )
+        turn_id, _, pending_notes = _apply_synthetic_result(
+            session_id, "Observo el sendero.", result
+        )
+        with database.connection() as conn:
+            event = conn.execute(
+                "SELECT status FROM events WHERE session_id=? AND turn_id=?",
+                (session_id, turn_id),
+            ).fetchone()
+            proposals = conn.execute(
+                "SELECT COUNT(*) FROM state_changes WHERE session_id=? AND turn_id=? "
+                "AND field='environment_observation'",
+                (session_id, turn_id),
+            ).fetchone()[0]
+            observations = conn.execute(
+                "SELECT COUNT(*) FROM session_environment_observations WHERE session_id=?",
+                (session_id,),
+            ).fetchone()[0]
+        assert event["status"] == "recorded"
+        assert proposals == 0
+        assert observations == 0
+        assert any("no figura como testigo explícito" in note for note in pending_notes)
+
+
+
+def test_delayed_event_approval_does_not_refresh_an_expired_environment_observation():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        brina_id = f"{world_id}:brina-solcor"
+
+        profile = {
+            "traits": {"caution": 70},
+            "needs": {},
+            "emotions": [],
+            "goals": [],
+            "capabilities": ["observe"],
+            "resources": {},
+        }
+        assert client.put(
+            f"/api/sessions/{session_id}/entities/{brina_id}/behavior",
+            json={"profile": profile},
+        ).status_code == 200
+        catalog = {
+            "schema_version": 1,
+            "actions": [{
+                "action_id": "prepare_for_rain",
+                "category": "safety",
+                "base_priority": 12,
+                "tags": ["weather", "safety"],
+                "required_capabilities": ["observe"],
+                "required_conditions": {"observes_weather:rainy": True},
+                "duration_minutes": 30,
+                "risk_level": 5,
+                "autonomous_allowed": True,
+            }],
+            "patterns": [],
+        }
+        assert client.put(
+            f"/api/worlds/{world_id}/behavior/catalog", json=catalog
+        ).status_code == 200
+
+        result = NarratorResponse(
+            narration="Brina observa lluvia en el claro.",
+            events=[EventProposal(
+                ref="delayed-weather-event",
+                kind="observation",
+                description="Brina observa lluvia en el claro.",
+                witness_ids=[brina_id],
+            )],
+            environment_observations=[EnvironmentObservationProposal(
+                event_ref="delayed-weather-event",
+                observer_entity_id=brina_id,
+                observation_kind="weather",
+                value_key="rainy",
+                valid_for_minutes=45,
+            )],
+        )
+        turn_id, _, _ = _apply_synthetic_result(
+            session_id, "Observo la lluvia con Brina.", result
+        )
+        with database.transaction() as conn:
+            event = conn.execute(
+                "SELECT id,status FROM events WHERE session_id=? AND turn_id=?",
+                (session_id, turn_id),
+            ).fetchone()
+            conn.execute(
+                "UPDATE sessions SET minute_of_day=600 WHERE id=?",
+                (session_id,),
+            )
+        assert event["status"] == "pending"
+
+        approved = client.post(
+            f"/api/sessions/{session_id}/events/{event['id']}/approve"
+        )
+        assert approved.status_code == 200, approved.text
+        assert approved.json()["environment_observations"][0]["observed_total_minutes"] == 480
+        assert approved.json()["environment_observations"][0]["valid_until_total_minutes"] == 525
+        assert approved.json()["planned_activities"] == 0
+
+        with database.connection() as conn:
+            observation = conn.execute(
+                "SELECT location,observed_total_minutes,valid_until_total_minutes "
+                "FROM session_environment_observations WHERE session_id=?",
+                (session_id,),
+            ).fetchone()
+        assert observation["observed_total_minutes"] == 480
+        assert observation["valid_until_total_minutes"] == 525
+        agendas = client.get(
+            f"/api/sessions/{session_id}/agendas", params={"entity_id": brina_id}
+        ).json()
+        assert not [
+            item for item in agendas
+            if item["status"] == "scheduled" and item["context"].get("_autonomous_plan")
+        ]
