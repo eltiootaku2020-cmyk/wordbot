@@ -6531,6 +6531,7 @@ def test_environment_observations_are_personal_source_backed_and_replan_agendas(
         ]
         assert len(brina_auto) == 1
         assert brina_auto[0]["action_id"] == "prepare_for_rain"
+        assert brina_auto[0]["context"]["_autonomous_plan"]["planner_version"] == 4
         assert brina_auto[0]["context"]["conditions"]["observes_weather:rainy"] is True
         assert "observes_local_safety:danger" not in brina_auto[0]["context"]["conditions"]
         environmental = brina_auto[0]["context"]["perception"]["environment_observations"]
@@ -6758,3 +6759,50 @@ def test_backup_restore_preserves_environment_observations_and_source_events():
         assert observation["source_event_id"] == source_event_id
         assert source["status"] == "recorded"
         assert source["kind"] == "observation"
+
+
+
+def test_environment_aware_planner_keeps_legacy_v2_and_v3_signature_formats():
+    import hashlib
+    from canon_manager.behavior_runtime import (
+        _autonomous_profile_signature,
+        _autonomous_state_signature,
+    )
+
+    profile = {
+        "traits": {"caution": 70},
+        "needs": {},
+        "emotions": [],
+        "goals": [],
+        "capabilities": ["observe"],
+        "resources": {},
+    }
+    catalog_signature = "catalog-signature"
+    location = "Claro"
+    conditions = {"knows_event_kind:observation": True}
+
+    profile_signature = _autonomous_profile_signature(profile)
+    location_signature = hashlib.sha256(location.encode("utf-8")).hexdigest()
+    expected_v2 = hashlib.sha256(
+        f"{profile_signature}|{catalog_signature}|{location_signature}".encode("utf-8")
+    ).hexdigest()
+    condition_payload = json.dumps(
+        dict(sorted(conditions.items())),
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+    )
+    condition_signature = hashlib.sha256(condition_payload.encode("utf-8")).hexdigest()
+    expected_v3 = hashlib.sha256(
+        f"{profile_signature}|{catalog_signature}|{location_signature}|{condition_signature}".encode("utf-8")
+    ).hexdigest()
+
+    assert _autonomous_state_signature(
+        profile, catalog_signature, location
+    ) == expected_v2
+    assert _autonomous_state_signature(
+        profile, catalog_signature, location, conditions
+    ) == expected_v3
+    assert _autonomous_state_signature(
+        profile, catalog_signature, location, conditions, {"environment_observations": []}
+    ) != expected_v3
