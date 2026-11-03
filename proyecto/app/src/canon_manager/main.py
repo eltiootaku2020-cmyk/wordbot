@@ -1408,6 +1408,16 @@ POWER_ACTION_PATTERN = re.compile(
 )
 
 
+def _session_entity_location(conn, session, entity_id: str) -> str:
+    if entity_id == str(session["protagonist_entity_id"]):
+        return str(session["current_location"] or "").strip()
+    presence = conn.execute(
+        "SELECT location FROM session_presence WHERE session_id=? AND entity_id=?",
+        (session["id"], entity_id)
+    ).fetchone()
+    return str(presence["location"] or "").strip() if presence else ""
+
+
 def apply_narrator_result(
     conn, session, turn_id: str, source_message_id: str, user_text: str,
     result: NarratorResponse, authorized_skip, visibility: str = "scene",
@@ -1580,6 +1590,125 @@ def apply_narrator_result(
         )
         environment_proposals_by_ref.setdefault(proposal.event_ref, []).append(proposal)
 
+    # Information only moves through an explicit, witnessed conversation.
+    # A first-hand testimony requires the sender to have witnessed the source
+    # event; a rumor requires a prior accepted transmission to that sender.
+    current_total_minutes = (
+        (int(session["day"]) - 1) * 1440 + int(session["minute_of_day"])
+    )
+    valid_knowledge_transmissions: list[tuple[KnowledgeTransmissionProposal, str, int, str]] = []
+    knowledge_transmissions_by_ref: dict[str, list[KnowledgeTransmissionProposal]] = {}
+    seen_transmission_keys: set[tuple[str, str, str, str]] = set()
+    for proposal in result.knowledge_transmissions:
+        communication_event = unique_events.get(proposal.event_ref)
+        reason = ""
+        expected_event_kind = "knowledge" if proposal.transmission_kind == "testimony" else "rumor"
+        if communication_event is None:
+            reason = "no referencia a un evento de comunicación único de esta respuesta"
+        elif communication_event.kind != expected_event_kind:
+            reason = f"el evento de comunicación debe ser {expected_event_kind}"
+        elif communication_event.entity_id and communication_event.entity_id != proposal.sender_entity_id:
+            reason = "la entidad del evento de comunicación debe ser el emisor"
+        elif proposal.sender_entity_id == proposal.recipient_entity_id:
+            reason = "el emisor y el destinatario no pueden ser la misma entidad"
+        elif proposal.sender_entity_id not in valid_ids or proposal.recipient_entity_id not in valid_ids:
+            reason = "el emisor o el destinatario no pertenece a este mundo"
+        elif proposal.sender_entity_id not in allowed_witnesses or proposal.recipient_entity_id not in allowed_witnesses:
+            reason = "el emisor y el destinatario deben estar dentro de la audiencia autorizada del turno"
+        elif proposal.sender_entity_id not in communication_event.witness_ids or proposal.recipient_entity_id not in communication_event.witness_ids:
+            reason = "emisor y destinatario deben figurar como testigos del acto de comunicación"
+        elif private_subject_ids is not None and (
+            proposal.sender_entity_id not in private_subject_ids
+            or proposal.recipient_entity_id not in private_subject_ids
+        ):
+            reason = "el emisor o destinatario queda fuera del alcance del mensaje privado"
+        elif not proposal.version_text.strip():
+            reason = "la versión transmitida está vacía"
+
+        source_event = None
+        if not reason:
+            source_event = conn.execute(
+                "SELECT e.id,e.status,e.kind,e.witnesses_json,e.source_message_id,"
+                "m.recipient_entity_id AS source_recipient_id,"
+                "m.metadata_json AS source_metadata_json "
+                "FROM events e LEFT JOIN messages m ON m.id=e.source_message_id "
+                "WHERE e.id=? AND e.session_id=?",
+                (proposal.source_event_id, session["id"])
+            ).fetchone()
+            if source_event is None or source_event["status"] != "recorded":
+                reason = "el evento original no existe o no está registrado"
+        source_witnesses: set[str] = set()
+        if not reason and source_event is not None:
+            try:
+                raw_witnesses = json.loads(str(source_event["witnesses_json"] or "[]"))
+            except (TypeError, ValueError, json.JSONDecodeError):
+                raw_witnesses = None
+            if not isinstance(raw_witnesses, list) or any(
+                not isinstance(item, str) for item in raw_witnesses
+            ):
+                reason = "los testigos del evento original están dañados"
+            else:
+                source_witnesses = set(raw_witnesses)
+
+        parent_id = proposal.parent_transmission_id.strip()
+        if not reason and proposal.transmission_kind == "testimony":
+            if parent_id:
+                reason = "un testimonio directo no puede declarar una transmisión anterior como origen"
+            elif proposal.sender_entity_id not in source_witnesses or not _event_known_to_entity(
+                source_event, proposal.sender_entity_id
+            ):
+                reason = "el emisor no presenció ni conoce directamente el evento original"
+        elif not reason and proposal.transmission_kind == "rumor":
+            if not parent_id:
+                reason = "un rumor retransmitido requiere una transmisión anterior identificable"
+            else:
+                parent = conn.execute(
+                    "SELECT t.id,t.source_event_id,t.recipient_entity_id,t.transmitted_total_minutes,"
+                    "s.status AS source_status,c.status AS communication_status "
+                    "FROM session_knowledge_transmissions t "
+                    "JOIN events s ON s.id=t.source_event_id AND s.session_id=t.session_id "
+                    "JOIN events c ON c.id=t.communication_event_id AND c.session_id=t.session_id "
+                    "WHERE t.id=? AND t.session_id=?",
+                    (parent_id, session["id"])
+                ).fetchone()
+                if (
+                    parent is None
+                    or parent["source_event_id"] != proposal.source_event_id
+                    or parent["recipient_entity_id"] != proposal.sender_entity_id
+                    or parent["source_status"] != "recorded"
+                    or parent["communication_status"] != "recorded"
+                    or int(parent["transmitted_total_minutes"]) > current_total_minutes
+                ):
+                    reason = "el emisor no recibió previamente esa versión del mismo evento"
+
+        sender_location = ""
+        recipient_location = ""
+        if not reason:
+            sender_location = _session_entity_location(conn, session, proposal.sender_entity_id)
+            recipient_location = _session_entity_location(conn, session, proposal.recipient_entity_id)
+            if not sender_location or not recipient_location:
+                reason = "el emisor o destinatario no tiene ubicación de sesión registrada"
+            elif sender_location.casefold() != recipient_location.casefold():
+                reason = "emisor y destinatario no estaban en la misma ubicación de comunicación"
+
+        signature = (
+            proposal.event_ref, proposal.source_event_id,
+            proposal.sender_entity_id, proposal.recipient_entity_id
+        )
+        if not reason and signature in seen_transmission_keys:
+            reason = "la misma conversación contiene transmisiones duplicadas para ese destinatario"
+        if reason:
+            pending_notes.append(
+                f"Transmisión {proposal.transmission_kind} de {proposal.sender_entity_id} a "
+                f"{proposal.recipient_entity_id}: {reason}; no se registró."
+            )
+            continue
+        seen_transmission_keys.add(signature)
+        valid_knowledge_transmissions.append(
+            (proposal, sender_location, current_total_minutes, proposal.source_event_id)
+        )
+        knowledge_transmissions_by_ref.setdefault(proposal.event_ref, []).append(proposal)
+
     seen_refs: set[str] = set()
     for event in result.events:
         if event.ref in seen_refs:
@@ -1611,6 +1740,14 @@ def apply_narrator_result(
             pending_notes.append(
                 f"Evento {event.ref}: observación ambiental propuesta; requiere aprobación antes de influir en agendas."
             )
+        elif event.ref in knowledge_transmissions_by_ref:
+            # The communication may be proposed by the narrator, but is not
+            # recorded as received knowledge until the user approves it.
+            conn.execute("UPDATE events SET status='pending' WHERE id=?", (event_id,))
+            status = "pending"
+            pending_notes.append(
+                f"Evento {event.ref}: transmisión de información pendiente de aprobación."
+            )
         elif status == "pending":
             pending_notes.append(
                 f"Evento {event.ref} requiere revisión: entidad o testigo fuera del alcance autorizado."
@@ -1638,6 +1775,22 @@ def apply_narrator_result(
             None, proposal_data, None, "pending",
             "La propuesta ambiental requiere aprobación explícita del evento fuente.",
             source["id"]
+        )
+
+    for proposal_index, (proposal, transmission_location, transmitted_total, source_event_id) in enumerate(valid_knowledge_transmissions):
+        communication = event_map.get(proposal.event_ref)
+        if communication is None:
+            continue
+        proposal_data = proposal.model_dump()
+        proposal_data["observed_location"] = transmission_location
+        proposal_data["transmitted_total_minutes"] = transmitted_total
+        save_change(
+            conn, session["id"], turn_id,
+            f"knowledge-transmission-{proposal_index}-{new_id()[:8]}",
+            proposal.recipient_entity_id, "knowledge_transmission", "propose",
+            None, proposal_data, None, "pending",
+            "La transmisión solo concederá conocimiento atribuido después de aprobar el evento de comunicación.",
+            communication["id"]
         )
 
     applied = []
