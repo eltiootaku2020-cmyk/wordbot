@@ -432,17 +432,19 @@ def process_due_behavior_agendas(
             if (
                 str(row["status"]) == "scheduled"
                 and isinstance(auto_metadata, Mapping)
-                and auto_metadata.get("planner_version") in {2, 3}
+                and auto_metadata.get("planner_version") in {2, 3, 4}
             ):
                 _, _, _, catalog_signature = _safe_autonomous_catalog(
                     conn, str(entity["world_id"])
                 )
                 perceived_conditions = None
                 perception_metadata = None
-                if auto_metadata.get("planner_version") == 3:
-                    perceived_conditions, perception_metadata = _entity_perception_context(
+                if auto_metadata.get("planner_version") in {3, 4}:
+                    perceived_conditions, perception_summary = _entity_perception_context(
                         conn, session_id, str(row["entity_id"])
                     )
+                    if auto_metadata.get("planner_version") == 4:
+                        perception_metadata = perception_summary
                 current_signature = _autonomous_state_signature(
                     profile, catalog_signature, current_location,
                     perceived_conditions, perception_metadata,
@@ -788,13 +790,20 @@ def _autonomous_state_signature(
         return hashlib.sha256(
             f"{profile_signature}|{catalog_signature}|{location_signature}".encode("utf-8")
         ).hexdigest()
-    perception_payload = json.dumps(
-        {
-            "conditions": dict(sorted(perceived_conditions.items())),
-            "metadata": perception_metadata or {},
-        },
-        ensure_ascii=False, sort_keys=True, separators=(",", ":"),
-    )
+    if perception_metadata is None:
+        # Preserve the original v3 signature for agendas created by PR #50.
+        perception_payload = json.dumps(
+            dict(sorted(perceived_conditions.items())),
+            ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+        )
+    else:
+        perception_payload = json.dumps(
+            {
+                "conditions": dict(sorted(perceived_conditions.items())),
+                "metadata": perception_metadata,
+            },
+            ensure_ascii=False, sort_keys=True, separators=(",", ":"),
+        )
     perception_signature = hashlib.sha256(perception_payload.encode("utf-8")).hexdigest()
     return hashlib.sha256(
         f"{profile_signature}|{catalog_signature}|{location_signature}|{perception_signature}".encode("utf-8")
@@ -828,7 +837,7 @@ def _cancel_stale_autonomous_agenda(conn, row, reason: str) -> None:
 def _autonomous_agenda_state_matches(conn, session_id: str, row) -> bool:
     """Fail closed if a not-yet-started automatic agenda no longer matches state."""
     metadata = _agenda_autonomous_metadata(row)
-    if metadata is None or metadata.get("planner_version") not in {2, 3}:
+    if metadata is None or metadata.get("planner_version") not in {2, 3, 4}:
         return True
     try:
         entity = conn.execute(
@@ -844,10 +853,12 @@ def _autonomous_agenda_state_matches(conn, session_id: str, row) -> bool:
         _, _, _, catalog_signature = _safe_autonomous_catalog(conn, str(entity["world_id"]))
         perceived_conditions = None
         perception_metadata = None
-        if metadata.get("planner_version") == 3:
-            perceived_conditions, perception_metadata = _entity_perception_context(
+        if metadata.get("planner_version") in {3, 4}:
+            perceived_conditions, perception_summary = _entity_perception_context(
                 conn, session_id, str(row["entity_id"])
             )
+            if metadata.get("planner_version") == 4:
+                perception_metadata = perception_summary
         current_signature = _autonomous_state_signature(
             profile, catalog_signature, str(entity["entity_location"] or "").strip(),
             perceived_conditions, perception_metadata,
@@ -919,11 +930,27 @@ def plan_autonomous_behavior_agendas(
             if str(row["status"]) == "scheduled" and _agenda_autonomous_metadata(row) is not None
         ]
         if auto_scheduled:
-            signatures_match = all(
-                _agenda_autonomous_metadata(row).get("state_signature") == state_signature
-                and _agenda_autonomous_metadata(row).get("planner_version") == 3
-                for row in auto_scheduled
-            )
+            def scheduled_signature_matches(row) -> bool:
+                metadata = _agenda_autonomous_metadata(row) or {}
+                version = metadata.get("planner_version")
+                if version == 2:
+                    expected_signature = _autonomous_state_signature(
+                        profile, catalog_signature, location
+                    )
+                elif version == 3:
+                    expected_signature = _autonomous_state_signature(
+                        profile, catalog_signature, location, perceived_conditions
+                    )
+                elif version == 4:
+                    expected_signature = _autonomous_state_signature(
+                        profile, catalog_signature, location,
+                        perceived_conditions, perception_summary,
+                    )
+                else:
+                    return False
+                return metadata.get("state_signature") == expected_signature
+
+            signatures_match = all(scheduled_signature_matches(row) for row in auto_scheduled)
             if signatures_match:
                 # A complete future plan for this state already exists.
                 continue
@@ -1043,7 +1070,7 @@ def plan_autonomous_behavior_agendas(
             agenda_context = dict(context)
             agenda_context["available_minutes"] = duration
             agenda_context["_autonomous_plan"] = {
-                "planner_version": 3,
+                "planner_version": 4,
                 "state_signature": state_signature,
                 "profile_signature": profile_signature,
                 "catalog_signature": catalog_signature,
