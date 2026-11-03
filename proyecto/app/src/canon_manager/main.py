@@ -2387,6 +2387,9 @@ def load_state(conn, session_id: str) -> dict[str, Any]:
         "FROM session_presence p JOIN entities e ON e.id=p.entity_id "
         "JOIN sessions s ON s.id=p.session_id WHERE p.session_id=? ORDER BY e.name", (session_id,)
     ).fetchall()]
+    for participant in participants:
+        _, perception = _entity_perception_context(conn, session_id, participant["id"])
+        participant["knowledge_reports"] = perception.get("knowledge_reports", [])
     inventory = [dict(row) for row in conn.execute(
         "SELECT display_name,quantity,condition,carrier_entity_id,location FROM inventory_items "
         "WHERE session_id=? AND quantity>0 ORDER BY display_name", (session_id,)
