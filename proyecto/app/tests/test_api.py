@@ -6695,3 +6695,66 @@ def test_environment_observations_are_restored_with_turn_snapshots():
         assert restored[0]["observer_entity_id"] == brina_id
         assert restored[0]["value_key"] == "cloudy"
         assert restored[0]["valid_until_total_minutes"] == 540
+
+
+
+def test_backup_restore_preserves_environment_observations_and_source_events():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        session_id = seeded["session_id"]
+        brina_id = f'{seeded["world_id"]}:brina-solcor'
+        source_event_id = uuid.uuid4().hex
+        with database.transaction() as conn:
+            conn.execute(
+                "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,"
+                "witnesses_json,status,source_message_id) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (
+                    source_event_id, session_id, "backup-weather-turn", "backup-weather-source",
+                    "observation", "", "Brina observa cielo despejado.",
+                    json.dumps([brina_id]), "recorded", "",
+                ),
+            )
+
+        recorded = client.post(
+            f"/api/sessions/{session_id}/environment/observations",
+            json={
+                "request_id": "backup-weather-0001",
+                "observer_entity_id": brina_id,
+                "observation_kind": "weather",
+                "value_key": "sunny",
+                "source_event_id": source_event_id,
+                "valid_for_minutes": 90,
+            },
+        )
+        assert recorded.status_code == 200, recorded.text
+
+        backup = client.post(f"/api/sessions/{session_id}/backup", json={})
+        assert backup.status_code == 200, backup.text
+        backup_name = backup.json()["backup_name"]
+
+        with database.transaction() as conn:
+            conn.execute(
+                "DELETE FROM session_environment_observations WHERE session_id=?",
+                (session_id,),
+            )
+        restored = client.post(
+            f"/api/sessions/{session_id}/restore",
+            json={"backup_name": backup_name, "confirmation": "RESTAURAR"},
+        )
+        assert restored.status_code == 200, restored.text
+        with database.connection() as conn:
+            observation = conn.execute(
+                "SELECT observer_entity_id,value_key,source_event_id "
+                "FROM session_environment_observations WHERE session_id=?",
+                (session_id,),
+            ).fetchone()
+            source = conn.execute(
+                "SELECT status,kind FROM events WHERE id=? AND session_id=?",
+                (source_event_id, session_id),
+            ).fetchone()
+        assert observation is not None
+        assert observation["observer_entity_id"] == brina_id
+        assert observation["value_key"] == "sunny"
+        assert observation["source_event_id"] == source_event_id
+        assert source["status"] == "recorded"
+        assert source["kind"] == "observation"
