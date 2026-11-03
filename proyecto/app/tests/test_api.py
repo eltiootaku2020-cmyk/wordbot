@@ -6427,3 +6427,271 @@ def test_autonomous_planner_uses_only_individually_perceived_recorded_events():
         assert hidden_event_id not in context["perception"]["source_event_ids"]
         assert other_witness_event_id not in context["perception"]["source_event_ids"]
         assert automatic[0]["context"]["_autonomous_plan"]["planner_version"] == 3
+
+
+
+def test_environment_observations_are_personal_source_backed_and_replan_agendas():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        brina_id = f"{world_id}:brina-solcor"
+        maelis_id = f"{world_id}:maelis-orven"
+
+        for entity_id in (brina_id, maelis_id):
+            saved = client.put(
+                f"/api/sessions/{session_id}/entities/{entity_id}/behavior",
+                json={
+                    "traits": {"caution": 70},
+                    "needs": {},
+                    "emotions": [],
+                    "goals": [],
+                    "capabilities": ["observe"],
+                    "resources": {},
+                },
+            )
+            assert saved.status_code == 200, saved.text
+
+        catalog = {
+            "schema_version": 1,
+            "actions": [
+                {
+                    "action_id": "prepare_for_rain",
+                    "category": "safety",
+                    "base_priority": 12,
+                    "tags": ["weather", "safety"],
+                    "required_capabilities": ["observe"],
+                    "required_conditions": {"observes_weather:rainy": True},
+                    "duration_minutes": 30,
+                    "risk_level": 5,
+                    "autonomous_allowed": True,
+                },
+                {
+                    "action_id": "respond_to_local_danger",
+                    "category": "safety",
+                    "base_priority": 12,
+                    "tags": ["safety", "watch"],
+                    "required_capabilities": ["observe"],
+                    "required_conditions": {"observes_local_safety:danger": True},
+                    "duration_minutes": 30,
+                    "risk_level": 5,
+                    "autonomous_allowed": True,
+                },
+            ],
+            "patterns": [],
+        }
+        saved_catalog = client.put(
+            f"/api/worlds/{world_id}/behavior/catalog", json=catalog
+        )
+        assert saved_catalog.status_code == 200, saved_catalog.text
+
+        source_event_id = uuid.uuid4().hex
+        with database.transaction() as conn:
+            conn.execute(
+                "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,"
+                "witnesses_json,status,source_message_id) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (
+                    source_event_id, session_id, "weather-observation-turn", "weather-source",
+                    "observation", "", "Brina observa que empieza a llover.",
+                    json.dumps([brina_id]), "recorded", "",
+                ),
+            )
+
+        payload = {
+            "request_id": "brina-weather-0001",
+            "observer_entity_id": brina_id,
+            "observation_kind": "weather",
+            "value_key": "rainy",
+            "source_event_id": source_event_id,
+            "details": "Lluvia visible en el claro.",
+            "valid_for_minutes": 60,
+        }
+        recorded = client.post(
+            f"/api/sessions/{session_id}/environment/observations", json=payload
+        )
+        assert recorded.status_code == 200, recorded.text
+        result = recorded.json()
+        assert result["created"] is True
+        assert result["clock_advanced"] is False
+        assert result["planned_activities"] == 1
+        assert result["observation"]["location"] == "Claro en el Bosque de las Bestias"
+
+        duplicate = client.post(
+            f"/api/sessions/{session_id}/environment/observations", json=payload
+        )
+        assert duplicate.status_code == 200, duplicate.text
+        assert duplicate.json()["duplicate"] is True
+        assert duplicate.json()["observation"]["id"] == result["observation"]["id"]
+
+        brina_agendas = client.get(
+            f"/api/sessions/{session_id}/agendas", params={"entity_id": brina_id}
+        ).json()
+        brina_auto = [
+            item for item in brina_agendas
+            if item["status"] == "scheduled" and item["context"].get("_autonomous_plan")
+        ]
+        assert len(brina_auto) == 1
+        assert brina_auto[0]["action_id"] == "prepare_for_rain"
+        assert brina_auto[0]["context"]["conditions"]["observes_weather:rainy"] is True
+        assert "observes_local_safety:danger" not in brina_auto[0]["context"]["conditions"]
+        environmental = brina_auto[0]["context"]["perception"]["environment_observations"]
+        assert len(environmental) == 1
+        assert environmental[0]["source_event_id"] == source_event_id
+
+        # Maelis shares the same location but did not witness the source event.
+        assert client.get(
+            f"/api/sessions/{session_id}/agendas", params={"entity_id": maelis_id}
+        ).json() == []
+
+        invalid_source = uuid.uuid4().hex
+        with database.transaction() as conn:
+            conn.execute(
+                "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,"
+                "witnesses_json,status,source_message_id) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (
+                    invalid_source, session_id, "hidden-weather-turn", "hidden-weather",
+                    "observation", "", "Maelis no presencia la lluvia.",
+                    json.dumps([maelis_id]), "recorded", "",
+                ),
+            )
+        unauthorized = dict(payload)
+        unauthorized["request_id"] = "brina-weather-0002"
+        unauthorized["source_event_id"] = invalid_source
+        denied = client.post(
+            f"/api/sessions/{session_id}/environment/observations", json=unauthorized
+        )
+        assert denied.status_code == 422
+
+
+def test_expired_environment_observation_blocks_not_yet_started_autonomous_action():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        brina_id = f"{world_id}:brina-solcor"
+        profile = {
+            "traits": {"caution": 70},
+            "needs": {"fatigue": 50},
+            "emotions": [],
+            "goals": [],
+            "capabilities": ["observe"],
+            "resources": {},
+        }
+        saved = client.put(
+            f"/api/sessions/{session_id}/entities/{brina_id}/behavior",
+            json={"profile": profile},
+        )
+        assert saved.status_code == 200, saved.text
+        catalog = {
+            "schema_version": 1,
+            "actions": [{
+                "action_id": "prepare_for_rain",
+                "category": "safety",
+                "base_priority": 12,
+                "tags": ["weather", "safety"],
+                "required_capabilities": ["observe"],
+                "required_conditions": {"observes_weather:rainy": True},
+                "duration_minutes": 30,
+                "risk_level": 5,
+                "autonomous_allowed": True,
+                "effects": {"need_deltas": {"fatigue": -20}},
+            }],
+            "patterns": [],
+        }
+        assert client.put(
+            f"/api/worlds/{world_id}/behavior/catalog", json=catalog
+        ).status_code == 200
+
+        source_event_id = uuid.uuid4().hex
+        with database.transaction() as conn:
+            conn.execute(
+                "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,"
+                "witnesses_json,status,source_message_id) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (
+                    source_event_id, session_id, "expiring-weather-turn", "expiring-weather",
+                    "observation", "", "Brina ve lluvia durante un instante.",
+                    json.dumps([brina_id]), "recorded", "",
+                ),
+            )
+
+        recorded = client.post(
+            f"/api/sessions/{session_id}/environment/observations",
+            json={
+                "request_id": "brina-weather-expire",
+                "observer_entity_id": brina_id,
+                "observation_kind": "weather",
+                "value_key": "rainy",
+                "source_event_id": source_event_id,
+                "valid_for_minutes": 1,
+            },
+        )
+        assert recorded.status_code == 200, recorded.text
+        before = client.get(
+            f"/api/sessions/{session_id}/agendas", params={"entity_id": brina_id}
+        ).json()
+        automatic = next(
+            item for item in before
+            if item["status"] == "scheduled" and item["context"].get("_autonomous_plan")
+        )
+
+        with database.transaction() as conn:
+            conn.execute(
+                "UPDATE sessions SET day=1,minute_of_day=481 WHERE id=?",
+                (session_id,),
+            )
+            tick = tick_behavior_runtime(conn, session_id, 480, 481)
+
+        assert tick["blocked"] == 1
+        assert tick["planned"] == 0
+        after = client.get(
+            f"/api/sessions/{session_id}/agendas", params={"entity_id": brina_id}
+        ).json()
+        blocked = next(item for item in after if item["agenda_id"] == automatic["agenda_id"])
+        assert blocked["status"] == "blocked"
+        profile_after = client.get(
+            f"/api/sessions/{session_id}/entities/{brina_id}/behavior"
+        ).json()["profile"]
+        assert profile_after["needs"]["fatigue"] == 50
+
+
+def test_environment_observations_are_restored_with_turn_snapshots():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        session_id = seeded["session_id"]
+        brina_id = f'{seeded["world_id"]}:brina-solcor'
+        source_event_id = uuid.uuid4().hex
+        with database.transaction() as conn:
+            conn.execute(
+                "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,"
+                "witnesses_json,status,source_message_id) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (
+                    source_event_id, session_id, "snapshot-weather-turn", "snapshot-weather",
+                    "observation", "", "Brina observa nubes.",
+                    json.dumps([brina_id]), "recorded", "",
+                ),
+            )
+            conn.execute(
+                "INSERT INTO session_environment_observations("
+                "id,session_id,request_id,observer_entity_id,location,observation_kind,value_key,"
+                "details,observed_total_minutes,valid_until_total_minutes,source_event_id"
+                ") VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    uuid.uuid4().hex, session_id, "snapshot-weather-0001", brina_id,
+                    "Claro en el Bosque de las Bestias", "weather", "cloudy",
+                    "Nubes visibles.", 480, 540, source_event_id,
+                ),
+            )
+            snapshot = main_module.capture_turn_state(conn, session_id)
+            conn.execute(
+                "DELETE FROM session_environment_observations WHERE session_id=?",
+                (session_id,),
+            )
+            main_module.restore_turn_state(conn, session_id, snapshot)
+            restored = conn.execute(
+                "SELECT observer_entity_id,value_key,valid_until_total_minutes "
+                "FROM session_environment_observations WHERE session_id=?",
+                (session_id,),
+            ).fetchall()
+
+        assert len(restored) == 1
+        assert restored[0]["observer_entity_id"] == brina_id
+        assert restored[0]["value_key"] == "cloudy"
+        assert restored[0]["valid_until_total_minutes"] == 540
