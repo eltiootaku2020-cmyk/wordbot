@@ -667,7 +667,7 @@ def _entity_perception_context(
             "e.source_message_id,m.recipient_entity_id AS source_recipient_id,"
             "m.metadata_json AS source_metadata_json "
             "FROM session_environment_observations o "
-            "JOIN events e ON e.id=o.source_event_id "
+            "JOIN events e ON e.id=o.source_event_id AND e.session_id=o.session_id "
             "LEFT JOIN messages m ON m.id=e.source_message_id "
             "WHERE o.session_id=? AND o.observer_entity_id=? AND LOWER(o.location)=LOWER(?) "
             "AND o.observed_total_minutes<=? AND o.valid_until_total_minutes>? "
