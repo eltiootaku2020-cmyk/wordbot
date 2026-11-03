@@ -727,9 +727,8 @@ def plan_autonomous_behavior_agendas(
         ).fetchall()
         used_today = {str(row["action_id"]): int(row["n"]) for row in completed_rows}
 
-        last_planned_action = ""
         recent = conn.execute(
-            "SELECT action_id,completed_total_minutes FROM behavior_action_executions "
+            "SELECT completed_total_minutes FROM behavior_action_executions "
             "WHERE session_id=? AND entity_id=? "
             "ORDER BY completed_total_minutes DESC,id DESC LIMIT 1",
             (session_id, entity_id),
@@ -737,10 +736,15 @@ def plan_autonomous_behavior_agendas(
         if recent is not None:
             last_end = int(recent["completed_total_minutes"])
             if current_total < last_end + AUTONOMOUS_BREAK_MINUTES:
-                last_planned_action = str(recent["action_id"])
                 cursor = max(cursor, last_end + AUTONOMOUS_BREAK_MINUTES)
 
-        activity_count = 0
+        running_auto_count = sum(
+            1 for row in active_rows
+            if str(row["status"]) == "running"
+            and _agenda_autonomous_metadata(row) is not None
+            and day_start <= int(row["scheduled_total_minutes"]) < day_end
+        )
+        activity_count = sum(used_today.values()) + running_auto_count
         while cursor < day_end and activity_count < AUTONOMOUS_MAX_ACTIVITIES_PER_DAY:
             next_reservation = next(
                 ((start, end) for start, end in reservations if end > cursor),
@@ -783,8 +787,6 @@ def plan_autonomous_behavior_agendas(
                 action = action_map[candidate["action_id"]]
                 action_id = str(candidate["action_id"])
                 count_today = used_today.get(action_id, 0)
-                if action_id == last_planned_action:
-                    continue
                 if action["autonomous_repeatable"]:
                     if count_today >= 3:
                         continue
@@ -881,7 +883,6 @@ def plan_autonomous_behavior_agendas(
             reservations.append((cursor, end_total))
             reservations.sort()
             used_today[action["action_id"]] = used_today.get(action["action_id"], 0) + 1
-            last_planned_action = action["action_id"]
             cursor = end_total + AUTONOMOUS_BREAK_MINUTES
             activity_count += 1
             planned_total += 1
