@@ -3857,17 +3857,23 @@ def approve_event(session_id: str, event_id: str):
         ):
             raise HTTPException(status_code=422, detail="Hay testigos no registrados; el evento no puede confirmarse.")
 
-        pending_proposals = conn.execute(
+        pending_environment = conn.execute(
             "SELECT * FROM state_changes WHERE session_id=? AND source_event_id=? "
             "AND field='environment_observation' AND status='pending' ORDER BY created_at,id",
             (session_id, event_id)
         ).fetchall()
+        pending_transmissions = conn.execute(
+            "SELECT * FROM state_changes WHERE session_id=? AND source_event_id=? "
+            "AND field='knowledge_transmission' AND status='pending' ORDER BY created_at,id",
+            (session_id, event_id)
+        ).fetchall()
 
-        # Approval and conversion happen in the same transaction. A failed
-        # provenance/location check leaves the event pending and creates no fact.
+        # Approval and conversion are atomic. Any invalid provenance causes
+        # the transaction to roll back, leaving the event and proposals pending.
         conn.execute("UPDATE events SET status='recorded' WHERE id=?", (event_id,))
+        current_total = (int(session["day"]) - 1) * 1440 + int(session["minute_of_day"])
         approved_observations = []
-        if pending_proposals:
+        if pending_environment:
             source = conn.execute(
                 "SELECT e.id,e.kind,e.status,e.external_ref,e.witnesses_json,e.source_message_id,"
                 "m.recipient_entity_id AS source_recipient_id,m.metadata_json AS source_metadata_json "
@@ -3881,8 +3887,7 @@ def approve_event(session_id: str, event_id: str):
                     detail="Las propuestas ambientales solo pueden aprobarse con un evento observation registrado."
                 )
 
-            current_total = (int(session["day"]) - 1) * 1440 + int(session["minute_of_day"])
-            for proposal_row in pending_proposals:
+            for proposal_row in pending_environment:
                 try:
                     proposal = json.loads(str(proposal_row["proposed_value_json"]))
                 except (TypeError, ValueError, json.JSONDecodeError) as exc:
@@ -3924,15 +3929,14 @@ def approve_event(session_id: str, event_id: str):
                     raise HTTPException(status_code=403, detail="La audiencia o procedencia del evento no autoriza al observador.")
 
                 observer = conn.execute(
-                    "SELECT id,kind FROM entities WHERE id=? AND world_id=?",
+                    "SELECT id FROM entities WHERE id=? AND world_id=?",
                     (observer_id, session["world_id"])
                 ).fetchone()
                 if observer is None:
                     raise HTTPException(status_code=404, detail="El observador no pertenece a este mundo.")
 
-                # The observation belongs to the place/time where the source
-                # event was witnessed, not wherever the NPC happens to be when
-                # the player later approves the pending proposal.
+                # Keep the location and time of the actual observation; a delayed
+                # approval must not refresh or relocate the environmental fact.
                 location = observed_location.strip()
                 observation_id = new_id()
                 valid_until = observed_total + valid_for
@@ -3970,14 +3974,154 @@ def approve_event(session_id: str, event_id: str):
                 )
                 approved_observations.append(accepted_value)
 
+        approved_transmissions = []
+        if pending_transmissions:
+            if event["kind"] not in {"knowledge", "rumor"}:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Las transmisiones requieren un evento de comunicación knowledge o rumor."
+                )
+            try:
+                communication_witnesses = json.loads(str(event["witnesses_json"] or "[]"))
+            except (TypeError, ValueError, json.JSONDecodeError) as exc:
+                raise HTTPException(status_code=422, detail="Los testigos de la comunicación están dañados.") from exc
+            if not isinstance(communication_witnesses, list):
+                raise HTTPException(status_code=422, detail="Los testigos de la comunicación no son válidos.")
+
+            for proposal_row in pending_transmissions:
+                try:
+                    proposal = json.loads(str(proposal_row["proposed_value_json"]))
+                except (TypeError, ValueError, json.JSONDecodeError) as exc:
+                    raise HTTPException(status_code=422, detail="La propuesta de transmisión está dañada.") from exc
+                if not isinstance(proposal, dict):
+                    raise HTTPException(status_code=422, detail="La propuesta de transmisión no contiene un objeto válido.")
+
+                sender_id = proposal.get("sender_entity_id")
+                recipient_id = str(proposal_row["entity_id"] or "")
+                source_event_id = proposal.get("source_event_id")
+                transmission_kind = proposal.get("transmission_kind")
+                version_text = proposal.get("version_text")
+                location = proposal.get("observed_location")
+                transmitted_total = proposal.get("transmitted_total_minutes")
+                parent_id = str(proposal.get("parent_transmission_id") or "").strip()
+                expected_kind = "knowledge" if transmission_kind == "testimony" else "rumor"
+                if (
+                    not isinstance(sender_id, str)
+                    or sender_id not in valid_ids
+                    or recipient_id not in valid_ids
+                    or sender_id == recipient_id
+                    or proposal.get("recipient_entity_id") != recipient_id
+                    or transmission_kind not in {"testimony", "rumor"}
+                    or event["kind"] != expected_kind
+                    or not isinstance(source_event_id, str)
+                    or not source_event_id
+                    or source_event_id == event_id
+                    or not isinstance(version_text, str)
+                    or not version_text.strip()
+                    or len(version_text) > 600
+                    or not isinstance(location, str)
+                    or not location.strip()
+                    or isinstance(transmitted_total, bool)
+                    or not isinstance(transmitted_total, int)
+                    or transmitted_total < 0
+                    or transmitted_total > current_total
+                ):
+                    raise HTTPException(status_code=422, detail="Los datos de la transmisión no superan la validación.")
+
+                if sender_id not in communication_witnesses or recipient_id not in communication_witnesses:
+                    raise HTTPException(status_code=422, detail="Emisor y destinatario deben figurar como testigos de la comunicación.")
+
+                source_event = conn.execute(
+                    "SELECT e.id,e.status,e.kind,e.witnesses_json,e.source_message_id,"
+                    "m.recipient_entity_id AS source_recipient_id,"
+                    "m.metadata_json AS source_metadata_json "
+                    "FROM events e LEFT JOIN messages m ON m.id=e.source_message_id "
+                    "WHERE e.id=? AND e.session_id=?",
+                    (source_event_id, session_id)
+                ).fetchone()
+                if source_event is None or source_event["status"] != "recorded":
+                    raise HTTPException(status_code=422, detail="El evento original ya no está registrado o no pertenece a esta partida.")
+
+                try:
+                    source_witnesses = json.loads(str(source_event["witnesses_json"] or "[]"))
+                except (TypeError, ValueError, json.JSONDecodeError) as exc:
+                    raise HTTPException(status_code=422, detail="Los testigos del evento original están dañados.") from exc
+                if not isinstance(source_witnesses, list) or any(
+                    not isinstance(value, str) for value in source_witnesses
+                ):
+                    raise HTTPException(status_code=422, detail="Los testigos del evento original no son válidos.")
+
+                if transmission_kind == "testimony":
+                    if parent_id or sender_id not in source_witnesses or not _event_known_to_entity(source_event, sender_id):
+                        raise HTTPException(status_code=403, detail="Un testimonio requiere que el emisor haya presenciado el evento original.")
+                else:
+                    parent = conn.execute(
+                        "SELECT t.id,t.source_event_id,t.recipient_entity_id,t.transmitted_total_minutes,"
+                        "s.status AS source_status,c.status AS communication_status "
+                        "FROM session_knowledge_transmissions t "
+                        "JOIN events s ON s.id=t.source_event_id AND s.session_id=t.session_id "
+                        "JOIN events c ON c.id=t.communication_event_id AND c.session_id=t.session_id "
+                        "WHERE t.id=? AND t.session_id=?",
+                        (parent_id, session_id)
+                    ).fetchone() if parent_id else None
+                    if (
+                        parent is None
+                        or parent["source_event_id"] != source_event_id
+                        or parent["recipient_entity_id"] != sender_id
+                        or parent["source_status"] != "recorded"
+                        or parent["communication_status"] != "recorded"
+                        or int(parent["transmitted_total_minutes"]) > transmitted_total
+                    ):
+                        raise HTTPException(status_code=403, detail="Un rumor requiere una transmisión anterior del mismo evento recibida por el emisor.")
+
+                transmission_id = new_id()
+                request_id = f"narrator-event-approval-{proposal_row['id']}"
+                conn.execute(
+                    "INSERT INTO session_knowledge_transmissions("
+                    "id,session_id,request_id,source_event_id,communication_event_id,"
+                    "sender_entity_id,recipient_entity_id,transmission_kind,version_text,"
+                    "location,transmitted_total_minutes,parent_transmission_id"
+                    ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (
+                        transmission_id, session_id, request_id, source_event_id, event_id,
+                        sender_id, recipient_id, transmission_kind, version_text.strip(),
+                        location.strip(), transmitted_total, parent_id
+                    )
+                )
+                accepted_value = {
+                    "transmission_id": transmission_id,
+                    "source_event_id": source_event_id,
+                    "communication_event_id": event_id,
+                    "sender_entity_id": sender_id,
+                    "recipient_entity_id": recipient_id,
+                    "transmission_kind": transmission_kind,
+                    "version_text": version_text.strip(),
+                    "location": location.strip(),
+                    "transmitted_total_minutes": transmitted_total,
+                    "parent_transmission_id": parent_id
+                }
+                conn.execute(
+                    "UPDATE state_changes SET status='accepted',accepted_value_json=?,"
+                    "reason='Transmisión aprobada; queda registrada como versión atribuida, no como hecho confirmado.',"
+                    "applied_at=? WHERE id=? AND status='pending'",
+                    (
+                        json.dumps(accepted_value, ensure_ascii=False),
+                        datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                        proposal_row["id"]
+                    )
+                )
+                approved_transmissions.append(accepted_value)
+
+        knowledge_recipients = {item["recipient_entity_id"] for item in approved_transmissions}
         planned = (
             plan_autonomous_behavior_agendas(conn, session_id, current_total)
-            if approved_observations else 0
+            if approved_observations or knowledge_recipients else 0
         )
     return {
         "approved": True,
         "event_id": event_id,
         "environment_observations": approved_observations,
+        "knowledge_transmissions": approved_transmissions,
         "planned_activities": planned,
         "clock_advanced": False
     }
