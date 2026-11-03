@@ -83,6 +83,10 @@ La primera fase sigue siendo un **evaluador de propuestas**, pero ahora existe u
 - Las actividades empiezan cuando el reloj cruza su hora programada y solo se completan cuando alcanza el final de su duración.
 - En cada avance real del reloj, el runtime procesa actividades vencidas y puede construir varias actividades secuenciales para el resto del día de cada PNJ configurado; respeta huecos, tareas en curso y compromisos manuales.
 - El planificador selecciona acciones deterministas según el motor, pero solo si el catálogo del mundo las marca expresamente como aptas para autonomía, con duración positiva de hasta cuatro horas, riesgo máximo 20/100, sin coste de recursos ni desplazamiento físico.
+- El contexto autónomo deriva condiciones de conocimiento por PNJ: `knows_event_kind:<kind>`, `knows_event_ref:<external_ref>` y `knows_event_id:<event_id>`. Solo entran eventos en estado `recorded` donde el PNJ figure como testigo explícito o en la audiencia autorizada del mensaje fuente.
+- Los mensajes privados requieren que el PNJ figure en su audiencia/recipiente. Metadatos dañados, eventos pendientes/rechazados y hechos de cronología mundial sin una vía individual de conocimiento se excluyen. La presencia en la misma partida o ubicación no concede conocimiento.
+- La firma de decisión incluye las condiciones percibidas. Un nuevo hecho conocido invalida únicamente las actividades autónomas futuras; las tareas en curso y agendas manuales permanecen intactas. La versión anterior de firma se conserva para no invalidar agendas v2 ya programadas.
+- Esta primera capa deriva conocimiento directo de testigos/audiencias existentes; todavía no modela transmisión autónoma de rumores/testimonios ni convierte rumores en hechos.
 - Las condiciones no registradas permanecen desconocidas y no se dan por verdaderas. Las acciones que requieren descanso seguro, comida, agua u otra condición solo son candidatas cuando el contexto aporta esa condición expresamente.
 - Las acciones no se repiten en la misma jornada salvo que el catálogo indique `autonomous_repeatable: true`; las repetibles tienen un máximo de tres ejecuciones diarias. El planificador admite hasta seis actividades automáticas por jornada y deja diez minutos entre tareas.
 - Cada agenda automática guarda una firma del perfil, catálogo y ubicación. Si alguno cambia de forma material, se cancelan solo las tareas autónomas futuras y se recalcula el resto de la jornada. Las tareas en curso y los compromisos manuales no se interrumpen.
@@ -97,7 +101,7 @@ API: `POST /api/sessions/{session_id}/entities/{entity_id}/agendas`, `GET /api/s
 ### Límites pendientes
 
 - La planificación cubre el resto del día actual, hasta seis tareas, sin programar automáticamente días futuros. Un PNJ sin perfil válido o sin acciones autorizadas permanece inactivo.
-- La replanificación responde a cambios materiales del perfil, catálogo y ubicación. Todavía no consume cambios de clima, hechos mundiales o conocimiento individual directamente como señales dinámicas; requieren una capa de percepción con procedencia.
+- La replanificación responde a cambios materiales del perfil, catálogo, ubicación y percepción individual derivada de eventos registrados.
 - Ninguna acción se habilita por defecto para ejecución autónoma: el catálogo de cada mundo debe marcarla explícitamente.
 - No hay panel visual para administrar, reordenar o inspeccionar agendas; la primera interfaz disponible es la API.
 - Las actividades no validan aún posición, distancia, clima, ruta, presencia de testigos ni acceso a lugares. No deben programarse como acciones que impliquen desplazamiento físico.
@@ -105,7 +109,7 @@ API: `POST /api/sessions/{session_id}/entities/{entity_id}/agendas`, `GET /api/s
 - Los efectos no modifican inventario, ubicación, relaciones ni poderes. No hay aún movimiento autónomo por el mapa.
 - Las emociones se desgastan al avanzar el reloj, pero los acontecimientos aceptados todavía no generan emociones de forma automática.
 - No hay agenda con interrupciones, reanudación parcial, cambios de prioridad mientras está en curso ni resolución de conflictos entre PNJ.
-- El uso de conocimiento, recuerdos y testimonios como precondiciones automáticas sigue pendiente; no se puede inferir que un PNJ sabe algo solo porque figure en el registro mundial.
+- La transmisión persistente de testimonios/rumores y las condiciones ambientales estructuradas (clima y seguridad local) siguen pendientes. Los sucesos mundiales de cronología no se comparten automáticamente con los PNJ.
 - Continúan pendientes el editor visual de perfiles, el registro de razones para todas las propuestas descartadas y la prueba E2E real del navegador.
 
 La previsualización `rank_actions()` sigue sin producir efectos. Es una lista de propuestas. La ejecución solo ocurre para una actividad que ha sido guardada como agenda y cuyo intervalo ya ha transcurrido en el reloj real de la partida.
