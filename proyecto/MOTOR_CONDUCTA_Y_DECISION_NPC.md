@@ -87,6 +87,12 @@ La primera fase sigue siendo un **evaluador de propuestas**, pero ahora existe u
 - Los mensajes privados requieren que el PNJ figure en su audiencia/recipiente. Metadatos dañados, eventos pendientes/rechazados y hechos de cronología mundial sin una vía individual de conocimiento se excluyen. La presencia en la misma partida o ubicación no concede conocimiento.
 - La firma de decisión incluye las condiciones percibidas. Un nuevo hecho conocido invalida únicamente las actividades autónomas futuras; las tareas en curso y agendas manuales permanecen intactas. La versión anterior de firma se conserva para no invalidar agendas v2 ya programadas.
 - Esta primera capa deriva conocimiento directo de testigos/audiencias existentes; todavía no modela transmisión autónoma de rumores/testimonios ni convierte rumores en hechos.
+- Las observaciones ambientales se guardan por observador, ubicación y minuto de juego en `session_environment_observations`. Cada registro exige un evento fuente `observation` en estado `recorded`, testigo explícito y audiencia compatible.
+- Clima y seguridad local son dominios separados: `observes_weather:<value_key>` y `observes_local_safety:<value_key>`. Las claves son datos configurables del mundo; Word Bot no inventa un estado cuando no existe una observación.
+- La API `POST /api/sessions/{session_id}/environment/observations` toma la ubicación y el minuto del estado autoritativo de la partida; no acepta fechas futuras ni ubicaciones elegidas libremente. Cada observación caduca entre 1 y 240 minutos de juego después de registrarse.
+- Una observación solo se usa para el mismo personaje y ubicación mientras siga vigente y su evento fuente continúe registrado. Compartir región o escena no copia automáticamente el clima ni la evaluación de seguridad.
+- Registrar una observación replanifica las actividades autónomas futuras en el mismo minuto de juego, sin avanzar el reloj. Si una observación caduca antes de que una actividad empiece, la firma deja de coincidir y la actividad se bloquea sin efectos.
+- Las observaciones se incluyen en snapshots, deshacer/restaurar y copias de seguridad de la partida.
 - Las condiciones no registradas permanecen desconocidas y no se dan por verdaderas. Las acciones que requieren descanso seguro, comida, agua u otra condición solo son candidatas cuando el contexto aporta esa condición expresamente.
 - Las acciones no se repiten en la misma jornada salvo que el catálogo indique `autonomous_repeatable: true`; las repetibles tienen un máximo de tres ejecuciones diarias. El planificador admite hasta seis actividades automáticas por jornada y deja diez minutos entre tareas.
 - Cada agenda automática guarda una firma del perfil, catálogo y ubicación. Si alguno cambia de forma material, se cancelan solo las tareas autónomas futuras y se recalcula el resto de la jornada. Las tareas en curso y los compromisos manuales no se interrumpen.
@@ -96,7 +102,7 @@ La primera fase sigue siendo un **evaluador de propuestas**, pero ahora existe u
 - En la ejecución se vuelven a comprobar perfil, capacidades, condiciones y catálogo guardado. Los efectos permitidos son deliberadamente limitados: cambios sobre necesidades ya conocidas, emociones nuevas con evento fuente, actualización de objetivos existentes y cambio/limpieza del foco.
 - Las actividades completadas generan un registro de evento y una fila de ejecución. Perfiles, agendas y ejecuciones se incluyen en snapshots de turno y copias de seguridad/restauración.
 
-API: `POST /api/sessions/{session_id}/entities/{entity_id}/agendas`, `GET /api/sessions/{session_id}/agendas` y `DELETE /api/sessions/{session_id}/agendas/{agenda_id}`.
+API: `POST /api/sessions/{session_id}/entities/{entity_id}/agendas`, `GET /api/sessions/{session_id}/agendas` y `DELETE /api/sessions/{session_id}/agendas/{agenda_id}`. API ambiental: `POST /api/sessions/{session_id}/environment/observations`.
 
 ### Límites pendientes
 
@@ -104,7 +110,7 @@ API: `POST /api/sessions/{session_id}/entities/{entity_id}/agendas`, `GET /api/s
 - La replanificación responde a cambios materiales del perfil, catálogo, ubicación y percepción individual derivada de eventos registrados.
 - Ninguna acción se habilita por defecto para ejecución autónoma: el catálogo de cada mundo debe marcarla explícitamente.
 - No hay panel visual para administrar, reordenar o inspeccionar agendas; la primera interfaz disponible es la API.
-- Las actividades no validan aún posición, distancia, clima, ruta, presencia de testigos ni acceso a lugares. No deben programarse como acciones que impliquen desplazamiento físico.
+- Las actividades todavía no calculan rutas ni distancias. El clima/seguridad disponibles son observaciones explícitas y caducables, no una simulación meteorológica automática ni una evaluación global por región. Las acciones que impliquen desplazamiento físico siguen excluidas.
 - Las acciones con coste de recursos se rechazan para agenda hasta contar con reservas atómicas y resolución de concurrencia.
 - Los efectos no modifican inventario, ubicación, relaciones ni poderes. No hay aún movimiento autónomo por el mapa.
 - Las emociones se desgastan al avanzar el reloj, pero los acontecimientos aceptados todavía no generan emociones de forma automática.
