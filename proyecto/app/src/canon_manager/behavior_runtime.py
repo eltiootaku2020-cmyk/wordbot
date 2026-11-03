@@ -358,6 +358,17 @@ def process_due_behavior_agendas(
         agenda_id = str(row["id"])
         start = int(row["scheduled_total_minutes"])
         end = start + int(row["duration_minutes"])
+        if (
+            str(row["status"]) == "scheduled"
+            and start <= current_total_minutes
+            and not _autonomous_agenda_state_matches(conn, session_id, row)
+        ):
+            _block_agenda(
+                conn, agenda_id,
+                "La actividad autónoma cambió antes de comenzar; se bloqueó sin aplicar efectos.",
+            )
+            stats["blocked"] += 1
+            continue
         if end > current_total_minutes:
             if str(row["status"]) == "scheduled":
                 conn.execute(
@@ -625,6 +636,31 @@ def _cancel_stale_autonomous_agenda(conn, row, reason: str) -> None:
         "updated_at=CURRENT_TIMESTAMP WHERE id=? AND status='scheduled'",
         (json.dumps(result, ensure_ascii=False, sort_keys=True), str(row["id"])),
     )
+
+
+def _autonomous_agenda_state_matches(conn, session_id: str, row) -> bool:
+    """Fail closed if a not-yet-started automatic agenda no longer matches state."""
+    metadata = _agenda_autonomous_metadata(row)
+    if metadata is None or metadata.get("planner_version") != 2:
+        return True
+    try:
+        entity = conn.execute(
+            "SELECT e.kind,s.world_id,p.location AS entity_location FROM sessions s "
+            "JOIN entities e ON e.world_id=s.world_id "
+            "LEFT JOIN session_presence p ON p.session_id=s.id AND p.entity_id=e.id "
+            "WHERE s.id=? AND e.id=?",
+            (session_id, str(row["entity_id"])),
+        ).fetchone()
+        if entity is None or str(entity["kind"]) == "protagonist":
+            return False
+        profile = _profile_for(conn, session_id, str(row["entity_id"]))
+        _, _, _, catalog_signature = _safe_autonomous_catalog(conn, str(entity["world_id"]))
+        current_signature = _autonomous_state_signature(
+            profile, catalog_signature, str(entity["entity_location"] or "").strip()
+        )
+        return metadata.get("state_signature") == current_signature
+    except (BehaviorValidationError, BehaviorAgendaConflictError, ValueError, TypeError, KeyError):
+        return False
 
 
 def plan_autonomous_behavior_agendas(
