@@ -31,7 +31,7 @@ from .behavior_controller import (
 from .behavior_engine import BehaviorValidationError
 from .behavior_runtime import (
     BehaviorAgendaConflictError, BehaviorAgendaNotFoundError, BehaviorAgendaValidationError,
-    _entity_perception_context, _event_known_to_entity, cancel_behavior_agenda,
+    _event_known_to_entity, cancel_behavior_agenda,
     list_behavior_agendas, plan_autonomous_behavior_agendas, schedule_behavior_agenda,
     tick_behavior_runtime,
 )
@@ -3836,9 +3836,11 @@ def restore_session_from_backup(session_id: str, backup_path: Path) -> dict[str,
                 session_id,
             )
         )
-        for table in RESTORE_SESSION_TABLES:
+        # Delete in reverse dependency order (environment observations reference events).
+        for table in reversed(RESTORE_SESSION_TABLES):
             conn.execute(f"DELETE FROM {table} WHERE session_id=?", (session_id,))
 
+        # Insert in dependency order so source events exist before their observations.
         for table in RESTORE_SESSION_TABLES:
             rows = table_rows[table]
             if not rows:
