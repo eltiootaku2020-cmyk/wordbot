@@ -1496,7 +1496,7 @@ def apply_narrator_result(
         event.ref: event for event in result.events
         if event.ref not in duplicate_event_refs
     }
-    valid_environment_proposals: list[EnvironmentObservationProposal] = []
+    valid_environment_proposals: list[tuple[EnvironmentObservationProposal, str, int]] = []
     environment_proposals_by_ref: dict[str, list[EnvironmentObservationProposal]] = {}
     seen_environment_keys: set[tuple[str, str, str]] = set()
     for proposal in result.environment_observations:
@@ -1551,7 +1551,12 @@ def apply_narrator_result(
             )
             continue
         seen_environment_keys.add(signature)
-        valid_environment_proposals.append(proposal)
+        observed_total_minutes = (
+            (int(session["day"]) - 1) * 1440 + int(session["minute_of_day"])
+        )
+        valid_environment_proposals.append(
+            (proposal, observer_location, observed_total_minutes)
+        )
         environment_proposals_by_ref.setdefault(proposal.event_ref, []).append(proposal)
 
     seen_refs: set[str] = set()
@@ -1597,16 +1602,14 @@ def apply_narrator_result(
     # Reuse the existing transactional state-change ledger for pending
     # environmental proposals. This keeps them in snapshots/backups and lets
     # event rejection mark them rejected without introducing a second table.
-    for proposal_index, proposal in enumerate(valid_environment_proposals):
+    for proposal_index, (proposal, proposal_location, observed_total_minutes) in enumerate(valid_environment_proposals):
         source = event_map.get(proposal.event_ref)
         if source is None:
             continue
         proposal_data = proposal.model_dump()
         proposal_data["event_ref"] = proposal.event_ref
-        proposal_data["observed_location"] = observer_location
-        proposal_data["observed_total_minutes"] = (
-            (int(session["day"]) - 1) * 1440 + int(session["minute_of_day"])
-        )
+        proposal_data["observed_location"] = proposal_location
+        proposal_data["observed_total_minutes"] = observed_total_minutes
         save_change(
             conn, session["id"], turn_id,
             f"environment-observation-{proposal_index}-{new_id()[:8]}",
