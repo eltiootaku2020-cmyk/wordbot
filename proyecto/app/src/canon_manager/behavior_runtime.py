@@ -437,7 +437,7 @@ def process_due_behavior_agendas(
                 _, _, _, catalog_signature = _safe_autonomous_catalog(
                     conn, str(entity["world_id"])
                 )
-                perceived_conditions = {}
+                perceived_conditions = None
                 if auto_metadata.get("planner_version") == 3:
                     perceived_conditions, _ = _entity_perception_context(
                         conn, session_id, str(row["entity_id"])
@@ -609,7 +609,7 @@ def _entity_perception_context(
                 audience = {recipient_id}
             if entity_id not in audience:
                 continue
-        elif audience and entity_id not in audience and entity_id not in witnesses_set:
+        elif audience and entity_id not in audience:
             continue
         elif not source_visibility and recipient_id and entity_id != recipient_id:
             continue
@@ -704,8 +704,13 @@ def _autonomous_state_signature(
 ) -> str:
     profile_signature = _autonomous_profile_signature(profile)
     location_signature = hashlib.sha256(location.encode("utf-8")).hexdigest()
+    if perceived_conditions is None:
+        # Preserve the original v2 signature for already-scheduled legacy tasks.
+        return hashlib.sha256(
+            f"{profile_signature}|{catalog_signature}|{location_signature}".encode("utf-8")
+        ).hexdigest()
     perception_payload = json.dumps(
-        dict(sorted((perceived_conditions or {}).items())),
+        dict(sorted(perceived_conditions.items())),
         ensure_ascii=False, sort_keys=True, separators=(",", ":"),
     )
     perception_signature = hashlib.sha256(perception_payload.encode("utf-8")).hexdigest()
@@ -755,7 +760,7 @@ def _autonomous_agenda_state_matches(conn, session_id: str, row) -> bool:
             return False
         profile = _profile_for(conn, session_id, str(row["entity_id"]))
         _, _, _, catalog_signature = _safe_autonomous_catalog(conn, str(entity["world_id"]))
-        perceived_conditions = {}
+        perceived_conditions = None
         if metadata.get("planner_version") == 3:
             perceived_conditions, _ = _entity_perception_context(
                 conn, session_id, str(row["entity_id"])
