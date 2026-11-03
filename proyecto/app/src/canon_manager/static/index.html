@@ -785,7 +785,8 @@ function renderState(payload) {
         const validity = Number.isInteger(proposal.valid_for_minutes) ? proposal.valid_for_minutes : 60;
         detail.textContent = "Propuesta ambiental pendiente · " + observer + " · " + domain + ": " + proposal.value_key
           + (proposal.details ? " · " + proposal.details : "")
-          + " · vigencia: " + validity + " min desde la aprobación";
+          + (proposal.observed_location ? " · lugar observado: " + proposal.observed_location : "")
+          + " · vigencia: " + validity + " min desde la observación";
         environmentDetails.push(detail);
       });
       let environmentNote = null;
