@@ -552,16 +552,85 @@ def _safe_autonomous_catalog(conn, world_id: str):
     return patterns, safe_actions, action_map, catalog_signature
 
 
+def _event_known_to_entity(row, entity_id: str) -> bool:
+    """Check an event's explicit witness/audience provenance for one entity."""
+    try:
+        witnesses = json.loads(str(row["witnesses_json"] or "[]"))
+        metadata = json.loads(str(row["source_metadata_json"] or "{}"))
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return False
+    if (
+        not isinstance(witnesses, list)
+        or any(not isinstance(value, str) for value in witnesses)
+        or not isinstance(metadata, Mapping)
+    ):
+        return False
+
+    audience_raw = metadata.get("audience_ids") or []
+    if not isinstance(audience_raw, list) or any(
+        not isinstance(value, str) for value in audience_raw
+    ):
+        return False
+    audience = set(audience_raw)
+    witnesses_set = set(witnesses)
+    visibility = metadata.get("visibility")
+    recipient_id = str(row["source_recipient_id"] or "").strip()
+
+    if visibility not in {None, "", "private", "scene", "public"}:
+        return False
+    if visibility == "private":
+        if not audience and recipient_id:
+            audience = {recipient_id}
+        if entity_id not in audience:
+            return False
+    elif audience and entity_id not in audience:
+        return False
+    elif not visibility and recipient_id and entity_id != recipient_id:
+        return False
+
+    has_explicit_path = entity_id in witnesses_set or entity_id in audience
+    if not visibility and recipient_id and entity_id == recipient_id:
+        has_explicit_path = True
+    if not row["source_message_id"] and not witnesses_set:
+        return False
+    return has_explicit_path
+
+
+def _perception_token(value: Any) -> str:
+    raw = str(value or "").strip().casefold()
+    return "".join(
+        char if char.isalnum() or char in "-_" else "_"
+        for char in raw
+    ).strip("_")[:120]
+
+
 def _entity_perception_context(
     conn, session_id: str, entity_id: str
 ) -> tuple[dict[str, bool], dict[str, Any]]:
-    """Build action conditions only from facts this NPC could actually know.
+    """Build event and environmental conditions for one entity, never globally.
 
-    A recorded event is usable when the NPC is an explicit witness or belongs
-    to the source message's explicit audience. Private messages are restricted
-    to their recorded audience/recipient. World timeline events are deliberately
-    excluded: a fact occurring in the world does not make every NPC aware of it.
+    Events require explicit witness/audience provenance. Environmental readings
+    are personal, location-bound observations with a game-time expiry and a
+    still-recorded source event. Weather and local safety remain separate keys.
     """
+    session_state = conn.execute(
+        "SELECT s.day,s.minute_of_day,s.current_location,e.kind,"
+        "p.location AS entity_location "
+        "FROM sessions s JOIN entities e ON e.id=? "
+        "LEFT JOIN session_presence p ON p.session_id=s.id AND p.entity_id=e.id "
+        "WHERE s.id=?",
+        (entity_id, session_id),
+    ).fetchone()
+    if session_state is None:
+        return {}, {"source_event_ids": [], "event_kinds": [], "environment_observations": []}
+
+    current_total = _total_minutes(
+        int(session_state["day"]), int(session_state["minute_of_day"])
+    )
+    location = str(session_state["entity_location"] or "").strip()
+    if not location and str(session_state["kind"]) == "protagonist":
+        location = str(session_state["current_location"] or "").strip()
+
     rows = conn.execute(
         "SELECT e.id,e.external_ref,e.kind,e.witnesses_json,e.source_message_id,"
         "m.recipient_entity_id AS source_recipient_id,m.metadata_json AS source_metadata_json "
@@ -574,70 +643,65 @@ def _entity_perception_context(
     conditions: dict[str, bool] = {}
     source_event_ids: list[str] = []
     event_kinds: set[str] = set()
-
-    def token(value: Any) -> str:
-        raw = str(value or "").strip().casefold()
-        return "".join(char if char.isalnum() or char in "-_" else "_" for char in raw).strip("_")[:120]
-
     for row in rows:
-        try:
-            witnesses = json.loads(str(row["witnesses_json"] or "[]"))
-            metadata = json.loads(str(row["source_metadata_json"] or "{}"))
-        except (TypeError, ValueError, json.JSONDecodeError):
+        if not _event_known_to_entity(row, entity_id):
             continue
-        if (
-            not isinstance(witnesses, list)
-            or any(not isinstance(value, str) for value in witnesses)
-            or not isinstance(metadata, Mapping)
-        ):
-            continue
-
-        audience_raw = metadata.get("audience_ids") or []
-        if not isinstance(audience_raw, list) or any(
-            not isinstance(value, str) for value in audience_raw
-        ):
-            continue
-        audience = set(audience_raw)
-        witnesses_set = set(witnesses)
-        source_visibility = metadata.get("visibility")
-        recipient_id = str(row["source_recipient_id"] or "").strip()
-
-        if source_visibility not in {None, "", "private", "scene", "public"}:
-            continue
-        if source_visibility == "private":
-            if not audience and recipient_id:
-                audience = {recipient_id}
-            if entity_id not in audience:
-                continue
-        elif audience and entity_id not in audience:
-            continue
-        elif not source_visibility and recipient_id and entity_id != recipient_id:
-            continue
-
-        has_explicit_path = entity_id in witnesses_set or entity_id in audience
-        if not source_visibility and recipient_id and entity_id == recipient_id:
-            has_explicit_path = True
-        if not row["source_message_id"] and not witnesses_set:
-            continue
-        if not has_explicit_path:
-            continue
-
         event_id = str(row["id"] or "").strip()
-        kind = token(row["kind"])
-        external_ref = token(row["external_ref"])
+        kind = _perception_token(row["kind"])
+        external_ref = _perception_token(row["external_ref"])
         if not event_id or not kind:
             continue
-
         conditions[f"knows_event_kind:{kind}"] = True
-        conditions[f"knows_event_id:{token(event_id)}"] = True
+        conditions[f"knows_event_id:{_perception_token(event_id)}"] = True
         if external_ref:
             conditions[f"knows_event_ref:{external_ref}"] = True
         source_event_ids.append(event_id)
         event_kinds.add(kind)
 
+    environment_summary: list[dict[str, Any]] = []
+    if location:
+        environment_rows = conn.execute(
+            "SELECT o.*,e.status AS source_status,e.witnesses_json,"
+            "e.source_message_id,m.recipient_entity_id AS source_recipient_id,"
+            "m.metadata_json AS source_metadata_json "
+            "FROM session_environment_observations o "
+            "JOIN events e ON e.id=o.source_event_id "
+            "LEFT JOIN messages m ON m.id=e.source_message_id "
+            "WHERE o.session_id=? AND o.observer_entity_id=? AND LOWER(o.location)=LOWER(?) "
+            "AND o.observed_total_minutes<=? AND o.valid_until_total_minutes>? "
+            "AND e.status='recorded' "
+            "ORDER BY o.observed_total_minutes DESC,o.created_at DESC,o.id DESC LIMIT 20",
+            (session_id, entity_id, location, current_total, current_total),
+        ).fetchall()
+        latest_by_kind: set[str] = set()
+        for observation in environment_rows:
+            kind = str(observation["observation_kind"])
+            if kind in latest_by_kind:
+                continue
+            if not _event_known_to_entity(observation, entity_id):
+                continue
+            value_key = _perception_token(observation["value_key"])
+            if not value_key or value_key == "unknown":
+                continue
+            latest_by_kind.add(kind)
+            condition_name = (
+                "observes_weather" if kind == "weather" else "observes_local_safety"
+            )
+            conditions[f"{condition_name}:{value_key}"] = True
+            environment_summary.append({
+                "observation_id": str(observation["id"]),
+                "observation_kind": kind,
+                "value_key": value_key,
+                "location": str(observation["location"]),
+                "observed_total_minutes": int(observation["observed_total_minutes"]),
+                "valid_until_total_minutes": int(observation["valid_until_total_minutes"]),
+                "source_event_id": str(observation["source_event_id"]),
+            })
+
     return conditions, {
         "source_event_ids": source_event_ids[:20],
         "event_kinds": sorted(event_kinds),
+        "environment_observations": environment_summary[:10],
     }
 
 
