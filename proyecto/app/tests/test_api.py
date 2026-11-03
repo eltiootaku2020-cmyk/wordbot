@@ -5725,7 +5725,7 @@ def test_clock_tick_plans_one_safe_autonomous_activity_and_avoids_immediate_repe
         assert agenda["action_id"] == "field_research"
         assert agenda["status"] == "scheduled"
         assert agenda["scheduled_total_minutes"] == 481
-        assert agenda["context"]["_autonomous_plan"]["planner_version"] == 3
+        assert agenda["context"]["_autonomous_plan"]["planner_version"] == 4
 
         # Reaching the scheduled end completes the task exactly once. The
         # planner does not repeat the same action immediately afterwards.
@@ -5882,7 +5882,7 @@ def test_autonomous_planner_builds_multiple_non_overlapping_activities_for_the_d
         for previous, current in zip(automatic, automatic[1:]):
             previous_end = previous["scheduled_total_minutes"] + previous["duration_minutes"]
             assert previous_end <= current["scheduled_total_minutes"]
-        assert all(item["context"]["_autonomous_plan"]["planner_version"] == 3 for item in automatic)
+        assert all(item["context"]["_autonomous_plan"]["planner_version"] == 4 for item in automatic)
         assert all(item["scheduled_total_minutes"] + item["duration_minutes"] <= 1440 for item in automatic)
 
 
@@ -6426,7 +6426,7 @@ def test_autonomous_planner_uses_only_individually_perceived_recorded_events():
         assert direct_event_id in context["perception"]["source_event_ids"]
         assert hidden_event_id not in context["perception"]["source_event_ids"]
         assert other_witness_event_id not in context["perception"]["source_event_ids"]
-        assert automatic[0]["context"]["_autonomous_plan"]["planner_version"] == 3
+        assert automatic[0]["context"]["_autonomous_plan"]["planner_version"] == 4
 
 
 
