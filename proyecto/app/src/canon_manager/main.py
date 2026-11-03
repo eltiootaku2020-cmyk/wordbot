@@ -4204,13 +4204,14 @@ def record_environment_observation(
         if entity is None:
             raise HTTPException(status_code=404, detail="El observador no pertenece a este mundo.")
 
-        presence = conn.execute(
-            "SELECT location FROM session_presence WHERE session_id=? AND entity_id=?",
-            (session_id, payload.observer_entity_id),
-        ).fetchone()
-        location = str(presence["location"] or "").strip() if presence else ""
-        if not location and str(entity["kind"]) == "protagonist":
+        if str(entity["kind"]) == "protagonist":
             location = str(session["current_location"] or "").strip()
+        else:
+            presence = conn.execute(
+                "SELECT location FROM session_presence WHERE session_id=? AND entity_id=?",
+                (session_id, payload.observer_entity_id),
+            ).fetchone()
+            location = str(presence["location"] or "").strip() if presence else ""
         if not location:
             raise HTTPException(
                 status_code=409,
