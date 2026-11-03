@@ -432,19 +432,21 @@ def process_due_behavior_agendas(
             if (
                 str(row["status"]) == "scheduled"
                 and isinstance(auto_metadata, Mapping)
-                and auto_metadata.get("planner_version") in {2, 3, 4}
+                and auto_metadata.get("planner_version") in {2, 3, 4, 5}
             ):
                 _, _, _, catalog_signature = _safe_autonomous_catalog(
                     conn, str(entity["world_id"])
                 )
                 perceived_conditions = None
                 perception_metadata = None
-                if auto_metadata.get("planner_version") in {3, 4}:
+                if auto_metadata.get("planner_version") in {3, 4, 5}:
                     perceived_conditions, perception_summary = _entity_perception_context(
                         conn, session_id, str(row["entity_id"])
                     )
-                    if auto_metadata.get("planner_version") == 4:
-                        perception_metadata = perception_summary
+                    if auto_metadata.get("planner_version") in {4, 5}:
+                        perception_metadata = _planner_perception_metadata(
+                            perception_summary, int(auto_metadata["planner_version"])
+                        )
                 current_signature = _autonomous_state_signature(
                     profile, catalog_signature, current_location,
                     perceived_conditions, perception_metadata,
@@ -759,6 +761,26 @@ def _entity_perception_context(
     }
 
 
+def _planner_perception_metadata(
+    perception_summary: Mapping[str, Any], planner_version: int
+) -> Mapping[str, Any] | None:
+    """Keep legacy v4 signatures stable until a new knowledge report exists.
+
+    v5 always includes attributed reports. Existing v4 plans ignore the newly
+    introduced empty field, but a received report invalidates their old plan
+    so the NPC can reconsider future activity using that information.
+    """
+    if planner_version == 5:
+        return perception_summary
+    if planner_version == 4:
+        if perception_summary.get("knowledge_reports"):
+            return perception_summary
+        legacy = dict(perception_summary)
+        legacy.pop("knowledge_reports", None)
+        return legacy
+    return None
+
+
 def _signature_bucket(value: Any) -> int | None:
     if value is None:
         return None
@@ -877,7 +899,7 @@ def _cancel_stale_autonomous_agenda(conn, row, reason: str) -> None:
 def _autonomous_agenda_state_matches(conn, session_id: str, row) -> bool:
     """Fail closed if a not-yet-started automatic agenda no longer matches state."""
     metadata = _agenda_autonomous_metadata(row)
-    if metadata is None or metadata.get("planner_version") not in {2, 3, 4}:
+    if metadata is None or metadata.get("planner_version") not in {2, 3, 4, 5}:
         return True
     try:
         entity = conn.execute(
@@ -893,12 +915,14 @@ def _autonomous_agenda_state_matches(conn, session_id: str, row) -> bool:
         _, _, _, catalog_signature = _safe_autonomous_catalog(conn, str(entity["world_id"]))
         perceived_conditions = None
         perception_metadata = None
-        if metadata.get("planner_version") in {3, 4}:
+        if metadata.get("planner_version") in {3, 4, 5}:
             perceived_conditions, perception_summary = _entity_perception_context(
                 conn, session_id, str(row["entity_id"])
             )
-            if metadata.get("planner_version") == 4:
-                perception_metadata = perception_summary
+            if metadata.get("planner_version") in {4, 5}:
+                perception_metadata = _planner_perception_metadata(
+                    perception_summary, int(metadata["planner_version"])
+                )
         current_signature = _autonomous_state_signature(
             profile, catalog_signature, str(entity["entity_location"] or "").strip(),
             perceived_conditions, perception_metadata,
@@ -981,10 +1005,11 @@ def plan_autonomous_behavior_agendas(
                     expected_signature = _autonomous_state_signature(
                         profile, catalog_signature, location, perceived_conditions
                     )
-                elif version == 4:
+                elif version in {4, 5}:
                     expected_signature = _autonomous_state_signature(
                         profile, catalog_signature, location,
-                        perceived_conditions, perception_summary,
+                        perceived_conditions,
+                        _planner_perception_metadata(perception_summary, int(version)),
                     )
                 else:
                     return False
@@ -1110,7 +1135,7 @@ def plan_autonomous_behavior_agendas(
             agenda_context = dict(context)
             agenda_context["available_minutes"] = duration
             agenda_context["_autonomous_plan"] = {
-                "planner_version": 4,
+                "planner_version": 5,
                 "state_signature": state_signature,
                 "profile_signature": profile_signature,
                 "catalog_signature": catalog_signature,
@@ -1123,7 +1148,7 @@ def plan_autonomous_behavior_agendas(
 
             request_seed = (
                 f"{session_id}|{entity_id}|{cursor}|{action['action_id']}|"
-                f"{state_signature}|autonomous-planner-v2"
+                f"{state_signature}|autonomous-planner-v3"
             )
             request_id = "auto-" + hashlib.sha256(request_seed.encode("utf-8")).hexdigest()[:48]
             duplicate = conn.execute(
