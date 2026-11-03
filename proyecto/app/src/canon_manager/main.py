@@ -31,10 +31,11 @@ from .behavior_controller import (
 from .behavior_engine import BehaviorValidationError
 from .behavior_runtime import (
     BehaviorAgendaConflictError, BehaviorAgendaNotFoundError, BehaviorAgendaValidationError,
-    cancel_behavior_agenda, list_behavior_agendas, schedule_behavior_agenda,
+    _entity_perception_context, _event_known_to_entity, cancel_behavior_agenda,
+    list_behavior_agendas, plan_autonomous_behavior_agendas, schedule_behavior_agenda,
     tick_behavior_runtime,
 )
-from .models import ApprovalRequest, BehaviorAgendaCreateRequest, BehaviorCatalogRequest, BehaviorPreviewRequest, BehaviorProfileRequest, ContextPreviewRequest, EntityCreate, LocalCommandRequest, LocalSettingsUpdate, ManualPromptRequest, MapRegionConfigRequest, NarratorResponse, SessionCreate, SessionRestoreRequest, TravelPlanRequest, TravelStepRequest, TurnRequest, WorldCreate, WorldStartCreate, WorldTimelineEventCreate, WorldTimelineEventUpdate
+from .models import ApprovalRequest, BehaviorAgendaCreateRequest, BehaviorCatalogRequest, BehaviorPreviewRequest, BehaviorProfileRequest, ContextPreviewRequest, EntityCreate, EnvironmentObservationRequest, LocalCommandRequest, LocalSettingsUpdate, ManualPromptRequest, MapRegionConfigRequest, NarratorResponse, SessionCreate, SessionRestoreRequest, TravelPlanRequest, TravelStepRequest, TurnRequest, WorldCreate, WorldStartCreate, WorldTimelineEventCreate, WorldTimelineEventUpdate
 from .providers import ProviderError, build_manual_prompt, make_provider
 from .timeline import fire_due_world_events
 from .travel_controller import (
@@ -627,6 +628,10 @@ def capture_turn_state(conn, session_id: str) -> dict[str, Any]:
         "behavior_executions": [dict(row) for row in conn.execute(
             "SELECT * FROM behavior_action_executions WHERE session_id=? ORDER BY completed_total_minutes,id",
             (session_id,)
+        ).fetchall()],
+        "environment_observations": [dict(row) for row in conn.execute(
+            "SELECT * FROM session_environment_observations WHERE session_id=? ORDER BY observed_total_minutes,id",
+            (session_id,)
         ).fetchall()]
     }
 
@@ -667,7 +672,8 @@ def restore_turn_state(conn, session_id: str, state: dict[str, Any]) -> None:
         ("session_timeline_events", state.get("timeline_events", [])),
         ("session_entity_behavior_profiles", state.get("behavior_profiles", [])),
         ("session_entity_agendas", state.get("behavior_agendas", [])),
-        ("behavior_action_executions", state.get("behavior_executions", []))
+        ("behavior_action_executions", state.get("behavior_executions", [])),
+        ("session_environment_observations", state.get("environment_observations", []))
     ]
     for table, rows in table_rows:
         conn.execute(f"DELETE FROM {table} WHERE session_id=?", (session_id,))
@@ -3608,6 +3614,7 @@ RESTORE_SESSION_TABLES = (
     "relationships",
     "ability_uses",
     "session_timeline_events",
+    "session_environment_observations",
     "messages",
     "events",
     "state_changes",
@@ -3623,6 +3630,7 @@ RESTORE_REQUIRED_COLUMNS = {
     "relationships": {"id", "session_id", "from_entity_id", "to_entity_id", "axis", "value"},
     "ability_uses": {"id", "session_id", "turn_id", "ability_key", "target_entity_id", "result"},
     "session_timeline_events": {"id", "session_id", "world_event_id", "scheduled_total_minutes", "fired_total_minutes", "fired_day", "fired_minute"},
+    "session_environment_observations": {"id", "session_id", "request_id", "observer_entity_id", "location", "observation_kind", "value_key", "observed_total_minutes", "valid_until_total_minutes", "source_event_id"},
     "messages": {"id", "session_id", "turn_id", "turn_index", "role", "recipient_entity_id", "content", "provider", "generation_status"},
     "events": {"id", "session_id", "turn_id", "external_ref", "kind", "entity_id", "description", "witnesses_json", "status"},
     "state_changes": {"id", "session_id", "turn_id", "external_ref", "entity_id", "field", "operation", "proposed_value_json", "status", "reason"},
@@ -3722,6 +3730,7 @@ def _read_session_backup(backup_path: Path, session_id: str):
         optional_tables = {
             "session_timeline_events", "session_entity_behavior_profiles",
             "session_entity_agendas", "behavior_action_executions",
+            "session_environment_observations",
         }
         missing_tables = [
             table for table in RESTORE_SESSION_TABLES
@@ -4154,6 +4163,122 @@ def create_behavior_agenda(
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except (BehaviorAgendaValidationError, BehaviorValidationError, TypeError, ValueError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@app.post("/api/sessions/{session_id}/environment/observations")
+def record_environment_observation(
+    session_id: str, payload: EnvironmentObservationRequest
+):
+    """Record a personal environment observation backed by an explicit witnessed event."""
+    if payload.value_key == "unknown":
+        raise HTTPException(
+            status_code=422,
+            detail="'unknown' representa ausencia de observación y no puede guardarse como dato conocido.",
+        )
+
+    with database.transaction() as conn:
+        ensure_no_turn_in_progress(conn, session_id)
+        session = session_row(conn, session_id)
+        if session is None:
+            raise HTTPException(status_code=404, detail="Partida no encontrada.")
+
+        duplicate = conn.execute(
+            "SELECT * FROM session_environment_observations "
+            "WHERE session_id=? AND request_id=?",
+            (session_id, payload.request_id),
+        ).fetchone()
+        if duplicate is not None:
+            return {
+                "created": False,
+                "duplicate": True,
+                "observation": dict(duplicate),
+                "planned_activities": 0,
+            }
+
+        entity = conn.execute(
+            "SELECT id,kind FROM entities WHERE id=? AND world_id=?",
+            (payload.observer_entity_id, session["world_id"]),
+        ).fetchone()
+        if entity is None:
+            raise HTTPException(status_code=404, detail="El observador no pertenece a este mundo.")
+
+        presence = conn.execute(
+            "SELECT location FROM session_presence WHERE session_id=? AND entity_id=?",
+            (session_id, payload.observer_entity_id),
+        ).fetchone()
+        location = str(presence["location"] or "").strip() if presence else ""
+        if not location and str(entity["kind"]) == "protagonist":
+            location = str(session["current_location"] or "").strip()
+        if not location:
+            raise HTTPException(
+                status_code=409,
+                detail="El observador no tiene una ubicación registrada; no se puede atribuir una observación ambiental.",
+            )
+
+        source = conn.execute(
+            "SELECT e.id,e.kind,e.status,e.witnesses_json,e.source_message_id,"
+            "m.recipient_entity_id AS source_recipient_id,m.metadata_json AS source_metadata_json "
+            "FROM events e LEFT JOIN messages m ON m.id=e.source_message_id "
+            "WHERE e.id=? AND e.session_id=?",
+            (payload.source_event_id, session_id),
+        ).fetchone()
+        if source is None:
+            raise HTTPException(status_code=404, detail="No existe el evento fuente en esta partida.")
+        if source["status"] != "recorded" or source["kind"] != "observation":
+            raise HTTPException(
+                status_code=409,
+                detail="La observación ambiental requiere un evento fuente de tipo observation ya registrado.",
+            )
+        try:
+            witnesses = json.loads(str(source["witnesses_json"] or "[]"))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            witnesses = None
+        if not isinstance(witnesses, list) or payload.observer_entity_id not in witnesses:
+            raise HTTPException(
+                status_code=422,
+                detail="El observador debe figurar como testigo explícito del evento fuente.",
+            )
+        if not _event_known_to_entity(source, payload.observer_entity_id):
+            raise HTTPException(
+                status_code=403,
+                detail="La audiencia o procedencia del evento fuente no autoriza al observador.",
+            )
+
+        current_total = (int(session["day"]) - 1) * 1440 + int(session["minute_of_day"])
+        observation_id = new_id()
+        valid_until = current_total + int(payload.valid_for_minutes)
+        conn.execute(
+            "INSERT INTO session_environment_observations("
+            "id,session_id,request_id,observer_entity_id,location,observation_kind,value_key,"
+            "details,observed_total_minutes,valid_until_total_minutes,source_event_id"
+            ") VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+            (
+                observation_id, session_id, payload.request_id, payload.observer_entity_id,
+                location, payload.observation_kind, payload.value_key, payload.details,
+                current_total, valid_until, payload.source_event_id,
+            ),
+        )
+
+        # Replan at the same authoritative game minute. This reacts to the new
+        # observation without advancing time or interrupting already-running tasks.
+        planned = plan_autonomous_behavior_agendas(conn, session_id, current_total)
+        return {
+            "created": True,
+            "duplicate": False,
+            "observation": {
+                "id": observation_id,
+                "observer_entity_id": payload.observer_entity_id,
+                "location": location,
+                "observation_kind": payload.observation_kind,
+                "value_key": payload.value_key,
+                "details": payload.details,
+                "observed_total_minutes": current_total,
+                "valid_until_total_minutes": valid_until,
+                "source_event_id": payload.source_event_id,
+            },
+            "planned_activities": planned,
+            "clock_advanced": False,
+        }
 
 
 @app.delete("/api/sessions/{session_id}/agendas/{agenda_id}")
