@@ -615,6 +615,8 @@ def _entity_perception_context(
             continue
 
         has_explicit_path = entity_id in witnesses_set or entity_id in audience
+        if not source_visibility and recipient_id and entity_id == recipient_id:
+            has_explicit_path = True
         if not row["source_message_id"] and not witnesses_set:
             continue
         if not has_explicit_path:
