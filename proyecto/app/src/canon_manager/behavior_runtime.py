@@ -626,7 +626,7 @@ def _entity_perception_context(
         (entity_id, session_id),
     ).fetchone()
     if session_state is None:
-        return {}, {"source_event_ids": [], "event_kinds": [], "environment_observations": []}
+        return {}, {"source_event_ids": [], "event_kinds": [], "environment_observations": [], "knowledge_reports": []}
 
     current_total = _total_minutes(
         int(session_state["day"]), int(session_state["minute_of_day"])
@@ -661,6 +661,45 @@ def _entity_perception_context(
             conditions[f"knows_event_ref:{external_ref}"] = True
         source_event_ids.append(event_id)
         event_kinds.add(kind)
+
+    # A received report is knowledge that someone made this statement, not proof
+    # that the source event happened as described. Keep its attribution and wording.
+    knowledge_summary: list[dict[str, Any]] = []
+    report_rows = conn.execute(
+        "SELECT t.id,t.sender_entity_id,t.recipient_entity_id,t.transmission_kind,"
+        "t.version_text,t.location,t.transmitted_total_minutes,t.parent_transmission_id,"
+        "s.id AS source_event_id,s.kind AS source_event_kind,"
+        "c.id AS communication_event_id,c.status AS communication_status "
+        "FROM session_knowledge_transmissions t "
+        "JOIN events s ON s.id=t.source_event_id AND s.session_id=t.session_id "
+        "JOIN events c ON c.id=t.communication_event_id AND c.session_id=t.session_id "
+        "WHERE t.session_id=? AND t.recipient_entity_id=? "
+        "AND t.transmitted_total_minutes<=? AND s.status='recorded' AND c.status='recorded' "
+        "ORDER BY t.transmitted_total_minutes DESC,t.created_at DESC,t.id DESC LIMIT 20",
+        (session_id, entity_id, current_total),
+    ).fetchall()
+    for report in report_rows:
+        report_id = _perception_token(report["id"])
+        source_id = _perception_token(report["source_event_id"])
+        transmission_kind = str(report["transmission_kind"])
+        if not report_id or not source_id or transmission_kind not in {"testimony", "rumor"}:
+            continue
+        conditions[f"heard_report_id:{report_id}"] = True
+        conditions[f"heard_report_of_event:{source_id}"] = True
+        conditions[f"heard_{transmission_kind}_of_event:{source_id}"] = True
+        knowledge_summary.append({
+            "transmission_id": str(report["id"]),
+            "transmission_kind": transmission_kind,
+            "sender_entity_id": str(report["sender_entity_id"]),
+            "recipient_entity_id": str(report["recipient_entity_id"]),
+            "source_event_id": str(report["source_event_id"]),
+            "source_event_kind": str(report["source_event_kind"]),
+            "reported_version": str(report["version_text"]),
+            "location": str(report["location"]),
+            "transmitted_total_minutes": int(report["transmitted_total_minutes"]),
+            "parent_transmission_id": str(report["parent_transmission_id"] or ""),
+            "epistemic_status": "reported_not_verified",
+        })
 
     environment_summary: list[dict[str, Any]] = []
     if location:
@@ -716,6 +755,7 @@ def _entity_perception_context(
         "source_event_ids": source_event_ids[:20],
         "event_kinds": sorted(event_kinds),
         "environment_observations": environment_summary[:10],
+        "knowledge_reports": knowledge_summary[:20],
     }
 
 
