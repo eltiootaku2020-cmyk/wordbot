@@ -53,6 +53,27 @@ CREATE TABLE IF NOT EXISTS events (
   source_message_id TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(session_id, turn_id, external_ref)
 );
+CREATE TABLE IF NOT EXISTS session_knowledge_transmissions (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  request_id TEXT NOT NULL,
+  source_event_id TEXT NOT NULL REFERENCES events(id) ON DELETE RESTRICT,
+  communication_event_id TEXT NOT NULL REFERENCES events(id) ON DELETE RESTRICT,
+  sender_entity_id TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  recipient_entity_id TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  transmission_kind TEXT NOT NULL CHECK(transmission_kind IN ('testimony','rumor')),
+  version_text TEXT NOT NULL CHECK(length(trim(version_text)) BETWEEN 1 AND 600),
+  location TEXT NOT NULL CHECK(length(trim(location)) > 0),
+  transmitted_total_minutes INTEGER NOT NULL CHECK(transmitted_total_minutes >= 0),
+  parent_transmission_id TEXT NOT NULL DEFAULT '',
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(session_id, request_id),
+  UNIQUE(session_id, communication_event_id, recipient_entity_id),
+  CHECK(sender_entity_id <> recipient_entity_id),
+  CHECK(source_event_id <> communication_event_id)
+);
+CREATE INDEX IF NOT EXISTS idx_knowledge_transmissions_incoming
+  ON session_knowledge_transmissions(session_id,recipient_entity_id,transmitted_total_minutes);
 CREATE TABLE IF NOT EXISTS session_environment_observations (
   id TEXT PRIMARY KEY,
   session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
