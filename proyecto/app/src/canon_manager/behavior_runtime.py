@@ -438,12 +438,14 @@ def process_due_behavior_agendas(
                     conn, str(entity["world_id"])
                 )
                 perceived_conditions = None
+                perception_metadata = None
                 if auto_metadata.get("planner_version") == 3:
-                    perceived_conditions, _ = _entity_perception_context(
+                    perceived_conditions, perception_metadata = _entity_perception_context(
                         conn, session_id, str(row["entity_id"])
                     )
                 current_signature = _autonomous_state_signature(
-                    profile, catalog_signature, current_location, perceived_conditions
+                    profile, catalog_signature, current_location,
+                    perceived_conditions, perception_metadata,
                 )
                 if auto_metadata.get("state_signature") != current_signature:
                     raise BehaviorAgendaValidationError(
@@ -616,7 +618,7 @@ def _entity_perception_context(
     session_state = conn.execute(
         "SELECT s.day,s.minute_of_day,s.current_location,e.kind,"
         "p.location AS entity_location "
-        "FROM sessions s JOIN entities e ON e.id=? "
+        "FROM sessions s JOIN entities e ON e.id=? AND e.world_id=s.world_id "
         "LEFT JOIN session_presence p ON p.session_id=s.id AND p.entity_id=e.id "
         "WHERE s.id=?",
         (entity_id, session_id),
@@ -661,7 +663,7 @@ def _entity_perception_context(
     environment_summary: list[dict[str, Any]] = []
     if location:
         environment_rows = conn.execute(
-            "SELECT o.*,e.status AS source_status,e.witnesses_json,"
+            "SELECT o.*,e.status AS source_status,e.kind AS source_event_kind,e.witnesses_json,"
             "e.source_message_id,m.recipient_entity_id AS source_recipient_id,"
             "m.metadata_json AS source_metadata_json "
             "FROM session_environment_observations o "
@@ -678,7 +680,17 @@ def _entity_perception_context(
             kind = str(observation["observation_kind"])
             if kind in latest_by_kind:
                 continue
-            if not _event_known_to_entity(observation, entity_id):
+            if observation["source_event_kind"] != "observation":
+                continue
+            try:
+                observation_witnesses = json.loads(str(observation["witnesses_json"] or "[]"))
+            except (TypeError, ValueError, json.JSONDecodeError):
+                continue
+            if (
+                not isinstance(observation_witnesses, list)
+                or entity_id not in observation_witnesses
+                or not _event_known_to_entity(observation, entity_id)
+            ):
                 continue
             value_key = _perception_token(observation["value_key"])
             if not value_key or value_key == "unknown":
@@ -767,6 +779,7 @@ def _autonomous_state_signature(
     catalog_signature: str,
     location: str,
     perceived_conditions: Mapping[str, bool] | None = None,
+    perception_metadata: Mapping[str, Any] | None = None,
 ) -> str:
     profile_signature = _autonomous_profile_signature(profile)
     location_signature = hashlib.sha256(location.encode("utf-8")).hexdigest()
@@ -776,7 +789,10 @@ def _autonomous_state_signature(
             f"{profile_signature}|{catalog_signature}|{location_signature}".encode("utf-8")
         ).hexdigest()
     perception_payload = json.dumps(
-        dict(sorted(perceived_conditions.items())),
+        {
+            "conditions": dict(sorted(perceived_conditions.items())),
+            "metadata": perception_metadata or {},
+        },
         ensure_ascii=False, sort_keys=True, separators=(",", ":"),
     )
     perception_signature = hashlib.sha256(perception_payload.encode("utf-8")).hexdigest()
@@ -827,13 +843,14 @@ def _autonomous_agenda_state_matches(conn, session_id: str, row) -> bool:
         profile = _profile_for(conn, session_id, str(row["entity_id"]))
         _, _, _, catalog_signature = _safe_autonomous_catalog(conn, str(entity["world_id"]))
         perceived_conditions = None
+        perception_metadata = None
         if metadata.get("planner_version") == 3:
-            perceived_conditions, _ = _entity_perception_context(
+            perceived_conditions, perception_metadata = _entity_perception_context(
                 conn, session_id, str(row["entity_id"])
             )
         current_signature = _autonomous_state_signature(
             profile, catalog_signature, str(entity["entity_location"] or "").strip(),
-            perceived_conditions,
+            perceived_conditions, perception_metadata,
         )
         return metadata.get("state_signature") == current_signature
     except (BehaviorValidationError, BehaviorAgendaConflictError, ValueError, TypeError, KeyError):
@@ -885,7 +902,7 @@ def plan_autonomous_behavior_agendas(
                 conn, session_id, entity_id
             )
             state_signature = _autonomous_state_signature(
-                profile, catalog_signature, location, perceived_conditions
+                profile, catalog_signature, location, perceived_conditions, perception_summary
             )
         except (BehaviorValidationError, BehaviorAgendaConflictError, ValueError, TypeError):
             continue
