@@ -5725,7 +5725,7 @@ def test_clock_tick_plans_one_safe_autonomous_activity_and_avoids_immediate_repe
         assert agenda["action_id"] == "field_research"
         assert agenda["status"] == "scheduled"
         assert agenda["scheduled_total_minutes"] == 481
-        assert agenda["context"]["_autonomous_plan"]["planner_version"] == 2
+        assert agenda["context"]["_autonomous_plan"]["planner_version"] == 3
 
         # Reaching the scheduled end completes the task exactly once. The
         # planner does not repeat the same action immediately afterwards.
@@ -5882,7 +5882,7 @@ def test_autonomous_planner_builds_multiple_non_overlapping_activities_for_the_d
         for previous, current in zip(automatic, automatic[1:]):
             previous_end = previous["scheduled_total_minutes"] + previous["duration_minutes"]
             assert previous_end <= current["scheduled_total_minutes"]
-        assert all(item["context"]["_autonomous_plan"]["planner_version"] == 2 for item in automatic)
+        assert all(item["context"]["_autonomous_plan"]["planner_version"] == 3 for item in automatic)
         assert all(item["scheduled_total_minutes"] + item["duration_minutes"] <= 1440 for item in automatic)
 
 
@@ -6304,3 +6304,126 @@ def test_autonomous_task_is_blocked_when_profile_changes_before_it_starts():
             and item["status"] == "scheduled"
             for item in after
         )
+
+
+
+def test_autonomous_planner_uses_only_individually_perceived_recorded_events():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        maelis_id = f"{world_id}:maelis-orven"
+        brina_id = f"{world_id}:brina-solcor"
+
+        profile = {
+            "traits": {"curiosity": 80},
+            "needs": {},
+            "emotions": [],
+            "goals": [],
+            "capabilities": ["investigate"],
+            "resources": {},
+        }
+        saved_profile = client.put(
+            f"/api/sessions/{session_id}/entities/{maelis_id}/behavior",
+            json={"profile": profile},
+        )
+        assert saved_profile.status_code == 200, saved_profile.text
+
+        catalog = {
+            "schema_version": 1,
+            "actions": [{
+                "action_id": "investigate_known_clue",
+                "category": "research",
+                "base_priority": 10,
+                "tags": ["research", "knowledge"],
+                "required_capabilities": ["investigate"],
+                "required_conditions": {"knows_event_kind:clue": True},
+                "duration_minutes": 30,
+                "autonomous_allowed": True,
+            }],
+            "patterns": [],
+        }
+        saved_catalog = client.put(
+            f"/api/worlds/{world_id}/behavior/catalog", json=catalog
+        )
+        assert saved_catalog.status_code == 200, saved_catalog.text
+
+        hidden_event_id = uuid.uuid4().hex
+        other_witness_event_id = uuid.uuid4().hex
+        private_message_id = uuid.uuid4().hex
+        with database.transaction() as conn:
+            next_index = conn.execute(
+                "SELECT COALESCE(MAX(turn_index),0)+1 AS n FROM messages WHERE session_id=?",
+                (session_id,),
+            ).fetchone()["n"]
+            conn.execute(
+                "INSERT INTO messages(id,session_id,turn_id,turn_index,role,recipient_entity_id,"
+                "content,provider,generation_status,metadata_json) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (
+                    private_message_id, session_id, "private-clue-turn", next_index, "assistant",
+                    brina_id, "Una conversación privada sobre una pista.", "mock", "complete",
+                    json.dumps({"visibility": "private", "audience_ids": [brina_id]}),
+                ),
+            )
+            # Deliberately inconsistent legacy data: the witness list says Maelis,
+            # but the private source audience contains only Brina. Fail closed.
+            conn.execute(
+                "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,"
+                "witnesses_json,status,source_message_id) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (
+                    hidden_event_id, session_id, "private-clue-turn", "private-clue",
+                    "clue", "", "Una pista fue comentada en privado.",
+                    json.dumps([maelis_id]), "recorded", private_message_id,
+                ),
+            )
+            conn.execute(
+                "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,"
+                "witnesses_json,status,source_message_id) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (
+                    other_witness_event_id, session_id, "brina-clue-turn", "brina-clue",
+                    "clue", "", "Brina encuentra una pista sin Maelis.",
+                    json.dumps([brina_id]), "recorded", "",
+                ),
+            )
+            conn.execute(
+                "UPDATE sessions SET day=1,minute_of_day=481 WHERE id=?",
+                (session_id,),
+            )
+            first_tick = tick_behavior_runtime(conn, session_id, 480, 481)
+
+        assert first_tick["planned"] == 0
+        assert client.get(
+            f"/api/sessions/{session_id}/agendas", params={"entity_id": maelis_id}
+        ).json() == []
+
+        direct_event_id = uuid.uuid4().hex
+        with database.transaction() as conn:
+            conn.execute(
+                "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,"
+                "witnesses_json,status,source_message_id) VALUES(?,?,?,?,?,?,?,?,?,?)",
+                (
+                    direct_event_id, session_id, "maelis-clue-turn", "maelis-clue",
+                    "clue", "", "Maelis observa directamente una pista.",
+                    json.dumps([maelis_id]), "recorded", "",
+                ),
+            )
+            conn.execute(
+                "UPDATE sessions SET day=1,minute_of_day=482 WHERE id=?",
+                (session_id,),
+            )
+            second_tick = tick_behavior_runtime(conn, session_id, 481, 482)
+
+        assert second_tick["planned"] == 1
+        agendas = client.get(
+            f"/api/sessions/{session_id}/agendas", params={"entity_id": maelis_id}
+        ).json()
+        automatic = [
+            item for item in agendas
+            if item["status"] == "scheduled" and item["context"].get("_autonomous_plan")
+        ]
+        assert len(automatic) == 1
+        context = automatic[0]["context"]
+        assert context["conditions"]["knows_event_kind:clue"] is True
+        assert direct_event_id in context["perception"]["source_event_ids"]
+        assert hidden_event_id not in context["perception"]["source_event_ids"]
+        assert other_witness_event_id not in context["perception"]["source_event_ids"]
+        assert automatic[0]["context"]["_autonomous_plan"]["planner_version"] == 3
