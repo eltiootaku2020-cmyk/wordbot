@@ -2401,7 +2401,8 @@ def load_state(conn, session_id: str) -> dict[str, Any]:
     ).fetchall()]
     pending = [dict(row) for row in conn.execute(
         "SELECT id,entity_id,field,operation,proposed_value_json,reason,created_at FROM state_changes "
-        "WHERE session_id=? AND status='pending' AND field<>'environment_observation' ORDER BY created_at DESC LIMIT 100", (session_id,)
+        "WHERE session_id=? AND status='pending' AND field NOT IN ('environment_observation','knowledge_transmission') "
+        "ORDER BY created_at DESC LIMIT 100", (session_id,)
     ).fetchall()]
     for item in pending:
         item["proposed_value"] = json.loads(item.pop("proposed_value_json"))
@@ -2427,6 +2428,25 @@ def load_state(conn, session_id: str) -> dict[str, Any]:
                 event["environment_observation_proposals"].append({
                     "proposal_id": str(proposal_row["id"]),
                     "observer_entity_id": str(proposal_row["entity_id"]),
+                    **proposal_data,
+                    "reason": str(proposal_row["reason"] or "")
+                })
+        transmission_rows = conn.execute(
+            "SELECT id,entity_id,proposed_value_json,reason FROM state_changes "
+            "WHERE session_id=? AND source_event_id=? AND field='knowledge_transmission' "
+            "AND status='pending' ORDER BY created_at,id",
+            (session_id, event["id"])
+        ).fetchall()
+        event["knowledge_transmission_proposals"] = []
+        for proposal_row in transmission_rows:
+            try:
+                proposal_data = json.loads(str(proposal_row["proposed_value_json"]))
+            except (TypeError, ValueError, json.JSONDecodeError):
+                proposal_data = None
+            if isinstance(proposal_data, dict):
+                event["knowledge_transmission_proposals"].append({
+                    "proposal_id": str(proposal_row["id"]),
+                    "recipient_entity_id": str(proposal_row["entity_id"]),
                     **proposal_data,
                     "reason": str(proposal_row["reason"] or "")
                 })
@@ -4180,6 +4200,7 @@ RESTORE_SESSION_TABLES = (
     "session_timeline_events",
     "messages",
     "events",
+    "session_knowledge_transmissions",
     "session_environment_observations",
     "state_changes",
     "snapshots",
@@ -4194,6 +4215,7 @@ RESTORE_REQUIRED_COLUMNS = {
     "relationships": {"id", "session_id", "from_entity_id", "to_entity_id", "axis", "value"},
     "ability_uses": {"id", "session_id", "turn_id", "ability_key", "target_entity_id", "result"},
     "session_timeline_events": {"id", "session_id", "world_event_id", "scheduled_total_minutes", "fired_total_minutes", "fired_day", "fired_minute"},
+    "session_knowledge_transmissions": {"id", "session_id", "request_id", "source_event_id", "communication_event_id", "sender_entity_id", "recipient_entity_id", "transmission_kind", "version_text", "location", "transmitted_total_minutes"},
     "session_environment_observations": {"id", "session_id", "request_id", "observer_entity_id", "location", "observation_kind", "value_key", "observed_total_minutes", "valid_until_total_minutes", "source_event_id"},
     "messages": {"id", "session_id", "turn_id", "turn_index", "role", "recipient_entity_id", "content", "provider", "generation_status"},
     "events": {"id", "session_id", "turn_id", "external_ref", "kind", "entity_id", "description", "witnesses_json", "status"},
@@ -4294,7 +4316,7 @@ def _read_session_backup(backup_path: Path, session_id: str):
         optional_tables = {
             "session_timeline_events", "session_entity_behavior_profiles",
             "session_entity_agendas", "behavior_action_executions",
-            "session_environment_observations",
+            "session_environment_observations", "session_knowledge_transmissions",
         }
         missing_tables = [
             table for table in RESTORE_SESSION_TABLES
