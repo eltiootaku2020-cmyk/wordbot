@@ -53,6 +53,23 @@ CREATE TABLE IF NOT EXISTS events (
   source_message_id TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(session_id, turn_id, external_ref)
 );
+CREATE TABLE IF NOT EXISTS session_environment_observations (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  request_id TEXT NOT NULL,
+  observer_entity_id TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  location TEXT NOT NULL CHECK(length(trim(location)) > 0),
+  observation_kind TEXT NOT NULL CHECK(observation_kind IN ('weather','local_safety')),
+  value_key TEXT NOT NULL CHECK(length(value_key) BETWEEN 1 AND 40),
+  details TEXT NOT NULL DEFAULT '',
+  observed_total_minutes INTEGER NOT NULL CHECK(observed_total_minutes >= 0),
+  valid_until_total_minutes INTEGER NOT NULL CHECK(valid_until_total_minutes > observed_total_minutes),
+  source_event_id TEXT NOT NULL REFERENCES events(id) ON DELETE RESTRICT,
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(session_id, request_id)
+);
+CREATE INDEX IF NOT EXISTS idx_environment_observations_active
+  ON session_environment_observations(session_id,observer_entity_id,location,observation_kind,observed_total_minutes);
 CREATE TABLE IF NOT EXISTS world_timeline_events (
   id TEXT PRIMARY KEY, world_id TEXT NOT NULL REFERENCES worlds(id) ON DELETE CASCADE,
   external_uid TEXT NOT NULL, title TEXT NOT NULL, description TEXT NOT NULL,
