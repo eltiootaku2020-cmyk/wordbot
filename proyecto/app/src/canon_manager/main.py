@@ -35,7 +35,7 @@ from .behavior_runtime import (
     list_behavior_agendas, plan_autonomous_behavior_agendas, schedule_behavior_agenda,
     tick_behavior_runtime,
 )
-from .models import ApprovalRequest, BehaviorAgendaCreateRequest, BehaviorCatalogRequest, BehaviorPreviewRequest, BehaviorProfileRequest, ContextPreviewRequest, EntityCreate, EnvironmentObservationProposal, EnvironmentObservationRequest, KnowledgeTransmissionProposal, LocalCommandRequest, LocalSettingsUpdate, ManualPromptRequest, MapRegionConfigRequest, NarratorResponse, SessionCreate, SessionRestoreRequest, TravelPlanRequest, TravelStepRequest, TurnRequest, WorldCreate, WorldStartCreate, WorldTimelineEventCreate, WorldTimelineEventUpdate
+from .models import ApprovalRequest, BehaviorAgendaCreateRequest, BehaviorCatalogRequest, BehaviorPreviewRequest, BehaviorProfileRequest, ContextPreviewRequest, EntityCreate, EnvironmentObservationProposal, EnvironmentObservationRequest, KnowledgeAssessmentRequest, KnowledgeTransmissionProposal, LocalCommandRequest, LocalSettingsUpdate, ManualPromptRequest, MapRegionConfigRequest, NarratorResponse, SessionCreate, SessionRestoreRequest, TravelPlanRequest, TravelStepRequest, TurnRequest, WorldCreate, WorldStartCreate, WorldTimelineEventCreate, WorldTimelineEventUpdate
 from .providers import ProviderError, build_manual_prompt, make_provider
 from .timeline import fire_due_world_events
 from .travel_controller import (
@@ -637,6 +637,11 @@ def capture_turn_state(conn, session_id: str) -> dict[str, Any]:
             "SELECT * FROM session_knowledge_transmissions WHERE session_id=? "
             "ORDER BY transmitted_total_minutes,id",
             (session_id,)
+        ).fetchall()],
+        "knowledge_assessments": [dict(row) for row in conn.execute(
+            "SELECT * FROM session_knowledge_assessments WHERE session_id=? "
+            "ORDER BY assessed_total_minutes,id",
+            (session_id,)
         ).fetchall()]
     }
 
@@ -679,10 +684,14 @@ def restore_turn_state(conn, session_id: str, state: dict[str, Any]) -> None:
         ("session_entity_agendas", state.get("behavior_agendas", [])),
         ("behavior_action_executions", state.get("behavior_executions", [])),
         ("session_environment_observations", state.get("environment_observations", [])),
-        ("session_knowledge_transmissions", state.get("knowledge_transmissions", []))
+        ("session_knowledge_transmissions", state.get("knowledge_transmissions", [])),
+        ("session_knowledge_assessments", state.get("knowledge_assessments", []))
     ]
-    for table, rows in table_rows:
+    # Delete children before parents, then restore parents before children.
+    # Knowledge assessments reference transmissions and must follow this order.
+    for table, _ in reversed(table_rows):
         conn.execute(f"DELETE FROM {table} WHERE session_id=?", (session_id,))
+    for table, rows in table_rows:
         for row in rows:
             columns = list(row.keys())
             placeholders = ",".join("?" for _ in columns)
@@ -2390,6 +2399,17 @@ def load_state(conn, session_id: str) -> dict[str, Any]:
     for participant in participants:
         _, perception = _entity_perception_context(conn, session_id, participant["id"])
         participant["knowledge_reports"] = perception.get("knowledge_reports", [])
+        known_event_ids = perception.get("source_event_ids", [])
+        participant["known_event_ids"] = known_event_ids
+        if known_event_ids:
+            placeholders = ",".join("?" for _ in known_event_ids)
+            participant["known_events"] = [dict(row) for row in conn.execute(
+                "SELECT id,kind,description FROM events WHERE session_id=? "
+                f"AND id IN ({placeholders}) ORDER BY created_at DESC,id",
+                [session_id, *known_event_ids],
+            ).fetchall()]
+        else:
+            participant["known_events"] = []
     inventory = [dict(row) for row in conn.execute(
         "SELECT display_name,quantity,condition,carrier_entity_id,location FROM inventory_items "
         "WHERE session_id=? AND quantity>0 ORDER BY display_name", (session_id,)
@@ -3082,6 +3102,129 @@ def seed_demo():
 def get_session_state(session_id: str):
     with database.connection() as conn:
         return load_state(conn, session_id)
+
+
+@app.post("/api/sessions/{session_id}/knowledge-reports/{transmission_id}/assessments")
+def assess_knowledge_report(
+    session_id: str, transmission_id: str, payload: KnowledgeAssessmentRequest
+):
+    """Record one recipient's evidence-backed opinion without changing world truth."""
+    with database.transaction() as conn:
+        ensure_no_turn_in_progress(conn, session_id)
+        session = session_row(conn, session_id)
+        if session is None:
+            raise HTTPException(status_code=404, detail="Partida no encontrada.")
+
+        evidence_report_id = payload.evidence_report_id.strip()
+        evidence_event_id = payload.evidence_event_id.strip()
+        if bool(evidence_report_id) == bool(evidence_event_id):
+            raise HTTPException(
+                status_code=422,
+                detail="Indica exactamente una evidencia: otro informe recibido o un evento conocido directamente."
+            )
+
+        existing = conn.execute(
+            "SELECT * FROM session_knowledge_assessments WHERE session_id=? AND request_id=?",
+            (session_id, payload.request_id),
+        ).fetchone()
+        if existing is not None:
+            same_request = (
+                str(existing["transmission_id"]) == transmission_id
+                and str(existing["assessor_entity_id"]) == payload.assessor_entity_id
+                and str(existing["stance"]) == payload.stance
+                and int(existing["confidence"]) == payload.confidence
+                and str(existing["evidence_report_id"] or "") == evidence_report_id
+                and str(existing["evidence_event_id"] or "") == evidence_event_id
+                and str(existing["rationale"]) == payload.rationale
+            )
+            if not same_request:
+                raise HTTPException(
+                    status_code=409,
+                    detail="El identificador de solicitud ya se utilizó para otra evaluación."
+                )
+            return {"assessment": dict(existing), "replayed": True}
+
+        report = conn.execute(
+            "SELECT t.id,t.source_event_id,t.recipient_entity_id,t.transmitted_total_minutes,"
+            "s.status AS source_status,c.status AS communication_status "
+            "FROM session_knowledge_transmissions t "
+            "JOIN events s ON s.id=t.source_event_id AND s.session_id=t.session_id "
+            "JOIN events c ON c.id=t.communication_event_id AND c.session_id=t.session_id "
+            "WHERE t.id=? AND t.session_id=? AND t.recipient_entity_id=?",
+            (transmission_id, session_id, payload.assessor_entity_id),
+        ).fetchone()
+        if (
+            report is None
+            or report["source_status"] != "recorded"
+            or report["communication_status"] != "recorded"
+        ):
+            raise HTTPException(
+                status_code=404,
+                detail="El informe no existe, no fue recibido por ese personaje o ya no está registrado."
+            )
+
+        current_total = (int(session["day"]) - 1) * 1440 + int(session["minute_of_day"])
+        if int(report["transmitted_total_minutes"]) > current_total:
+            raise HTTPException(status_code=422, detail="El informe todavía no era conocido en el minuto actual.")
+
+        if evidence_report_id:
+            if evidence_report_id == transmission_id:
+                raise HTTPException(status_code=422, detail="Un informe no puede usarse como evidencia de sí mismo.")
+            evidence = conn.execute(
+                "SELECT t.id,t.source_event_id,t.transmitted_total_minutes,"
+                "s.status AS source_status,c.status AS communication_status "
+                "FROM session_knowledge_transmissions t "
+                "JOIN events s ON s.id=t.source_event_id AND s.session_id=t.session_id "
+                "JOIN events c ON c.id=t.communication_event_id AND c.session_id=t.session_id "
+                "WHERE t.id=? AND t.session_id=? AND t.recipient_entity_id=?",
+                (evidence_report_id, session_id, payload.assessor_entity_id),
+            ).fetchone()
+            if (
+                evidence is None
+                or evidence["source_event_id"] != report["source_event_id"]
+                or evidence["source_status"] != "recorded"
+                or evidence["communication_status"] != "recorded"
+                or int(evidence["transmitted_total_minutes"]) > current_total
+            ):
+                raise HTTPException(
+                    status_code=422,
+                    detail="El informe comparativo debe haber sido recibido por el mismo PNJ y referirse al mismo acontecimiento."
+                )
+        else:
+            evidence = conn.execute(
+                "SELECT e.id,e.status,e.kind,e.witnesses_json,e.source_message_id,"
+                "m.recipient_entity_id AS source_recipient_id,m.metadata_json AS source_metadata_json "
+                "FROM events e LEFT JOIN messages m ON m.id=e.source_message_id "
+                "WHERE e.id=? AND e.session_id=?",
+                (evidence_event_id, session_id),
+            ).fetchone()
+            if (
+                evidence is None
+                or evidence["status"] != "recorded"
+                or not _event_known_to_entity(evidence, payload.assessor_entity_id)
+            ):
+                raise HTTPException(
+                    status_code=422,
+                    detail="El PNJ no tiene una vía directa y registrada para conocer ese evento como evidencia."
+                )
+
+        assessment_id = new_id()
+        conn.execute(
+            "INSERT INTO session_knowledge_assessments("
+            "id,session_id,request_id,transmission_id,assessor_entity_id,stance,confidence,"
+            "evidence_report_id,evidence_event_id,rationale,assessed_total_minutes"
+            ") VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+            (
+                assessment_id, session_id, payload.request_id, transmission_id,
+                payload.assessor_entity_id, payload.stance, payload.confidence,
+                evidence_report_id, evidence_event_id, payload.rationale, current_total,
+            ),
+        )
+        assessment = conn.execute(
+            "SELECT * FROM session_knowledge_assessments WHERE id=?",
+            (assessment_id,),
+        ).fetchone()
+    return {"assessment": dict(assessment), "replayed": False}
 
 
 @app.post("/api/sessions/{session_id}/commands")
@@ -4204,6 +4347,7 @@ RESTORE_SESSION_TABLES = (
     "messages",
     "events",
     "session_knowledge_transmissions",
+    "session_knowledge_assessments",
     "session_environment_observations",
     "state_changes",
     "snapshots",
@@ -4219,6 +4363,7 @@ RESTORE_REQUIRED_COLUMNS = {
     "ability_uses": {"id", "session_id", "turn_id", "ability_key", "target_entity_id", "result"},
     "session_timeline_events": {"id", "session_id", "world_event_id", "scheduled_total_minutes", "fired_total_minutes", "fired_day", "fired_minute"},
     "session_knowledge_transmissions": {"id", "session_id", "request_id", "source_event_id", "communication_event_id", "sender_entity_id", "recipient_entity_id", "transmission_kind", "version_text", "location", "transmitted_total_minutes"},
+    "session_knowledge_assessments": {"id", "session_id", "request_id", "transmission_id", "assessor_entity_id", "stance", "confidence", "evidence_report_id", "evidence_event_id", "rationale", "assessed_total_minutes"},
     "session_environment_observations": {"id", "session_id", "request_id", "observer_entity_id", "location", "observation_kind", "value_key", "observed_total_minutes", "valid_until_total_minutes", "source_event_id"},
     "messages": {"id", "session_id", "turn_id", "turn_index", "role", "recipient_entity_id", "content", "provider", "generation_status"},
     "events": {"id", "session_id", "turn_id", "external_ref", "kind", "entity_id", "description", "witnesses_json", "status"},
@@ -4320,6 +4465,7 @@ def _read_session_backup(backup_path: Path, session_id: str):
             "session_timeline_events", "session_entity_behavior_profiles",
             "session_entity_agendas", "behavior_action_executions",
             "session_environment_observations", "session_knowledge_transmissions",
+            "session_knowledge_assessments",
         }
         missing_tables = [
             table for table in RESTORE_SESSION_TABLES

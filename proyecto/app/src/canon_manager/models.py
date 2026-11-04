@@ -96,6 +96,16 @@ class KnowledgeTransmissionProposal(StrictModel):
     parent_transmission_id: str = Field(default="", max_length=80)
 
 
+class KnowledgeAssessmentRequest(StrictModel):
+    request_id: str = Field(min_length=1, max_length=100)
+    assessor_entity_id: str = Field(min_length=1, max_length=120)
+    stance: Literal["believes", "uncertain", "doubts", "contradicts"]
+    confidence: int = Field(ge=0, le=100, description="Grado de confianza personal del PNJ en la versión, no probabilidad objetiva.")
+    evidence_report_id: str = Field(default="", max_length=80)
+    evidence_event_id: str = Field(default="", max_length=80)
+    rationale: str = Field(min_length=1, max_length=600)
+
+
 class NarratorResponse(StrictModel):
     narration: str = Field(min_length=1, max_length=12000)
     events: list[EventProposal] = Field(default_factory=list, max_length=30)

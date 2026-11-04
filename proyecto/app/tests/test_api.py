@@ -7545,7 +7545,7 @@ def test_session_backup_restores_attributed_knowledge_transmissions():
                 (
                     source_event_id, session_id, "backup-knowledge-source", "backup-source",
                     "clue", protagonist_id, "El protagonista vio una señal en una roca.",
-                    json.dumps([protagonist_id]), 1, 4, "recorded",
+                    json.dumps([protagonist_id, brina_id]), 1, 4, "recorded",
                 )
             )
             conn.execute(
@@ -7571,11 +7571,27 @@ def test_session_backup_restores_attributed_knowledge_transmissions():
                     "Claro del bosque", 480, "",
                 )
             )
+            conn.execute(
+                "INSERT INTO session_knowledge_assessments("
+                "id,session_id,request_id,transmission_id,assessor_entity_id,stance,confidence,"
+                "evidence_report_id,evidence_event_id,rationale,assessed_total_minutes"
+                ") VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    "backup-assessment-" + uuid.uuid4().hex, session_id,
+                    "backup-assessment-request", transmission_id, brina_id,
+                    "believes", 82, "", source_event_id,
+                    "Brina conoce directamente el evento y considera consistente el relato.", 480,
+                )
+            )
 
         backup = client.post(f"/api/sessions/{session_id}/backup")
         assert backup.status_code == 200, backup.text
         backup_name = backup.json()["backup_name"]
         with database.transaction() as conn:
+            conn.execute(
+                "DELETE FROM session_knowledge_assessments WHERE session_id=?",
+                (session_id,),
+            )
             conn.execute(
                 "DELETE FROM session_knowledge_transmissions WHERE session_id=?",
                 (session_id,),
@@ -7606,3 +7622,223 @@ def test_session_backup_restores_attributed_knowledge_transmissions():
         assert row["transmission_kind"] == "testimony"
         assert row["version_text"] == "Vi una señal reciente en la roca."
         assert row["parent_transmission_id"] == ""
+        with database.connection() as conn:
+            assessment = conn.execute(
+                "SELECT transmission_id,assessor_entity_id,stance,confidence,evidence_event_id,"
+                "rationale,assessed_total_minutes FROM session_knowledge_assessments "
+                "WHERE session_id=? AND transmission_id=?",
+                (session_id, transmission_id),
+            ).fetchone()
+        assert assessment is not None
+        assert assessment["transmission_id"] == transmission_id
+        assert assessment["assessor_entity_id"] == brina_id
+        assert assessment["stance"] == "believes"
+        assert assessment["confidence"] == 82
+        assert assessment["evidence_event_id"] == source_event_id
+        assert assessment["rationale"].startswith("Brina conoce directamente")
+        assert assessment["assessed_total_minutes"] == 480
+
+
+def _approve_knowledge_testimony(client, session_id, source_event_id, sender_id, recipient_id, ref, version_text):
+    proposal = NarratorResponse(
+        narration="Un personaje comunica a otro lo que presenció.",
+        events=[EventProposal(
+            ref=ref,
+            kind="knowledge",
+            entity_id=sender_id,
+            description=f"{sender_id} comunica su versión a {recipient_id}.",
+            witness_ids=[sender_id, recipient_id],
+        )],
+        knowledge_transmissions=[KnowledgeTransmissionProposal(
+            event_ref=ref,
+            source_event_id=source_event_id,
+            sender_entity_id=sender_id,
+            recipient_entity_id=recipient_id,
+            transmission_kind="testimony",
+            version_text=version_text,
+        )],
+    )
+    turn_id, _, _ = _apply_synthetic_result(session_id, "Le cuento lo que vi.", proposal)
+    with database.connection() as conn:
+        event = conn.execute(
+            "SELECT id FROM events WHERE session_id=? AND turn_id=?",
+            (session_id, turn_id),
+        ).fetchone()
+    assert event is not None
+    approved = client.post(
+        f"/api/sessions/{session_id}/events/{event['id']}/approve"
+    )
+    assert approved.status_code == 200, approved.text
+    with database.connection() as conn:
+        transmission = conn.execute(
+            "SELECT id FROM session_knowledge_transmissions "
+            "WHERE session_id=? AND communication_event_id=?",
+            (session_id, event["id"]),
+        ).fetchone()
+    assert transmission is not None
+    return str(transmission["id"])
+
+
+def test_report_credibility_is_personal_evidence_linked_append_only_and_snapshot_safe():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        ids = _entity_ids_by_name(client, world_id)
+        protagonist_id = next(
+            value for name, value in ids.items()
+            if name.lower() in {"protagonista", "protagonist"}
+        )
+        brina_id = ids["Brina Solcor"]
+        maelis_id = ids["Maelis Orven"]
+
+        source = NarratorResponse(
+            narration="El protagonista y Maelis observan la misma marca.",
+            events=[EventProposal(
+                ref="shared-source-for-credibility",
+                kind="clue",
+                entity_id=protagonist_id,
+                description="Una marca reciente aparece en el tronco.",
+                witness_ids=[protagonist_id, maelis_id],
+                continuity=True,
+                importance=4,
+            )],
+        )
+        source_turn, _, _ = _apply_synthetic_result(
+            session_id, "Observo la marca junto a Maelis.", source
+        )
+        with database.connection() as conn:
+            source_event = conn.execute(
+                "SELECT id,status FROM events WHERE session_id=? AND turn_id=?",
+                (session_id, source_turn),
+            ).fetchone()
+        assert source_event is not None and source_event["status"] == "recorded"
+
+        first_report_id = _approve_knowledge_testimony(
+            client, session_id, source_event["id"], protagonist_id, brina_id,
+            "credibility-protagonist-report",
+            "Vi una marca reciente y parecía hecha esa misma mañana.",
+        )
+        second_report_id = _approve_knowledge_testimony(
+            client, session_id, source_event["id"], maelis_id, brina_id,
+            "credibility-maelis-report",
+            "La marca parecía antigua y estaba cubierta parcialmente por musgo.",
+        )
+
+        payload = {
+            "request_id": "brina-assessment-contradiction-001",
+            "assessor_entity_id": brina_id,
+            "stance": "contradicts",
+            "confidence": 24,
+            "evidence_report_id": second_report_id,
+            "evidence_event_id": "",
+            "rationale": "Brina recibió dos testimonios incompatibles sobre la antigüedad de la misma marca.",
+        }
+        response = client.post(
+            f"/api/sessions/{session_id}/knowledge-reports/{first_report_id}/assessments",
+            json=payload,
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["replayed"] is False
+
+        replay = client.post(
+            f"/api/sessions/{session_id}/knowledge-reports/{first_report_id}/assessments",
+            json=payload,
+        )
+        assert replay.status_code == 200, replay.text
+        assert replay.json()["replayed"] is True
+
+        with database.connection() as conn:
+            _, brina_perception = _entity_perception_context(conn, session_id, brina_id)
+            _, maelis_perception = _entity_perception_context(conn, session_id, maelis_id)
+            source_status = conn.execute(
+                "SELECT status FROM events WHERE id=?", (source_event["id"],)
+            ).fetchone()["status"]
+            report_text = conn.execute(
+                "SELECT version_text FROM session_knowledge_transmissions WHERE id=?",
+                (first_report_id,),
+            ).fetchone()["version_text"]
+            assessment_count = conn.execute(
+                "SELECT COUNT(*) AS n FROM session_knowledge_assessments "
+                "WHERE session_id=? AND transmission_id=?",
+                (session_id, first_report_id),
+            ).fetchone()["n"]
+
+        first_report = next(
+            item for item in brina_perception["knowledge_reports"]
+            if item["transmission_id"] == first_report_id
+        )
+        assert first_report["epistemic_status"] == "reported_not_verified"
+        assert first_report["assessment"]["stance"] == "contradicts"
+        assert first_report["assessment"]["confidence"] == 24
+        assert len(first_report["assessment_history"]) == 1
+        assert maelis_perception["knowledge_reports"] == []
+        assert source_status == "recorded"
+        assert report_text == "Vi una marca reciente y parecía hecha esa misma mañana."
+        assert assessment_count == 1
+
+        with database.transaction() as conn:
+            snapshot = main_module.capture_turn_state(conn, session_id)
+            conn.execute(
+                "DELETE FROM session_knowledge_assessments WHERE session_id=?",
+                (session_id,),
+            )
+            main_module.restore_turn_state(conn, session_id, snapshot)
+            restored = conn.execute(
+                "SELECT COUNT(*) AS n FROM session_knowledge_assessments "
+                "WHERE session_id=? AND transmission_id=?",
+                (session_id, first_report_id),
+            ).fetchone()["n"]
+        assert restored == 1
+
+
+def test_assessment_rejects_reports_or_evidence_the_character_does_not_know():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        ids = _entity_ids_by_name(client, world_id)
+        protagonist_id = next(
+            value for name, value in ids.items()
+            if name.lower() in {"protagonista", "protagonist"}
+        )
+        brina_id = ids["Brina Solcor"]
+        maelis_id = ids["Maelis Orven"]
+        source_event_id = _record_source_event(
+            session_id, protagonist_id, "assessment-private-source"
+        )
+        report_id = _approve_knowledge_testimony(
+            client, session_id, source_event_id, protagonist_id, brina_id,
+            "assessment-private-report",
+            "Vi una señal junto al sendero.",
+        )
+
+        wrong_recipient = client.post(
+            f"/api/sessions/{session_id}/knowledge-reports/{report_id}/assessments",
+            json={
+                "request_id": "maelis-cannot-assess-brina-report",
+                "assessor_entity_id": maelis_id,
+                "stance": "believes",
+                "confidence": 90,
+                "evidence_event_id": source_event_id,
+                "rationale": "Maelis intenta evaluar un informe que nunca recibió.",
+            },
+        )
+        assert wrong_recipient.status_code == 404
+
+        unknown_evidence = client.post(
+            f"/api/sessions/{session_id}/knowledge-reports/{report_id}/assessments",
+            json={
+                "request_id": "brina-cannot-use-unseen-event",
+                "assessor_entity_id": brina_id,
+                "stance": "contradicts",
+                "confidence": 10,
+                "evidence_event_id": source_event_id,
+                "rationale": "La evidencia solo la presenció el protagonista.",
+            },
+        )
+        assert unknown_evidence.status_code == 422
+        with database.connection() as conn:
+            count = conn.execute(
+                "SELECT COUNT(*) AS n FROM session_knowledge_assessments WHERE session_id=?",
+                (session_id,),
+            ).fetchone()["n"]
+        assert count == 0

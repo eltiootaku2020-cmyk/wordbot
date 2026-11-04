@@ -74,6 +74,25 @@ CREATE TABLE IF NOT EXISTS session_knowledge_transmissions (
 );
 CREATE INDEX IF NOT EXISTS idx_knowledge_transmissions_incoming
   ON session_knowledge_transmissions(session_id,recipient_entity_id,transmitted_total_minutes);
+CREATE TABLE IF NOT EXISTS session_knowledge_assessments (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  request_id TEXT NOT NULL,
+  transmission_id TEXT NOT NULL REFERENCES session_knowledge_transmissions(id) ON DELETE RESTRICT,
+  assessor_entity_id TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  stance TEXT NOT NULL CHECK(stance IN ('believes','uncertain','doubts','contradicts')),
+  confidence INTEGER NOT NULL CHECK(confidence BETWEEN 0 AND 100),
+  evidence_report_id TEXT NOT NULL DEFAULT '',
+  evidence_event_id TEXT NOT NULL DEFAULT '',
+  rationale TEXT NOT NULL CHECK(length(trim(rationale)) BETWEEN 1 AND 600),
+  assessed_total_minutes INTEGER NOT NULL CHECK(assessed_total_minutes >= 0),
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(session_id, request_id),
+  CHECK((evidence_report_id <> '' AND evidence_event_id = '') OR
+        (evidence_report_id = '' AND evidence_event_id <> ''))
+);
+CREATE INDEX IF NOT EXISTS idx_knowledge_assessments_by_report
+  ON session_knowledge_assessments(session_id,assessor_entity_id,transmission_id,assessed_total_minutes);
 CREATE TABLE IF NOT EXISTS session_environment_observations (
   id TEXT PRIMARY KEY,
   session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,

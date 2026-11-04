@@ -664,6 +664,27 @@ def _entity_perception_context(
         source_event_ids.append(event_id)
         event_kinds.add(kind)
 
+    # Assessments are personal judgements by the recipient. They never alter
+    # the underlying event or another character's view of the same report.
+    assessment_rows = conn.execute(
+        "SELECT a.* FROM session_knowledge_assessments a "
+        "JOIN session_knowledge_transmissions t ON t.id=a.transmission_id "
+        "WHERE a.session_id=? AND a.assessor_entity_id=? "
+        "AND t.recipient_entity_id=a.assessor_entity_id "
+        "ORDER BY a.assessed_total_minutes DESC,a.created_at DESC,a.id DESC LIMIT 200",
+        (session_id, entity_id),
+    ).fetchall()
+    assessments_by_report: dict[str, list[dict[str, Any]]] = {}
+    for assessment in reversed(assessment_rows):
+        assessments_by_report.setdefault(str(assessment["transmission_id"]), []).append({
+            "stance": str(assessment["stance"]),
+            "confidence": int(assessment["confidence"]),
+            "evidence_report_id": str(assessment["evidence_report_id"] or ""),
+            "evidence_event_id": str(assessment["evidence_event_id"] or ""),
+            "rationale": str(assessment["rationale"]),
+            "assessed_total_minutes": int(assessment["assessed_total_minutes"]),
+        })
+
     # A received report is knowledge that someone made this statement, not proof
     # that the source event happened as described. Keep its attribution and wording.
     knowledge_summary: list[dict[str, Any]] = []
@@ -701,6 +722,11 @@ def _entity_perception_context(
             "transmitted_total_minutes": int(report["transmitted_total_minutes"]),
             "parent_transmission_id": str(report["parent_transmission_id"] or ""),
             "epistemic_status": "reported_not_verified",
+            "assessment": (
+                assessments_by_report.get(str(report["id"]), [])[-1]
+                if assessments_by_report.get(str(report["id"])) else None
+            ),
+            "assessment_history": assessments_by_report.get(str(report["id"]), [])[-10:],
         })
 
     environment_summary: list[dict[str, Any]] = []

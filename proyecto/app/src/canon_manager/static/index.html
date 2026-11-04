@@ -19,6 +19,14 @@ button{cursor:pointer}button:hover{border-color:var(--accent)}button.primary{bac
 form{display:flex;gap:8px;align-items:stretch}textarea{flex:1;resize:vertical;min-height:62px}
 .muted,.status{color:var(--muted);font-size:13px}.status{font-size:12px}#status{color:var(--good)}#state,#pending{display:flex;flex-direction:column;gap:8px}
 .card{border:1px solid var(--line);border-radius:9px;padding:9px;font-size:13px;overflow-wrap:anywhere}.card p{margin:4px 0}.actions{display:flex;gap:6px;margin-top:8px}.warn{color:var(--warn)}.good{color:var(--good)}
+.assessment-list{display:flex;flex-direction:column;gap:9px;margin-top:8px}
+.assessment-item{border:1px solid var(--line);border-radius:8px;padding:9px;background:#191c23}
+.assessment-item p{margin:4px 0}.assessment-controls{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;margin-top:8px}
+.assessment-controls label{display:flex;flex-direction:column;gap:3px;min-width:0}
+.assessment-controls input,.assessment-controls select{width:100%;min-width:0}
+.assessment-controls .wide{grid-column:1/-1}
+.assessment-actions{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:8px}
+@media(max-width:620px){.assessment-controls{grid-template-columns:1fr}.assessment-controls .wide{grid-column:auto}}
 details.setup{margin:8px 0 12px;border:1px solid var(--line);border-radius:9px;padding:10px;background:#191b22}details.setup summary{cursor:pointer;font-weight:600}.world-form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;margin-top:10px}.world-form label{display:flex;flex-direction:column;gap:4px}.world-form input,.world-form textarea{width:100%;min-width:0}.world-form textarea{min-height:68px}.world-form .wide{grid-column:1/-1}.world-form button{justify-self:start}
 hr{border:0;border-top:1px solid var(--line);margin:14px 0}label{font-size:13px;color:var(--muted)}
 @media(max-width:900px){main{grid-template-columns:1fr}#chat{max-height:none}.world-form{grid-template-columns:1fr}.world-form .wide{grid-column:auto}}
@@ -741,18 +749,165 @@ function renderState(payload) {
   );
   el("state").appendChild(makeCard("Presentes: " + payload.participants.filter(p => p.presence_status === "present").map(p => p.name).join(", ")));
   const receivedReports = payload.participants.flatMap(person =>
-    (person.knowledge_reports || []).map(report => ({
-      person: person.name,
-      sender: entityNames[report.sender_entity_id] || report.sender_entity_id,
-      kind: report.transmission_kind === "testimony" ? "testimonio" : "rumor",
-      version: report.reported_version
-    }))
+    (person.knowledge_reports || []).map(report => ({person, report}))
   );
   if (receivedReports.length) {
-    const summary = receivedReports.map(report =>
-      report.person + " recibió " + report.kind + " de " + report.sender + ": «" + report.version + "» (no verificado)"
-    ).join(" · ");
-    el("state").appendChild(makeCard("Información recibida por personaje: " + summary));
+    const section = document.createElement("div");
+    section.className = "card";
+    const heading = document.createElement("strong");
+    heading.textContent = "Informes recibidos y valoración personal";
+    section.appendChild(heading);
+    const help = document.createElement("p");
+    help.className = "muted";
+    help.textContent = "La evaluación pertenece solo al personaje receptor. Sigue sin verificar el hecho objetivo y exige evidencia que ese personaje conoce.";
+    section.appendChild(help);
+    const list = document.createElement("div");
+    list.className = "assessment-list";
+    const stanceLabels = {
+      believes: "La cree",
+      uncertain: "No está seguro",
+      doubts: "Duda de la versión",
+      contradicts: "La evidencia la contradice"
+    };
+    receivedReports.forEach(({person, report}) => {
+      const item = document.createElement("div");
+      item.className = "assessment-item";
+      const title = document.createElement("strong");
+      title.textContent = person.name + " recibió " +
+        (report.transmission_kind === "testimony" ? "testimonio" : "rumor") +
+        " de " + (entityNames[report.sender_entity_id] || report.sender_entity_id);
+      item.appendChild(title);
+      const version = document.createElement("p");
+      version.textContent = "«" + report.reported_version + "» · no verificado";
+      item.appendChild(version);
+      if (report.assessment) {
+        const current = document.createElement("p");
+        current.className = "muted";
+        current.textContent = "Última valoración: " +
+          (stanceLabels[report.assessment.stance] || report.assessment.stance) +
+          " · confianza " + report.assessment.confidence + "/100 · " +
+          report.assessment.rationale;
+        item.appendChild(current);
+      } else {
+        const current = document.createElement("p");
+        current.className = "muted";
+        current.textContent = "Todavía no tiene una valoración registrada.";
+        item.appendChild(current);
+      }
+
+      const controls = document.createElement("div");
+      controls.className = "assessment-controls";
+      const stanceLabel = document.createElement("label");
+      stanceLabel.textContent = "Valoración del personaje";
+      const stance = document.createElement("select");
+      Object.entries(stanceLabels).forEach(([value, label]) => addOption(stance, value, label));
+      const confidenceLabel = document.createElement("label");
+      confidenceLabel.textContent = "Confianza en la versión (0–100)";
+      const confidence = document.createElement("input");
+      confidence.type = "number";
+      confidence.min = "0";
+      confidence.max = "100";
+      confidence.step = "1";
+      confidence.value = report.assessment ? report.assessment.confidence : "50";
+      stance.value = report.assessment ? report.assessment.stance : "uncertain";
+      stanceLabel.appendChild(stance);
+      confidenceLabel.appendChild(confidence);
+      controls.appendChild(stanceLabel);
+      controls.appendChild(confidenceLabel);
+
+      const evidenceLabel = document.createElement("label");
+      evidenceLabel.className = "wide";
+      evidenceLabel.textContent = "Evidencia conocida por " + person.name;
+      const evidence = document.createElement("select");
+      addOption(evidence, "", "Selecciona una evidencia");
+      (person.knowledge_reports || []).filter(other =>
+        other.transmission_id !== report.transmission_id &&
+        other.source_event_id === report.source_event_id
+      ).forEach(other => {
+        const sender = entityNames[other.sender_entity_id] || other.sender_entity_id;
+        addOption(evidence, "report:" + other.transmission_id,
+          "Otro informe de " + sender + ": " + other.reported_version.slice(0, 90));
+      });
+      (person.known_events || []).forEach(event => {
+        addOption(evidence, "event:" + event.id,
+          "Evento presenciado/conocido · " + event.kind + " · " + event.description.slice(0, 90));
+      });
+      if (report.assessment) {
+        const previousEvidence = report.assessment.evidence_report_id
+          ? "report:" + report.assessment.evidence_report_id
+          : report.assessment.evidence_event_id
+            ? "event:" + report.assessment.evidence_event_id : "";
+        if ([...evidence.options].some(option => option.value === previousEvidence)) {
+          evidence.value = previousEvidence;
+        }
+      }
+      evidenceLabel.appendChild(evidence);
+      controls.appendChild(evidenceLabel);
+
+      const rationaleLabel = document.createElement("label");
+      rationaleLabel.className = "wide";
+      rationaleLabel.textContent = "Motivo de la valoración";
+      const rationale = document.createElement("input");
+      rationale.type = "text";
+      rationale.maxLength = 600;
+      rationale.placeholder = "Qué evidencia conoce y por qué cambia su confianza";
+      rationale.value = report.assessment ? report.assessment.rationale : "";
+      rationaleLabel.appendChild(rationale);
+      controls.appendChild(rationaleLabel);
+      item.appendChild(controls);
+
+      const actions = document.createElement("div");
+      actions.className = "assessment-actions";
+      const save = document.createElement("button");
+      save.type = "button";
+      save.textContent = "Guardar valoración";
+      const note = document.createElement("span");
+      note.className = "muted";
+      if (evidence.options.length <= 1) {
+        save.disabled = true;
+        note.textContent = "No hay otra evidencia conocida disponible para este personaje.";
+      } else {
+        note.textContent = "Se añadirá al historial; no modifica el hecho original.";
+      }
+      save.addEventListener("click", async () => {
+        const chosen = evidence.value;
+        const score = Number(confidence.value);
+        const reason = rationale.value.trim();
+        if (!chosen || !Number.isInteger(score) || score < 0 || score > 100 || !reason) {
+          note.textContent = "Selecciona evidencia, confianza entre 0 y 100 y explica el motivo.";
+          return;
+        }
+        const payload = {
+          request_id: "assessment-" + Date.now().toString(36) + "-" + Math.random().toString(36).slice(2, 10),
+          assessor_entity_id: person.id,
+          stance: stance.value,
+          confidence: score,
+          evidence_report_id: chosen.startsWith("report:") ? chosen.slice(7) : "",
+          evidence_event_id: chosen.startsWith("event:") ? chosen.slice(6) : "",
+          rationale: reason
+        };
+        save.disabled = true;
+        note.textContent = "Guardando valoración…";
+        try {
+          await api("/api/sessions/" + currentSession + "/knowledge-reports/" +
+            encodeURIComponent(report.transmission_id) + "/assessments", {
+              method: "POST", body: JSON.stringify(payload)
+            });
+          await loadState();
+          setStatus("Valoración de " + person.name + " guardada.", true);
+        } catch (err) {
+          save.disabled = false;
+          note.textContent = "No se pudo guardar: " + err.message;
+          setStatus("Error al guardar la valoración: " + err.message, false);
+        }
+      });
+      actions.appendChild(save);
+      actions.appendChild(note);
+      item.appendChild(actions);
+      list.appendChild(item);
+    });
+    section.appendChild(list);
+    el("state").appendChild(section);
   }
   const previousRecipient = el("recipientSelect").value;
   clearChildren(el("recipientSelect"));
