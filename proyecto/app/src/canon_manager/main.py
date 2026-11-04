@@ -687,8 +687,11 @@ def restore_turn_state(conn, session_id: str, state: dict[str, Any]) -> None:
         ("session_knowledge_transmissions", state.get("knowledge_transmissions", [])),
         ("session_knowledge_assessments", state.get("knowledge_assessments", []))
     ]
-    for table, rows in table_rows:
+    # Delete children before parents, then restore parents before children.
+    # Knowledge assessments reference transmissions and must follow this order.
+    for table, _ in reversed(table_rows):
         conn.execute(f"DELETE FROM {table} WHERE session_id=?", (session_id,))
+    for table, rows in table_rows:
         for row in rows:
             columns = list(row.keys())
             placeholders = ",".join("?" for _ in columns)
