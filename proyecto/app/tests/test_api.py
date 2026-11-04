@@ -7545,7 +7545,7 @@ def test_session_backup_restores_attributed_knowledge_transmissions():
                 (
                     source_event_id, session_id, "backup-knowledge-source", "backup-source",
                     "clue", protagonist_id, "El protagonista vio una señal en una roca.",
-                    json.dumps([protagonist_id]), 1, 4, "recorded",
+                    json.dumps([protagonist_id, brina_id]), 1, 4, "recorded",
                 )
             )
             conn.execute(
@@ -7571,11 +7571,27 @@ def test_session_backup_restores_attributed_knowledge_transmissions():
                     "Claro del bosque", 480, "",
                 )
             )
+            conn.execute(
+                "INSERT INTO session_knowledge_assessments("
+                "id,session_id,request_id,transmission_id,assessor_entity_id,stance,confidence,"
+                "evidence_report_id,evidence_event_id,rationale,assessed_total_minutes"
+                ") VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    "backup-assessment-" + uuid.uuid4().hex, session_id,
+                    "backup-assessment-request", transmission_id, brina_id,
+                    "believes", 82, "", source_event_id,
+                    "Brina conoce directamente el evento y considera consistente el relato.", 480,
+                )
+            )
 
         backup = client.post(f"/api/sessions/{session_id}/backup")
         assert backup.status_code == 200, backup.text
         backup_name = backup.json()["backup_name"]
         with database.transaction() as conn:
+            conn.execute(
+                "DELETE FROM session_knowledge_assessments WHERE session_id=?",
+                (session_id,),
+            )
             conn.execute(
                 "DELETE FROM session_knowledge_transmissions WHERE session_id=?",
                 (session_id,),
@@ -7606,6 +7622,21 @@ def test_session_backup_restores_attributed_knowledge_transmissions():
         assert row["transmission_kind"] == "testimony"
         assert row["version_text"] == "Vi una señal reciente en la roca."
         assert row["parent_transmission_id"] == ""
+        with database.connection() as conn:
+            assessment = conn.execute(
+                "SELECT transmission_id,assessor_entity_id,stance,confidence,evidence_event_id,"
+                "rationale,assessed_total_minutes FROM session_knowledge_assessments "
+                "WHERE session_id=? AND transmission_id=?",
+                (session_id, transmission_id),
+            ).fetchone()
+        assert assessment is not None
+        assert assessment["transmission_id"] == transmission_id
+        assert assessment["assessor_entity_id"] == brina_id
+        assert assessment["stance"] == "believes"
+        assert assessment["confidence"] == 82
+        assert assessment["evidence_event_id"] == source_event_id
+        assert assessment["rationale"].startswith("Brina conoce directamente")
+        assert assessment["assessed_total_minutes"] == 480
 
 
 def _approve_knowledge_testimony(client, session_id, source_event_id, sender_id, recipient_id, ref, version_text):
