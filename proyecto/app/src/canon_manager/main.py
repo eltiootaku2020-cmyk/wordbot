@@ -2399,6 +2399,17 @@ def load_state(conn, session_id: str) -> dict[str, Any]:
     for participant in participants:
         _, perception = _entity_perception_context(conn, session_id, participant["id"])
         participant["knowledge_reports"] = perception.get("knowledge_reports", [])
+        known_event_ids = perception.get("source_event_ids", [])
+        participant["known_event_ids"] = known_event_ids
+        if known_event_ids:
+            placeholders = ",".join("?" for _ in known_event_ids)
+            participant["known_events"] = [dict(row) for row in conn.execute(
+                "SELECT id,kind,description FROM events WHERE session_id=? "
+                f"AND id IN ({placeholders}) ORDER BY created_at DESC,id",
+                [session_id, *known_event_ids],
+            ).fetchall()]
+        else:
+            participant["known_events"] = []
     inventory = [dict(row) for row in conn.execute(
         "SELECT display_name,quantity,condition,carrier_entity_id,location FROM inventory_items "
         "WHERE session_id=? AND quantity>0 ORDER BY display_name", (session_id,)
