@@ -2823,7 +2823,7 @@ def test_manual_web_turn_can_retry_truncated_json_with_same_request_id():
             }
         )
         assert prepared.status_code == 200, prepared.text
-        initial_game_state = client.get(f"/api/sessions/{session_id}/state").json()
+        initial_game_state = client.get(f"/api/sessions/{session_id}/state").json()["state"]
         with database.connection() as conn:
             initial_counts = {
                 table: conn.execute(
@@ -8161,7 +8161,7 @@ def test_same_communication_cannot_both_transmit_and_correct_a_report():
         assert correction_count == 0
         assert transmission_count == 1
         assert any("no se puede mezclar" in note for note in pending_notes)
-        state = client.get(f"/api/sessions/{session_id}/state").json()["state"]
+        state = client.get(f"/api/sessions/{session_id}/state").json()
         mixed_event = next(
             item for item in state["pending_events"] if item["id"] == event["id"]
         )
