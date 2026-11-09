@@ -7842,3 +7842,107 @@ def test_assessment_rejects_reports_or_evidence_the_character_does_not_know():
                 (session_id,),
             ).fetchone()["n"]
         assert count == 0
+
+def test_new_report_assessment_replans_agendas_without_advancing_clock_or_replaying(monkeypatch):
+    planned_calls = []
+
+    def record_planning_call(conn, session_id, current_total_minutes):
+        planned_calls.append((session_id, current_total_minutes))
+        return 2
+
+    monkeypatch.setattr(
+        main_module, "plan_autonomous_behavior_agendas", record_planning_call
+    )
+
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        ids = _entity_ids_by_name(client, world_id)
+        protagonist_id = next(
+            value for name, value in ids.items()
+            if name.lower() in {"protagonista", "protagonist"}
+        )
+        brina_id = ids["Brina Solcor"]
+        maelis_id = ids["Maelis Orven"]
+
+        source = NarratorResponse(
+            narration="El protagonista y Maelis observan la misma marca.",
+            events=[EventProposal(
+                ref="assessment-replan-source",
+                kind="clue",
+                entity_id=protagonist_id,
+                description="Una marca reciente aparece en el tronco.",
+                witness_ids=[protagonist_id, maelis_id],
+                continuity=True,
+                importance=4,
+            )],
+        )
+        source_turn, _, _ = _apply_synthetic_result(
+            session_id, "Observo la marca junto a Maelis.", source
+        )
+        with database.connection() as conn:
+            source_event = conn.execute(
+                "SELECT id,status FROM events WHERE session_id=? AND turn_id=?",
+                (session_id, source_turn),
+            ).fetchone()
+            clock_before = conn.execute(
+                "SELECT day,minute_of_day FROM sessions WHERE id=?",
+                (session_id,),
+            ).fetchone()
+        assert source_event is not None and source_event["status"] == "recorded"
+        first_report_id = _approve_knowledge_testimony(
+            client, session_id, source_event["id"], protagonist_id, brina_id,
+            "assessment-replan-first-report",
+            "Vi una marca reciente en el tronco.",
+        )
+        second_report_id = _approve_knowledge_testimony(
+            client, session_id, source_event["id"], maelis_id, brina_id,
+            "assessment-replan-second-report",
+            "La marca parece antigua y cubierta de musgo.",
+        )
+
+        with database.connection() as conn:
+            current = conn.execute(
+                "SELECT day,minute_of_day FROM sessions WHERE id=?",
+                (session_id,),
+            ).fetchone()
+        current_total = (int(current["day"]) - 1) * 1440 + int(current["minute_of_day"])
+
+        payload = {
+            "request_id": "brina-assessment-replans-agenda-001",
+            "assessor_entity_id": brina_id,
+            "stance": "uncertain",
+            "confidence": 42,
+            "evidence_report_id": second_report_id,
+            "evidence_event_id": "",
+            "rationale": "Los dos informes describen de forma distinta la antigüedad de la marca.",
+        }
+        response = client.post(
+            f"/api/sessions/{session_id}/knowledge-reports/{first_report_id}/assessments",
+            json=payload,
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["replayed"] is False
+        assert response.json()["planned_activities"] == 2
+        assert planned_calls == [(session_id, current_total)]
+
+        with database.connection() as conn:
+            clock_after = conn.execute(
+                "SELECT day,minute_of_day FROM sessions WHERE id=?",
+                (session_id,),
+            ).fetchone()
+        assert (clock_after["day"], clock_after["minute_of_day"]) == (
+            current["day"], current["minute_of_day"]
+        )
+        assert (clock_after["day"], clock_after["minute_of_day"]) == (
+            clock_before["day"], clock_before["minute_of_day"]
+        )
+
+        replay = client.post(
+            f"/api/sessions/{session_id}/knowledge-reports/{first_report_id}/assessments",
+            json=payload,
+        )
+        assert replay.status_code == 200, replay.text
+        assert replay.json()["replayed"] is True
+        # A duplicate request must not run the planner or append another opinion.
+        assert planned_calls == [(session_id, current_total)]
