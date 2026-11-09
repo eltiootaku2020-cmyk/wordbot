@@ -7881,10 +7881,6 @@ def test_new_report_assessment_replans_agendas_without_advancing_clock_or_replay
                 "SELECT id,status FROM events WHERE session_id=? AND turn_id=?",
                 (session_id, source_turn),
             ).fetchone()
-            clock_before = conn.execute(
-                "SELECT day,minute_of_day FROM sessions WHERE id=?",
-                (session_id,),
-            ).fetchone()
         assert source_event is not None and source_event["status"] == "recorded"
         first_report_id = _approve_knowledge_testimony(
             client, session_id, source_event["id"], protagonist_id, brina_id,
@@ -7935,9 +7931,6 @@ def test_new_report_assessment_replans_agendas_without_advancing_clock_or_replay
             ).fetchone()
         assert (clock_after["day"], clock_after["minute_of_day"]) == (
             current["day"], current["minute_of_day"]
-        )
-        assert (clock_after["day"], clock_after["minute_of_day"]) == (
-            clock_before["day"], clock_before["minute_of_day"]
         )
 
         replay = client.post(
