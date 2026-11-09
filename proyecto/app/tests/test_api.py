@@ -7890,6 +7890,239 @@ def test_assessment_rejects_reports_or_evidence_the_character_does_not_know():
             ).fetchone()["n"]
         assert count == 0
 
+def test_npc_correction_is_approval_gated_personal_and_preserves_original_history(monkeypatch):
+    planned_calls = []
+
+    def record_planning_call(conn, session_id, current_total_minutes):
+        planned_calls.append((session_id, current_total_minutes))
+        return 3
+
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        ids = _entity_ids_by_name(client, world_id)
+        protagonist_id = next(
+            value for name, value in ids.items()
+            if name.lower() in {"protagonista", "protagonist"}
+        )
+        brina_id = ids["Brina Solcor"]
+        source_event_id = _record_source_event(
+            session_id, protagonist_id, "correction-source-event"
+        )
+        original_text = "Vi una señal reciente en la roca."
+        report_id = _approve_knowledge_testimony(
+            client, session_id, source_event_id, protagonist_id, brina_id,
+            "correction-original-testimony", original_text,
+        )
+
+        with database.connection() as conn:
+            original_before = conn.execute(
+                "SELECT version_text,source_event_id,communication_event_id "
+                "FROM session_knowledge_transmissions WHERE id=?",
+                (report_id,),
+            ).fetchone()
+            clock_before = conn.execute(
+                "SELECT day,minute_of_day FROM sessions WHERE id=?",
+                (session_id,),
+            ).fetchone()
+        assert original_before is not None
+
+        corrected_text = "Me equivoqué: la señal estaba en el tronco, no en una roca."
+        proposal = NarratorResponse(
+            narration="El protagonista aclara a Brina que describió mal la ubicación de la señal.",
+            elapsed_minutes=0,
+            events=[EventProposal(
+                ref="correction-event-gated",
+                kind="knowledge",
+                entity_id=protagonist_id,
+                description="El protagonista corrige su testimonio anterior ante Brina.",
+                witness_ids=[protagonist_id, brina_id],
+            )],
+            knowledge_corrections=[KnowledgeCorrectionProposal(
+                event_ref="correction-event-gated",
+                original_transmission_id=report_id,
+                sender_entity_id=protagonist_id,
+                recipient_entity_id=brina_id,
+                correction_kind="corrected",
+                replacement_text=corrected_text,
+                rationale="El emisor reconoce que recordó mal el soporte donde estaba la señal.",
+            )],
+        )
+        turn_id, _, _ = _apply_synthetic_result(
+            session_id, "Corrijo lo que le conté a Brina.", proposal
+        )
+        with database.connection() as conn:
+            event = conn.execute(
+                "SELECT id,status FROM events WHERE session_id=? AND turn_id=?",
+                (session_id, turn_id),
+            ).fetchone()
+            count_before_approval = conn.execute(
+                "SELECT COUNT(*) AS n FROM session_knowledge_corrections "
+                "WHERE session_id=?",
+                (session_id,),
+            ).fetchone()["n"]
+        assert event is not None and event["status"] == "pending"
+        assert count_before_approval == 0
+
+        pending_state = client.get(f"/api/sessions/{session_id}/state").json()
+        pending_item = next(
+            item for item in pending_state["state"]["pending_events"]
+            if item["id"] == event["id"]
+        )
+        pending_proposal = pending_item["knowledge_correction_proposals"][0]
+        assert pending_proposal["original_transmission_id"] == report_id
+        assert pending_proposal["correction_kind"] == "corrected"
+        assert pending_proposal["replacement_text"] == corrected_text
+
+        monkeypatch.setattr(
+            main_module, "plan_autonomous_behavior_agendas", record_planning_call
+        )
+        approval = client.post(
+            f"/api/sessions/{session_id}/events/{event['id']}/approve"
+        )
+        assert approval.status_code == 200, approval.text
+        assert len(approval.json()["knowledge_corrections"]) == 1
+        assert approval.json()["planned_activities"] == 3
+
+        with database.connection() as conn:
+            clock_after = conn.execute(
+                "SELECT day,minute_of_day FROM sessions WHERE id=?",
+                (session_id,),
+            ).fetchone()
+            original_after = conn.execute(
+                "SELECT version_text,source_event_id,communication_event_id "
+                "FROM session_knowledge_transmissions WHERE id=?",
+                (report_id,),
+            ).fetchone()
+            _, brina_perception = _entity_perception_context(conn, session_id, brina_id)
+            _, maelis_perception = _entity_perception_context(
+                conn, session_id, ids["Maelis Orven"]
+            )
+            correction_count = conn.execute(
+                "SELECT COUNT(*) AS n FROM session_knowledge_corrections "
+                "WHERE session_id=? AND original_transmission_id=?",
+                (session_id, report_id),
+            ).fetchone()["n"]
+
+        assert (clock_after["day"], clock_after["minute_of_day"]) == (
+            clock_before["day"], clock_before["minute_of_day"]
+        )
+        assert planned_calls and planned_calls[-1][0] == session_id
+        assert original_after["version_text"] == original_text
+        assert original_after["source_event_id"] == original_before["source_event_id"]
+        assert original_after["communication_event_id"] == original_before["communication_event_id"]
+        assert correction_count == 1
+        corrected_report = next(
+            item for item in brina_perception["knowledge_reports"]
+            if item["transmission_id"] == report_id
+        )
+        assert corrected_report["reported_version"] == original_text
+        assert corrected_report["report_status"] == "corrected"
+        assert corrected_report["current_reported_version"] == corrected_text
+        assert corrected_report["correction"]["rationale"].startswith("El emisor reconoce")
+        assert corrected_report["epistemic_status"] == "reported_not_verified"
+        assert brina_perception.get("received_report_corrected:" + report_id) is True
+        assert maelis_perception["knowledge_reports"] == []
+
+        with database.transaction() as conn:
+            snapshot = main_module.capture_turn_state(conn, session_id)
+            conn.execute(
+                "DELETE FROM session_knowledge_corrections WHERE session_id=?",
+                (session_id,),
+            )
+            main_module.restore_turn_state(conn, session_id, snapshot)
+            restored = conn.execute(
+                "SELECT COUNT(*) AS n FROM session_knowledge_corrections "
+                "WHERE session_id=? AND original_transmission_id=?",
+                (session_id, report_id),
+            ).fetchone()["n"]
+        assert restored == 1
+
+
+def test_npc_retraction_withdraws_only_the_sender_statement_and_rejects_impersonation():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        ids = _entity_ids_by_name(client, world_id)
+        protagonist_id = next(
+            value for name, value in ids.items()
+            if name.lower() in {"protagonista", "protagonist"}
+        )
+        brina_id = ids["Brina Solcor"]
+        maelis_id = ids["Maelis Orven"]
+        source_event_id = _record_source_event(
+            session_id, protagonist_id, "retraction-source-event"
+        )
+        original_text = "Vi una figura moverse detrás de los árboles."
+        report_id = _approve_knowledge_testimony(
+            client, session_id, source_event_id, protagonist_id, brina_id,
+            "retraction-original-report", original_text,
+        )
+
+        _, correction_id, approval = _approve_knowledge_correction(
+            client, session_id, report_id, protagonist_id, brina_id,
+            "retraction-event-approved", "retracted",
+            "No estoy seguro de haber visto una figura; retiro mi afirmación.",
+        )
+        assert approval["knowledge_corrections"][0]["correction_kind"] == "retracted"
+        with database.connection() as conn:
+            _, brina_perception = _entity_perception_context(conn, session_id, brina_id)
+            original = conn.execute(
+                "SELECT version_text FROM session_knowledge_transmissions WHERE id=?",
+                (report_id,),
+            ).fetchone()
+            correction = conn.execute(
+                "SELECT correction_kind,replacement_text,sender_entity_id,recipient_entity_id "
+                "FROM session_knowledge_corrections WHERE id=?",
+                (correction_id,),
+            ).fetchone()
+        withdrawn = next(
+            item for item in brina_perception["knowledge_reports"]
+            if item["transmission_id"] == report_id
+        )
+        assert original["version_text"] == original_text
+        assert correction["correction_kind"] == "retracted"
+        assert correction["replacement_text"] == ""
+        assert correction["sender_entity_id"] == protagonist_id
+        assert correction["recipient_entity_id"] == brina_id
+        assert withdrawn["report_status"] == "retracted"
+        assert withdrawn["current_reported_version"] == ""
+        assert withdrawn["reported_version"] == original_text
+        assert brina_perception.get("received_report_retracted:" + report_id) is True
+
+        forged = NarratorResponse(
+            narration="Maelis tenta corregir una afirmación ajena.",
+            elapsed_minutes=0,
+            events=[EventProposal(
+                ref="forged-correction-event",
+                kind="knowledge",
+                entity_id=maelis_id,
+                description="Maelis afirma corregir un testimonio que no emitió.",
+                witness_ids=[maelis_id, brina_id],
+            )],
+            knowledge_corrections=[KnowledgeCorrectionProposal(
+                event_ref="forged-correction-event",
+                original_transmission_id=report_id,
+                sender_entity_id=maelis_id,
+                recipient_entity_id=brina_id,
+                correction_kind="retracted",
+                replacement_text="",
+                rationale="Maelis intenta retirar una versión de otra persona.",
+            )],
+        )
+        _, _, pending_notes = _apply_synthetic_result(
+            session_id, "Maelis intenta retirar el informe.", forged
+        )
+        assert any("solo el emisor original" in note for note in pending_notes)
+        with database.connection() as conn:
+            count = conn.execute(
+                "SELECT COUNT(*) AS n FROM session_knowledge_corrections "
+                "WHERE session_id=? AND original_transmission_id=?",
+                (session_id, report_id),
+            ).fetchone()["n"]
+        assert count == 1
+
+
 def test_new_report_assessment_replans_agendas_without_advancing_clock_or_replaying(monkeypatch):
     planned_calls = []
 
