@@ -15,7 +15,7 @@ from fastapi.testclient import TestClient
 
 import canon_manager.main as main_module
 from canon_manager.main import app, database, build_context, session_row, apply_narrator_result, relevance_terms
-from canon_manager.models import NarratorResponse, EventProposal, EnvironmentObservationProposal, KnowledgeTransmissionProposal, StateChangeProposal, InventoryOperation, MovementProposal, PowerUseProposal, ResourceOperation
+from canon_manager.models import NarratorResponse, EventProposal, EnvironmentObservationProposal, KnowledgeTransmissionProposal, KnowledgeCorrectionProposal, StateChangeProposal, InventoryOperation, MovementProposal, PowerUseProposal, ResourceOperation
 from canon_manager.behavior_runtime import _entity_perception_context, _planner_perception_metadata, tick_behavior_runtime
 
 
@@ -7677,6 +7677,53 @@ def _approve_knowledge_testimony(client, session_id, source_event_id, sender_id,
         ).fetchone()
     assert transmission is not None
     return str(transmission["id"])
+
+
+def _approve_knowledge_correction(
+    client, session_id, original_transmission_id, sender_id, recipient_id,
+    ref, correction_kind, rationale, replacement_text="",
+):
+    proposal = NarratorResponse(
+        narration="El emisor corrige o retira una versión que comunicó anteriormente.",
+        elapsed_minutes=0,
+        events=[EventProposal(
+            ref=ref,
+            kind="knowledge",
+            entity_id=sender_id,
+            description=f"{sender_id} rectifica una comunicación anterior a {recipient_id}.",
+            witness_ids=[sender_id, recipient_id],
+        )],
+        knowledge_corrections=[KnowledgeCorrectionProposal(
+            event_ref=ref,
+            original_transmission_id=original_transmission_id,
+            sender_entity_id=sender_id,
+            recipient_entity_id=recipient_id,
+            correction_kind=correction_kind,
+            replacement_text=replacement_text,
+            rationale=rationale,
+        )],
+    )
+    turn_id, _, _ = _apply_synthetic_result(
+        session_id, "Aclaro lo que dije anteriormente.", proposal
+    )
+    with database.connection() as conn:
+        event = conn.execute(
+            "SELECT id,status FROM events WHERE session_id=? AND turn_id=?",
+            (session_id, turn_id),
+        ).fetchone()
+    assert event is not None and event["status"] == "pending"
+    approval = client.post(
+        f"/api/sessions/{session_id}/events/{event['id']}/approve"
+    )
+    assert approval.status_code == 200, approval.text
+    with database.connection() as conn:
+        correction = conn.execute(
+            "SELECT id FROM session_knowledge_corrections "
+            "WHERE session_id=? AND original_transmission_id=?",
+            (session_id, original_transmission_id),
+        ).fetchone()
+    assert correction is not None
+    return str(event["id"]), str(correction["id"]), approval.json()
 
 
 def test_report_credibility_is_personal_evidence_linked_append_only_and_snapshot_safe():
