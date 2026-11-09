@@ -8038,7 +8038,7 @@ def test_npc_correction_is_approval_gated_personal_and_preserves_original_histor
                 "FROM session_knowledge_transmissions WHERE id=?",
                 (report_id,),
             ).fetchone()
-            _, brina_perception = _entity_perception_context(conn, session_id, brina_id)
+            brina_conditions, brina_perception = _entity_perception_context(conn, session_id, brina_id)
             _, maelis_perception = _entity_perception_context(
                 conn, session_id, ids["Maelis Orven"]
             )
@@ -8065,7 +8065,7 @@ def test_npc_correction_is_approval_gated_personal_and_preserves_original_histor
         assert corrected_report["current_reported_version"] == corrected_text
         assert corrected_report["correction"]["rationale"].startswith("El emisor reconoce")
         assert corrected_report["epistemic_status"] == "reported_not_verified"
-        assert brina_perception.get("received_report_corrected:" + report_id) is True
+        assert brina_conditions.get("received_report_corrected:" + report_id) is True
         assert maelis_perception["knowledge_reports"] == []
 
         with database.transaction() as conn:
@@ -8110,7 +8110,7 @@ def test_npc_retraction_withdraws_only_the_sender_statement_and_rejects_imperson
         )
         assert approval["knowledge_corrections"][0]["correction_kind"] == "retracted"
         with database.connection() as conn:
-            _, brina_perception = _entity_perception_context(conn, session_id, brina_id)
+            brina_conditions, brina_perception = _entity_perception_context(conn, session_id, brina_id)
             original = conn.execute(
                 "SELECT version_text FROM session_knowledge_transmissions WHERE id=?",
                 (report_id,),
@@ -8132,7 +8132,7 @@ def test_npc_retraction_withdraws_only_the_sender_statement_and_rejects_imperson
         assert withdrawn["report_status"] == "retracted"
         assert withdrawn["current_reported_version"] == ""
         assert withdrawn["reported_version"] == original_text
-        assert brina_perception.get("received_report_retracted:" + report_id) is True
+        assert brina_conditions.get("received_report_retracted:" + report_id) is True
 
         forged = NarratorResponse(
             narration="Maelis tenta corregir una afirmación ajena.",
