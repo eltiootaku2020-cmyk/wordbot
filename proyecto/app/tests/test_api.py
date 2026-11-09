@@ -7537,7 +7537,9 @@ def test_session_backup_restores_attributed_knowledge_transmissions():
         brina_id = ids["Brina Solcor"]
         source_event_id = uuid.uuid4().hex
         communication_event_id = uuid.uuid4().hex
+        correction_event_id = uuid.uuid4().hex
         transmission_id = uuid.uuid4().hex
+        correction_id = uuid.uuid4().hex
         with database.transaction() as conn:
             conn.execute(
                 "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,"
@@ -7583,11 +7585,38 @@ def test_session_backup_restores_attributed_knowledge_transmissions():
                     "Brina conoce directamente el evento y considera consistente el relato.", 480,
                 )
             )
+            conn.execute(
+                "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,"
+                "witnesses_json,continuity,importance,status) VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    correction_event_id, session_id, "backup-knowledge-correction",
+                    "backup-correction", "knowledge", protagonist_id,
+                    "El protagonista rectificó su testimonio ante Brina.",
+                    json.dumps([protagonist_id, brina_id]), 0, 1, "recorded",
+                )
+            )
+            conn.execute(
+                "INSERT INTO session_knowledge_corrections("
+                "id,session_id,request_id,original_transmission_id,correction_event_id,"
+                "sender_entity_id,recipient_entity_id,correction_kind,replacement_text,"
+                "rationale,location,corrected_total_minutes"
+                ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                (
+                    correction_id, session_id, "backup-correction-request",
+                    transmission_id, correction_event_id, protagonist_id, brina_id,
+                    "corrected", "Vi una marca en el tronco, no en una roca.",
+                    "El emisor recordó mal el lugar exacto.", "Claro del bosque", 481,
+                )
+            )
 
         backup = client.post(f"/api/sessions/{session_id}/backup")
         assert backup.status_code == 200, backup.text
         backup_name = backup.json()["backup_name"]
         with database.transaction() as conn:
+            conn.execute(
+                "DELETE FROM session_knowledge_corrections WHERE session_id=?",
+                (session_id,),
+            )
             conn.execute(
                 "DELETE FROM session_knowledge_assessments WHERE session_id=?",
                 (session_id,),
@@ -7637,6 +7666,21 @@ def test_session_backup_restores_attributed_knowledge_transmissions():
         assert assessment["evidence_event_id"] == source_event_id
         assert assessment["rationale"].startswith("Brina conoce directamente")
         assert assessment["assessed_total_minutes"] == 480
+        with database.connection() as conn:
+            correction = conn.execute(
+                "SELECT original_transmission_id,correction_event_id,sender_entity_id,"
+                "recipient_entity_id,correction_kind,replacement_text,rationale,corrected_total_minutes "
+                "FROM session_knowledge_corrections WHERE id=?",
+                (correction_id,),
+            ).fetchone()
+        assert correction is not None
+        assert correction["original_transmission_id"] == transmission_id
+        assert correction["correction_event_id"] == correction_event_id
+        assert correction["sender_entity_id"] == protagonist_id
+        assert correction["recipient_entity_id"] == brina_id
+        assert correction["correction_kind"] == "corrected"
+        assert correction["replacement_text"] == "Vi una marca en el tronco, no en una roca."
+        assert correction["corrected_total_minutes"] == 481
 
 
 def _approve_knowledge_testimony(client, session_id, source_event_id, sender_id, recipient_id, ref, version_text):
