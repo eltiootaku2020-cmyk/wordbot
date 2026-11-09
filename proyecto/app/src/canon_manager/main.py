@@ -1729,7 +1729,9 @@ def apply_narrator_result(
     # the original transmission and source event remain unchanged.
     valid_knowledge_corrections: list[tuple[KnowledgeCorrectionProposal, str, int]] = []
     knowledge_corrections_by_ref: dict[str, list[KnowledgeCorrectionProposal]] = {}
+    invalid_knowledge_correction_refs: set[str] = set()
     seen_correction_keys: set[tuple[str, str, str, str]] = set()
+    seen_correction_original_ids: set[str] = set()
     for proposal in result.knowledge_corrections:
         communication_event = unique_events.get(proposal.event_ref)
         reason = ""
@@ -1788,6 +1790,8 @@ def apply_narrator_result(
                 (session["id"], proposal.original_transmission_id),
             ).fetchone():
                 reason = "ese informe ya tiene una rectificación o retractación registrada"
+            elif proposal.original_transmission_id in seen_correction_original_ids:
+                reason = "la misma respuesta contiene más de una rectificación para el mismo informe original"
 
         sender_location = ""
         recipient_location = ""
@@ -1806,13 +1810,38 @@ def apply_narrator_result(
         if not reason and signature in seen_correction_keys:
             reason = "la misma respuesta contiene rectificaciones duplicadas para ese informe"
         if reason:
+            invalid_knowledge_correction_refs.add(proposal.event_ref)
             pending_notes.append(
                 f"Rectificación/retractación de {proposal.original_transmission_id}: {reason}; no se registró."
             )
             continue
         seen_correction_keys.add(signature)
+        seen_correction_original_ids.add(proposal.original_transmission_id)
         valid_knowledge_corrections.append((proposal, sender_location, current_total_minutes))
         knowledge_corrections_by_ref.setdefault(proposal.event_ref, []).append(proposal)
+
+    # A single communication event cannot simultaneously create a new
+    # ordinary transmission and correct an earlier one. Reject both structured
+    # effects and leave the communication event pending for review.
+    conflicting_knowledge_refs = (
+        set(knowledge_transmissions_by_ref) & set(knowledge_corrections_by_ref)
+    )
+    if conflicting_knowledge_refs:
+        for conflict_ref in conflicting_knowledge_refs:
+            knowledge_transmissions_by_ref.pop(conflict_ref, None)
+            knowledge_corrections_by_ref.pop(conflict_ref, None)
+            invalid_knowledge_correction_refs.add(conflict_ref)
+            pending_notes.append(
+                f"Evento {conflict_ref}: no se puede mezclar una nueva transmisión con una rectificación del mismo acto; ambas propuestas se dejaron sin aplicar."
+            )
+        valid_knowledge_transmissions = [
+            item for item in valid_knowledge_transmissions
+            if item[0].event_ref not in conflicting_knowledge_refs
+        ]
+        valid_knowledge_corrections = [
+            item for item in valid_knowledge_corrections
+            if item[0].event_ref not in conflicting_knowledge_refs
+        ]
 
     seen_refs: set[str] = set()
     for event in result.events:
@@ -1853,11 +1882,11 @@ def apply_narrator_result(
             pending_notes.append(
                 f"Evento {event.ref}: transmisión de información pendiente de aprobación."
             )
-        elif event.ref in knowledge_corrections_by_ref:
+        elif event.ref in knowledge_corrections_by_ref or event.ref in invalid_knowledge_correction_refs:
             conn.execute("UPDATE events SET status='pending' WHERE id=?", (event_id,))
             status = "pending"
             pending_notes.append(
-                f"Evento {event.ref}: rectificación/retractación de un informe, pendiente de aprobación."
+                f"Evento {event.ref}: rectificación/retractación de un informe, pendiente de revisión."
             )
         elif status == "pending":
             pending_notes.append(
