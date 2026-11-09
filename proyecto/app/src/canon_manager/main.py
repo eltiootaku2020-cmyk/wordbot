@@ -1747,6 +1747,8 @@ def apply_narrator_result(
             reason = "emisor y destinatario deben estar dentro de la audiencia autorizada"
         elif proposal.sender_entity_id not in communication_event.witness_ids or proposal.recipient_entity_id not in communication_event.witness_ids:
             reason = "emisor y destinatario deben figurar como testigos del acto de rectificación"
+        elif set(communication_event.witness_ids) != {proposal.sender_entity_id, proposal.recipient_entity_id}:
+            reason = "la rectificación solo puede ser conocida directamente por el emisor y el destinatario originales"
         elif private_subject_ids is not None and (
             proposal.sender_entity_id not in private_subject_ids
             or proposal.recipient_entity_id not in private_subject_ids
@@ -4494,10 +4496,13 @@ def approve_event(session_id: str, event_id: str):
                     or communication["entity_id"] != sender_id
                 ):
                     raise HTTPException(status_code=422, detail="Los datos de la rectificación/retractación no superan la validación.")
-                if sender_id not in communication_witnesses or recipient_id not in communication_witnesses:
-                    raise HTTPException(status_code=422, detail="Emisor y destinatario deben figurar entre los testigos de la rectificación.")
-                if not _event_known_to_entity(communication, recipient_id):
-                    raise HTTPException(status_code=403, detail="La audiencia/procedencia de la comunicación no autoriza al destinatario.")
+                if set(communication_witnesses) != {sender_id, recipient_id}:
+                    raise HTTPException(status_code=422, detail="La rectificación solo puede tener como testigos al emisor y destinatario originales.")
+                if (
+                    not _event_known_to_entity(communication, sender_id)
+                    or not _event_known_to_entity(communication, recipient_id)
+                ):
+                    raise HTTPException(status_code=403, detail="La audiencia/procedencia de la comunicación no autoriza al emisor o destinatario.")
 
                 original = conn.execute(
                     "SELECT t.id,t.sender_entity_id,t.recipient_entity_id,t.transmitted_total_minutes,"
