@@ -3224,7 +3224,18 @@ def assess_knowledge_report(
             "SELECT * FROM session_knowledge_assessments WHERE id=?",
             (assessment_id,),
         ).fetchone()
-    return {"assessment": dict(assessment), "replayed": False}
+        # The assessment changes this recipient's perception signature. Replan
+        # only now, after a new append-only assessment has been persisted; the
+        # planner preserves manual and already-running activities and never
+        # advances the authoritative session clock.
+        planned_activities = plan_autonomous_behavior_agendas(
+            conn, session_id, current_total
+        )
+    return {
+        "assessment": dict(assessment),
+        "replayed": False,
+        "planned_activities": planned_activities,
+    }
 
 
 @app.post("/api/sessions/{session_id}/commands")
