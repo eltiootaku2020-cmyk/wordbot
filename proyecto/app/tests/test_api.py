@@ -7850,10 +7850,6 @@ def test_new_report_assessment_replans_agendas_without_advancing_clock_or_replay
         planned_calls.append((session_id, current_total_minutes))
         return 2
 
-    monkeypatch.setattr(
-        main_module, "plan_autonomous_behavior_agendas", record_planning_call
-    )
-
     with TestClient(app) as client:
         seeded = client.post("/api/demo/seed", json={}).json()
         world_id, session_id = seeded["world_id"], seeded["session_id"]
@@ -7899,6 +7895,12 @@ def test_new_report_assessment_replans_agendas_without_advancing_clock_or_replay
             client, session_id, source_event["id"], maelis_id, brina_id,
             "assessment-replan-second-report",
             "La marca parece antigua y cubierta de musgo.",
+        )
+
+        # Preparing the source and approving the two reports can also replan.
+        # Start observing only when the new assessment is about to be submitted.
+        monkeypatch.setattr(
+            main_module, "plan_autonomous_behavior_agendas", record_planning_call
         )
 
         with database.connection() as conn:
