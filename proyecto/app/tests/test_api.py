@@ -2823,7 +2823,7 @@ def test_manual_web_turn_can_retry_truncated_json_with_same_request_id():
             }
         )
         assert prepared.status_code == 200, prepared.text
-        initial_game_state = client.get(f"/api/sessions/{session_id}/state").json()["state"]
+        initial_game_state = client.get(f"/api/sessions/{session_id}/state").json()
         with database.connection() as conn:
             initial_counts = {
                 table: conn.execute(
@@ -8015,7 +8015,7 @@ def test_npc_correction_is_approval_gated_personal_and_preserves_original_histor
 
         pending_state = client.get(f"/api/sessions/{session_id}/state").json()
         pending_item = next(
-            item for item in pending_state["state"]["pending_events"]
+            item for item in pending_state["pending_events"]
             if item["id"] == event["id"]
         )
         pending_proposal = pending_item["knowledge_correction_proposals"][0]
