@@ -106,11 +106,22 @@ class KnowledgeAssessmentRequest(StrictModel):
     rationale: str = Field(min_length=1, max_length=600)
 
 
+class KnowledgeCorrectionProposal(StrictModel):
+    event_ref: str = Field(min_length=1, max_length=40)
+    original_transmission_id: str = Field(min_length=1, max_length=80)
+    sender_entity_id: str = Field(min_length=1, max_length=120)
+    recipient_entity_id: str = Field(min_length=1, max_length=120)
+    correction_kind: Literal["corrected", "retracted"]
+    replacement_text: str = Field(default="", max_length=600)
+    rationale: str = Field(min_length=1, max_length=600)
+
+
 class NarratorResponse(StrictModel):
     narration: str = Field(min_length=1, max_length=12000)
     events: list[EventProposal] = Field(default_factory=list, max_length=30)
     environment_observations: list[EnvironmentObservationProposal] = Field(default_factory=list, max_length=60)
     knowledge_transmissions: list[KnowledgeTransmissionProposal] = Field(default_factory=list, max_length=30)
+    knowledge_corrections: list[KnowledgeCorrectionProposal] = Field(default_factory=list, max_length=30)
     state_changes: list[StateChangeProposal] = Field(default_factory=list, max_length=40)
     elapsed_minutes: int = Field(default=1, ge=0, le=10080)
     movements: list[MovementProposal] = Field(default_factory=list, max_length=20)

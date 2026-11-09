@@ -35,7 +35,7 @@ from .behavior_runtime import (
     list_behavior_agendas, plan_autonomous_behavior_agendas, schedule_behavior_agenda,
     tick_behavior_runtime,
 )
-from .models import ApprovalRequest, BehaviorAgendaCreateRequest, BehaviorCatalogRequest, BehaviorPreviewRequest, BehaviorProfileRequest, ContextPreviewRequest, EntityCreate, EnvironmentObservationProposal, EnvironmentObservationRequest, KnowledgeAssessmentRequest, KnowledgeTransmissionProposal, LocalCommandRequest, LocalSettingsUpdate, ManualPromptRequest, MapRegionConfigRequest, NarratorResponse, SessionCreate, SessionRestoreRequest, TravelPlanRequest, TravelStepRequest, TurnRequest, WorldCreate, WorldStartCreate, WorldTimelineEventCreate, WorldTimelineEventUpdate
+from .models import ApprovalRequest, BehaviorAgendaCreateRequest, BehaviorCatalogRequest, BehaviorPreviewRequest, BehaviorProfileRequest, ContextPreviewRequest, EntityCreate, EnvironmentObservationProposal, EnvironmentObservationRequest, KnowledgeAssessmentRequest, KnowledgeCorrectionProposal, KnowledgeTransmissionProposal, LocalCommandRequest, LocalSettingsUpdate, ManualPromptRequest, MapRegionConfigRequest, NarratorResponse, SessionCreate, SessionRestoreRequest, TravelPlanRequest, TravelStepRequest, TurnRequest, WorldCreate, WorldStartCreate, WorldTimelineEventCreate, WorldTimelineEventUpdate
 from .providers import ProviderError, build_manual_prompt, make_provider
 from .timeline import fire_due_world_events
 from .travel_controller import (
@@ -642,6 +642,11 @@ def capture_turn_state(conn, session_id: str) -> dict[str, Any]:
             "SELECT * FROM session_knowledge_assessments WHERE session_id=? "
             "ORDER BY assessed_total_minutes,id",
             (session_id,)
+        ).fetchall()],
+        "knowledge_corrections": [dict(row) for row in conn.execute(
+            "SELECT * FROM session_knowledge_corrections WHERE session_id=? "
+            "ORDER BY corrected_total_minutes,id",
+            (session_id,)
         ).fetchall()]
     }
 
@@ -685,7 +690,8 @@ def restore_turn_state(conn, session_id: str, state: dict[str, Any]) -> None:
         ("behavior_action_executions", state.get("behavior_executions", [])),
         ("session_environment_observations", state.get("environment_observations", [])),
         ("session_knowledge_transmissions", state.get("knowledge_transmissions", [])),
-        ("session_knowledge_assessments", state.get("knowledge_assessments", []))
+        ("session_knowledge_assessments", state.get("knowledge_assessments", [])),
+        ("session_knowledge_corrections", state.get("knowledge_corrections", []))
     ]
     # Delete children before parents, then restore parents before children.
     # Knowledge assessments reference transmissions and must follow this order.
@@ -1435,7 +1441,7 @@ def apply_narrator_result(
     if authorized_skip:
         # A time skip is a direct user command, not permission to invent loot,
         # relationships, powers or NPC movements while the protagonist is absent.
-        side_effect_fields = ("events", "state_changes", "movements", "inventory_ops", "resource_ops", "power_uses", "environment_observations", "knowledge_transmissions")
+        side_effect_fields = ("events", "state_changes", "movements", "inventory_ops", "resource_ops", "power_uses", "environment_observations", "knowledge_transmissions", "knowledge_corrections")
         ignored = sum(len(getattr(result, field)) for field in side_effect_fields)
         pending = list(result.pending)
         if ignored:
@@ -1447,7 +1453,7 @@ def apply_narrator_result(
         result = result.model_copy(update={
             "events": [], "state_changes": [], "movements": [],
             "inventory_ops": [], "resource_ops": [], "power_uses": [], "environment_observations": [],
-            "knowledge_transmissions": [],
+            "knowledge_transmissions": [], "knowledge_corrections": [],
             "elapsed_minutes": int(authorized_skip["minutes"]),
             "pending": pending
         })
@@ -1718,6 +1724,125 @@ def apply_narrator_result(
         )
         knowledge_transmissions_by_ref.setdefault(proposal.event_ref, []).append(proposal)
 
+    # A correction is a new witnessed communication by the original sender to
+    # the same recipient. It withdraws or replaces only that attributed claim;
+    # the original transmission and source event remain unchanged.
+    valid_knowledge_corrections: list[tuple[KnowledgeCorrectionProposal, str, int]] = []
+    knowledge_corrections_by_ref: dict[str, list[KnowledgeCorrectionProposal]] = {}
+    invalid_knowledge_correction_refs: set[str] = set()
+    seen_correction_keys: set[tuple[str, str, str, str]] = set()
+    seen_correction_original_ids: set[str] = set()
+    for proposal in result.knowledge_corrections:
+        communication_event = unique_events.get(proposal.event_ref)
+        reason = ""
+        if communication_event is None:
+            reason = "no referencia a un evento único de esta respuesta"
+        elif communication_event.kind != "knowledge":
+            reason = "la rectificación requiere un evento de comunicación de tipo knowledge"
+        elif communication_event.entity_id != proposal.sender_entity_id:
+            reason = "la entidad del evento de comunicación debe ser quien emitió el informe original"
+        elif proposal.sender_entity_id == proposal.recipient_entity_id:
+            reason = "el emisor y destinatario no pueden ser la misma entidad"
+        elif proposal.sender_entity_id not in valid_ids or proposal.recipient_entity_id not in valid_ids:
+            reason = "el emisor o destinatario no pertenece a este mundo"
+        elif proposal.sender_entity_id not in allowed_witnesses or proposal.recipient_entity_id not in allowed_witnesses:
+            reason = "emisor y destinatario deben estar dentro de la audiencia autorizada"
+        elif proposal.sender_entity_id not in communication_event.witness_ids or proposal.recipient_entity_id not in communication_event.witness_ids:
+            reason = "emisor y destinatario deben figurar como testigos del acto de rectificación"
+        elif set(communication_event.witness_ids) != {proposal.sender_entity_id, proposal.recipient_entity_id}:
+            reason = "la rectificación solo puede ser conocida directamente por el emisor y el destinatario originales"
+        elif private_subject_ids is not None and (
+            proposal.sender_entity_id not in private_subject_ids
+            or proposal.recipient_entity_id not in private_subject_ids
+        ):
+            reason = "el emisor o destinatario queda fuera del alcance del mensaje privado"
+        elif proposal.correction_kind == "corrected" and not proposal.replacement_text.strip():
+            reason = "una rectificación necesita una nueva versión textual"
+        elif proposal.correction_kind == "retracted" and proposal.replacement_text.strip():
+            reason = "una retractación retira la afirmación y no puede incluir una versión sustituta"
+
+        original = None
+        if not reason:
+            original = conn.execute(
+                "SELECT t.id,t.sender_entity_id,t.recipient_entity_id,t.transmitted_total_minutes,"
+                "s.status AS source_status,c.status AS communication_status "
+                "FROM session_knowledge_transmissions t "
+                "JOIN events s ON s.id=t.source_event_id AND s.session_id=t.session_id "
+                "JOIN events c ON c.id=t.communication_event_id AND c.session_id=t.session_id "
+                "WHERE t.id=? AND t.session_id=?",
+                (proposal.original_transmission_id, session["id"]),
+            ).fetchone()
+            if (
+                original is None
+                or original["source_status"] != "recorded"
+                or original["communication_status"] != "recorded"
+            ):
+                reason = "el informe original no existe o dejó de estar registrado"
+            elif (
+                str(original["sender_entity_id"]) != proposal.sender_entity_id
+                or str(original["recipient_entity_id"]) != proposal.recipient_entity_id
+            ):
+                reason = "solo el emisor original puede rectificar o retirar su informe ante el mismo destinatario"
+            elif int(original["transmitted_total_minutes"]) > current_total_minutes:
+                reason = "el informe original todavía no se había comunicado"
+            elif conn.execute(
+                "SELECT 1 FROM session_knowledge_corrections WHERE session_id=? AND original_transmission_id=?",
+                (session["id"], proposal.original_transmission_id),
+            ).fetchone():
+                reason = "ese informe ya tiene una rectificación o retractación registrada"
+            elif proposal.original_transmission_id in seen_correction_original_ids:
+                reason = "la misma respuesta contiene más de una rectificación para el mismo informe original"
+
+        sender_location = ""
+        recipient_location = ""
+        if not reason:
+            sender_location = _session_entity_location(conn, session, proposal.sender_entity_id)
+            recipient_location = _session_entity_location(conn, session, proposal.recipient_entity_id)
+            if not sender_location or not recipient_location:
+                reason = "el emisor o destinatario no tiene ubicación de sesión registrada"
+            elif sender_location.casefold() != recipient_location.casefold():
+                reason = "emisor y destinatario no estaban en la misma ubicación al rectificar"
+
+        signature = (
+            proposal.event_ref, proposal.original_transmission_id,
+            proposal.sender_entity_id, proposal.recipient_entity_id,
+        )
+        if not reason and signature in seen_correction_keys:
+            reason = "la misma respuesta contiene rectificaciones duplicadas para ese informe"
+        if reason:
+            invalid_knowledge_correction_refs.add(proposal.event_ref)
+            pending_notes.append(
+                f"Rectificación/retractación de {proposal.original_transmission_id}: {reason}; no se registró."
+            )
+            continue
+        seen_correction_keys.add(signature)
+        seen_correction_original_ids.add(proposal.original_transmission_id)
+        valid_knowledge_corrections.append((proposal, sender_location, current_total_minutes))
+        knowledge_corrections_by_ref.setdefault(proposal.event_ref, []).append(proposal)
+
+    # A single communication event cannot simultaneously create a new
+    # ordinary transmission and correct an earlier one. Reject both structured
+    # effects and leave the communication event pending for review.
+    conflicting_knowledge_refs = (
+        set(knowledge_transmissions_by_ref) & set(knowledge_corrections_by_ref)
+    )
+    if conflicting_knowledge_refs:
+        for conflict_ref in conflicting_knowledge_refs:
+            knowledge_transmissions_by_ref.pop(conflict_ref, None)
+            knowledge_corrections_by_ref.pop(conflict_ref, None)
+            invalid_knowledge_correction_refs.add(conflict_ref)
+            pending_notes.append(
+                f"Evento {conflict_ref}: no se puede mezclar una nueva transmisión con una rectificación del mismo acto; ambas propuestas se dejaron sin aplicar."
+            )
+        valid_knowledge_transmissions = [
+            item for item in valid_knowledge_transmissions
+            if item[0].event_ref not in conflicting_knowledge_refs
+        ]
+        valid_knowledge_corrections = [
+            item for item in valid_knowledge_corrections
+            if item[0].event_ref not in conflicting_knowledge_refs
+        ]
+
     seen_refs: set[str] = set()
     for event in result.events:
         if event.ref in seen_refs:
@@ -1756,6 +1881,12 @@ def apply_narrator_result(
             status = "pending"
             pending_notes.append(
                 f"Evento {event.ref}: transmisión de información pendiente de aprobación."
+            )
+        elif event.ref in knowledge_corrections_by_ref or event.ref in invalid_knowledge_correction_refs:
+            conn.execute("UPDATE events SET status='pending' WHERE id=?", (event_id,))
+            status = "pending"
+            pending_notes.append(
+                f"Evento {event.ref}: rectificación/retractación de un informe, pendiente de revisión."
             )
         elif status == "pending":
             pending_notes.append(
@@ -1799,6 +1930,22 @@ def apply_narrator_result(
             proposal.recipient_entity_id, "knowledge_transmission", "propose",
             None, proposal_data, None, "pending",
             "La transmisión solo concederá conocimiento atribuido después de aprobar el evento de comunicación.",
+            communication["id"]
+        )
+
+    for proposal_index, (proposal, correction_location, corrected_total) in enumerate(valid_knowledge_corrections):
+        communication = event_map.get(proposal.event_ref)
+        if communication is None:
+            continue
+        proposal_data = proposal.model_dump()
+        proposal_data["observed_location"] = correction_location
+        proposal_data["corrected_total_minutes"] = corrected_total
+        save_change(
+            conn, session["id"], turn_id,
+            f"knowledge-correction-{proposal_index}-{new_id()[:8]}",
+            proposal.recipient_entity_id, "knowledge_correction", "propose",
+            None, proposal_data, None, "pending",
+            "La rectificación/retractación solo se registra tras aprobar el acto de comunicación; el informe original permanece en el historial.",
             communication["id"]
         )
 
@@ -2424,7 +2571,7 @@ def load_state(conn, session_id: str) -> dict[str, Any]:
     ).fetchall()]
     pending = [dict(row) for row in conn.execute(
         "SELECT id,entity_id,field,operation,proposed_value_json,reason,created_at FROM state_changes "
-        "WHERE session_id=? AND status='pending' AND field NOT IN ('environment_observation','knowledge_transmission') "
+        "WHERE session_id=? AND status='pending' AND field NOT IN ('environment_observation','knowledge_transmission','knowledge_correction') "
         "ORDER BY created_at DESC LIMIT 100", (session_id,)
     ).fetchall()]
     for item in pending:
@@ -2468,6 +2615,25 @@ def load_state(conn, session_id: str) -> dict[str, Any]:
                 proposal_data = None
             if isinstance(proposal_data, dict):
                 event["knowledge_transmission_proposals"].append({
+                    "proposal_id": str(proposal_row["id"]),
+                    "recipient_entity_id": str(proposal_row["entity_id"]),
+                    **proposal_data,
+                    "reason": str(proposal_row["reason"] or "")
+                })
+        correction_rows = conn.execute(
+            "SELECT id,entity_id,proposed_value_json,reason FROM state_changes "
+            "WHERE session_id=? AND source_event_id=? AND field='knowledge_correction' "
+            "AND status='pending' ORDER BY created_at,id",
+            (session_id, event["id"])
+        ).fetchall()
+        event["knowledge_correction_proposals"] = []
+        for proposal_row in correction_rows:
+            try:
+                proposal_data = json.loads(str(proposal_row["proposed_value_json"]))
+            except (TypeError, ValueError, json.JSONDecodeError):
+                proposal_data = None
+            if isinstance(proposal_data, dict):
+                event["knowledge_correction_proposals"].append({
                     "proposal_id": str(proposal_row["id"]),
                     "recipient_entity_id": str(proposal_row["entity_id"]),
                     **proposal_data,
@@ -4044,6 +4210,11 @@ def approve_event(session_id: str, event_id: str):
             "AND field='knowledge_transmission' AND status='pending' ORDER BY created_at,id",
             (session_id, event_id)
         ).fetchall()
+        pending_corrections = conn.execute(
+            "SELECT * FROM state_changes WHERE session_id=? AND source_event_id=? "
+            "AND field='knowledge_correction' AND status='pending' ORDER BY created_at,id",
+            (session_id, event_id)
+        ).fetchall()
 
         # Approval and conversion are atomic. Any invalid provenance causes
         # the transaction to roll back, leaving the event and proposals pending.
@@ -4289,16 +4460,153 @@ def approve_event(session_id: str, event_id: str):
                 )
                 approved_transmissions.append(accepted_value)
 
+        approved_corrections = []
+        if pending_corrections:
+            if event["kind"] != "knowledge":
+                raise HTTPException(
+                    status_code=422,
+                    detail="Las rectificaciones/retractaciones requieren un evento de comunicación knowledge."
+                )
+            try:
+                communication_witnesses = json.loads(str(event["witnesses_json"] or "[]"))
+            except (TypeError, ValueError, json.JSONDecodeError) as exc:
+                raise HTTPException(status_code=422, detail="Los testigos de la rectificación están dañados.") from exc
+            if not isinstance(communication_witnesses, list):
+                raise HTTPException(status_code=422, detail="Los testigos de la rectificación no son válidos.")
+            communication = conn.execute(
+                "SELECT e.id,e.status,e.kind,e.entity_id,e.witnesses_json,e.source_message_id,"
+                "m.recipient_entity_id AS source_recipient_id,m.metadata_json AS source_metadata_json "
+                "FROM events e LEFT JOIN messages m ON m.id=e.source_message_id "
+                "WHERE e.id=? AND e.session_id=?",
+                (event_id, session_id),
+            ).fetchone()
+            if communication is None or communication["status"] != "recorded" or communication["kind"] != "knowledge":
+                raise HTTPException(status_code=422, detail="El acto de rectificación no está registrado como comunicación válida.")
+
+            for proposal_row in pending_corrections:
+                try:
+                    proposal = json.loads(str(proposal_row["proposed_value_json"]))
+                except (TypeError, ValueError, json.JSONDecodeError) as exc:
+                    raise HTTPException(status_code=422, detail="La propuesta de rectificación está dañada.") from exc
+                if not isinstance(proposal, dict):
+                    raise HTTPException(status_code=422, detail="La propuesta de rectificación no contiene un objeto válido.")
+
+                sender_id = proposal.get("sender_entity_id")
+                recipient_id = str(proposal_row["entity_id"] or "")
+                original_id = proposal.get("original_transmission_id")
+                correction_kind = proposal.get("correction_kind")
+                replacement_text = proposal.get("replacement_text", "")
+                rationale = proposal.get("rationale")
+                location = proposal.get("observed_location")
+                corrected_total = proposal.get("corrected_total_minutes")
+
+                if (
+                    not isinstance(sender_id, str)
+                    or sender_id not in valid_ids
+                    or recipient_id not in valid_ids
+                    or sender_id == recipient_id
+                    or proposal.get("recipient_entity_id") != recipient_id
+                    or not isinstance(original_id, str)
+                    or not original_id
+                    or correction_kind not in {"corrected", "retracted"}
+                    or not isinstance(replacement_text, str)
+                    or len(replacement_text) > 600
+                    or not isinstance(rationale, str)
+                    or not rationale.strip()
+                    or len(rationale) > 600
+                    or not isinstance(location, str)
+                    or not location.strip()
+                    or isinstance(corrected_total, bool)
+                    or not isinstance(corrected_total, int)
+                    or corrected_total < 0
+                    or corrected_total > current_total
+                    or (correction_kind == "corrected" and not replacement_text.strip())
+                    or (correction_kind == "retracted" and replacement_text.strip())
+                    or communication["entity_id"] != sender_id
+                ):
+                    raise HTTPException(status_code=422, detail="Los datos de la rectificación/retractación no superan la validación.")
+                if set(communication_witnesses) != {sender_id, recipient_id}:
+                    raise HTTPException(status_code=422, detail="La rectificación solo puede tener como testigos al emisor y destinatario originales.")
+                if (
+                    not _event_known_to_entity(communication, sender_id)
+                    or not _event_known_to_entity(communication, recipient_id)
+                ):
+                    raise HTTPException(status_code=403, detail="La audiencia/procedencia de la comunicación no autoriza al emisor o destinatario.")
+
+                original = conn.execute(
+                    "SELECT t.id,t.sender_entity_id,t.recipient_entity_id,t.transmitted_total_minutes,"
+                    "s.status AS source_status,c.status AS communication_status "
+                    "FROM session_knowledge_transmissions t "
+                    "JOIN events s ON s.id=t.source_event_id AND s.session_id=t.session_id "
+                    "JOIN events c ON c.id=t.communication_event_id AND c.session_id=t.session_id "
+                    "WHERE t.id=? AND t.session_id=?",
+                    (original_id, session_id),
+                ).fetchone()
+                if (
+                    original is None
+                    or original["source_status"] != "recorded"
+                    or original["communication_status"] != "recorded"
+                    or original["sender_entity_id"] != sender_id
+                    or original["recipient_entity_id"] != recipient_id
+                    or int(original["transmitted_total_minutes"]) > corrected_total
+                ):
+                    raise HTTPException(status_code=422, detail="Solo se puede corregir un informe registrado que ese emisor comunicó a ese destinatario antes de la rectificación.")
+                if conn.execute(
+                    "SELECT 1 FROM session_knowledge_corrections WHERE session_id=? AND original_transmission_id=?",
+                    (session_id, original_id),
+                ).fetchone():
+                    raise HTTPException(status_code=409, detail="El informe ya tiene una rectificación o retractación registrada.")
+
+                correction_id = new_id()
+                request_id = f"narrator-event-approval-{proposal_row['id']}"
+                conn.execute(
+                    "INSERT INTO session_knowledge_corrections("
+                    "id,session_id,request_id,original_transmission_id,correction_event_id,"
+                    "sender_entity_id,recipient_entity_id,correction_kind,replacement_text,"
+                    "rationale,location,corrected_total_minutes"
+                    ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (
+                        correction_id, session_id, request_id, original_id, event_id,
+                        sender_id, recipient_id, correction_kind, replacement_text.strip(),
+                        rationale.strip(), location.strip(), corrected_total,
+                    ),
+                )
+                accepted_value = {
+                    "correction_id": correction_id,
+                    "original_transmission_id": original_id,
+                    "correction_event_id": event_id,
+                    "sender_entity_id": sender_id,
+                    "recipient_entity_id": recipient_id,
+                    "correction_kind": correction_kind,
+                    "replacement_text": replacement_text.strip(),
+                    "rationale": rationale.strip(),
+                    "location": location.strip(),
+                    "corrected_total_minutes": corrected_total,
+                }
+                conn.execute(
+                    "UPDATE state_changes SET status='accepted',accepted_value_json=?,"
+                    "reason='Rectificación/retractación aprobada; la versión original se conserva como historial atribuido.',"
+                    "applied_at=? WHERE id=? AND status='pending'",
+                    (
+                        json.dumps(accepted_value, ensure_ascii=False),
+                        datetime.now(timezone.utc).isoformat(timespec="seconds"),
+                        proposal_row["id"],
+                    ),
+                )
+                approved_corrections.append(accepted_value)
+
         knowledge_recipients = {item["recipient_entity_id"] for item in approved_transmissions}
+        correction_recipients = {item["recipient_entity_id"] for item in approved_corrections}
         planned = (
             plan_autonomous_behavior_agendas(conn, session_id, current_total)
-            if approved_observations or knowledge_recipients else 0
+            if approved_observations or knowledge_recipients or correction_recipients else 0
         )
     return {
         "approved": True,
         "event_id": event_id,
         "environment_observations": approved_observations,
         "knowledge_transmissions": approved_transmissions,
+        "knowledge_corrections": approved_corrections,
         "planned_activities": planned,
         "clock_advanced": False
     }
@@ -4359,6 +4667,7 @@ RESTORE_SESSION_TABLES = (
     "events",
     "session_knowledge_transmissions",
     "session_knowledge_assessments",
+    "session_knowledge_corrections",
     "session_environment_observations",
     "state_changes",
     "snapshots",
@@ -4375,6 +4684,7 @@ RESTORE_REQUIRED_COLUMNS = {
     "session_timeline_events": {"id", "session_id", "world_event_id", "scheduled_total_minutes", "fired_total_minutes", "fired_day", "fired_minute"},
     "session_knowledge_transmissions": {"id", "session_id", "request_id", "source_event_id", "communication_event_id", "sender_entity_id", "recipient_entity_id", "transmission_kind", "version_text", "location", "transmitted_total_minutes"},
     "session_knowledge_assessments": {"id", "session_id", "request_id", "transmission_id", "assessor_entity_id", "stance", "confidence", "evidence_report_id", "evidence_event_id", "rationale", "assessed_total_minutes"},
+    "session_knowledge_corrections": {"id", "session_id", "request_id", "original_transmission_id", "correction_event_id", "sender_entity_id", "recipient_entity_id", "correction_kind", "replacement_text", "rationale", "location", "corrected_total_minutes"},
     "session_environment_observations": {"id", "session_id", "request_id", "observer_entity_id", "location", "observation_kind", "value_key", "observed_total_minutes", "valid_until_total_minutes", "source_event_id"},
     "messages": {"id", "session_id", "turn_id", "turn_index", "role", "recipient_entity_id", "content", "provider", "generation_status"},
     "events": {"id", "session_id", "turn_id", "external_ref", "kind", "entity_id", "description", "witnesses_json", "status"},
@@ -4477,6 +4787,7 @@ def _read_session_backup(backup_path: Path, session_id: str):
             "session_entity_agendas", "behavior_action_executions",
             "session_environment_observations", "session_knowledge_transmissions",
             "session_knowledge_assessments",
+            "session_knowledge_corrections",
         }
         missing_tables = [
             table for table in RESTORE_SESSION_TABLES
