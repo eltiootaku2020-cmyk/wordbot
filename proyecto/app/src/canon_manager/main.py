@@ -1737,7 +1737,7 @@ def apply_narrator_result(
             reason = "no referencia a un evento único de esta respuesta"
         elif communication_event.kind != "knowledge":
             reason = "la rectificación requiere un evento de comunicación de tipo knowledge"
-        elif communication_event.entity_id and communication_event.entity_id != proposal.sender_entity_id:
+        elif communication_event.entity_id != proposal.sender_entity_id:
             reason = "la entidad del evento de comunicación debe ser quien emitió el informe original"
         elif proposal.sender_entity_id == proposal.recipient_entity_id:
             reason = "el emisor y destinatario no pueden ser la misma entidad"
