@@ -93,6 +93,28 @@ CREATE TABLE IF NOT EXISTS session_knowledge_assessments (
 );
 CREATE INDEX IF NOT EXISTS idx_knowledge_assessments_by_report
   ON session_knowledge_assessments(session_id,assessor_entity_id,transmission_id,assessed_total_minutes);
+CREATE TABLE IF NOT EXISTS session_knowledge_corrections (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  request_id TEXT NOT NULL,
+  original_transmission_id TEXT NOT NULL REFERENCES session_knowledge_transmissions(id) ON DELETE RESTRICT,
+  correction_event_id TEXT NOT NULL REFERENCES events(id) ON DELETE RESTRICT,
+  sender_entity_id TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  recipient_entity_id TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  correction_kind TEXT NOT NULL CHECK(correction_kind IN ('corrected','retracted')),
+  replacement_text TEXT NOT NULL DEFAULT '',
+  rationale TEXT NOT NULL CHECK(length(trim(rationale)) BETWEEN 1 AND 600),
+  location TEXT NOT NULL CHECK(length(trim(location)) > 0),
+  corrected_total_minutes INTEGER NOT NULL CHECK(corrected_total_minutes >= 0),
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(session_id, request_id),
+  UNIQUE(session_id, original_transmission_id),
+  CHECK(sender_entity_id <> recipient_entity_id),
+  CHECK((correction_kind='corrected' AND length(trim(replacement_text)) BETWEEN 1 AND 600) OR
+        (correction_kind='retracted' AND replacement_text=''))
+);
+CREATE INDEX IF NOT EXISTS idx_knowledge_corrections_by_recipient
+  ON session_knowledge_corrections(session_id,recipient_entity_id,corrected_total_minutes);
 CREATE TABLE IF NOT EXISTS session_environment_observations (
   id TEXT PRIMARY KEY,
   session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
