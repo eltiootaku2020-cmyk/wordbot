@@ -685,6 +685,39 @@ def _entity_perception_context(
             "assessed_total_minutes": int(assessment["assessed_total_minutes"]),
         })
 
+    # A sender may later correct or withdraw the exact statement they gave.
+    # These records remain attached to the recipient's report; they never erase
+    # its original wording or change the source event.
+    correction_rows = conn.execute(
+        "SELECT c.*,e.status AS correction_event_status,e.kind AS correction_event_kind,"
+        "e.witnesses_json,e.source_message_id,"
+        "m.recipient_entity_id AS source_recipient_id,m.metadata_json AS source_metadata_json "
+        "FROM session_knowledge_corrections c "
+        "JOIN events e ON e.id=c.correction_event_id AND e.session_id=c.session_id "
+        "LEFT JOIN messages m ON m.id=e.source_message_id "
+        "WHERE c.session_id=? AND c.recipient_entity_id=? "
+        "AND c.corrected_total_minutes<=? AND e.status='recorded' "
+        "ORDER BY c.corrected_total_minutes DESC,c.created_at DESC,c.id DESC LIMIT 100",
+        (session_id, entity_id, current_total),
+    ).fetchall()
+    corrections_by_report: dict[str, dict[str, Any]] = {}
+    for correction in correction_rows:
+        if correction["correction_event_kind"] != "knowledge" or not _event_known_to_entity(
+            correction, entity_id
+        ):
+            continue
+        corrections_by_report[str(correction["original_transmission_id"])] = {
+            "correction_id": str(correction["id"]),
+            "correction_event_id": str(correction["correction_event_id"]),
+            "correction_kind": str(correction["correction_kind"]),
+            "sender_entity_id": str(correction["sender_entity_id"]),
+            "recipient_entity_id": str(correction["recipient_entity_id"]),
+            "replacement_text": str(correction["replacement_text"] or ""),
+            "rationale": str(correction["rationale"]),
+            "location": str(correction["location"]),
+            "corrected_total_minutes": int(correction["corrected_total_minutes"]),
+        }
+
     # A received report is knowledge that someone made this statement, not proof
     # that the source event happened as described. Keep its attribution and wording.
     knowledge_summary: list[dict[str, Any]] = []
@@ -710,6 +743,15 @@ def _entity_perception_context(
         conditions[f"heard_report_id:{report_id}"] = True
         conditions[f"heard_report_of_event:{source_id}"] = True
         conditions[f"heard_{transmission_kind}_of_event:{source_id}"] = True
+        correction = corrections_by_report.get(str(report["id"]))
+        report_status = "active"
+        if correction:
+            if correction["correction_kind"] == "corrected":
+                report_status = "corrected"
+                conditions[f"received_report_corrected:{report_id}"] = True
+            elif correction["correction_kind"] == "retracted":
+                report_status = "retracted"
+                conditions[f"received_report_retracted:{report_id}"] = True
         knowledge_summary.append({
             "transmission_id": str(report["id"]),
             "transmission_kind": transmission_kind,
@@ -722,6 +764,13 @@ def _entity_perception_context(
             "transmitted_total_minutes": int(report["transmitted_total_minutes"]),
             "parent_transmission_id": str(report["parent_transmission_id"] or ""),
             "epistemic_status": "reported_not_verified",
+            "report_status": report_status,
+            "correction": correction,
+            "current_reported_version": (
+                correction["replacement_text"]
+                if correction and correction["correction_kind"] == "corrected"
+                else ("" if correction and correction["correction_kind"] == "retracted" else str(report["version_text"]))
+            ),
             "assessment": (
                 assessments_by_report.get(str(report["id"]), [])[-1]
                 if assessments_by_report.get(str(report["id"])) else None
