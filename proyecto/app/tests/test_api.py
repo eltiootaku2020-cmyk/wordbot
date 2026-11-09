@@ -8093,6 +8093,82 @@ def test_npc_correction_is_approval_gated_personal_and_preserves_original_histor
         assert restored == 1
 
 
+def test_same_communication_cannot_both_transmit_and_correct_a_report():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        ids = _entity_ids_by_name(client, world_id)
+        protagonist_id = next(
+            value for name, value in ids.items()
+            if name.lower() in {"protagonista", "protagonist"}
+        )
+        brina_id = ids["Brina Solcor"]
+        source_event_id = _record_source_event(
+            session_id, protagonist_id, "mixed-communication-source"
+        )
+        original_id = _approve_knowledge_testimony(
+            client, session_id, source_event_id, protagonist_id, brina_id,
+            "mixed-communication-original", "Vi una señal junto al sendero.",
+        )
+
+        proposal = NarratorResponse(
+            narration="El protagonista intenta repetir y corregir al mismo tiempo su comunicación.",
+            elapsed_minutes=0,
+            events=[EventProposal(
+                ref="mixed-transmission-correction",
+                kind="knowledge",
+                entity_id=protagonist_id,
+                description="Acto ambiguo que mezcla un testimonio nuevo y la rectificación de otro.",
+                witness_ids=[protagonist_id, brina_id],
+            )],
+            knowledge_transmissions=[KnowledgeTransmissionProposal(
+                event_ref="mixed-transmission-correction",
+                source_event_id=source_event_id,
+                sender_entity_id=protagonist_id,
+                recipient_entity_id=brina_id,
+                transmission_kind="testimony",
+                version_text="Una versión repetida mientras se intenta corregir la anterior.",
+            )],
+            knowledge_corrections=[KnowledgeCorrectionProposal(
+                event_ref="mixed-transmission-correction",
+                original_transmission_id=original_id,
+                sender_entity_id=protagonist_id,
+                recipient_entity_id=brina_id,
+                correction_kind="retracted",
+                replacement_text="",
+                rationale="El protagonista intenta retirar la afirmación anterior.",
+            )],
+        )
+        turn_id, _, pending_notes = _apply_synthetic_result(
+            session_id, "Repito y retiro la información anterior.", proposal
+        )
+        with database.connection() as conn:
+            event = conn.execute(
+                "SELECT id,status FROM events WHERE session_id=? AND turn_id=?",
+                (session_id, turn_id),
+            ).fetchone()
+            correction_count = conn.execute(
+                "SELECT COUNT(*) AS n FROM session_knowledge_corrections "
+                "WHERE session_id=?",
+                (session_id,),
+            ).fetchone()["n"]
+            transmission_count = conn.execute(
+                "SELECT COUNT(*) AS n FROM session_knowledge_transmissions "
+                "WHERE session_id=?",
+                (session_id,),
+            ).fetchone()["n"]
+        assert event is not None and event["status"] == "pending"
+        assert correction_count == 0
+        assert transmission_count == 1
+        assert any("no se puede mezclar" in note for note in pending_notes)
+        state = client.get(f"/api/sessions/{session_id}/state").json()["state"]
+        mixed_event = next(
+            item for item in state["pending_events"] if item["id"] == event["id"]
+        )
+        assert mixed_event["knowledge_transmission_proposals"] == []
+        assert mixed_event["knowledge_correction_proposals"] == []
+
+
 def test_npc_retraction_withdraws_only_the_sender_statement_and_rejects_impersonation():
     with TestClient(app) as client:
         seeded = client.post("/api/demo/seed", json={}).json()
