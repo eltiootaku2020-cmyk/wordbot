@@ -7958,6 +7958,11 @@ def test_npc_correction_is_approval_gated_personal_and_preserves_original_histor
             client, session_id, source_event_id, protagonist_id, brina_id,
             "correction-original-testimony", original_text,
         )
+        maelis_report_id = _approve_knowledge_testimony(
+            client, session_id, source_event_id, protagonist_id, ids["Maelis Orven"],
+            "correction-other-recipient-testimony",
+            "El protagonista vio una señal, pero no habló de su ubicación exacta.",
+        )
 
         with database.connection() as conn:
             original_before = conn.execute(
@@ -8066,7 +8071,12 @@ def test_npc_correction_is_approval_gated_personal_and_preserves_original_histor
         assert corrected_report["correction"]["rationale"].startswith("El emisor reconoce")
         assert corrected_report["epistemic_status"] == "reported_not_verified"
         assert brina_conditions.get("received_report_corrected:" + report_id) is True
-        assert maelis_perception["knowledge_reports"] == []
+        maelis_report = next(
+            item for item in maelis_perception["knowledge_reports"]
+            if item["transmission_id"] == maelis_report_id
+        )
+        assert maelis_report["report_status"] == "active"
+        assert maelis_report["correction"] is None
 
         with database.transaction() as conn:
             snapshot = main_module.capture_turn_state(conn, session_id)
