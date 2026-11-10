@@ -778,8 +778,33 @@ function renderState(payload) {
         " de " + (entityNames[report.sender_entity_id] || report.sender_entity_id);
       item.appendChild(title);
       const version = document.createElement("p");
-      version.textContent = "Versión original: «" + report.reported_version + "» · no verificada";
+      version.textContent = "Versión recibida: «" + report.reported_version + "» · no verificada";
       item.appendChild(version);
+      const provenanceChain = Array.isArray(report.provenance_chain)
+        ? report.provenance_chain
+        : [];
+      if (provenanceChain.length > 1) {
+        const provenanceTitle = document.createElement("p");
+        provenanceTitle.className = "muted";
+        provenanceTitle.textContent = "Procedencia: " + provenanceChain
+          .map(hop => (hop.sender_name || entityNames[hop.sender_entity_id] || hop.sender_entity_id) +
+            " → " + (hop.recipient_name || entityNames[hop.recipient_entity_id] || hop.recipient_entity_id))
+          .join(" · ");
+        item.appendChild(provenanceTitle);
+        provenanceChain.forEach(hop => {
+          const hopVersion = document.createElement("p");
+          hopVersion.className = "muted";
+          const from = hop.sender_name || entityNames[hop.sender_entity_id] || hop.sender_entity_id;
+          const to = hop.recipient_name || entityNames[hop.recipient_entity_id] || hop.recipient_entity_id;
+          hopVersion.textContent = from + " comunicó a " + to + ": «" + hop.version_text + "»";
+          item.appendChild(hopVersion);
+        });
+      } else if (report.parent_transmission_id && !report.provenance_complete) {
+        const provenanceWarning = document.createElement("p");
+        provenanceWarning.className = "muted";
+        provenanceWarning.textContent = "Procedencia incompleta: se conserva el vínculo de retransmisión, pero no se pudo validar toda la cadena.";
+        item.appendChild(provenanceWarning);
+      }
       const correctionHistory = Array.isArray(report.correction_history)
         ? report.correction_history
         : (report.correction ? [report.correction] : []);
