@@ -1776,8 +1776,8 @@ def apply_narrator_result(
         reason = ""
         if communication_event is None:
             reason = "no referencia a un evento único de esta respuesta"
-        elif communication_event.kind != "knowledge":
-            reason = "la rectificación requiere un evento de comunicación de tipo knowledge"
+        elif communication_event.kind not in {"knowledge", "rumor"}:
+            reason = "la rectificación requiere un evento de comunicación knowledge o rumor"
         elif communication_event.entity_id != proposal.sender_entity_id:
             reason = "la entidad del evento de comunicación debe ser quien emitió el informe original"
         elif proposal.sender_entity_id == proposal.recipient_entity_id:
@@ -1803,7 +1803,7 @@ def apply_narrator_result(
         original = None
         if not reason:
             original = conn.execute(
-                "SELECT t.id,t.sender_entity_id,t.recipient_entity_id,t.transmitted_total_minutes,"
+                "SELECT t.id,t.sender_entity_id,t.recipient_entity_id,t.transmission_kind,t.transmitted_total_minutes,"
                 "s.status AS source_status,c.status AS communication_status "
                 "FROM session_knowledge_transmissions t "
                 "JOIN events s ON s.id=t.source_event_id AND s.session_id=t.session_id "
@@ -1824,6 +1824,13 @@ def apply_narrator_result(
                 reason = "solo el emisor original puede rectificar o retirar su informe ante el mismo destinatario"
             elif int(original["transmitted_total_minutes"]) > current_total_minutes:
                 reason = "el informe original todavía no se había comunicado"
+            elif communication_event.kind != (
+                "knowledge" if original["transmission_kind"] == "testimony" else "rumor"
+            ):
+                expected_kind = (
+                    "knowledge" if original["transmission_kind"] == "testimony" else "rumor"
+                )
+                reason = f"la rectificación de esta transmisión requiere un evento {expected_kind}"
             else:
                 latest_correction = conn.execute(
                     "SELECT c.id,c.correction_kind,c.corrected_total_minutes,"
@@ -4521,10 +4528,10 @@ def approve_event(session_id: str, event_id: str):
 
         approved_corrections = []
         if pending_corrections:
-            if event["kind"] != "knowledge":
+            if event["kind"] not in {"knowledge", "rumor"}:
                 raise HTTPException(
                     status_code=422,
-                    detail="Las rectificaciones/retractaciones requieren un evento de comunicación knowledge."
+                    detail="Las rectificaciones/retractaciones requieren un evento de comunicación knowledge o rumor."
                 )
             try:
                 communication_witnesses = json.loads(str(event["witnesses_json"] or "[]"))
@@ -4539,7 +4546,11 @@ def approve_event(session_id: str, event_id: str):
                 "WHERE e.id=? AND e.session_id=?",
                 (event_id, session_id),
             ).fetchone()
-            if communication is None or communication["status"] != "recorded" or communication["kind"] != "knowledge":
+            if (
+                communication is None
+                or communication["status"] != "recorded"
+                or communication["kind"] not in {"knowledge", "rumor"}
+            ):
                 raise HTTPException(status_code=422, detail="El acto de rectificación no está registrado como comunicación válida.")
 
             for proposal_row in pending_corrections:
@@ -4596,7 +4607,7 @@ def approve_event(session_id: str, event_id: str):
                     raise HTTPException(status_code=403, detail="La audiencia/procedencia de la comunicación no autoriza al emisor o destinatario.")
 
                 original = conn.execute(
-                    "SELECT t.id,t.sender_entity_id,t.recipient_entity_id,t.transmitted_total_minutes,"
+                    "SELECT t.id,t.sender_entity_id,t.recipient_entity_id,t.transmission_kind,t.transmitted_total_minutes,"
                     "s.status AS source_status,c.status AS communication_status "
                     "FROM session_knowledge_transmissions t "
                     "JOIN events s ON s.id=t.source_event_id AND s.session_id=t.session_id "
@@ -4613,6 +4624,14 @@ def approve_event(session_id: str, event_id: str):
                     or int(original["transmitted_total_minutes"]) > corrected_total
                 ):
                     raise HTTPException(status_code=422, detail="Solo se puede corregir un informe registrado que ese emisor comunicó a ese destinatario antes de la rectificación.")
+                expected_event_kind = (
+                    "knowledge" if original["transmission_kind"] == "testimony" else "rumor"
+                )
+                if communication["kind"] != expected_event_kind:
+                    raise HTTPException(
+                        status_code=422,
+                        detail=f"La rectificación de esta transmisión requiere un evento {expected_event_kind}."
+                    )
                 latest_correction = conn.execute(
                     "SELECT c.id,c.correction_kind,c.corrected_total_minutes,"
                     "e.status AS correction_event_status,e.kind AS correction_event_kind "
