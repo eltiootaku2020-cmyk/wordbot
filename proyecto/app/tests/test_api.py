@@ -8394,6 +8394,47 @@ def test_rumor_correction_requires_rumor_event_and_cannot_be_misattributed():
         assert any("solo el emisor original" in note for note in forged_notes)
 
 
+
+def test_incomplete_rumor_provenance_does_not_guess_the_originator():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        ids = _entity_ids_by_name(client, world_id)
+        protagonist_id = next(
+            value for name, value in ids.items()
+            if name.lower() in {"protagonista", "protagonist"}
+        )
+        brina_id = ids["Brina Solcor"]
+        maelis_id = ids["Maelis Orven"]
+        source_event_id = _record_source_event(
+            session_id, protagonist_id, "incomplete-rumor-provenance-source"
+        )
+        origin_report_id = _approve_knowledge_testimony(
+            client, session_id, source_event_id, protagonist_id, brina_id,
+            "incomplete-rumor-provenance-origin", "Vi una señal junto al sendero.",
+        )
+        relay_report_id = _approve_knowledge_rumor(
+            client, session_id, source_event_id, origin_report_id,
+            brina_id, maelis_id, "incomplete-rumor-provenance-relay",
+            "Brina dice que vio una señal junto al sendero.",
+        )
+        with database.transaction() as conn:
+            conn.execute(
+                "UPDATE session_knowledge_transmissions SET parent_transmission_id=? WHERE id=?",
+                ("missing-parent-transmission", relay_report_id),
+            )
+            _, perception = _entity_perception_context(conn, session_id, maelis_id)
+        report = next(
+            item for item in perception["knowledge_reports"]
+            if item["transmission_id"] == relay_report_id
+        )
+        assert report["provenance_complete"] is False
+        assert report["provenance_chain"] == []
+        assert report["origin_transmission_id"] == ""
+        assert report["originator_entity_id"] == ""
+        assert report["originator_name"] == ""
+
+
 def test_npc_report_supports_append_only_sequential_correction_versions():
     with TestClient(app) as client:
         seeded = client.post("/api/demo/seed", json={}).json()
