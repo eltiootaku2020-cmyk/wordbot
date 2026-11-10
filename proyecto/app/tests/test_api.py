@@ -8100,11 +8100,11 @@ def test_correction_chain_migration_upgrades_legacy_table_without_parent_column(
     with tempfile.TemporaryDirectory(prefix="canon-correction-migration-") as directory:
         path = Path(directory) / "legacy.sqlite3"
         legacy_schema = SCHEMA.replace(
-            "  parent_correction_id TEXT REFERENCES session_knowledge_corrections(id) ON DELETE RESTRICT,\\n",
+            "  parent_correction_id TEXT REFERENCES session_knowledge_corrections(id) ON DELETE RESTRICT,\n",
             "",
         ).replace(
-            "  UNIQUE(session_id, request_id),\\n  CHECK(sender_entity_id <> recipient_entity_id),",
-            "  UNIQUE(session_id, request_id),\\n  UNIQUE(session_id, original_transmission_id),\\n  CHECK(sender_entity_id <> recipient_entity_id),",
+            "  UNIQUE(session_id, request_id),\n  CHECK(sender_entity_id <> recipient_entity_id),",
+            "  UNIQUE(session_id, request_id),\n  UNIQUE(session_id, original_transmission_id),\n  CHECK(sender_entity_id <> recipient_entity_id),",
         )
         connection = __import__("sqlite3").connect(str(path))
         try:
