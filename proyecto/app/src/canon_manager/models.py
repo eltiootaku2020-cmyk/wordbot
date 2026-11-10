@@ -109,6 +109,8 @@ class KnowledgeAssessmentRequest(StrictModel):
 class KnowledgeCorrectionProposal(StrictModel):
     event_ref: str = Field(min_length=1, max_length=40)
     original_transmission_id: str = Field(min_length=1, max_length=80)
+    # Empty for the first correction; otherwise references the exact prior version.
+    parent_correction_id: str = Field(default="", max_length=80)
     sender_entity_id: str = Field(min_length=1, max_length=120)
     recipient_entity_id: str = Field(min_length=1, max_length=120)
     correction_kind: Literal["corrected", "retracted"]

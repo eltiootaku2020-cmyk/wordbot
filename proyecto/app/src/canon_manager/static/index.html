@@ -780,18 +780,28 @@ function renderState(payload) {
       const version = document.createElement("p");
       version.textContent = "Versión original: «" + report.reported_version + "» · no verificada";
       item.appendChild(version);
-      if (report.correction) {
-        const correction = document.createElement("p");
-        correction.className = "muted";
-        const sender = entityNames[report.correction.sender_entity_id] || report.correction.sender_entity_id;
-        if (report.correction.correction_kind === "corrected") {
-          correction.textContent = "Rectificada por " + sender + ": «" + report.correction.replacement_text +
-            "» · motivo: " + report.correction.rationale + " · sigue siendo una versión atribuida, no un hecho verificado.";
-        } else {
-          correction.textContent = "Afirmación retirada por " + sender + " · motivo: " +
-            report.correction.rationale + " · la versión inicial se conserva solo como historial.";
-        }
-        item.appendChild(correction);
+      const correctionHistory = Array.isArray(report.correction_history)
+        ? report.correction_history
+        : (report.correction ? [report.correction] : []);
+      if (correctionHistory.length) {
+        correctionHistory.forEach((entry, index) => {
+          const correction = document.createElement("p");
+          correction.className = "muted";
+          const sender = entityNames[entry.sender_entity_id] || entry.sender_entity_id;
+          const versionNumber = entry.version_number || (index + 1);
+          if (entry.correction_kind === "corrected") {
+            correction.textContent = "Rectificación " + versionNumber + " por " + sender + ": «" +
+              entry.replacement_text + "» · motivo: " + entry.rationale +
+              (index < correctionHistory.length - 1
+                ? " · esta versión fue sustituida por la siguiente."
+                : " · versión vigente atribuida, todavía no verificada.");
+          } else {
+            correction.textContent = "Retirada " + versionNumber + " por " + sender +
+              " · motivo: " + entry.rationale +
+              " · la versión anterior se conserva solo como historial.";
+          }
+          item.appendChild(correction);
+        });
       } else {
         const status = document.createElement("p");
         status.className = "muted";

@@ -98,6 +98,7 @@ CREATE TABLE IF NOT EXISTS session_knowledge_corrections (
   session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
   request_id TEXT NOT NULL,
   original_transmission_id TEXT NOT NULL REFERENCES session_knowledge_transmissions(id) ON DELETE RESTRICT,
+  parent_correction_id TEXT REFERENCES session_knowledge_corrections(id) ON DELETE RESTRICT,
   correction_event_id TEXT NOT NULL REFERENCES events(id) ON DELETE RESTRICT,
   sender_entity_id TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
   recipient_entity_id TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
@@ -108,7 +109,6 @@ CREATE TABLE IF NOT EXISTS session_knowledge_corrections (
   corrected_total_minutes INTEGER NOT NULL CHECK(corrected_total_minutes >= 0),
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(session_id, request_id),
-  UNIQUE(session_id, original_transmission_id),
   CHECK(sender_entity_id <> recipient_entity_id),
   CHECK((correction_kind='corrected' AND length(trim(replacement_text)) BETWEEN 1 AND 600) OR
         (correction_kind='retracted' AND replacement_text=''))
@@ -314,6 +314,78 @@ class Database:
         with self._connect() as conn:
             conn.execute("PRAGMA journal_mode = WAL")
             conn.executescript(SCHEMA)
+
+            # PR #56 used one row per original report. Rebuild that table in place
+            # so existing local databases gain an append-only correction chain
+            # without losing their already-approved correction records.
+            correction_columns = {
+                row["name"] for row in conn.execute(
+                    "PRAGMA table_info(session_knowledge_corrections)"
+                ).fetchall()
+            }
+            if "parent_correction_id" not in correction_columns:
+                conn.execute("BEGIN IMMEDIATE")
+                try:
+                    conn.execute("""
+                        CREATE TABLE session_knowledge_corrections_v2 (
+                            id TEXT PRIMARY KEY,
+                            session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+                            request_id TEXT NOT NULL,
+                            original_transmission_id TEXT NOT NULL REFERENCES session_knowledge_transmissions(id) ON DELETE RESTRICT,
+                            parent_correction_id TEXT REFERENCES session_knowledge_corrections_v2(id) ON DELETE RESTRICT,
+                            correction_event_id TEXT NOT NULL REFERENCES events(id) ON DELETE RESTRICT,
+                            sender_entity_id TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+                            recipient_entity_id TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+                            correction_kind TEXT NOT NULL CHECK(correction_kind IN ('corrected','retracted')),
+                            replacement_text TEXT NOT NULL DEFAULT '',
+                            rationale TEXT NOT NULL CHECK(length(trim(rationale)) BETWEEN 1 AND 600),
+                            location TEXT NOT NULL CHECK(length(trim(location)) > 0),
+                            corrected_total_minutes INTEGER NOT NULL CHECK(corrected_total_minutes >= 0),
+                            created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                            UNIQUE(session_id, request_id),
+                            CHECK(sender_entity_id <> recipient_entity_id),
+                            CHECK((correction_kind='corrected' AND length(trim(replacement_text)) BETWEEN 1 AND 600) OR
+                                  (correction_kind='retracted' AND replacement_text=''))
+                        )
+                    """)
+                    conn.execute("""
+                        INSERT INTO session_knowledge_corrections_v2(
+                            id,session_id,request_id,original_transmission_id,parent_correction_id,
+                            correction_event_id,sender_entity_id,recipient_entity_id,correction_kind,
+                            replacement_text,rationale,location,corrected_total_minutes,created_at
+                        )
+                        SELECT id,session_id,request_id,original_transmission_id,NULL,
+                               correction_event_id,sender_entity_id,recipient_entity_id,correction_kind,
+                               replacement_text,rationale,location,corrected_total_minutes,created_at
+                        FROM session_knowledge_corrections
+                    """)
+                    conn.execute("DROP TABLE session_knowledge_corrections")
+                    conn.execute(
+                        "ALTER TABLE session_knowledge_corrections_v2 "
+                        "RENAME TO session_knowledge_corrections"
+                    )
+                    conn.commit()
+                except Exception:
+                    conn.rollback()
+                    raise
+
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_knowledge_corrections_by_recipient "
+                "ON session_knowledge_corrections(session_id,recipient_entity_id,corrected_total_minutes)"
+            )
+            # One root and at most one successor per version enforce a single,
+            # unambiguous chain while preserving every previous version.
+            conn.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_knowledge_corrections_root "
+                "ON session_knowledge_corrections(session_id,original_transmission_id) "
+                "WHERE parent_correction_id IS NULL"
+            )
+            conn.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS idx_knowledge_corrections_child "
+                "ON session_knowledge_corrections(session_id,parent_correction_id) "
+                "WHERE parent_correction_id IS NOT NULL"
+            )
+
             columns = {row["name"] for row in conn.execute("PRAGMA table_info(messages)").fetchall()}
             if "client_request_id" not in columns:
                 conn.execute("ALTER TABLE messages ADD COLUMN client_request_id TEXT")

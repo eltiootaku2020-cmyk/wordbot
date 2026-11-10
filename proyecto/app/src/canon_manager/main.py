@@ -1785,13 +1785,33 @@ def apply_narrator_result(
                 reason = "solo el emisor original puede rectificar o retirar su informe ante el mismo destinatario"
             elif int(original["transmitted_total_minutes"]) > current_total_minutes:
                 reason = "el informe original todavía no se había comunicado"
-            elif conn.execute(
-                "SELECT 1 FROM session_knowledge_corrections WHERE session_id=? AND original_transmission_id=?",
-                (session["id"], proposal.original_transmission_id),
-            ).fetchone():
-                reason = "ese informe ya tiene una rectificación o retractación registrada"
-            elif proposal.original_transmission_id in seen_correction_original_ids:
-                reason = "la misma respuesta contiene más de una rectificación para el mismo informe original"
+            else:
+                latest_correction = conn.execute(
+                    "SELECT c.id,c.correction_kind,c.corrected_total_minutes,"
+                    "e.status AS correction_event_status,e.kind AS correction_event_kind "
+                    "FROM session_knowledge_corrections c "
+                    "JOIN events e ON e.id=c.correction_event_id AND e.session_id=c.session_id "
+                    "WHERE c.session_id=? AND c.original_transmission_id=? "
+                    "AND NOT EXISTS (SELECT 1 FROM session_knowledge_corrections child "
+                    "WHERE child.session_id=c.session_id AND child.parent_correction_id=c.id) "
+                    "LIMIT 1",
+                    (session["id"], proposal.original_transmission_id),
+                ).fetchone()
+                expected_parent_id = str(latest_correction["id"]) if latest_correction else ""
+                proposed_parent_id = proposal.parent_correction_id.strip()
+                if proposed_parent_id != expected_parent_id:
+                    reason = "parent_correction_id no coincide con la versión vigente del informe; consulta el historial antes de rectificar"
+                elif latest_correction is not None and latest_correction["correction_kind"] != "corrected":
+                    reason = "un informe retractado no admite nuevas rectificaciones"
+                elif latest_correction is not None and (
+                    latest_correction["correction_event_status"] != "recorded"
+                    or latest_correction["correction_event_kind"] != "knowledge"
+                ):
+                    reason = "la rectificación anterior no está registrada como comunicación válida"
+                elif latest_correction is not None and int(latest_correction["corrected_total_minutes"]) > current_total_minutes:
+                    reason = "la versión anterior todavía no se había comunicado"
+                if not reason and proposal.original_transmission_id in seen_correction_original_ids:
+                    reason = "la misma respuesta contiene más de una rectificación para el mismo informe original"
 
         sender_location = ""
         recipient_location = ""
@@ -4494,6 +4514,7 @@ def approve_event(session_id: str, event_id: str):
                 sender_id = proposal.get("sender_entity_id")
                 recipient_id = str(proposal_row["entity_id"] or "")
                 original_id = proposal.get("original_transmission_id")
+                parent_correction_id = proposal.get("parent_correction_id", "")
                 correction_kind = proposal.get("correction_kind")
                 replacement_text = proposal.get("replacement_text", "")
                 rationale = proposal.get("rationale")
@@ -4508,6 +4529,8 @@ def approve_event(session_id: str, event_id: str):
                     or proposal.get("recipient_entity_id") != recipient_id
                     or not isinstance(original_id, str)
                     or not original_id
+                    or not isinstance(parent_correction_id, str)
+                    or len(parent_correction_id) > 80
                     or correction_kind not in {"corrected", "retracted"}
                     or not isinstance(replacement_text, str)
                     or len(replacement_text) > 600
@@ -4551,29 +4574,51 @@ def approve_event(session_id: str, event_id: str):
                     or int(original["transmitted_total_minutes"]) > corrected_total
                 ):
                     raise HTTPException(status_code=422, detail="Solo se puede corregir un informe registrado que ese emisor comunicó a ese destinatario antes de la rectificación.")
-                if conn.execute(
-                    "SELECT 1 FROM session_knowledge_corrections WHERE session_id=? AND original_transmission_id=?",
+                latest_correction = conn.execute(
+                    "SELECT c.id,c.correction_kind,c.corrected_total_minutes,"
+                    "e.status AS correction_event_status,e.kind AS correction_event_kind "
+                    "FROM session_knowledge_corrections c "
+                    "JOIN events e ON e.id=c.correction_event_id AND e.session_id=c.session_id "
+                    "WHERE c.session_id=? AND c.original_transmission_id=? "
+                    "AND NOT EXISTS (SELECT 1 FROM session_knowledge_corrections child "
+                    "WHERE child.session_id=c.session_id AND child.parent_correction_id=c.id) "
+                    "LIMIT 1",
                     (session_id, original_id),
-                ).fetchone():
-                    raise HTTPException(status_code=409, detail="El informe ya tiene una rectificación o retractación registrada.")
+                ).fetchone()
+                expected_parent_id = str(latest_correction["id"]) if latest_correction else ""
+                if parent_correction_id != expected_parent_id:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="La versión de origen cambió antes de aprobar la rectificación; vuelve a consultar el historial."
+                    )
+                if latest_correction is not None and latest_correction["correction_kind"] != "corrected":
+                    raise HTTPException(status_code=409, detail="Un informe retractado no admite nuevas rectificaciones.")
+                if latest_correction is not None and (
+                    latest_correction["correction_event_status"] != "recorded"
+                    or latest_correction["correction_event_kind"] != "knowledge"
+                ):
+                    raise HTTPException(status_code=422, detail="La versión anterior no está registrada como comunicación válida.")
+                if latest_correction is not None and int(latest_correction["corrected_total_minutes"]) > corrected_total:
+                    raise HTTPException(status_code=422, detail="La rectificación no puede anteceder a la versión que sustituye.")
 
                 correction_id = new_id()
                 request_id = f"narrator-event-approval-{proposal_row['id']}"
                 conn.execute(
                     "INSERT INTO session_knowledge_corrections("
-                    "id,session_id,request_id,original_transmission_id,correction_event_id,"
+                    "id,session_id,request_id,original_transmission_id,parent_correction_id,correction_event_id,"
                     "sender_entity_id,recipient_entity_id,correction_kind,replacement_text,"
                     "rationale,location,corrected_total_minutes"
-                    ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                    ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (
-                        correction_id, session_id, request_id, original_id, event_id,
-                        sender_id, recipient_id, correction_kind, replacement_text.strip(),
+                        correction_id, session_id, request_id, original_id, parent_correction_id or None,
+                        event_id, sender_id, recipient_id, correction_kind, replacement_text.strip(),
                         rationale.strip(), location.strip(), corrected_total,
                     ),
                 )
                 accepted_value = {
                     "correction_id": correction_id,
                     "original_transmission_id": original_id,
+                    "parent_correction_id": parent_correction_id,
                     "correction_event_id": event_id,
                     "sender_entity_id": sender_id,
                     "recipient_entity_id": recipient_id,
