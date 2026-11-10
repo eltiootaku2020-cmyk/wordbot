@@ -8235,6 +8235,45 @@ def test_npc_can_correct_its_own_retransmitted_rumor_without_rewriting_provenanc
         )
         assert approval.status_code == 200, approval.text
         assert len(approval.json()["knowledge_corrections"]) == 1
+        first_correction_id = approval.json()["knowledge_corrections"][0]["correction_id"]
+
+        final_text = "Preciso aún más: era el tronco de un árbol junto al sendero, no el roble."
+        second_proposal = NarratorResponse(
+            narration="Brina vuelve a precisar la versión que había retransmitido a Maelis.",
+            elapsed_minutes=0,
+            events=[EventProposal(
+                ref="rumor-correction-second-event",
+                kind="rumor",
+                entity_id=brina_id,
+                description="Brina emite una segunda precisión sobre el rumor que comunicó a Maelis.",
+                witness_ids=[brina_id, maelis_id],
+            )],
+            knowledge_corrections=[KnowledgeCorrectionProposal(
+                event_ref="rumor-correction-second-event",
+                original_transmission_id=relay_report_id,
+                parent_correction_id=first_correction_id,
+                sender_entity_id=brina_id,
+                recipient_entity_id=maelis_id,
+                correction_kind="corrected",
+                replacement_text=final_text,
+                rationale="Brina recuerda la ubicación con mayor precisión y corrige su propia rectificación anterior.",
+            )],
+        )
+        second_turn, _, second_notes = _apply_synthetic_result(
+            session_id, "Preciso la corrección que ya le comuniqué a Maelis.", second_proposal
+        )
+        with database.connection() as conn:
+            second_event = conn.execute(
+                "SELECT id,status,kind FROM events WHERE session_id=? AND turn_id=?",
+                (session_id, second_turn),
+            ).fetchone()
+        assert second_event is not None and second_event["status"] == "pending", second_notes
+        assert second_event["kind"] == "rumor"
+        second_approval = client.post(
+            f"/api/sessions/{session_id}/events/{second_event['id']}/approve"
+        )
+        assert second_approval.status_code == 200, second_approval.text
+        assert second_approval.json()["knowledge_corrections"][0]["parent_correction_id"] == first_correction_id
 
         with database.connection() as conn:
             _, maelis_perception = _entity_perception_context(conn, session_id, maelis_id)
@@ -8267,8 +8306,12 @@ def test_npc_can_correct_its_own_retransmitted_rumor_without_rewriting_provenanc
         assert maelis_report["originator_name"] == "Protagonista"
         assert maelis_report["relay_count"] == 1
         assert maelis_report["report_status"] == "corrected"
-        assert maelis_report["current_reported_version"] == corrected_text
-        assert maelis_report["correction_history"][-1]["correction_event_id"] == event["id"]
+        assert maelis_report["current_reported_version"] == final_text
+        assert [item["replacement_text"] for item in maelis_report["correction_history"]] == [
+            corrected_text, final_text
+        ]
+        assert [item["version_number"] for item in maelis_report["correction_history"]] == [1, 2]
+        assert maelis_report["correction_history"][-1]["correction_event_id"] == second_event["id"]
         assert brina_origin_report["report_status"] == "active"
         assert brina_origin_report["current_reported_version"] == original_text
         assert relay["version_text"] == relay_text
