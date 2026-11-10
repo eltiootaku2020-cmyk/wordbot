@@ -696,16 +696,55 @@ def restore_turn_state(conn, session_id: str, state: dict[str, Any]) -> None:
     # Delete children before parents, then restore parents before children.
     # Knowledge assessments reference transmissions and must follow this order.
     for table, _ in reversed(table_rows):
-        conn.execute(f"DELETE FROM {table} WHERE session_id=?", (session_id,))
+        if table == "session_knowledge_corrections":
+            # Self-referencing correction chains must be deleted from their
+            # leaves toward the root because the parent FK is restrictive.
+            while True:
+                deleted = conn.execute(
+                    "DELETE FROM session_knowledge_corrections "
+                    "WHERE session_id=? AND NOT EXISTS ("
+                    "SELECT 1 FROM session_knowledge_corrections child "
+                    "WHERE child.parent_correction_id=session_knowledge_corrections.id"
+                    ")",
+                    (session_id,),
+                ).rowcount
+                if deleted <= 0:
+                    break
+        else:
+            conn.execute(f"DELETE FROM {table} WHERE session_id=?", (session_id,))
     for table, rows in table_rows:
-        for row in rows:
-            columns = list(row.keys())
-            placeholders = ",".join("?" for _ in columns)
-            column_sql = ",".join(columns)
-            conn.execute(
-                f"INSERT INTO {table}({column_sql}) VALUES({placeholders})",
-                tuple(row[column] for column in columns)
-            )
+        if table == "session_knowledge_corrections":
+            # Snapshot row order is not guaranteed to match version order when
+            # several corrections share a game minute. Restore topologically.
+            pending_rows = list(rows)
+            restored_ids: set[str] = set()
+            while pending_rows:
+                ready = [
+                    row for row in pending_rows
+                    if not row.get("parent_correction_id")
+                    or row.get("parent_correction_id") in restored_ids
+                ]
+                if not ready:
+                    raise ValueError("El historial de rectificaciones del snapshot no forma una cadena válida.")
+                for row in ready:
+                    columns = list(row.keys())
+                    placeholders = ",".join("?" for _ in columns)
+                    column_sql = ",".join(columns)
+                    conn.execute(
+                        f"INSERT INTO {table}({column_sql}) VALUES({placeholders})",
+                        tuple(row[column] for column in columns)
+                    )
+                    restored_ids.add(str(row["id"]))
+                    pending_rows.remove(row)
+        else:
+            for row in rows:
+                columns = list(row.keys())
+                placeholders = ",".join("?" for _ in columns)
+                column_sql = ",".join(columns)
+                conn.execute(
+                    f"INSERT INTO {table}({column_sql}) VALUES({placeholders})",
+                    tuple(row[column] for column in columns)
+                )
 
 
 def world_entity_ids(conn, world_id: str) -> set[str]:
