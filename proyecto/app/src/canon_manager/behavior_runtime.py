@@ -870,12 +870,8 @@ def _entity_perception_context(
             "location": str(report["location"]),
             "transmitted_total_minutes": int(report["transmitted_total_minutes"]),
             "parent_transmission_id": str(report["parent_transmission_id"] or ""),
-            "origin_transmission_id": (
-                origin["transmission_id"] if origin else str(report["id"])
-            ),
-            "originator_entity_id": (
-                origin["sender_entity_id"] if origin else str(report["sender_entity_id"])
-            ),
+            "origin_transmission_id": origin["transmission_id"] if origin else "",
+            "originator_entity_id": origin["sender_entity_id"] if origin else "",
             "originator_name": origin["sender_name"] if origin else "",
             "provenance_chain": provenance_chain,
             "provenance_complete": provenance_complete,
