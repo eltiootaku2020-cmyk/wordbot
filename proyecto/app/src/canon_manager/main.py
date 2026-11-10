@@ -1851,7 +1851,9 @@ def apply_narrator_result(
                     reason = "un informe retractado no admite nuevas rectificaciones"
                 elif latest_correction is not None and (
                     latest_correction["correction_event_status"] != "recorded"
-                    or latest_correction["correction_event_kind"] != "knowledge"
+                    or latest_correction["correction_event_kind"] != (
+                        "knowledge" if original["transmission_kind"] == "testimony" else "rumor"
+                    )
                 ):
                     reason = "la rectificación anterior no está registrada como comunicación válida"
                 elif latest_correction is not None and int(latest_correction["corrected_total_minutes"]) > current_total_minutes:
@@ -4653,7 +4655,7 @@ def approve_event(session_id: str, event_id: str):
                     raise HTTPException(status_code=409, detail="Un informe retractado no admite nuevas rectificaciones.")
                 if latest_correction is not None and (
                     latest_correction["correction_event_status"] != "recorded"
-                    or latest_correction["correction_event_kind"] != "knowledge"
+                    or latest_correction["correction_event_kind"] != expected_event_kind
                 ):
                     raise HTTPException(status_code=422, detail="La versión anterior no está registrada como comunicación válida.")
                 if latest_correction is not None and int(latest_correction["corrected_total_minutes"]) > corrected_total:
