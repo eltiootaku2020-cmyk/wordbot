@@ -8194,6 +8194,21 @@ def test_npc_report_supports_append_only_sequential_correction_versions():
         assert received["epistemic_status"] == "reported_not_verified"
         assert original["version_text"] == original_text
 
+        # Undo/restore must preserve the chain even if snapshot row order does
+        # not happen to put the parent before its child.
+        with database.transaction() as conn:
+            snapshot = main_module.capture_turn_state(conn, session_id)
+            main_module.restore_turn_state(conn, session_id, snapshot)
+            restored_chain = conn.execute(
+                "SELECT id,parent_correction_id FROM session_knowledge_corrections "
+                "WHERE session_id=? AND original_transmission_id=?",
+                (session_id, report_id),
+            ).fetchall()
+        restored_by_id = {row["id"]: row for row in restored_chain}
+        assert len(restored_chain) == 2
+        assert restored_by_id[first_id]["parent_correction_id"] is None
+        assert restored_by_id[second_id]["parent_correction_id"] == first_id
+
         # A stale proposal cannot branch from the first correction once the
         # second version is already the current leaf.
         stale = NarratorResponse(
