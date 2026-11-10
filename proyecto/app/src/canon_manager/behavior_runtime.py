@@ -610,6 +610,76 @@ def _perception_token(value: Any) -> str:
     ).strip("_")[:120]
 
 
+
+def _knowledge_transmission_provenance(
+    conn, session_id: str, transmission_id: str, current_total: int
+) -> tuple[list[dict[str, Any]], bool]:
+    """Return the immutable sender/recipient/version chain visible through a received rumor."""
+    chain_reversed: list[dict[str, Any]] = []
+    seen: set[str] = set()
+    current_id = transmission_id
+    child: dict[str, Any] | None = None
+    complete = True
+
+    while current_id:
+        if current_id in seen or len(chain_reversed) >= 50:
+            complete = False
+            break
+        seen.add(current_id)
+        row = conn.execute(
+            "SELECT t.id,t.source_event_id,t.sender_entity_id,t.recipient_entity_id,"
+            "t.transmission_kind,t.version_text,t.transmitted_total_minutes,"
+            "t.parent_transmission_id,es.name AS sender_name,er.name AS recipient_name,"
+            "s.status AS source_status,c.status AS communication_status,c.kind AS communication_kind "
+            "FROM session_knowledge_transmissions t "
+            "JOIN entities es ON es.id=t.sender_entity_id "
+            "JOIN entities er ON er.id=t.recipient_entity_id "
+            "JOIN events s ON s.id=t.source_event_id AND s.session_id=t.session_id "
+            "JOIN events c ON c.id=t.communication_event_id AND c.session_id=t.session_id "
+            "WHERE t.id=? AND t.session_id=?",
+            (current_id, session_id),
+        ).fetchone()
+        if row is None:
+            complete = False
+            break
+        expected_event_kind = "knowledge" if row["transmission_kind"] == "testimony" else "rumor"
+        if (
+            row["source_status"] != "recorded"
+            or row["communication_status"] != "recorded"
+            or row["communication_kind"] != expected_event_kind
+            or int(row["transmitted_total_minutes"]) > current_total
+        ):
+            complete = False
+            break
+        if child is not None and (
+            str(row["source_event_id"]) != str(child["source_event_id"])
+            or str(row["recipient_entity_id"]) != str(child["sender_entity_id"])
+            or int(row["transmitted_total_minutes"]) > int(child["transmitted_total_minutes"])
+        ):
+            complete = False
+            break
+        chain_reversed.append({
+            "transmission_id": str(row["id"]),
+            "sender_entity_id": str(row["sender_entity_id"]),
+            "sender_name": str(row["sender_name"]),
+            "recipient_entity_id": str(row["recipient_entity_id"]),
+            "recipient_name": str(row["recipient_name"]),
+            "transmission_kind": str(row["transmission_kind"]),
+            "version_text": str(row["version_text"]),
+            "transmitted_total_minutes": int(row["transmitted_total_minutes"]),
+            "parent_transmission_id": str(row["parent_transmission_id"] or ""),
+        })
+        parent_id = str(row["parent_transmission_id"] or "")
+        if not parent_id:
+            break
+        child = row
+        current_id = parent_id
+
+    if not complete:
+        return [], False
+    return list(reversed(chain_reversed)), bool(chain_reversed)
+
+
 def _entity_perception_context(
     conn, session_id: str, entity_id: str
 ) -> tuple[dict[str, bool], dict[str, Any]]:
@@ -689,10 +759,12 @@ def _entity_perception_context(
     # These records remain attached to the recipient's report; they never erase
     # its original wording or change the source event.
     correction_rows = conn.execute(
-        "SELECT c.*,e.status AS correction_event_status,e.kind AS correction_event_kind,"
+        "SELECT c.*,t.transmission_kind AS target_transmission_kind,"
+        "e.status AS correction_event_status,e.kind AS correction_event_kind,"
         "e.witnesses_json,e.source_message_id,"
         "m.recipient_entity_id AS source_recipient_id,m.metadata_json AS source_metadata_json "
         "FROM session_knowledge_corrections c "
+        "JOIN session_knowledge_transmissions t ON t.id=c.original_transmission_id AND t.session_id=c.session_id "
         "JOIN events e ON e.id=c.correction_event_id AND e.session_id=c.session_id "
         "LEFT JOIN messages m ON m.id=e.source_message_id "
         "WHERE c.session_id=? AND c.recipient_entity_id=? "
@@ -702,7 +774,10 @@ def _entity_perception_context(
     ).fetchall()
     correction_entries_by_report: dict[str, dict[str, dict[str, Any]]] = {}
     for correction in correction_rows:
-        if correction["correction_event_kind"] != "knowledge" or not _event_known_to_entity(
+        expected_correction_event_kind = (
+            "knowledge" if correction["target_transmission_kind"] == "testimony" else "rumor"
+        )
+        if correction["correction_event_kind"] != expected_correction_event_kind or not _event_known_to_entity(
             correction, entity_id
         ):
             continue
@@ -780,6 +855,10 @@ def _entity_perception_context(
             elif correction["correction_kind"] == "retracted":
                 report_status = "retracted"
                 conditions[f"received_report_retracted:{report_id}"] = True
+        provenance_chain, provenance_complete = _knowledge_transmission_provenance(
+            conn, session_id, str(report["id"]), current_total
+        )
+        origin = provenance_chain[0] if provenance_chain else None
         knowledge_summary.append({
             "transmission_id": str(report["id"]),
             "transmission_kind": transmission_kind,
@@ -791,6 +870,16 @@ def _entity_perception_context(
             "location": str(report["location"]),
             "transmitted_total_minutes": int(report["transmitted_total_minutes"]),
             "parent_transmission_id": str(report["parent_transmission_id"] or ""),
+            "origin_transmission_id": (
+                origin["transmission_id"] if origin else str(report["id"])
+            ),
+            "originator_entity_id": (
+                origin["sender_entity_id"] if origin else str(report["sender_entity_id"])
+            ),
+            "originator_name": origin["sender_name"] if origin else "",
+            "provenance_chain": provenance_chain,
+            "provenance_complete": provenance_complete,
+            "relay_count": max(0, len(provenance_chain) - 1),
             "epistemic_status": "reported_not_verified",
             "report_status": report_status,
             "correction": correction,
