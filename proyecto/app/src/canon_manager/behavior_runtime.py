@@ -697,17 +697,18 @@ def _entity_perception_context(
         "LEFT JOIN messages m ON m.id=e.source_message_id "
         "WHERE c.session_id=? AND c.recipient_entity_id=? "
         "AND c.corrected_total_minutes<=? AND e.status='recorded' "
-        "ORDER BY c.corrected_total_minutes DESC,c.created_at DESC,c.id DESC LIMIT 100",
+        "ORDER BY c.corrected_total_minutes,c.created_at,c.id",
         (session_id, entity_id, current_total),
     ).fetchall()
-    corrections_by_report: dict[str, dict[str, Any]] = {}
+    correction_entries_by_report: dict[str, dict[str, dict[str, Any]]] = {}
     for correction in correction_rows:
         if correction["correction_event_kind"] != "knowledge" or not _event_known_to_entity(
             correction, entity_id
         ):
             continue
-        corrections_by_report[str(correction["original_transmission_id"])] = {
+        entry = {
             "correction_id": str(correction["id"]),
+            "parent_correction_id": str(correction["parent_correction_id"] or ""),
             "correction_event_id": str(correction["correction_event_id"]),
             "correction_kind": str(correction["correction_kind"]),
             "sender_entity_id": str(correction["sender_entity_id"]),
@@ -717,6 +718,32 @@ def _entity_perception_context(
             "location": str(correction["location"]),
             "corrected_total_minutes": int(correction["corrected_total_minutes"]),
         }
+        correction_entries_by_report.setdefault(
+            str(correction["original_transmission_id"]), {}
+        )[entry["correction_id"]] = entry
+
+    # Reconstruct each chain by its explicit parent link, not timestamps: two
+    # successive corrections may legitimately occur in the same game minute.
+    corrections_by_report: dict[str, list[dict[str, Any]]] = {}
+    for report_id, entries in correction_entries_by_report.items():
+        roots = [entry for entry in entries.values() if not entry["parent_correction_id"]]
+        if len(roots) != 1:
+            continue
+        history = [roots[0]]
+        visited = {history[0]["correction_id"]}
+        while True:
+            children = [
+                entry for entry in entries.values()
+                if entry["parent_correction_id"] == history[-1]["correction_id"]
+            ]
+            if len(children) != 1 or children[0]["correction_id"] in visited:
+                break
+            history.append(children[0])
+            visited.add(children[0]["correction_id"])
+        if len(history) == len(entries):
+            for version_number, entry in enumerate(history, start=1):
+                entry["version_number"] = version_number
+            corrections_by_report[report_id] = history
 
     # A received report is knowledge that someone made this statement, not proof
     # that the source event happened as described. Keep its attribution and wording.
@@ -743,7 +770,8 @@ def _entity_perception_context(
         conditions[f"heard_report_id:{report_id}"] = True
         conditions[f"heard_report_of_event:{source_id}"] = True
         conditions[f"heard_{transmission_kind}_of_event:{source_id}"] = True
-        correction = corrections_by_report.get(str(report["id"]))
+        correction_history = corrections_by_report.get(str(report["id"]), [])
+        correction = correction_history[-1] if correction_history else None
         report_status = "active"
         if correction:
             if correction["correction_kind"] == "corrected":
@@ -766,6 +794,7 @@ def _entity_perception_context(
             "epistemic_status": "reported_not_verified",
             "report_status": report_status,
             "correction": correction,
+            "correction_history": correction_history,
             "current_reported_version": (
                 correction["replacement_text"]
                 if correction and correction["correction_kind"] == "corrected"

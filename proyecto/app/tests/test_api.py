@@ -7725,7 +7725,7 @@ def _approve_knowledge_testimony(client, session_id, source_event_id, sender_id,
 
 def _approve_knowledge_correction(
     client, session_id, original_transmission_id, sender_id, recipient_id,
-    ref, correction_kind, rationale, replacement_text="",
+    ref, correction_kind, rationale, replacement_text="", parent_correction_id="",
 ):
     proposal = NarratorResponse(
         narration="El emisor corrige o retira una versión que comunicó anteriormente.",
@@ -7740,6 +7740,7 @@ def _approve_knowledge_correction(
         knowledge_corrections=[KnowledgeCorrectionProposal(
             event_ref=ref,
             original_transmission_id=original_transmission_id,
+            parent_correction_id=parent_correction_id,
             sender_entity_id=sender_id,
             recipient_entity_id=recipient_id,
             correction_kind=correction_kind,
@@ -7763,8 +7764,8 @@ def _approve_knowledge_correction(
     with database.connection() as conn:
         correction = conn.execute(
             "SELECT id FROM session_knowledge_corrections "
-            "WHERE session_id=? AND original_transmission_id=?",
-            (session_id, original_transmission_id),
+            "WHERE session_id=? AND correction_event_id=?",
+            (session_id, event["id"]),
         ).fetchone()
     assert correction is not None
     return str(event["id"]), str(correction["id"]), approval.json()
@@ -8091,6 +8092,157 @@ def test_npc_correction_is_approval_gated_personal_and_preserves_original_histor
                 (session_id, report_id),
             ).fetchone()["n"]
         assert restored == 1
+
+
+def test_correction_chain_migration_upgrades_legacy_table_without_parent_column():
+    from canon_manager.db import Database, SCHEMA
+
+    with tempfile.TemporaryDirectory(prefix="canon-correction-migration-") as directory:
+        path = Path(directory) / "legacy.sqlite3"
+        legacy_schema = SCHEMA.replace(
+            "  parent_correction_id TEXT REFERENCES session_knowledge_corrections(id) ON DELETE RESTRICT,\n",
+            "",
+        ).replace(
+            "  UNIQUE(session_id, request_id),\n  CHECK(sender_entity_id <> recipient_entity_id),",
+            "  UNIQUE(session_id, request_id),\n  UNIQUE(session_id, original_transmission_id),\n  CHECK(sender_entity_id <> recipient_entity_id),",
+        )
+        connection = __import__("sqlite3").connect(str(path))
+        try:
+            connection.executescript(legacy_schema)
+        finally:
+            connection.close()
+
+        Database(str(path)).initialize()
+        with Database(str(path)).connection() as conn:
+            columns = {row["name"] for row in conn.execute(
+                "PRAGMA table_info(session_knowledge_corrections)"
+            ).fetchall()}
+            indexes = {row["name"] for row in conn.execute(
+                "PRAGMA index_list(session_knowledge_corrections)"
+            ).fetchall()}
+        assert "parent_correction_id" in columns
+        assert "idx_knowledge_corrections_root" in indexes
+        assert "idx_knowledge_corrections_child" in indexes
+
+
+def test_npc_report_supports_append_only_sequential_correction_versions():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        ids = _entity_ids_by_name(client, world_id)
+        protagonist_id = next(
+            value for name, value in ids.items()
+            if name.lower() in {"protagonista", "protagonist"}
+        )
+        brina_id = ids["Brina Solcor"]
+        source_event_id = _record_source_event(
+            session_id, protagonist_id, "correction-chain-source"
+        )
+        original_text = "Vi una señal en la roca."
+        report_id = _approve_knowledge_testimony(
+            client, session_id, source_event_id, protagonist_id, brina_id,
+            "correction-chain-original", original_text,
+        )
+
+        _, first_id, first_approval = _approve_knowledge_correction(
+            client, session_id, report_id, protagonist_id, brina_id,
+            "correction-chain-first", "corrected",
+            "Recordé mal la ubicación exacta.",
+            "La señal estaba en el tronco cercano.",
+        )
+        assert first_approval["knowledge_corrections"][0]["parent_correction_id"] == ""
+
+        second_text = "La señal estaba en la cara norte del tronco."
+        _, second_id, second_approval = _approve_knowledge_correction(
+            client, session_id, report_id, protagonist_id, brina_id,
+            "correction-chain-second", "corrected",
+            "Al revisar el lugar, precisé qué cara del tronco tenía la señal.",
+            second_text,
+            parent_correction_id=first_id,
+        )
+        assert second_approval["knowledge_corrections"][0]["parent_correction_id"] == first_id
+
+        with database.connection() as conn:
+            rows = conn.execute(
+                "SELECT id,parent_correction_id,correction_kind,replacement_text "
+                "FROM session_knowledge_corrections "
+                "WHERE session_id=? AND original_transmission_id=?",
+                (session_id, report_id),
+            ).fetchall()
+            _, perception = _entity_perception_context(conn, session_id, brina_id)
+            original = conn.execute(
+                "SELECT version_text FROM session_knowledge_transmissions WHERE id=?",
+                (report_id,),
+            ).fetchone()
+        assert len(rows) == 2
+        row_by_id = {row["id"]: row for row in rows}
+        assert row_by_id[first_id]["parent_correction_id"] is None
+        assert row_by_id[second_id]["parent_correction_id"] == first_id
+        assert row_by_id[first_id]["replacement_text"] == "La señal estaba en el tronco cercano."
+
+        received = next(
+            item for item in perception["knowledge_reports"]
+            if item["transmission_id"] == report_id
+        )
+        history = received["correction_history"]
+        assert [item["correction_id"] for item in history] == [first_id, second_id]
+        assert [item["version_number"] for item in history] == [1, 2]
+        assert received["report_status"] == "corrected"
+        assert received["correction"]["correction_id"] == second_id
+        assert received["current_reported_version"] == second_text
+        assert received["reported_version"] == original_text
+        assert received["epistemic_status"] == "reported_not_verified"
+        assert original["version_text"] == original_text
+
+        # Undo/restore must preserve the chain even if snapshot row order does
+        # not happen to put the parent before its child.
+        with database.transaction() as conn:
+            snapshot = main_module.capture_turn_state(conn, session_id)
+            main_module.restore_turn_state(conn, session_id, snapshot)
+            restored_chain = conn.execute(
+                "SELECT id,parent_correction_id FROM session_knowledge_corrections "
+                "WHERE session_id=? AND original_transmission_id=?",
+                (session_id, report_id),
+            ).fetchall()
+        restored_by_id = {row["id"]: row for row in restored_chain}
+        assert len(restored_chain) == 2
+        assert restored_by_id[first_id]["parent_correction_id"] is None
+        assert restored_by_id[second_id]["parent_correction_id"] == first_id
+
+        # A stale proposal cannot branch from the first correction once the
+        # second version is already the current leaf.
+        stale = NarratorResponse(
+            narration="El emisor intenta volver a corregir desde una versión antigua.",
+            elapsed_minutes=0,
+            events=[EventProposal(
+                ref="correction-chain-stale-parent",
+                kind="knowledge",
+                entity_id=protagonist_id,
+                description="El protagonista presenta una rectificación basada en una versión antigua.",
+                witness_ids=[protagonist_id, brina_id],
+            )],
+            knowledge_corrections=[KnowledgeCorrectionProposal(
+                event_ref="correction-chain-stale-parent",
+                original_transmission_id=report_id,
+                parent_correction_id=first_id,
+                sender_entity_id=protagonist_id,
+                recipient_entity_id=brina_id,
+                correction_kind="corrected",
+                replacement_text="Una tercera versión que parte de un padre obsoleto.",
+                rationale="La propuesta no debe crear una rama.",
+            )],
+        )
+        _, _, notes = _apply_synthetic_result(
+            session_id, "Intento corregir desde una versión antigua.", stale
+        )
+        assert any("no coincide con la versión vigente" in note for note in notes)
+        with database.connection() as conn:
+            count = conn.execute(
+                "SELECT COUNT(*) AS n FROM session_knowledge_corrections "
+                "WHERE session_id=? AND original_transmission_id=?",
+                (session_id, report_id),
+            ).fetchone()["n"]
+        assert count == 2
 
 
 def test_same_communication_cannot_both_transmit_and_correct_a_report():
