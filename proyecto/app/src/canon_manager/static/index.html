@@ -751,6 +751,51 @@ function renderState(payload) {
   const receivedReports = payload.participants.flatMap(person =>
     (person.knowledge_reports || []).map(report => ({person, report}))
   );
+  const comparisonCandidates = payload.participants.flatMap(person =>
+    (person.knowledge_comparisons || []).map(comparison => ({person, comparison}))
+  );
+  if (comparisonCandidates.length) {
+    const comparisonSection = document.createElement("div");
+    comparisonSection.className = "card";
+    const comparisonHeading = document.createElement("strong");
+    comparisonHeading.textContent = "Comparación de versiones por personaje";
+    comparisonSection.appendChild(comparisonHeading);
+    const comparisonHelp = document.createElement("p");
+    comparisonHelp.className = "muted";
+    comparisonHelp.textContent = "Se muestran versiones vigentes del mismo acontecimiento comunicadas por emisores distintos. Una diferencia de redacción no demuestra por sí sola una contradicción ni determina quién tiene razón.";
+    comparisonSection.appendChild(comparisonHelp);
+    comparisonCandidates.forEach(({person, comparison}) => {
+      const item = document.createElement("div");
+      item.className = "assessment-item";
+      const heading = document.createElement("strong");
+      heading.textContent = person.name + " compara dos versiones";
+      item.appendChild(heading);
+      const left = document.createElement("p");
+      left.textContent = (comparison.left_sender_name || entityNames[comparison.left_sender_entity_id] || comparison.left_sender_entity_id) +
+        " (" + comparison.left_transmission_kind + "): «" + comparison.left_version + "»";
+      item.appendChild(left);
+      const right = document.createElement("p");
+      right.textContent = (comparison.right_sender_name || entityNames[comparison.right_sender_entity_id] || comparison.right_sender_entity_id) +
+        " (" + comparison.right_transmission_kind + "): «" + comparison.right_version + "»";
+      item.appendChild(right);
+      const result = document.createElement("p");
+      result.className = "muted";
+      if (comparison.assessment && comparison.assessment.stance === "contradicts") {
+        result.textContent = person.name + " considera que las versiones se contradicen · confianza personal " +
+          comparison.assessment.confidence + "/100 · " + comparison.assessment.rationale +
+          " · no es una verificación objetiva.";
+      } else if (comparison.assessment) {
+        result.textContent = "Valoración personal de " + person.name + ": " +
+          (comparison.assessment.stance || "sin clasificar") + " · " +
+          comparison.assessment.rationale + " · no es una verificación objetiva.";
+      } else {
+        result.textContent = "Diferencia detectada entre versiones; este personaje todavía no registró una conclusión personal.";
+      }
+      item.appendChild(result);
+      comparisonSection.appendChild(item);
+    });
+    el("state").appendChild(comparisonSection);
+  }
   if (receivedReports.length) {
     const section = document.createElement("div");
     section.className = "card";
@@ -879,11 +924,14 @@ function renderState(payload) {
       addOption(evidence, "", "Selecciona una evidencia");
       (person.knowledge_reports || []).filter(other =>
         other.transmission_id !== report.transmission_id &&
-        other.source_event_id === report.source_event_id
+        other.source_event_id === report.source_event_id &&
+        other.sender_entity_id !== report.sender_entity_id &&
+        other.report_status !== "retracted" &&
+        Boolean(other.current_reported_version)
       ).forEach(other => {
         const sender = entityNames[other.sender_entity_id] || other.sender_entity_id;
         addOption(evidence, "report:" + other.transmission_id,
-          "Otro informe de " + sender + ": " + other.reported_version.slice(0, 90));
+          "Versión vigente de " + sender + ": " + other.current_reported_version.slice(0, 90));
       });
       (person.known_events || []).forEach(event => {
         addOption(evidence, "event:" + event.id,
@@ -932,6 +980,10 @@ function renderState(payload) {
         const reason = rationale.value.trim();
         if (!chosen || !Number.isInteger(score) || score < 0 || score > 100 || !reason) {
           note.textContent = "Selecciona evidencia, confianza entre 0 y 100 y explica el motivo.";
+          return;
+        }
+        if (stance.value === "contradicts" && !chosen.startsWith("report:")) {
+          note.textContent = "Para registrar una contradicción entre versiones, elige otro informe recibido de una persona distinta.";
           return;
         }
         const payload = {
