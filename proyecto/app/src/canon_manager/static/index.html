@@ -780,7 +780,10 @@ function renderState(payload) {
       item.appendChild(right);
       const result = document.createElement("p");
       result.className = "muted";
-      if (comparison.assessment && comparison.assessment.stance === "contradicts") {
+      if (comparison.assessment && !comparison.assessment_is_current) {
+        result.textContent = "Valoración histórica de " + person.name + ": las versiones cambiaron después de esta comparación; requiere una nueva valoración. Se conserva el razonamiento anterior: " +
+          comparison.assessment.rationale;
+      } else if (comparison.assessment && comparison.assessment.stance === "contradicts") {
         result.textContent = person.name + " considera que las versiones se contradicen · confianza personal " +
           comparison.assessment.confidence + "/100 · " + comparison.assessment.rationale +
           " · no es una verificación objetiva.";
