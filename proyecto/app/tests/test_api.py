@@ -7863,6 +7863,15 @@ def test_report_credibility_is_personal_evidence_linked_append_only_and_snapshot
         assert first_report["assessment"]["stance"] == "contradicts"
         assert first_report["assessment"]["confidence"] == 24
         assert len(first_report["assessment_history"]) == 1
+        assert len(brina_perception["knowledge_comparisons"]) == 1
+        comparison = brina_perception["knowledge_comparisons"][0]
+        assert comparison["comparison_status"] == "personally_assessed"
+        assert comparison["assessment_is_current"] is True
+        assert comparison["assessment"]["stance"] == "contradicts"
+        assert {comparison["left_report_id"], comparison["right_report_id"]} == {
+            first_report_id, second_report_id
+        }
+        assert comparison["epistemic_status"] == "reported_not_verified"
         assert maelis_perception["knowledge_reports"] == []
         assert source_status == "recorded"
         assert report_text == "Vi una marca reciente y parecía hecha esa misma mañana."
@@ -7881,6 +7890,120 @@ def test_report_credibility_is_personal_evidence_linked_append_only_and_snapshot
                 (session_id, first_report_id),
             ).fetchone()["n"]
         assert restored == 1
+
+        # A later correction changes the current pair. The earlier judgement
+        # remains historical and must not appear as a current contradiction.
+        _approve_knowledge_correction(
+            client, session_id, first_report_id, protagonist_id, brina_id,
+            "credibility-report-corrected", "corrected",
+            "Al revisar el lugar, precisé la antigüedad de la marca.",
+            "La marca tenía varios días, no era de esa misma mañana.",
+        )
+        with database.connection() as conn:
+            _, after_correction = _entity_perception_context(conn, session_id, brina_id)
+        updated_comparison = after_correction["knowledge_comparisons"][0]
+        assert updated_comparison["comparison_status"] == "needs_reassessment"
+        assert updated_comparison["assessment_is_current"] is False
+        assert updated_comparison["assessment"]["stance"] == "contradicts"
+
+
+def test_contradiction_requires_two_live_reports_from_different_senders():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        ids = _entity_ids_by_name(client, world_id)
+        protagonist_id = next(
+            value for name, value in ids.items()
+            if name.lower() in {"protagonista", "protagonist"}
+        )
+        brina_id = ids["Brina Solcor"]
+        source_event_id = _record_source_event(
+            session_id, protagonist_id, "same-sender-comparison-source"
+        )
+        first_report_id = _approve_knowledge_testimony(
+            client, session_id, source_event_id, protagonist_id, brina_id,
+            "same-sender-comparison-first", "La marca parecía reciente.",
+        )
+        second_report_id = _approve_knowledge_testimony(
+            client, session_id, source_event_id, protagonist_id, brina_id,
+            "same-sender-comparison-second", "La marca parecía antigua.",
+        )
+
+        same_sender = client.post(
+            f"/api/sessions/{session_id}/knowledge-reports/{first_report_id}/assessments",
+            json={
+                "request_id": "same-sender-contradiction-assessment",
+                "assessor_entity_id": brina_id,
+                "stance": "contradicts",
+                "confidence": 50,
+                "evidence_report_id": second_report_id,
+                "rationale": "No se debe atribuir una contradicción entre emisores distintos cuando ambos informes proceden de la misma persona.",
+            },
+        )
+        assert same_sender.status_code == 422
+        with database.connection() as conn:
+            count = conn.execute(
+                "SELECT COUNT(*) AS n FROM session_knowledge_assessments WHERE session_id=?",
+                (session_id,),
+            ).fetchone()["n"]
+        assert count == 0
+
+
+def test_report_comparison_candidates_exclude_retracted_versions():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        ids = _entity_ids_by_name(client, world_id)
+        protagonist_id = next(
+            value for name, value in ids.items()
+            if name.lower() in {"protagonista", "protagonist"}
+        )
+        brina_id = ids["Brina Solcor"]
+        maelis_id = ids["Maelis Orven"]
+        source = NarratorResponse(
+            narration="Dos personajes presencian el mismo rastro.",
+            events=[EventProposal(
+                ref="retracted-comparison-source",
+                kind="clue",
+                entity_id=protagonist_id,
+                description="Un rastro cruza el barro.",
+                witness_ids=[protagonist_id, maelis_id],
+            )],
+        )
+        turn_id, _, _ = _apply_synthetic_result(
+            session_id, "Observo el rastro con Maelis.", source
+        )
+        with database.connection() as conn:
+            source_event = conn.execute(
+                "SELECT id FROM events WHERE session_id=? AND turn_id=? AND status='recorded'",
+                (session_id, turn_id),
+            ).fetchone()
+        assert source_event is not None
+        first_report_id = _approve_knowledge_testimony(
+            client, session_id, source_event["id"], protagonist_id, brina_id,
+            "retracted-comparison-first", "El rastro parecía reciente.",
+        )
+        second_report_id = _approve_knowledge_testimony(
+            client, session_id, source_event["id"], maelis_id, brina_id,
+            "retracted-comparison-second", "El rastro parecía antiguo.",
+        )
+        with database.connection() as conn:
+            _, before = _entity_perception_context(conn, session_id, brina_id)
+        assert len(before["knowledge_comparisons"]) == 1
+
+        _approve_knowledge_correction(
+            client, session_id, first_report_id, protagonist_id, brina_id,
+            "retracted-comparison-withdrawal", "retracted",
+            "Retiro mi estimación porque no puedo sostenerla.",
+        )
+        with database.connection() as conn:
+            _, after = _entity_perception_context(conn, session_id, brina_id)
+        assert after["knowledge_comparisons"] == []
+        withdrawn = next(
+            report for report in after["knowledge_reports"]
+            if report["transmission_id"] == first_report_id
+        )
+        assert withdrawn["report_status"] == "retracted"
 
 
 def test_assessment_rejects_reports_or_evidence_the_character_does_not_know():
