@@ -843,7 +843,9 @@ function renderState(payload) {
         current.textContent = "Última valoración: " +
           (stanceLabels[report.assessment.stance] || report.assessment.stance) +
           " · confianza " + report.assessment.confidence + "/100 · " +
-          report.assessment.rationale;
+          report.assessment.rationale +
+          " · versión valorada: «" + (report.assessment.assessed_version_text || "") +
+          "» · evidencia comparada: «" + (report.assessment.evidence_version_text || "") + "»";
         item.appendChild(current);
       } else {
         const current = document.createElement("p");
@@ -882,8 +884,11 @@ function renderState(payload) {
         other.source_event_id === report.source_event_id
       ).forEach(other => {
         const sender = entityNames[other.sender_entity_id] || other.sender_entity_id;
+        const otherCurrentVersion = other.report_status === "retracted"
+          ? "[afirmación retirada]"
+          : (other.current_reported_version || other.reported_version);
         addOption(evidence, "report:" + other.transmission_id,
-          "Otro informe de " + sender + ": " + other.reported_version.slice(0, 90));
+          "Otro informe de " + sender + ": " + otherCurrentVersion.slice(0, 90));
       });
       (person.known_events || []).forEach(event => {
         addOption(evidence, "event:" + event.id,
@@ -941,6 +946,12 @@ function renderState(payload) {
           confidence: score,
           evidence_report_id: chosen.startsWith("report:") ? chosen.slice(7) : "",
           evidence_event_id: chosen.startsWith("event:") ? chosen.slice(6) : "",
+          assessed_correction_id: report.correction ? report.correction.correction_id : "",
+          evidence_correction_id: chosen.startsWith("report:")
+            ? ((person.knowledge_reports || []).find(other =>
+                other.transmission_id === chosen.slice(7)
+              )?.correction?.correction_id || "")
+            : "",
           rationale: reason
         };
         save.disabled = true;
