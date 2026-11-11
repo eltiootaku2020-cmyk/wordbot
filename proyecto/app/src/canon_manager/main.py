@@ -810,9 +810,11 @@ def build_context(
     for participant in participants:
         _, perception = _entity_perception_context(conn, session["id"], participant["id"])
         participant["knowledge_reports"] = perception.get("knowledge_reports", [])
+        participant["knowledge_comparisons"] = perception.get("knowledge_comparisons", [])
     if recipient is not None:
         _, perception = _entity_perception_context(conn, session["id"], recipient["id"])
         recipient["knowledge_reports"] = perception.get("knowledge_reports", [])
+        recipient["knowledge_comparisons"] = perception.get("knowledge_comparisons", [])
 
     relationship = []
     if recipient_id:
