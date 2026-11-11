@@ -3483,13 +3483,7 @@ def assess_knowledge_report(
                     status_code=422,
                     detail="El PNJ no tiene una vía directa y registrada para conocer ese evento como evidencia."
                 )
-            if payload.stance == "contradicts":
-                raise HTTPException(
-                    status_code=422,
-                    detail="Una contradicción entre testimonios o rumores debe compararse con otro informe recibido, no solo con un evento conocido."
-                )
-
-        if payload.stance == "contradicts":
+        if payload.stance == "contradicts" and evidence_report_id:
             _, assessor_perception = _entity_perception_context(
                 conn, session_id, payload.assessor_entity_id
             )
