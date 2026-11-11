@@ -629,8 +629,9 @@ def _knowledge_transmission_provenance(
         row = conn.execute(
             "SELECT t.id,t.source_event_id,t.sender_entity_id,t.recipient_entity_id,"
             "t.transmission_kind,t.version_text,t.transmitted_total_minutes,"
-            "t.parent_transmission_id,es.name AS sender_name,er.name AS recipient_name,"
-            "s.status AS source_status,c.status AS communication_status,c.kind AS communication_kind "
+            "t.parent_transmission_id,t.parent_correction_id,es.name AS sender_name,er.name AS recipient_name,"
+            "s.status AS source_status,c.status AS communication_status,c.kind AS communication_kind,"
+            "c.created_at AS communication_created_at "
             "FROM session_knowledge_transmissions t "
             "JOIN entities es ON es.id=t.sender_entity_id "
             "JOIN entities er ON er.id=t.recipient_entity_id "
@@ -658,6 +659,80 @@ def _knowledge_transmission_provenance(
         ):
             complete = False
             break
+        parent_id = str(row["parent_transmission_id"] or "")
+        parent_correction_id = str(row["parent_correction_id"] or "")
+        if parent_correction_id:
+            if not parent_id:
+                complete = False
+                break
+            selected_source_correction = conn.execute(
+                "SELECT c.id,c.correction_kind,c.recipient_entity_id,c.corrected_total_minutes,"
+                "e.status AS correction_event_status,e.kind AS correction_event_kind,"
+                "e.created_at AS correction_created_at,p.transmission_kind AS parent_transmission_kind "
+                "FROM session_knowledge_corrections c "
+                "JOIN events e ON e.id=c.correction_event_id AND e.session_id=c.session_id "
+                "JOIN session_knowledge_transmissions p ON p.id=c.original_transmission_id AND p.session_id=c.session_id "
+                "WHERE c.id=? AND c.session_id=? AND c.original_transmission_id=?",
+                (parent_correction_id, session_id, parent_id),
+            ).fetchone()
+            latest_source_correction = conn.execute(
+                "SELECT c.id,c.correction_kind,c.recipient_entity_id,c.corrected_total_minutes,"
+                "e.status AS correction_event_status,e.kind AS correction_event_kind "
+                "FROM session_knowledge_corrections c "
+                "JOIN events e ON e.id=c.correction_event_id AND e.session_id=c.session_id "
+                "WHERE c.session_id=? AND c.original_transmission_id=? "
+                "AND c.corrected_total_minutes<=? "
+                "AND e.created_at<=? "
+                "AND NOT EXISTS (SELECT 1 FROM session_knowledge_corrections child "
+                "JOIN events child_event ON child_event.id=child.correction_event_id "
+                "WHERE child.session_id=c.session_id AND child.parent_correction_id=c.id "
+                "AND child_event.created_at<=?) "
+                "ORDER BY c.corrected_total_minutes DESC,e.created_at DESC,c.id DESC LIMIT 1",
+                (
+                    session_id, parent_id, int(row["transmitted_total_minutes"]),
+                    row["communication_created_at"], row["communication_created_at"]
+                ),
+            ).fetchone()
+            expected_parent_correction_event = (
+                "knowledge" if selected_source_correction is not None
+                and selected_source_correction["parent_transmission_kind"] == "testimony"
+                else "rumor"
+            )
+            if (
+                selected_source_correction is None
+                or latest_source_correction is None
+                or str(latest_source_correction["id"]) != parent_correction_id
+                or selected_source_correction["correction_kind"] != "corrected"
+                or selected_source_correction["recipient_entity_id"] != row["sender_entity_id"]
+                or selected_source_correction["correction_event_status"] != "recorded"
+                or selected_source_correction["correction_event_kind"] != expected_parent_correction_event
+                or selected_source_correction["correction_created_at"] > row["communication_created_at"]
+                or int(selected_source_correction["corrected_total_minutes"]) > int(row["transmitted_total_minutes"])
+            ):
+                complete = False
+                break
+        else:
+            if parent_id:
+                latest_source_correction = conn.execute(
+                    "SELECT c.id,c.correction_kind "
+                    "FROM session_knowledge_corrections c "
+                    "JOIN events e ON e.id=c.correction_event_id AND e.session_id=c.session_id "
+                    "WHERE c.session_id=? AND c.original_transmission_id=? "
+                    "AND c.corrected_total_minutes<=? AND e.created_at<=? "
+                    "AND NOT EXISTS (SELECT 1 FROM session_knowledge_corrections child "
+                    "JOIN events child_event ON child_event.id=child.correction_event_id "
+                    "WHERE child.session_id=c.session_id AND child.parent_correction_id=c.id "
+                    "AND child_event.created_at<=?) "
+                    "ORDER BY c.corrected_total_minutes DESC,e.created_at DESC,c.id DESC LIMIT 1",
+                    (
+                        session_id, parent_id, int(row["transmitted_total_minutes"]),
+                        row["communication_created_at"], row["communication_created_at"]
+                    ),
+                ).fetchone()
+                if latest_source_correction is not None:
+                    complete = False
+                    break
+
         chain_reversed.append({
             "transmission_id": str(row["id"]),
             "sender_entity_id": str(row["sender_entity_id"]),
@@ -667,9 +742,9 @@ def _knowledge_transmission_provenance(
             "transmission_kind": str(row["transmission_kind"]),
             "version_text": str(row["version_text"]),
             "transmitted_total_minutes": int(row["transmitted_total_minutes"]),
-            "parent_transmission_id": str(row["parent_transmission_id"] or ""),
+            "parent_transmission_id": parent_id,
+            "parent_correction_id": parent_correction_id,
         })
-        parent_id = str(row["parent_transmission_id"] or "")
         if not parent_id:
             break
         child = row
@@ -826,7 +901,7 @@ def _entity_perception_context(
     report_rows = conn.execute(
         "SELECT t.id,t.sender_entity_id,t.recipient_entity_id,t.transmission_kind,"
         "t.version_text,t.location,t.transmitted_total_minutes,t.parent_transmission_id,"
-        "s.id AS source_event_id,s.kind AS source_event_kind,"
+        "t.parent_correction_id,s.id AS source_event_id,s.kind AS source_event_kind,"
         "c.id AS communication_event_id,c.status AS communication_status "
         "FROM session_knowledge_transmissions t "
         "JOIN events s ON s.id=t.source_event_id AND s.session_id=t.session_id "
@@ -870,6 +945,7 @@ def _entity_perception_context(
             "location": str(report["location"]),
             "transmitted_total_minutes": int(report["transmitted_total_minutes"]),
             "parent_transmission_id": str(report["parent_transmission_id"] or ""),
+            "parent_correction_id": str(report["parent_correction_id"] or ""),
             "origin_transmission_id": origin["transmission_id"] if origin else "",
             "originator_entity_id": origin["sender_entity_id"] if origin else "",
             "originator_name": origin["sender_name"] if origin else "",
