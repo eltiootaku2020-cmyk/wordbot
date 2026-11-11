@@ -841,8 +841,12 @@ def _entity_perception_context(
         evidence_correction_id = str(assessment["evidence_correction_id"] or "")
         assessed_correction_kind = str(assessment["assessed_correction_kind"] or "")
         evidence_correction_kind = str(assessment["evidence_correction_kind"] or "")
-        assessed_version_text = str(assessment["assessed_original_text"] or "")
-        if assessed_correction_id:
+        version_refs_exact = bool(assessment["version_refs_exact"])
+        assessed_version_text = (
+            str(assessment["assessed_original_text"] or "")
+            if version_refs_exact else "[versión histórica sin referencia exacta]"
+        )
+        if version_refs_exact and assessed_correction_id:
             assessed_version_text = (
                 str(assessment["assessed_correction_text"] or "")
                 if assessed_correction_kind == "corrected"
@@ -850,8 +854,11 @@ def _entity_perception_context(
             )
         evidence_version_text = ""
         if str(assessment["evidence_report_id"] or ""):
-            evidence_version_text = str(assessment["evidence_original_text"] or "")
-            if evidence_correction_id:
+            evidence_version_text = (
+                str(assessment["evidence_original_text"] or "")
+                if version_refs_exact else "[versión histórica sin referencia exacta]"
+            )
+            if version_refs_exact and evidence_correction_id:
                 evidence_version_text = (
                     str(assessment["evidence_correction_text"] or "")
                     if evidence_correction_kind == "corrected"
@@ -866,6 +873,7 @@ def _entity_perception_context(
             "evidence_event_id": str(assessment["evidence_event_id"] or ""),
             "assessed_correction_id": assessed_correction_id,
             "evidence_correction_id": evidence_correction_id,
+            "version_refs_exact": version_refs_exact,
             "assessed_version_text": assessed_version_text,
             "evidence_version_text": evidence_version_text,
             "evidence_sender_entity_id": str(assessment["evidence_sender_entity_id"] or ""),
