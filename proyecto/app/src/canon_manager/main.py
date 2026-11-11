@@ -3595,13 +3595,13 @@ def assess_knowledge_report(
             "INSERT INTO session_knowledge_assessments("
             "id,session_id,request_id,transmission_id,assessor_entity_id,stance,confidence,"
             "evidence_report_id,evidence_event_id,assessed_correction_id,evidence_correction_id,"
-            "rationale,assessed_total_minutes"
-            ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "version_refs_exact,rationale,assessed_total_minutes"
+            ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 assessment_id, session_id, payload.request_id, transmission_id,
                 payload.assessor_entity_id, payload.stance, payload.confidence,
                 evidence_report_id, evidence_event_id, assessed_correction_id,
-                evidence_correction_id, payload.rationale, current_total,
+                evidence_correction_id, 1, payload.rationale, current_total,
             ),
         )
         assessment = conn.execute(
