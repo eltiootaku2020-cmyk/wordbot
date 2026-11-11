@@ -394,7 +394,7 @@ class Database:
                 # we can reconstruct their exact wording after the fact.
                 conn.execute(
                     "ALTER TABLE session_knowledge_assessments "
-                    "ADD COLUMN version_refs_exact INTEGER NOT NULL DEFAULT 0"
+                    "ADD COLUMN version_refs_exact INTEGER NOT NULL DEFAULT 0 CHECK(version_refs_exact IN (0,1))"
                 )
 
             transmission_columns = {
