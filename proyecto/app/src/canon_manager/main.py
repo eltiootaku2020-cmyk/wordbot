@@ -1705,9 +1705,10 @@ def apply_narrator_result(
                 source_witnesses = set(raw_witnesses)
 
         parent_id = proposal.parent_transmission_id.strip()
+        parent_correction_id = proposal.parent_correction_id.strip()
         if not reason and proposal.transmission_kind == "testimony":
-            if parent_id:
-                reason = "un testimonio directo no puede declarar una transmisión anterior como origen"
+            if parent_id or parent_correction_id:
+                reason = "un testimonio directo no puede declarar una transmisión ni una rectificación anterior como origen"
             elif proposal.sender_entity_id not in source_witnesses or not _event_known_to_entity(
                 source_event, proposal.sender_entity_id
             ):
@@ -1717,7 +1718,7 @@ def apply_narrator_result(
                 reason = "un rumor retransmitido requiere una transmisión anterior identificable"
             else:
                 parent = conn.execute(
-                    "SELECT t.id,t.source_event_id,t.recipient_entity_id,t.transmitted_total_minutes,"
+                    "SELECT t.id,t.source_event_id,t.recipient_entity_id,t.transmission_kind,t.transmitted_total_minutes,"
                     "s.status AS source_status,c.status AS communication_status "
                     "FROM session_knowledge_transmissions t "
                     "JOIN events s ON s.id=t.source_event_id AND s.session_id=t.session_id "
@@ -1734,6 +1735,39 @@ def apply_narrator_result(
                     or int(parent["transmitted_total_minutes"]) > current_total_minutes
                 ):
                     reason = "el emisor no recibió previamente esa versión del mismo evento"
+                else:
+                    expected_parent_event_kind = (
+                        "knowledge" if parent["transmission_kind"] == "testimony" else "rumor"
+                    )
+                    latest_parent_correction = conn.execute(
+                        "SELECT c.id,c.correction_kind,c.recipient_entity_id,"
+                        "c.corrected_total_minutes,e.status AS correction_event_status,"
+                        "e.kind AS correction_event_kind "
+                        "FROM session_knowledge_corrections c "
+                        "JOIN events e ON e.id=c.correction_event_id AND e.session_id=c.session_id "
+                        "WHERE c.session_id=? AND c.original_transmission_id=? "
+                        "AND c.corrected_total_minutes<=? "
+                        "AND NOT EXISTS (SELECT 1 FROM session_knowledge_corrections child "
+                        "WHERE child.session_id=c.session_id AND child.parent_correction_id=c.id) "
+                        "LIMIT 1",
+                        (session["id"], parent_id, current_total_minutes),
+                    ).fetchone()
+                    if latest_parent_correction is None and parent_correction_id:
+                        reason = "parent_correction_id no corresponde a una rectificación aprobada del informe recibido"
+                    elif latest_parent_correction is not None and latest_parent_correction["correction_kind"] == "retracted":
+                        reason = "no se puede retransmitir una versión que el emisor original retiró"
+                    elif latest_parent_correction is not None and (
+                        parent_correction_id != str(latest_parent_correction["id"])
+                        or latest_parent_correction["recipient_entity_id"] != proposal.sender_entity_id
+                    ):
+                        reason = "el informe recibido tiene una rectificación vigente; indica su parent_correction_id exacto para retransmitir esa versión"
+                    elif latest_parent_correction is not None and (
+                        latest_parent_correction["correction_event_status"] != "recorded"
+                        or latest_parent_correction["correction_event_kind"] != expected_parent_event_kind
+                    ):
+                        reason = "la rectificación de origen no es una comunicación aprobada y válida"
+                    elif latest_parent_correction is None and parent_correction_id:
+                        reason = "no se puede vincular una rectificación que el destinatario no recibió"
 
         sender_location = ""
         recipient_location = ""
@@ -4420,6 +4454,7 @@ def approve_event(session_id: str, event_id: str):
                 location = proposal.get("observed_location")
                 transmitted_total = proposal.get("transmitted_total_minutes")
                 parent_id = str(proposal.get("parent_transmission_id") or "").strip()
+                parent_correction_id = proposal.get("parent_correction_id", "")
                 expected_kind = "knowledge" if transmission_kind == "testimony" else "rumor"
                 if (
                     not isinstance(sender_id, str)
@@ -4428,6 +4463,8 @@ def approve_event(session_id: str, event_id: str):
                     or sender_id == recipient_id
                     or proposal.get("recipient_entity_id") != recipient_id
                     or transmission_kind not in {"testimony", "rumor"}
+                    or not isinstance(parent_correction_id, str)
+                    or len(parent_correction_id) > 80
                     or event["kind"] != expected_kind
                     or not isinstance(source_event_id, str)
                     or not source_event_id
@@ -4468,11 +4505,11 @@ def approve_event(session_id: str, event_id: str):
                     raise HTTPException(status_code=422, detail="Los testigos del evento original no son válidos.")
 
                 if transmission_kind == "testimony":
-                    if parent_id or sender_id not in source_witnesses or not _event_known_to_entity(source_event, sender_id):
+                    if parent_id or parent_correction_id or sender_id not in source_witnesses or not _event_known_to_entity(source_event, sender_id):
                         raise HTTPException(status_code=403, detail="Un testimonio requiere que el emisor haya presenciado el evento original.")
                 else:
                     parent = conn.execute(
-                        "SELECT t.id,t.source_event_id,t.recipient_entity_id,t.transmitted_total_minutes,"
+                        "SELECT t.id,t.source_event_id,t.recipient_entity_id,t.transmission_kind,t.transmitted_total_minutes,"
                         "s.status AS source_status,c.status AS communication_status "
                         "FROM session_knowledge_transmissions t "
                         "JOIN events s ON s.id=t.source_event_id AND s.session_id=t.session_id "
@@ -4489,6 +4526,42 @@ def approve_event(session_id: str, event_id: str):
                         or int(parent["transmitted_total_minutes"]) > transmitted_total
                     ):
                         raise HTTPException(status_code=403, detail="Un rumor requiere una transmisión anterior del mismo evento recibida por el emisor.")
+                    expected_parent_event_kind = (
+                        "knowledge" if parent["transmission_kind"] == "testimony" else "rumor"
+                    )
+                    latest_parent_correction = conn.execute(
+                        "SELECT c.id,c.correction_kind,c.recipient_entity_id,"
+                        "c.corrected_total_minutes,e.status AS correction_event_status,"
+                        "e.kind AS correction_event_kind,e.created_at AS correction_created_at "
+                        "FROM session_knowledge_corrections c "
+                        "JOIN events e ON e.id=c.correction_event_id AND e.session_id=c.session_id "
+                        "WHERE c.session_id=? AND c.original_transmission_id=? "
+                        "AND c.corrected_total_minutes<=? "
+                        "AND e.rowid<=(SELECT rowid FROM events WHERE id=?) "
+                        "AND NOT EXISTS (SELECT 1 FROM session_knowledge_corrections child "
+                        "JOIN events child_event ON child_event.id=child.correction_event_id "
+                        "WHERE child.session_id=c.session_id AND child.parent_correction_id=c.id "
+                        "AND child_event.rowid<=(SELECT rowid FROM events WHERE id=?)) "
+                        "ORDER BY c.corrected_total_minutes DESC,e.rowid DESC,c.id DESC "
+                        "LIMIT 1",
+                        (session_id, parent_id, transmitted_total, event_id, event_id),
+                    ).fetchone()
+                    if latest_parent_correction is None and parent_correction_id:
+                        raise HTTPException(status_code=409, detail="La rectificación indicada no estaba aprobada cuando se propuso esta retransmisión.")
+                    if latest_parent_correction is not None and latest_parent_correction["correction_kind"] == "retracted":
+                        raise HTTPException(status_code=409, detail="No se puede retransmitir una versión retirada antes de este acto.")
+                    if latest_parent_correction is not None and (
+                        parent_correction_id != str(latest_parent_correction["id"])
+                        or latest_parent_correction["recipient_entity_id"] != sender_id
+                    ):
+                        raise HTTPException(status_code=409, detail="La versión recibida cambió antes de esta retransmisión; consulta el informe y vuelve a proponerla.")
+                    if latest_parent_correction is not None and (
+                        latest_parent_correction["correction_event_status"] != "recorded"
+                        or latest_parent_correction["correction_event_kind"] != expected_parent_event_kind
+                    ):
+                        raise HTTPException(status_code=422, detail="La rectificación de origen no está registrada como comunicación válida.")
+                    if latest_parent_correction is None and parent_correction_id:
+                        raise HTTPException(status_code=409, detail="No se puede vincular una rectificación que el retransmisor no había recibido.")
 
                 transmission_id = new_id()
                 request_id = f"narrator-event-approval-{proposal_row['id']}"
@@ -4496,12 +4569,12 @@ def approve_event(session_id: str, event_id: str):
                     "INSERT INTO session_knowledge_transmissions("
                     "id,session_id,request_id,source_event_id,communication_event_id,"
                     "sender_entity_id,recipient_entity_id,transmission_kind,version_text,"
-                    "location,transmitted_total_minutes,parent_transmission_id"
-                    ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                    "location,transmitted_total_minutes,parent_transmission_id,parent_correction_id"
+                    ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
                     (
                         transmission_id, session_id, request_id, source_event_id, event_id,
                         sender_id, recipient_id, transmission_kind, version_text.strip(),
-                        location.strip(), transmitted_total, parent_id
+                        location.strip(), transmitted_total, parent_id, parent_correction_id
                     )
                 )
                 accepted_value = {
@@ -4514,7 +4587,8 @@ def approve_event(session_id: str, event_id: str):
                     "version_text": version_text.strip(),
                     "location": location.strip(),
                     "transmitted_total_minutes": transmitted_total,
-                    "parent_transmission_id": parent_id
+                    "parent_transmission_id": parent_id,
+                    "parent_correction_id": parent_correction_id
                 }
                 conn.execute(
                     "UPDATE state_changes SET status='accepted',accepted_value_json=?,"

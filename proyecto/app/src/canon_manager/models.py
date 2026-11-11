@@ -94,6 +94,8 @@ class KnowledgeTransmissionProposal(StrictModel):
     transmission_kind: Literal["testimony", "rumor"]
     version_text: str = Field(min_length=1, max_length=600)
     parent_transmission_id: str = Field(default="", max_length=80)
+    # When forwarding a corrected report, identify the exact approved correction received.
+    parent_correction_id: str = Field(default="", max_length=80)
 
 
 class KnowledgeAssessmentRequest(StrictModel):

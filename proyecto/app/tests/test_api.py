@@ -8100,6 +8100,9 @@ def test_correction_chain_migration_upgrades_legacy_table_without_parent_column(
     with tempfile.TemporaryDirectory(prefix="canon-correction-migration-") as directory:
         path = Path(directory) / "legacy.sqlite3"
         legacy_schema = SCHEMA.replace(
+            "  parent_correction_id TEXT NOT NULL DEFAULT '',\n  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  UNIQUE(session_id, request_id),\n  UNIQUE(session_id, communication_event_id, recipient_entity_id),",
+            "  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  UNIQUE(session_id, request_id),\n  UNIQUE(session_id, communication_event_id, recipient_entity_id),",
+        ).replace(
             "  parent_correction_id TEXT REFERENCES session_knowledge_corrections(id) ON DELETE RESTRICT,\n",
             "",
         ).replace(
@@ -8121,13 +8124,18 @@ def test_correction_chain_migration_upgrades_legacy_table_without_parent_column(
                 "PRAGMA index_list(session_knowledge_corrections)"
             ).fetchall()}
         assert "parent_correction_id" in columns
+        with Database(str(path)).connection() as conn:
+            transmission_columns = {row["name"] for row in conn.execute(
+                "PRAGMA table_info(session_knowledge_transmissions)"
+            ).fetchall()}
+        assert "parent_correction_id" in transmission_columns
         assert "idx_knowledge_corrections_root" in indexes
         assert "idx_knowledge_corrections_child" in indexes
 
 
 def _approve_knowledge_rumor(
     client, session_id, source_event_id, parent_transmission_id,
-    sender_id, recipient_id, ref, version_text,
+    sender_id, recipient_id, ref, version_text, parent_correction_id="",
 ):
     proposal = NarratorResponse(
         narration="Un personaje retransmite a otro una versión que recibió previamente.",
@@ -8147,6 +8155,7 @@ def _approve_knowledge_rumor(
             transmission_kind="rumor",
             version_text=version_text,
             parent_transmission_id=parent_transmission_id,
+            parent_correction_id=parent_correction_id,
         )],
     )
     turn_id, _, notes = _apply_synthetic_result(
@@ -8164,13 +8173,176 @@ def _approve_knowledge_rumor(
     assert approved.status_code == 200, approved.text
     with database.connection() as conn:
         transmission = conn.execute(
-            "SELECT id,parent_transmission_id FROM session_knowledge_transmissions "
+            "SELECT id,parent_transmission_id,parent_correction_id FROM session_knowledge_transmissions "
             "WHERE session_id=? AND communication_event_id=?",
             (session_id, event["id"]),
         ).fetchone()
     assert transmission is not None
     assert transmission["parent_transmission_id"] == parent_transmission_id
+    assert transmission["parent_correction_id"] == parent_correction_id
     return str(transmission["id"])
+
+
+def test_recipient_can_explicitly_retransmit_the_exact_approved_correction():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        ids = _entity_ids_by_name(client, world_id)
+        protagonist_id = next(
+            value for name, value in ids.items()
+            if name.lower() in {"protagonista", "protagonist"}
+        )
+        brina_id = ids["Brina Solcor"]
+        maelis_id = ids["Maelis Orven"]
+        source_event_id = _record_source_event(
+            session_id, protagonist_id, "corrected-report-relay-source"
+        )
+        original_text = "Vi una señal en la roca."
+        report_id = _approve_knowledge_testimony(
+            client, session_id, source_event_id, protagonist_id, brina_id,
+            "corrected-report-relay-origin", original_text,
+        )
+        corrected_text = "Rectifico: la señal estaba en el tronco, no en una roca."
+        _, correction_id, correction_approval = _approve_knowledge_correction(
+            client, session_id, report_id, protagonist_id, brina_id,
+            "corrected-report-relay-correction", "corrected",
+            "Al revisar el lugar, identifiqué mejor el soporte de la señal.",
+            corrected_text,
+        )
+        assert correction_approval["knowledge_corrections"][0]["correction_id"] == correction_id
+
+        relay_text = "El protagonista corrigió su informe: la señal estaba en el tronco, no en una roca."
+        relay_id = _approve_knowledge_rumor(
+            client, session_id, source_event_id, report_id,
+            brina_id, maelis_id, "corrected-report-relay-to-maelis",
+            relay_text, parent_correction_id=correction_id,
+        )
+
+        with database.transaction() as conn:
+            transmission = conn.execute(
+                "SELECT parent_transmission_id,parent_correction_id,version_text "
+                "FROM session_knowledge_transmissions WHERE id=?",
+                (relay_id,),
+            ).fetchone()
+            _, brina_perception = _entity_perception_context(conn, session_id, brina_id)
+            _, maelis_perception = _entity_perception_context(conn, session_id, maelis_id)
+            snapshot = main_module.capture_turn_state(conn, session_id)
+            main_module.restore_turn_state(conn, session_id, snapshot)
+            restored = conn.execute(
+                "SELECT parent_transmission_id,parent_correction_id,version_text "
+                "FROM session_knowledge_transmissions WHERE id=?",
+                (relay_id,),
+            ).fetchone()
+
+        brina_report = next(
+            item for item in brina_perception["knowledge_reports"]
+            if item["transmission_id"] == report_id
+        )
+        maelis_report = next(
+            item for item in maelis_perception["knowledge_reports"]
+            if item["transmission_id"] == relay_id
+        )
+        assert brina_report["report_status"] == "corrected"
+        assert brina_report["current_reported_version"] == corrected_text
+        assert maelis_report["parent_transmission_id"] == report_id
+        assert maelis_report["parent_correction_id"] == correction_id
+        assert maelis_report["report_status"] == "active"
+        assert maelis_report["reported_version"] == relay_text
+        assert maelis_report["current_reported_version"] == relay_text
+        assert maelis_report["epistemic_status"] == "reported_not_verified"
+        assert maelis_report["originator_entity_id"] == protagonist_id
+        assert maelis_report["relay_count"] == 1
+        assert maelis_report["provenance_complete"] is True
+        assert [item["version_text"] for item in maelis_report["provenance_chain"]] == [
+            original_text, relay_text
+        ]
+        assert maelis_report["provenance_chain"][1]["parent_correction_id"] == correction_id
+        assert transmission["parent_correction_id"] == correction_id
+        assert restored["parent_correction_id"] == correction_id
+        assert restored["version_text"] == relay_text
+
+
+def test_relay_cannot_hide_a_correction_or_forward_a_retracted_version():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        ids = _entity_ids_by_name(client, world_id)
+        protagonist_id = next(
+            value for name, value in ids.items()
+            if name.lower() in {"protagonista", "protagonist"}
+        )
+        brina_id = ids["Brina Solcor"]
+        maelis_id = ids["Maelis Orven"]
+        source_event_id = _record_source_event(
+            session_id, protagonist_id, "corrected-report-relay-guard-source"
+        )
+        report_id = _approve_knowledge_testimony(
+            client, session_id, source_event_id, protagonist_id, brina_id,
+            "corrected-report-relay-guard-origin", "Vi una marca en la puerta.",
+        )
+        _, correction_id, _ = _approve_knowledge_correction(
+            client, session_id, report_id, protagonist_id, brina_id,
+            "corrected-report-relay-guard-correction", "corrected",
+            "Ajusto la ubicación de la marca.",
+            "La marca estaba en el marco de la puerta.",
+        )
+
+        hidden_correction = NarratorResponse(
+            narration="Brina intenta retransmitir como original una versión que recibió corregida.",
+            elapsed_minutes=0,
+            events=[EventProposal(
+                ref="relay-without-correction-ref",
+                kind="rumor",
+                entity_id=brina_id,
+                description="Brina reenvía sin identificar la corrección recibida.",
+                witness_ids=[brina_id, maelis_id],
+            )],
+            knowledge_transmissions=[KnowledgeTransmissionProposal(
+                event_ref="relay-without-correction-ref",
+                source_event_id=source_event_id,
+                sender_entity_id=brina_id,
+                recipient_entity_id=maelis_id,
+                transmission_kind="rumor",
+                version_text="La marca estaba en el marco de la puerta.",
+                parent_transmission_id=report_id,
+            )],
+        )
+        _, _, hidden_notes = _apply_synthetic_result(
+            session_id, "Reenvío el informe sin indicar la rectificación.", hidden_correction
+        )
+        assert any("parent_correction_id exacto" in note for note in hidden_notes)
+
+        _, retraction_id, _ = _approve_knowledge_correction(
+            client, session_id, report_id, protagonist_id, brina_id,
+            "corrected-report-relay-retraction", "retracted",
+            "Retiro mi afirmación porque no puedo sostenerla.",
+            parent_correction_id=correction_id,
+        )
+        withdrawn = NarratorResponse(
+            narration="Brina intenta reenviar una versión que el emisor ya retiró.",
+            elapsed_minutes=0,
+            events=[EventProposal(
+                ref="relay-retracted-source",
+                kind="rumor",
+                entity_id=brina_id,
+                description="Brina intenta retransmitir una afirmación retirada.",
+                witness_ids=[brina_id, maelis_id],
+            )],
+            knowledge_transmissions=[KnowledgeTransmissionProposal(
+                event_ref="relay-retracted-source",
+                source_event_id=source_event_id,
+                sender_entity_id=brina_id,
+                recipient_entity_id=maelis_id,
+                transmission_kind="rumor",
+                version_text="La marca estaba en el marco de la puerta.",
+                parent_transmission_id=report_id,
+                parent_correction_id=retraction_id,
+            )],
+        )
+        _, _, withdrawn_notes = _apply_synthetic_result(
+            session_id, "Intento retransmitir una versión retirada.", withdrawn
+        )
+        assert any("emisor original retiró" in note for note in withdrawn_notes)
 
 
 def test_npc_can_correct_its_own_retransmitted_rumor_without_rewriting_provenance():

@@ -796,7 +796,10 @@ function renderState(payload) {
           hopVersion.className = "muted";
           const from = hop.sender_name || entityNames[hop.sender_entity_id] || hop.sender_entity_id;
           const to = hop.recipient_name || entityNames[hop.recipient_entity_id] || hop.recipient_entity_id;
-          hopVersion.textContent = from + " comunicó a " + to + ": «" + hop.version_text + "»";
+          hopVersion.textContent = from + " comunicó a " + to + ": «" + hop.version_text + "»" +
+            (hop.parent_correction_id
+              ? " · basada en una rectificación aprobada que recibió el emisor"
+              : "");
           item.appendChild(hopVersion);
         });
       } else if (report.parent_transmission_id && !report.provenance_complete) {
