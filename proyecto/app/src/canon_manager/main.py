@@ -3455,6 +3455,47 @@ def assess_knowledge_report(
                 detail="Indica exactamente una evidencia: otro informe recibido o un evento conocido directamente."
             )
 
+        # Idempotent replay is checked before resolving current versions: a
+        # later correction must not turn an already-saved historical request
+        # into a conflict. Explicit IDs, when provided, must match the stored
+        # request; omitted IDs retain compatibility with older callers.
+        existing = conn.execute(
+            "SELECT * FROM session_knowledge_assessments WHERE session_id=? AND request_id=?",
+            (session_id, payload.request_id),
+        ).fetchone()
+        if existing is not None:
+            requested_assessed_id = (
+                None if payload.assessed_correction_id is None
+                else payload.assessed_correction_id.strip()
+            )
+            requested_evidence_id = (
+                None if payload.evidence_correction_id is None
+                else payload.evidence_correction_id.strip()
+            )
+            same_request = (
+                str(existing["transmission_id"]) == transmission_id
+                and str(existing["assessor_entity_id"]) == payload.assessor_entity_id
+                and str(existing["stance"]) == payload.stance
+                and int(existing["confidence"]) == payload.confidence
+                and str(existing["evidence_report_id"] or "") == evidence_report_id
+                and str(existing["evidence_event_id"] or "") == evidence_event_id
+                and (
+                    requested_assessed_id is None
+                    or str(existing["assessed_correction_id"] or "") == requested_assessed_id
+                )
+                and (
+                    requested_evidence_id is None
+                    or str(existing["evidence_correction_id"] or "") == requested_evidence_id
+                )
+                and str(existing["rationale"]) == payload.rationale
+            )
+            if not same_request:
+                raise HTTPException(
+                    status_code=409,
+                    detail="El identificador de solicitud ya se utilizó para otra evaluación."
+                )
+            return {"assessment": dict(existing), "replayed": True}
+
         report = conn.execute(
             "SELECT t.id,t.source_event_id,t.recipient_entity_id,t.transmitted_total_minutes,"
             "s.status AS source_status,c.status AS communication_status "
@@ -3566,29 +3607,6 @@ def assess_knowledge_report(
                     detail="El PNJ no tiene una vía directa y registrada para conocer ese evento como evidencia."
                 )
             evidence_correction_id = ""
-
-        existing = conn.execute(
-            "SELECT * FROM session_knowledge_assessments WHERE session_id=? AND request_id=?",
-            (session_id, payload.request_id),
-        ).fetchone()
-        if existing is not None:
-            same_request = (
-                str(existing["transmission_id"]) == transmission_id
-                and str(existing["assessor_entity_id"]) == payload.assessor_entity_id
-                and str(existing["stance"]) == payload.stance
-                and int(existing["confidence"]) == payload.confidence
-                and str(existing["evidence_report_id"] or "") == evidence_report_id
-                and str(existing["evidence_event_id"] or "") == evidence_event_id
-                and str(existing["assessed_correction_id"] or "") == assessed_correction_id
-                and str(existing["evidence_correction_id"] or "") == evidence_correction_id
-                and str(existing["rationale"]) == payload.rationale
-            )
-            if not same_request:
-                raise HTTPException(
-                    status_code=409,
-                    detail="El identificador de solicitud ya se utilizó para otra evaluación."
-                )
-            return {"assessment": dict(existing), "replayed": True}
 
         assessment_id = new_id()
         conn.execute(
