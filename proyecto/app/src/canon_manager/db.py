@@ -86,6 +86,8 @@ CREATE TABLE IF NOT EXISTS session_knowledge_assessments (
   confidence INTEGER NOT NULL CHECK(confidence BETWEEN 0 AND 100),
   evidence_report_id TEXT NOT NULL DEFAULT '',
   evidence_event_id TEXT NOT NULL DEFAULT '',
+  assessed_correction_id TEXT NOT NULL DEFAULT '',
+  evidence_correction_id TEXT NOT NULL DEFAULT '',
   rationale TEXT NOT NULL CHECK(length(trim(rationale)) BETWEEN 1 AND 600),
   assessed_total_minutes INTEGER NOT NULL CHECK(assessed_total_minutes >= 0),
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -370,6 +372,22 @@ class Database:
                 except Exception:
                     conn.rollback()
                     raise
+
+            assessment_columns = {
+                row["name"] for row in conn.execute(
+                    "PRAGMA table_info(session_knowledge_assessments)"
+                ).fetchall()
+            }
+            if "assessed_correction_id" not in assessment_columns:
+                conn.execute(
+                    "ALTER TABLE session_knowledge_assessments "
+                    "ADD COLUMN assessed_correction_id TEXT NOT NULL DEFAULT ''"
+                )
+            if "evidence_correction_id" not in assessment_columns:
+                conn.execute(
+                    "ALTER TABLE session_knowledge_assessments "
+                    "ADD COLUMN evidence_correction_id TEXT NOT NULL DEFAULT ''"
+                )
 
             transmission_columns = {
                 row["name"] for row in conn.execute(
