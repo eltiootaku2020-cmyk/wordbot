@@ -1070,15 +1070,35 @@ def _entity_perception_context(
             assessment_is_current = bool(assessment)
             if assessment:
                 assessed_at = str(assessment.get("created_at") or "")
+                exact_version_refs = bool(assessment.get("version_refs_exact"))
                 for compared_report in (left, right):
                     history = compared_report.get("correction_history") or []
-                    latest_correction_at = (
-                        str(history[-1].get("correction_created_at") or "")
-                        if history else ""
+                    current_correction_id = (
+                        str(compared_report.get("correction", {}).get("correction_id") or "")
+                        if isinstance(compared_report.get("correction"), dict) else ""
                     )
-                    latest_correction_total = (
-                        int(history[-1].get("corrected_total_minutes") or 0)
-                        if history else 0
+                    if exact_version_refs:
+                        compared_correction_id = (
+                            str(assessment.get("assessed_correction_id") or "")
+                            if compared_report["transmission_id"] == assessment_report_id
+                            else str(assessment.get("evidence_correction_id") or "")
+                        )
+                        if compared_correction_id != current_correction_id:
+                            assessment_is_current = False
+                            break
+                    latest_correction_at = max(
+                        (
+                            str(entry.get("correction_created_at") or "")
+                            for entry in history
+                        ),
+                        default="",
+                    )
+                    latest_correction_total = max(
+                        (
+                            int(entry.get("corrected_total_minutes") or 0)
+                            for entry in history
+                        ),
+                        default=0,
                     )
                     if (
                         (latest_correction_at and latest_correction_at > assessed_at)
