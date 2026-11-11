@@ -7866,6 +7866,7 @@ def test_report_credibility_is_personal_evidence_linked_append_only_and_snapshot
         assert len(brina_perception["knowledge_comparisons"]) == 1
         comparison = brina_perception["knowledge_comparisons"][0]
         assert comparison["comparison_status"] == "personally_assessed"
+        assert comparison["assessment_is_current"] is True
         assert comparison["assessment"]["stance"] == "contradicts"
         assert {comparison["left_report_id"], comparison["right_report_id"]} == {
             first_report_id, second_report_id
@@ -7889,6 +7890,21 @@ def test_report_credibility_is_personal_evidence_linked_append_only_and_snapshot
                 (session_id, first_report_id),
             ).fetchone()["n"]
         assert restored == 1
+
+        # A later correction changes the current pair. The earlier judgement
+        # remains historical and must not appear as a current contradiction.
+        _approve_knowledge_correction(
+            client, session_id, first_report_id, protagonist_id, brina_id,
+            "credibility-report-corrected-after-comparison", "corrected",
+            "Al revisar el lugar, precisé la antigüedad de la marca.",
+            "La marca tenía varios días, no era de esa misma mañana.",
+        )
+        with database.connection() as conn:
+            _, after_correction = _entity_perception_context(conn, session_id, brina_id)
+        updated_comparison = after_correction["knowledge_comparisons"][0]
+        assert updated_comparison["comparison_status"] == "needs_reassessment"
+        assert updated_comparison["assessment_is_current"] is False
+        assert updated_comparison["assessment"]["stance"] == "contradicts"
 
 
 def test_contradiction_requires_two_live_reports_from_different_senders():
