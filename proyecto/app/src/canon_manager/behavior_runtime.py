@@ -1112,6 +1112,7 @@ def _planner_perception_metadata(
             return perception_summary
         legacy = dict(perception_summary)
         legacy.pop("knowledge_reports", None)
+        legacy.pop("knowledge_comparisons", None)
         return legacy
     return None
 
