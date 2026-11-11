@@ -3378,7 +3378,7 @@ def _current_knowledge_report_correction_id(
 ) -> str:
     """Return the exact latest correction visible to this recipient, or '' for the original."""
     report = conn.execute(
-        "SELECT t.transmission_kind FROM session_knowledge_transmissions t "
+        "SELECT t.transmission_kind,t.sender_entity_id FROM session_knowledge_transmissions t "
         "WHERE t.id=? AND t.session_id=? AND t.recipient_entity_id=?",
         (transmission_id, session_id, recipient_entity_id),
     ).fetchone()
@@ -3386,8 +3386,9 @@ def _current_knowledge_report_correction_id(
         raise HTTPException(status_code=404, detail="El informe no pertenece a ese destinatario.")
     expected_event_kind = "knowledge" if report["transmission_kind"] == "testimony" else "rumor"
     rows = conn.execute(
-        "SELECT c.id,c.parent_correction_id,c.correction_kind,c.recipient_entity_id,"
-        "e.status AS event_status,e.kind AS event_kind,e.witnesses_json,e.source_message_id,"
+        "SELECT c.id,c.parent_correction_id,c.correction_kind,c.sender_entity_id,c.recipient_entity_id,"
+        "e.status AS event_status,e.kind AS event_kind,e.entity_id AS event_entity_id,"
+        "e.witnesses_json,e.source_message_id,"
         "m.recipient_entity_id AS source_recipient_id,m.metadata_json AS source_metadata_json "
         "FROM session_knowledge_corrections c "
         "JOIN events e ON e.id=c.correction_event_id AND e.session_id=c.session_id "
@@ -3406,6 +3407,8 @@ def _current_knowledge_report_correction_id(
         if (
             row["event_status"] != "recorded"
             or row["event_kind"] != expected_event_kind
+            or row["event_entity_id"] != row["sender_entity_id"]
+            or row["sender_entity_id"] != report["sender_entity_id"]
             or row["recipient_entity_id"] != recipient_entity_id
             or not _event_known_to_entity(row, recipient_entity_id)
         ):
