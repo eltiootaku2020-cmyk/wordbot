@@ -7895,7 +7895,7 @@ def test_report_credibility_is_personal_evidence_linked_append_only_and_snapshot
         # remains historical and must not appear as a current contradiction.
         _approve_knowledge_correction(
             client, session_id, first_report_id, protagonist_id, brina_id,
-            "credibility-report-corrected-after-comparison", "corrected",
+            "credibility-report-corrected", "corrected",
             "Al revisar el lugar, precisé la antigüedad de la marca.",
             "La marca tenía varios días, no era de esa misma mañana.",
         )
