@@ -7864,6 +7864,7 @@ def test_report_credibility_is_personal_evidence_linked_append_only_and_snapshot
         assert first_report["assessment"]["confidence"] == 24
         assert first_report["assessment"]["assessed_correction_id"] == ""
         assert first_report["assessment"]["evidence_correction_id"] == ""
+        assert first_report["assessment"]["version_refs_exact"] is True
         assert len(first_report["assessment_history"]) == 1
         assert maelis_perception["knowledge_reports"] == []
         assert source_status == "recorded"
@@ -7963,6 +7964,7 @@ def test_report_comparison_keeps_the_exact_corrections_it_compared():
         stored = compared.json()["assessment"]
         assert stored["assessed_correction_id"] == first_correction_id
         assert stored["evidence_correction_id"] == evidence_correction_id
+        assert stored["version_refs_exact"] == 1
 
         # The evidence sender later adds another correction. The old assessment
         # must continue to refer to the exact version Brina compared before.
@@ -8244,7 +8246,7 @@ def test_correction_chain_migration_upgrades_legacy_table_without_parent_column(
             "  parent_correction_id TEXT REFERENCES session_knowledge_corrections(id) ON DELETE RESTRICT,\n",
             "",
         ).replace(
-            "  assessed_correction_id TEXT NOT NULL DEFAULT '',\n  evidence_correction_id TEXT NOT NULL DEFAULT '',\n",
+            "  assessed_correction_id TEXT NOT NULL DEFAULT '',\n  evidence_correction_id TEXT NOT NULL DEFAULT '',\n  version_refs_exact INTEGER NOT NULL DEFAULT 1 CHECK(version_refs_exact IN (0,1)),\n",
             "",
         ).replace(
             "  UNIQUE(session_id, request_id),\n  CHECK(sender_entity_id <> recipient_entity_id),",
@@ -8267,9 +8269,14 @@ def test_correction_chain_migration_upgrades_legacy_table_without_parent_column(
             assessment_columns = {row["name"] for row in conn.execute(
                 "PRAGMA table_info(session_knowledge_assessments)"
             ).fetchall()}
+            legacy_assessment_version_flag = conn.execute(
+                "SELECT dflt_value FROM pragma_table_info('session_knowledge_assessments') "
+                "WHERE name='version_refs_exact'"
+            ).fetchone()["dflt_value"]
         assert "parent_correction_id" in columns
         assert "assessed_correction_id" in assessment_columns
         assert "evidence_correction_id" in assessment_columns
+        assert legacy_assessment_version_flag == "0"
         with Database(str(path)).connection() as conn:
             transmission_columns = {row["name"] for row in conn.execute(
                 "PRAGMA table_info(session_knowledge_transmissions)"
