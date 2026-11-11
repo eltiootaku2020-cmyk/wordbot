@@ -1322,12 +1322,13 @@ def write_event(
     ]
     durable_kinds = {"promise", "quest", "injury", "clue", "secret", "deadline", "threat", "timeline_anchor", "knowledge", "tracked_fact"}
     continuity = bool(event.continuity or event.kind in durable_kinds)
+    created_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")
     conn.execute(
-        "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,witnesses_json,continuity,importance,status,source_message_id) "
-        "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,witnesses_json,continuity,importance,status,source_message_id,created_at) "
+        "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
         (event_id, session_id, turn_id, event.ref, event.kind, event.entity_id,
          event.description, json.dumps(witnesses, ensure_ascii=False), int(continuity),
-         int(event.importance), status, source_message_id)
+         int(event.importance), status, source_message_id, created_at)
     )
     return event.ref, event_id, status
 
@@ -3507,15 +3508,17 @@ def assess_knowledge_report(
                 )
 
         assessment_id = new_id()
+        assessment_created_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")
         conn.execute(
             "INSERT INTO session_knowledge_assessments("
             "id,session_id,request_id,transmission_id,assessor_entity_id,stance,confidence,"
-            "evidence_report_id,evidence_event_id,rationale,assessed_total_minutes"
-            ") VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+            "evidence_report_id,evidence_event_id,rationale,assessed_total_minutes,created_at"
+            ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 assessment_id, session_id, payload.request_id, transmission_id,
                 payload.assessor_entity_id, payload.stance, payload.confidence,
                 evidence_report_id, evidence_event_id, payload.rationale, current_total,
+                assessment_created_at,
             ),
         )
         assessment = conn.execute(
