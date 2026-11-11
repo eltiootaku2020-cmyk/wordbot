@@ -85,7 +85,9 @@ CREATE TABLE IF NOT EXISTS session_knowledge_assessments (
   stance TEXT NOT NULL CHECK(stance IN ('believes','uncertain','doubts','contradicts')),
   confidence INTEGER NOT NULL CHECK(confidence BETWEEN 0 AND 100),
   evidence_report_id TEXT NOT NULL DEFAULT '',
+  evidence_correction_id TEXT NOT NULL DEFAULT '',
   evidence_event_id TEXT NOT NULL DEFAULT '',
+  assessed_correction_id TEXT NOT NULL DEFAULT '',
   rationale TEXT NOT NULL CHECK(length(trim(rationale)) BETWEEN 1 AND 600),
   assessed_total_minutes INTEGER NOT NULL CHECK(assessed_total_minutes >= 0),
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -385,6 +387,27 @@ class Database:
                 "CREATE INDEX IF NOT EXISTS idx_knowledge_transmissions_parent_correction "
                 "ON session_knowledge_transmissions(session_id,parent_correction_id) "
                 "WHERE parent_correction_id<>''"
+            )
+
+            assessment_columns = {
+                row["name"] for row in conn.execute(
+                    "PRAGMA table_info(session_knowledge_assessments)"
+                ).fetchall()
+            }
+            if "assessed_correction_id" not in assessment_columns:
+                conn.execute(
+                    "ALTER TABLE session_knowledge_assessments "
+                    "ADD COLUMN assessed_correction_id TEXT NOT NULL DEFAULT ''"
+                )
+            if "evidence_correction_id" not in assessment_columns:
+                conn.execute(
+                    "ALTER TABLE session_knowledge_assessments "
+                    "ADD COLUMN evidence_correction_id TEXT NOT NULL DEFAULT ''"
+                )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_knowledge_assessments_by_version "
+                "ON session_knowledge_assessments("
+                "session_id,assessor_entity_id,transmission_id,assessed_correction_id,assessed_total_minutes)"
             )
 
             conn.execute(

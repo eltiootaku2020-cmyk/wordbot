@@ -3376,19 +3376,26 @@ def get_session_state(session_id: str):
 def assess_knowledge_report(
     session_id: str, transmission_id: str, payload: KnowledgeAssessmentRequest
 ):
-    """Record one recipient's evidence-backed opinion without changing world truth."""
+    """Record a recipient's opinion about one exact, previously received report version."""
     with database.transaction() as conn:
         ensure_no_turn_in_progress(conn, session_id)
         session = session_row(conn, session_id)
         if session is None:
             raise HTTPException(status_code=404, detail="Partida no encontrada.")
 
+        assessed_correction_id = payload.assessed_correction_id.strip()
         evidence_report_id = payload.evidence_report_id.strip()
+        evidence_correction_id = payload.evidence_correction_id.strip()
         evidence_event_id = payload.evidence_event_id.strip()
         if bool(evidence_report_id) == bool(evidence_event_id):
             raise HTTPException(
                 status_code=422,
                 detail="Indica exactamente una evidencia: otro informe recibido o un evento conocido directamente."
+            )
+        if evidence_event_id and evidence_correction_id:
+            raise HTTPException(
+                status_code=422,
+                detail="Una evidencia de evento no puede incluir un identificador de rectificación."
             )
 
         existing = conn.execute(
@@ -3401,7 +3408,9 @@ def assess_knowledge_report(
                 and str(existing["assessor_entity_id"]) == payload.assessor_entity_id
                 and str(existing["stance"]) == payload.stance
                 and int(existing["confidence"]) == payload.confidence
+                and str(existing["assessed_correction_id"] or "") == assessed_correction_id
                 and str(existing["evidence_report_id"] or "") == evidence_report_id
+                and str(existing["evidence_correction_id"] or "") == evidence_correction_id
                 and str(existing["evidence_event_id"] or "") == evidence_event_id
                 and str(existing["rationale"]) == payload.rationale
             )
@@ -3413,7 +3422,8 @@ def assess_knowledge_report(
             return {"assessment": dict(existing), "replayed": True}
 
         report = conn.execute(
-            "SELECT t.id,t.source_event_id,t.recipient_entity_id,t.transmitted_total_minutes,"
+            "SELECT t.id,t.source_event_id,t.sender_entity_id,t.recipient_entity_id,"
+            "t.transmission_kind,t.transmitted_total_minutes,"
             "s.status AS source_status,c.status AS communication_status "
             "FROM session_knowledge_transmissions t "
             "JOIN events s ON s.id=t.source_event_id AND s.session_id=t.session_id "
@@ -3434,6 +3444,80 @@ def assess_knowledge_report(
         current_total = (int(session["day"]) - 1) * 1440 + int(session["minute_of_day"])
         if int(report["transmitted_total_minutes"]) > current_total:
             raise HTTPException(status_code=422, detail="El informe todavía no era conocido en el minuto actual.")
+
+        def received_corrected_version(target_report_id: str, correction_id: str):
+            """Return a corrected version only when its complete approved chain is known to this recipient."""
+            correction = conn.execute(
+                "SELECT c.*,e.status AS correction_event_status,e.kind AS correction_event_kind,"
+                "e.witnesses_json,e.source_message_id,"
+                "m.recipient_entity_id AS source_recipient_id,m.metadata_json AS source_metadata_json "
+                "FROM session_knowledge_corrections c "
+                "JOIN events e ON e.id=c.correction_event_id AND e.session_id=c.session_id "
+                "LEFT JOIN messages m ON m.id=e.source_message_id "
+                "WHERE c.id=? AND c.session_id=? AND c.original_transmission_id=?",
+                (correction_id, session_id, target_report_id),
+            ).fetchone()
+            if correction is None:
+                return None
+            target = conn.execute(
+                "SELECT sender_entity_id,recipient_entity_id,transmission_kind "
+                "FROM session_knowledge_transmissions WHERE id=? AND session_id=?",
+                (target_report_id, session_id),
+            ).fetchone()
+            if target is None:
+                return None
+            expected_event_kind = "knowledge" if target["transmission_kind"] == "testimony" else "rumor"
+            if (
+                correction["correction_kind"] != "corrected"
+                or correction["sender_entity_id"] != target["sender_entity_id"]
+                or correction["recipient_entity_id"] != target["recipient_entity_id"]
+                or correction["correction_event_status"] != "recorded"
+                or correction["correction_event_kind"] != expected_event_kind
+                or int(correction["corrected_total_minutes"]) > current_total
+                or not _event_known_to_entity(correction, payload.assessor_entity_id)
+            ):
+                return None
+
+            # Follow every parent to the root. This rejects orphaned, cross-report,
+            # cross-speaker or unapproved links rather than trusting an isolated ID.
+            cursor = correction
+            visited: set[str] = set()
+            while cursor["parent_correction_id"]:
+                parent_id = str(cursor["parent_correction_id"])
+                if parent_id in visited:
+                    return None
+                visited.add(parent_id)
+                parent = conn.execute(
+                    "SELECT c.*,e.status AS correction_event_status,e.kind AS correction_event_kind,"
+                    "e.witnesses_json,e.source_message_id,"
+                    "m.recipient_entity_id AS source_recipient_id,m.metadata_json AS source_metadata_json "
+                    "FROM session_knowledge_corrections c "
+                    "JOIN events e ON e.id=c.correction_event_id AND e.session_id=c.session_id "
+                    "LEFT JOIN messages m ON m.id=e.source_message_id "
+                    "WHERE c.id=? AND c.session_id=? AND c.original_transmission_id=?",
+                    (parent_id, session_id, target_report_id),
+                ).fetchone()
+                if (
+                    parent is None
+                    or parent["correction_kind"] != "corrected"
+                    or parent["sender_entity_id"] != target["sender_entity_id"]
+                    or parent["recipient_entity_id"] != target["recipient_entity_id"]
+                    or parent["correction_event_status"] != "recorded"
+                    or parent["correction_event_kind"] != expected_event_kind
+                    or int(parent["corrected_total_minutes"]) > current_total
+                    or not _event_known_to_entity(parent, payload.assessor_entity_id)
+                ):
+                    return None
+                cursor = parent
+            return correction
+
+        if assessed_correction_id and received_corrected_version(
+            transmission_id, assessed_correction_id
+        ) is None:
+            raise HTTPException(
+                status_code=422,
+                detail="La versión corregida no pertenece a este informe o el destinatario no la había recibido mediante un evento aprobado."
+            )
 
         if evidence_report_id:
             if evidence_report_id == transmission_id:
@@ -3458,6 +3542,13 @@ def assess_knowledge_report(
                     status_code=422,
                     detail="El informe comparativo debe haber sido recibido por el mismo PNJ y referirse al mismo acontecimiento."
                 )
+            if evidence_correction_id and received_corrected_version(
+                evidence_report_id, evidence_correction_id
+            ) is None:
+                raise HTTPException(
+                    status_code=422,
+                    detail="La versión usada como evidencia no fue recibida por ese PNJ o no corresponde al informe indicado."
+                )
         else:
             evidence = conn.execute(
                 "SELECT e.id,e.status,e.kind,e.witnesses_json,e.source_message_id,"
@@ -3480,22 +3571,20 @@ def assess_knowledge_report(
         conn.execute(
             "INSERT INTO session_knowledge_assessments("
             "id,session_id,request_id,transmission_id,assessor_entity_id,stance,confidence,"
-            "evidence_report_id,evidence_event_id,rationale,assessed_total_minutes"
-            ") VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+            "evidence_report_id,evidence_correction_id,evidence_event_id,assessed_correction_id,"
+            "rationale,assessed_total_minutes"
+            ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 assessment_id, session_id, payload.request_id, transmission_id,
                 payload.assessor_entity_id, payload.stance, payload.confidence,
-                evidence_report_id, evidence_event_id, payload.rationale, current_total,
+                evidence_report_id, evidence_correction_id, evidence_event_id,
+                assessed_correction_id, payload.rationale, current_total,
             ),
         )
         assessment = conn.execute(
             "SELECT * FROM session_knowledge_assessments WHERE id=?",
             (assessment_id,),
         ).fetchone()
-        # The assessment changes this recipient's perception signature. Replan
-        # only now, after a new append-only assessment has been persisted; the
-        # planner preserves manual and already-running activities and never
-        # advances the authoritative session clock.
         planned_activities = plan_autonomous_behavior_agendas(
             conn, session_id, current_total
         )

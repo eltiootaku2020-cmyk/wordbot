@@ -837,36 +837,72 @@ function renderState(payload) {
           " · todavía no hay rectificación ni retractación aprobada.";
         item.appendChild(status);
       }
-      if (report.assessment) {
-        const current = document.createElement("p");
-        current.className = "muted";
-        current.textContent = "Última valoración: " +
-          (stanceLabels[report.assessment.stance] || report.assessment.stance) +
-          " · confianza " + report.assessment.confidence + "/100 · " +
-          report.assessment.rationale;
-        item.appendChild(current);
-      } else {
-        const current = document.createElement("p");
-        current.className = "muted";
-        current.textContent = "Todavía no tiene una valoración registrada.";
-        item.appendChild(current);
-      }
-
+      const correctionHistory = Array.isArray(report.correction_history)
+        ? report.correction_history
+        : (report.correction ? [report.correction] : []);
+      const knownVersionAssessments = Array.isArray(report.version_assessments)
+        ? report.version_assessments
+        : [];
+      const versionRecords = [{
+        assessed_correction_id: "",
+        version_number: 0,
+        version_text: report.reported_version,
+        assessment: null,
+        assessment_history: []
+      }, ...correctionHistory.filter(entry => entry.correction_kind === "corrected").map(entry => {
+        const stored = knownVersionAssessments.find(version =>
+          version.assessed_correction_id === entry.correction_id
+        ) || {};
+        return {
+          assessed_correction_id: entry.correction_id,
+          version_number: entry.version_number || 0,
+          version_text: entry.replacement_text,
+          assessment: stored.assessment || null,
+          assessment_history: stored.assessment_history || []
+        };
+      })];
+      const lastCorrected = [...correctionHistory].reverse().find(
+        entry => entry.correction_kind === "corrected"
+      );
+      const defaultVersionId = report.report_status === "corrected" && lastCorrected
+        ? lastCorrected.correction_id
+        : (report.report_status === "active" ? "" :
+          (lastCorrected ? lastCorrected.correction_id : ""));
+      const current = document.createElement("p");
+      current.className = "muted";
+      const historyNote = document.createElement("p");
+      historyNote.className = "muted";
       const controls = document.createElement("div");
       controls.className = "assessment-controls";
+
+      const targetVersionLabel = document.createElement("label");
+      targetVersionLabel.className = "wide";
+      targetVersionLabel.textContent = "Versión exacta que evalúa " + person.name;
+      const targetVersion = document.createElement("select");
+      versionRecords.forEach((version, index) => {
+        const label = index === 0
+          ? "Original: " + version.version_text.slice(0, 90)
+          : "Rectificación " + version.version_number + ": " + version.version_text.slice(0, 90);
+        addOption(targetVersion, version.assessed_correction_id, label);
+      });
+      targetVersion.value = defaultVersionId;
+      targetVersionLabel.appendChild(targetVersion);
+      controls.appendChild(targetVersionLabel);
+
+      const selectedVersionRecord = () => versionRecords.find(
+        version => version.assessed_correction_id === targetVersion.value
+      ) || versionRecords[0];
       const stanceLabel = document.createElement("label");
       stanceLabel.textContent = "Valoración del personaje";
       const stance = document.createElement("select");
       Object.entries(stanceLabels).forEach(([value, label]) => addOption(stance, value, label));
       const confidenceLabel = document.createElement("label");
-      confidenceLabel.textContent = "Confianza en la versión (0–100)";
+      confidenceLabel.textContent = "Confianza en esta versión (0–100)";
       const confidence = document.createElement("input");
       confidence.type = "number";
       confidence.min = "0";
       confidence.max = "100";
       confidence.step = "1";
-      confidence.value = report.assessment ? report.assessment.confidence : "50";
-      stance.value = report.assessment ? report.assessment.stance : "uncertain";
       stanceLabel.appendChild(stance);
       confidenceLabel.appendChild(confidence);
       controls.appendChild(stanceLabel);
@@ -874,7 +910,7 @@ function renderState(payload) {
 
       const evidenceLabel = document.createElement("label");
       evidenceLabel.className = "wide";
-      evidenceLabel.textContent = "Evidencia conocida por " + person.name;
+      evidenceLabel.textContent = "Evidencia exacta conocida por " + person.name;
       const evidence = document.createElement("select");
       addOption(evidence, "", "Selecciona una evidencia");
       (person.knowledge_reports || []).filter(other =>
@@ -882,22 +918,19 @@ function renderState(payload) {
         other.source_event_id === report.source_event_id
       ).forEach(other => {
         const sender = entityNames[other.sender_entity_id] || other.sender_entity_id;
-        addOption(evidence, "report:" + other.transmission_id,
-          "Otro informe de " + sender + ": " + other.reported_version.slice(0, 90));
+        addOption(evidence, "report|" + other.transmission_id + "|",
+          "Informe original de " + sender + ": " + other.reported_version.slice(0, 75));
+        (other.correction_history || []).filter(entry => entry.correction_kind === "corrected")
+          .forEach(entry => {
+            addOption(evidence, "report|" + other.transmission_id + "|" + entry.correction_id,
+              "Rectificación " + (entry.version_number || "") + " de " + sender + ": " +
+              entry.replacement_text.slice(0, 75));
+          });
       });
       (person.known_events || []).forEach(event => {
-        addOption(evidence, "event:" + event.id,
+        addOption(evidence, "event|" + event.id,
           "Evento presenciado/conocido · " + event.kind + " · " + event.description.slice(0, 90));
       });
-      if (report.assessment) {
-        const previousEvidence = report.assessment.evidence_report_id
-          ? "report:" + report.assessment.evidence_report_id
-          : report.assessment.evidence_event_id
-            ? "event:" + report.assessment.evidence_event_id : "";
-        if ([...evidence.options].some(option => option.value === previousEvidence)) {
-          evidence.value = previousEvidence;
-        }
-      }
       evidenceLabel.appendChild(evidence);
       controls.appendChild(evidenceLabel);
 
@@ -907,10 +940,39 @@ function renderState(payload) {
       const rationale = document.createElement("input");
       rationale.type = "text";
       rationale.maxLength = 600;
-      rationale.placeholder = "Qué evidencia conoce y por qué cambia su confianza";
-      rationale.value = report.assessment ? report.assessment.rationale : "";
+      rationale.placeholder = "Qué evidencia conoce y por qué mantiene o cambia su opinión";
       rationaleLabel.appendChild(rationale);
       controls.appendChild(rationaleLabel);
+
+      const updateVersionForm = () => {
+        const selected = selectedVersionRecord();
+        const saved = selected.assessment;
+        current.textContent = saved
+          ? "Última valoración de esta versión: " +
+            (stanceLabels[saved.stance] || saved.stance) +
+            " · confianza " + saved.confidence + "/100 · " + saved.rationale
+          : "Esta versión todavía no tiene una valoración propia.";
+        historyNote.textContent = selected.assessment_history.length
+          ? "Historial de esta versión: " + selected.assessment_history.map(entry =>
+              (stanceLabels[entry.stance] || entry.stance) + " (" +
+              entry.confidence + "/100, minuto " + entry.assessed_total_minutes + ")"
+            ).join(" → ")
+          : "No hay valoraciones anteriores para esta versión.";
+        stance.value = saved ? saved.stance : "uncertain";
+        confidence.value = saved ? saved.confidence : "50";
+        rationale.value = saved ? saved.rationale : "";
+        const previousEvidence = saved
+          ? (saved.evidence_report_id
+            ? "report|" + saved.evidence_report_id + "|" + (saved.evidence_correction_id || "")
+            : (saved.evidence_event_id ? "event|" + saved.evidence_event_id : ""))
+          : "";
+        evidence.value = [...evidence.options].some(option => option.value === previousEvidence)
+          ? previousEvidence : "";
+      };
+      targetVersion.addEventListener("change", updateVersionForm);
+      updateVersionForm();
+      item.appendChild(current);
+      item.appendChild(historyNote);
       item.appendChild(controls);
 
       const actions = document.createElement("div");
@@ -939,8 +1001,10 @@ function renderState(payload) {
           assessor_entity_id: person.id,
           stance: stance.value,
           confidence: score,
-          evidence_report_id: chosen.startsWith("report:") ? chosen.slice(7) : "",
-          evidence_event_id: chosen.startsWith("event:") ? chosen.slice(6) : "",
+          assessed_correction_id: targetVersion.value,
+          evidence_report_id: chosen.startsWith("report|") ? chosen.split("|")[1] : "",
+          evidence_correction_id: chosen.startsWith("report|") ? (chosen.split("|")[2] || "") : "",
+          evidence_event_id: chosen.startsWith("event|") ? chosen.split("|")[1] : "",
           rationale: reason
         };
         save.disabled = true;

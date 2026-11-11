@@ -820,15 +820,21 @@ def _entity_perception_context(
         "ORDER BY a.assessed_total_minutes DESC,a.created_at DESC,a.id DESC LIMIT 200",
         (session_id, entity_id),
     ).fetchall()
-    assessments_by_report: dict[str, list[dict[str, Any]]] = {}
+    assessments_by_report_version: dict[str, dict[str, list[dict[str, Any]]]] = {}
     for assessment in reversed(assessment_rows):
-        assessments_by_report.setdefault(str(assessment["transmission_id"]), []).append({
+        report_id = str(assessment["transmission_id"])
+        correction_id = str(assessment["assessed_correction_id"] or "")
+        assessments_by_report_version.setdefault(report_id, {}).setdefault(correction_id, []).append({
+            "assessment_id": str(assessment["id"]),
+            "assessed_correction_id": correction_id,
             "stance": str(assessment["stance"]),
             "confidence": int(assessment["confidence"]),
             "evidence_report_id": str(assessment["evidence_report_id"] or ""),
+            "evidence_correction_id": str(assessment["evidence_correction_id"] or ""),
             "evidence_event_id": str(assessment["evidence_event_id"] or ""),
             "rationale": str(assessment["rationale"]),
             "assessed_total_minutes": int(assessment["assessed_total_minutes"]),
+            "created_at": str(assessment["created_at"]),
         })
 
     # A sender may later correct or withdraw the exact statement they gave.
@@ -935,6 +941,47 @@ def _entity_perception_context(
             conn, session_id, str(report["id"]), current_total
         )
         origin = provenance_chain[0] if provenance_chain else None
+        report_id = str(report["id"])
+        report_assessments = assessments_by_report_version.get(report_id, {})
+        version_assessments = [{
+            "assessed_correction_id": "",
+            "version_number": 0,
+            "version_label": "original",
+            "version_text": str(report["version_text"]),
+            "version_status": "superseded" if correction_history else "active",
+            "assessment": report_assessments.get("", [])[-1] if report_assessments.get("") else None,
+            "assessment_history": report_assessments.get("", [])[-20:],
+        }]
+        corrected_entries = [
+            entry for entry in correction_history
+            if entry["correction_kind"] == "corrected"
+        ]
+        latest_correction_id = (
+            str(correction_history[-1]["correction_id"]) if correction_history else ""
+        )
+        for version_number, entry in enumerate(corrected_entries, start=1):
+            version_id = str(entry["correction_id"])
+            version_history = report_assessments.get(version_id, [])
+            is_current = report_status == "corrected" and version_id == latest_correction_id
+            version_assessments.append({
+                "assessed_correction_id": version_id,
+                "version_number": version_number,
+                "version_label": f"correction_{version_number}",
+                "version_text": str(entry["replacement_text"]),
+                "version_status": "active" if is_current else "superseded",
+                "assessment": version_history[-1] if version_history else None,
+                "assessment_history": version_history[-20:],
+            })
+        current_assessment = (
+            version_assessments[-1]["assessment"]
+            if report_status == "corrected" and len(version_assessments) > 1
+            else (version_assessments[0]["assessment"] if report_status == "active" else None)
+        )
+        current_assessment_history = (
+            version_assessments[-1]["assessment_history"]
+            if report_status == "corrected" and len(version_assessments) > 1
+            else (version_assessments[0]["assessment_history"] if report_status == "active" else [])
+        )
         knowledge_summary.append({
             "transmission_id": str(report["id"]),
             "transmission_kind": transmission_kind,
@@ -962,11 +1009,10 @@ def _entity_perception_context(
                 if correction and correction["correction_kind"] == "corrected"
                 else ("" if correction and correction["correction_kind"] == "retracted" else str(report["version_text"]))
             ),
-            "assessment": (
-                assessments_by_report.get(str(report["id"]), [])[-1]
-                if assessments_by_report.get(str(report["id"])) else None
-            ),
-            "assessment_history": assessments_by_report.get(str(report["id"]), [])[-10:],
+            "version_assessments": version_assessments,
+            # Backward-compatible summary is scoped to the currently active version only.
+            "assessment": current_assessment,
+            "assessment_history": current_assessment_history,
         })
 
     environment_summary: list[dict[str, Any]] = []

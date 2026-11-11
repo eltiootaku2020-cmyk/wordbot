@@ -4,6 +4,7 @@ from pathlib import Path
 import uuid
 import json
 import re
+import sqlite3
 
 import pytest
 
@@ -16,6 +17,7 @@ from fastapi.testclient import TestClient
 import canon_manager.main as main_module
 from canon_manager.main import app, database, build_context, session_row, apply_narrator_result, relevance_terms
 from canon_manager.models import NarratorResponse, EventProposal, EnvironmentObservationProposal, KnowledgeTransmissionProposal, KnowledgeCorrectionProposal, StateChangeProposal, InventoryOperation, MovementProposal, PowerUseProposal, ResourceOperation
+from canon_manager.db import Database, SCHEMA
 from canon_manager.behavior_runtime import _entity_perception_context, _planner_perception_metadata, tick_behavior_runtime
 
 
@@ -7934,6 +7936,204 @@ def test_assessment_rejects_reports_or_evidence_the_character_does_not_know():
                 (session_id,),
             ).fetchone()["n"]
         assert count == 0
+
+def test_report_assessments_are_scoped_to_exact_versions_and_exact_evidence():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        ids = _entity_ids_by_name(client, world_id)
+        protagonist_id = next(
+            value for name, value in ids.items()
+            if name.lower() in {"protagonista", "protagonist"}
+        )
+        brina_id = ids["Brina Solcor"]
+        maelis_id = ids["Maelis Orven"]
+
+        source = NarratorResponse(
+            narration="El protagonista y Maelis observan una marca y discrepan después sobre su antigüedad.",
+            events=[EventProposal(
+                ref="version-assessment-source",
+                kind="clue",
+                entity_id=protagonist_id,
+                description="Una marca aparece en el tronco.",
+                witness_ids=[protagonist_id, maelis_id],
+                continuity=True,
+            )],
+        )
+        source_turn, _, _ = _apply_synthetic_result(
+            session_id, "Observo la marca junto a Maelis.", source
+        )
+        with database.connection() as conn:
+            source_event = conn.execute(
+                "SELECT id,status FROM events WHERE session_id=? AND turn_id=?",
+                (session_id, source_turn),
+            ).fetchone()
+        assert source_event is not None and source_event["status"] == "recorded"
+
+        first_report_id = _approve_knowledge_testimony(
+            client, session_id, source_event["id"], protagonist_id, brina_id,
+            "version-assessment-first-report",
+            "La marca parecía reciente.",
+        )
+        second_report_id = _approve_knowledge_testimony(
+            client, session_id, source_event["id"], maelis_id, brina_id,
+            "version-assessment-second-report",
+            "La marca parecía antigua.",
+        )
+        _, first_correction_id, _ = _approve_knowledge_correction(
+            client, session_id, first_report_id, protagonist_id, brina_id,
+            "version-assessment-first-correction", "corrected",
+            "Reviso mi primera impresión.",
+            "La marca era antigua, aunque no pude fecharla con precisión.",
+        )
+        second_correction_event_id, second_correction_id, _ = _approve_knowledge_correction(
+            client, session_id, second_report_id, maelis_id, brina_id,
+            "version-assessment-second-correction", "corrected",
+            "Corrijo la certeza de mi primera valoración.",
+            "La marca podría ser antigua, pero no puedo asegurarlo.",
+        )
+
+        original_assessment = {
+            "request_id": "version-assessment-original-001",
+            "assessor_entity_id": brina_id,
+            "stance": "contradicts",
+            "confidence": 24,
+            "evidence_report_id": second_report_id,
+            "evidence_correction_id": "",
+            "evidence_event_id": "",
+            "assessed_correction_id": "",
+            "rationale": "El informe original de Maelis contradice la impresión inicial del protagonista.",
+        }
+        original_response = client.post(
+            f"/api/sessions/{session_id}/knowledge-reports/{first_report_id}/assessments",
+            json=original_assessment,
+        )
+        assert original_response.status_code == 200, original_response.text
+        assert original_response.json()["assessment"]["assessed_correction_id"] == ""
+
+        corrected_assessment = {
+            "request_id": "version-assessment-corrected-001",
+            "assessor_entity_id": brina_id,
+            "stance": "uncertain",
+            "confidence": 48,
+            "evidence_report_id": second_report_id,
+            "evidence_correction_id": second_correction_id,
+            "evidence_event_id": "",
+            "assessed_correction_id": first_correction_id,
+            "rationale": "La rectificación de Maelis reduce la contradicción, pero todavía no confirma la antigüedad.",
+        }
+        corrected_response = client.post(
+            f"/api/sessions/{session_id}/knowledge-reports/{first_report_id}/assessments",
+            json=corrected_assessment,
+        )
+        assert corrected_response.status_code == 200, corrected_response.text
+        assert corrected_response.json()["assessment"]["assessed_correction_id"] == first_correction_id
+        assert corrected_response.json()["assessment"]["evidence_correction_id"] == second_correction_id
+
+        changed_mind = {
+            "request_id": "version-assessment-corrected-002",
+            "assessor_entity_id": brina_id,
+            "stance": "believes",
+            "confidence": 71,
+            "evidence_event_id": second_correction_event_id,
+            "evidence_report_id": "",
+            "evidence_correction_id": "",
+            "assessed_correction_id": first_correction_id,
+            "rationale": "Tras escuchar la rectificación de Maelis, Brina cambia su valoración personal.",
+        }
+        changed_response = client.post(
+            f"/api/sessions/{session_id}/knowledge-reports/{first_report_id}/assessments",
+            json=changed_mind,
+        )
+        assert changed_response.status_code == 200, changed_response.text
+
+        conflicting_replay = dict(corrected_assessment, assessed_correction_id="")
+        conflict = client.post(
+            f"/api/sessions/{session_id}/knowledge-reports/{first_report_id}/assessments",
+            json=conflicting_replay,
+        )
+        assert conflict.status_code == 409
+
+        with database.transaction() as conn:
+            _, brina_perception = _entity_perception_context(conn, session_id, brina_id)
+            first_report = next(
+                item for item in brina_perception["knowledge_reports"]
+                if item["transmission_id"] == first_report_id
+            )
+            stored = conn.execute(
+                "SELECT assessed_correction_id,evidence_report_id,evidence_correction_id,"
+                "evidence_event_id,stance,confidence FROM session_knowledge_assessments "
+                "WHERE session_id=? AND transmission_id=? ORDER BY assessed_total_minutes,id",
+                (session_id, first_report_id),
+            ).fetchall()
+            snapshot = main_module.capture_turn_state(conn, session_id)
+            conn.execute(
+                "DELETE FROM session_knowledge_assessments WHERE session_id=?",
+                (session_id,),
+            )
+            main_module.restore_turn_state(conn, session_id, snapshot)
+            restored_count = conn.execute(
+                "SELECT COUNT(*) AS n FROM session_knowledge_assessments "
+                "WHERE session_id=? AND transmission_id=?",
+                (session_id, first_report_id),
+            ).fetchone()["n"]
+
+        versions = first_report["version_assessments"]
+        original_version = next(v for v in versions if v["assessed_correction_id"] == "")
+        corrected_version = next(v for v in versions if v["assessed_correction_id"] == first_correction_id)
+        assert len(stored) == 3
+        assert original_version["assessment"]["stance"] == "contradicts"
+        assert len(original_version["assessment_history"]) == 1
+        assert corrected_version["assessment"]["stance"] == "believes"
+        assert corrected_version["assessment"]["confidence"] == 71
+        assert len(corrected_version["assessment_history"]) == 2
+        assert corrected_version["assessment_history"][0]["evidence_correction_id"] == second_correction_id
+        assert corrected_version["assessment_history"][1]["evidence_event_id"] == second_correction_event_id
+        assert restored_count == 3
+        assert first_report["report_status"] == "corrected"
+        assert first_report["current_reported_version"] == "La marca era antigua, aunque no pude fecharla con precisión."
+        assert first_report["epistemic_status"] == "reported_not_verified"
+
+        _, retraction_id, _ = _approve_knowledge_correction(
+            client, session_id, first_report_id, protagonist_id, brina_id,
+            "version-assessment-retraction", "retracted",
+            "Retiro la afirmación porque ya no puedo sostenerla.",
+            parent_correction_id=first_correction_id,
+        )
+        retracted_assessment = dict(
+            original_assessment,
+            request_id="version-assessment-retracted-version",
+            assessed_correction_id=retraction_id,
+        )
+        rejected_retraction = client.post(
+            f"/api/sessions/{session_id}/knowledge-reports/{first_report_id}/assessments",
+            json=retracted_assessment,
+        )
+        assert rejected_retraction.status_code == 422
+
+
+def test_assessment_version_migration_adds_columns_without_losing_legacy_schema():
+    with tempfile.TemporaryDirectory(prefix="canon-assessment-version-migration-") as directory:
+        path = Path(directory) / "legacy.sqlite3"
+        legacy_schema = SCHEMA.replace(
+            "  evidence_correction_id TEXT NOT NULL DEFAULT '',\n", ""
+        ).replace(
+            "  assessed_correction_id TEXT NOT NULL DEFAULT '',\n", ""
+        )
+        with sqlite3.connect(path) as connection:
+            connection.executescript(legacy_schema)
+
+        migrated = Database(str(path))
+        migrated.initialize()
+        with migrated._connect() as connection:
+            columns = {
+                row["name"] for row in connection.execute(
+                    "PRAGMA table_info(session_knowledge_assessments)"
+                ).fetchall()
+            }
+        assert "assessed_correction_id" in columns
+        assert "evidence_correction_id" in columns
+
 
 def test_npc_correction_is_approval_gated_personal_and_preserves_original_history(monkeypatch):
     planned_calls = []
