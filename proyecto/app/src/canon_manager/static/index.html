@@ -891,7 +891,9 @@ function renderState(payload) {
         current.textContent = "Última valoración: " +
           (stanceLabels[report.assessment.stance] || report.assessment.stance) +
           " · confianza " + report.assessment.confidence + "/100 · " +
-          report.assessment.rationale;
+          report.assessment.rationale +
+          " · versión valorada: «" + (report.assessment.assessed_version_text || "") +
+          "» · evidencia comparada: «" + (report.assessment.evidence_version_text || "") + "»";
         item.appendChild(current);
       } else {
         const current = document.createElement("p");
@@ -990,7 +992,8 @@ function renderState(payload) {
               other.transmission_id === chosen.slice(7) &&
               other.sender_entity_id !== report.sender_entity_id &&
               other.source_event_id === report.source_event_id &&
-              other.report_status !== "retracted"
+              other.report_status !== "retracted" &&
+              Boolean(other.current_reported_version)
             )) {
           note.textContent = "Para comparar dos informes, elige una versión vigente de otra persona sobre el mismo acontecimiento.";
           return;
@@ -1002,6 +1005,12 @@ function renderState(payload) {
           confidence: score,
           evidence_report_id: chosen.startsWith("report:") ? chosen.slice(7) : "",
           evidence_event_id: chosen.startsWith("event:") ? chosen.slice(6) : "",
+          assessed_correction_id: report.correction ? report.correction.correction_id : "",
+          evidence_correction_id: chosen.startsWith("report:")
+            ? ((person.knowledge_reports || []).find(other =>
+                other.transmission_id === chosen.slice(7)
+              )?.correction?.correction_id || "")
+            : "",
           rationale: reason
         };
         save.disabled = true;

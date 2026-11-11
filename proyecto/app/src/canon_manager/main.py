@@ -3376,11 +3376,75 @@ def get_session_state(session_id: str):
         return load_state(conn, session_id)
 
 
+def _current_knowledge_report_correction_id(
+    conn, session_id: str, transmission_id: str, recipient_entity_id: str,
+    current_total: int,
+) -> str:
+    """Return the exact latest correction visible to this recipient, or '' for the original."""
+    report = conn.execute(
+        "SELECT t.transmission_kind,t.sender_entity_id FROM session_knowledge_transmissions t "
+        "WHERE t.id=? AND t.session_id=? AND t.recipient_entity_id=?",
+        (transmission_id, session_id, recipient_entity_id),
+    ).fetchone()
+    if report is None:
+        raise HTTPException(status_code=404, detail="El informe no pertenece a ese destinatario.")
+    expected_event_kind = "knowledge" if report["transmission_kind"] == "testimony" else "rumor"
+    rows = conn.execute(
+        "SELECT c.id,c.parent_correction_id,c.correction_kind,c.sender_entity_id,c.recipient_entity_id,"
+        "e.status AS event_status,e.kind AS event_kind,e.entity_id AS event_entity_id,"
+        "e.witnesses_json,e.source_message_id,"
+        "m.recipient_entity_id AS source_recipient_id,m.metadata_json AS source_metadata_json "
+        "FROM session_knowledge_corrections c "
+        "JOIN events e ON e.id=c.correction_event_id AND e.session_id=c.session_id "
+        "LEFT JOIN messages m ON m.id=e.source_message_id "
+        "WHERE c.session_id=? AND c.original_transmission_id=? "
+        "AND c.recipient_entity_id=? AND c.corrected_total_minutes<=? "
+        "ORDER BY c.corrected_total_minutes,e.rowid,c.id",
+        (session_id, transmission_id, recipient_entity_id, current_total),
+    ).fetchall()
+    valid: dict[str, dict[str, Any]] = {}
+    children: dict[str, str] = {}
+    roots: list[str] = []
+    for row in rows:
+        correction_id = str(row["id"])
+        parent_id = str(row["parent_correction_id"] or "")
+        if (
+            row["event_status"] != "recorded"
+            or row["event_kind"] != expected_event_kind
+            or row["event_entity_id"] != row["sender_entity_id"]
+            or row["sender_entity_id"] != report["sender_entity_id"]
+            or row["recipient_entity_id"] != recipient_entity_id
+            or not _event_known_to_entity(row, recipient_entity_id)
+        ):
+            continue
+        valid[correction_id] = dict(row)
+        if parent_id:
+            children[parent_id] = correction_id
+        else:
+            roots.append(correction_id)
+    if not valid:
+        return ""
+    # The schema enforces a single root and one child per version. Still fail
+    # closed if corrupted history somehow contains ambiguous roots or links.
+    if len(roots) != 1:
+        raise HTTPException(status_code=409, detail="El historial de versiones del informe no forma una cadena única.")
+    current_id = roots[0]
+    visited: set[str] = set()
+    while current_id in children:
+        if current_id in visited or children[current_id] not in valid:
+            raise HTTPException(status_code=409, detail="El historial de versiones del informe está dañado.")
+        visited.add(current_id)
+        current_id = children[current_id]
+    if len(visited) + 1 != len(valid):
+        raise HTTPException(status_code=409, detail="El historial de versiones del informe contiene ramas o versiones desconectadas.")
+    return current_id
+
+
 @app.post("/api/sessions/{session_id}/knowledge-reports/{transmission_id}/assessments")
 def assess_knowledge_report(
     session_id: str, transmission_id: str, payload: KnowledgeAssessmentRequest
 ):
-    """Record one recipient's evidence-backed opinion without changing world truth."""
+    """Record one recipient's evidence-backed opinion about exact received versions."""
     with database.transaction() as conn:
         ensure_no_turn_in_progress(conn, session_id)
         session = session_row(conn, session_id)
@@ -3395,11 +3459,23 @@ def assess_knowledge_report(
                 detail="Indica exactamente una evidencia: otro informe recibido o un evento conocido directamente."
             )
 
+        # Idempotent replay is checked before resolving current versions: a
+        # later correction must not turn an already-saved historical request
+        # into a conflict. Explicit IDs, when provided, must match the stored
+        # request; omitted IDs retain compatibility with older callers.
         existing = conn.execute(
             "SELECT * FROM session_knowledge_assessments WHERE session_id=? AND request_id=?",
             (session_id, payload.request_id),
         ).fetchone()
         if existing is not None:
+            requested_assessed_id = (
+                None if payload.assessed_correction_id is None
+                else payload.assessed_correction_id.strip()
+            )
+            requested_evidence_id = (
+                None if payload.evidence_correction_id is None
+                else payload.evidence_correction_id.strip()
+            )
             same_request = (
                 str(existing["transmission_id"]) == transmission_id
                 and str(existing["assessor_entity_id"]) == payload.assessor_entity_id
@@ -3407,6 +3483,14 @@ def assess_knowledge_report(
                 and int(existing["confidence"]) == payload.confidence
                 and str(existing["evidence_report_id"] or "") == evidence_report_id
                 and str(existing["evidence_event_id"] or "") == evidence_event_id
+                and (
+                    requested_assessed_id is None
+                    or str(existing["assessed_correction_id"] or "") == requested_assessed_id
+                )
+                and (
+                    requested_evidence_id is None
+                    or str(existing["evidence_correction_id"] or "") == requested_evidence_id
+                )
                 and str(existing["rationale"]) == payload.rationale
             )
             if not same_request:
@@ -3439,6 +3523,32 @@ def assess_knowledge_report(
         if int(report["transmitted_total_minutes"]) > current_total:
             raise HTTPException(status_code=422, detail="El informe todavía no era conocido en el minuto actual.")
 
+        current_assessed_correction_id = _current_knowledge_report_correction_id(
+            conn, session_id, transmission_id, payload.assessor_entity_id, current_total
+        )
+        requested_assessed_correction_id = (
+            None if payload.assessed_correction_id is None
+            else payload.assessed_correction_id.strip()
+        )
+        if (
+            requested_assessed_correction_id is not None
+            and requested_assessed_correction_id != current_assessed_correction_id
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="La versión que intentas valorar ya no es la versión recibida vigente. Actualiza el informe y vuelve a comparar."
+            )
+        assessed_correction_id = (
+            current_assessed_correction_id
+            if requested_assessed_correction_id is None
+            else requested_assessed_correction_id
+        )
+
+        current_evidence_correction_id = ""
+        requested_evidence_correction_id = (
+            None if payload.evidence_correction_id is None
+            else payload.evidence_correction_id.strip()
+        )
         if evidence_report_id:
             if evidence_report_id == transmission_id:
                 raise HTTPException(status_code=422, detail="Un informe no puede usarse como evidencia de sí mismo.")
@@ -3467,7 +3577,50 @@ def assess_knowledge_report(
                     status_code=422,
                     detail="Para registrar una contradicción, los dos informes deben proceder de emisores distintos."
                 )
+            current_evidence_correction_id = _current_knowledge_report_correction_id(
+                conn, session_id, evidence_report_id, payload.assessor_entity_id, current_total
+            )
+            if (
+                requested_evidence_correction_id is not None
+                and requested_evidence_correction_id != current_evidence_correction_id
+            ):
+                raise HTTPException(
+                    status_code=409,
+                    detail="La versión usada como evidencia cambió. Actualiza los informes y vuelve a comparar."
+                )
+            evidence_correction_id = (
+                current_evidence_correction_id
+                if requested_evidence_correction_id is None
+                else requested_evidence_correction_id
+            )
+            if payload.stance == "contradicts":
+                _, assessor_perception = _entity_perception_context(
+                    conn, session_id, payload.assessor_entity_id
+                )
+                visible_reports = {
+                    item["transmission_id"]: item
+                    for item in assessor_perception.get("knowledge_reports", [])
+                }
+                current_report = visible_reports.get(transmission_id)
+                comparison_report = visible_reports.get(evidence_report_id)
+                if (
+                    current_report is None
+                    or comparison_report is None
+                    or current_report.get("report_status") == "retracted"
+                    or comparison_report.get("report_status") == "retracted"
+                    or not current_report.get("current_reported_version")
+                    or not comparison_report.get("current_reported_version")
+                ):
+                    raise HTTPException(
+                        status_code=422,
+                        detail="Solo se pueden comparar versiones vigentes que ese PNJ recibió y que no fueron retiradas."
+                    )
         else:
+            if requested_evidence_correction_id not in {None, ""}:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Una evidencia de tipo evento no puede incluir un ID de rectificación."
+                )
             evidence = conn.execute(
                 "SELECT e.id,e.status,e.kind,e.witnesses_json,e.source_message_id,"
                 "m.recipient_entity_id AS source_recipient_id,m.metadata_json AS source_metadata_json "
@@ -3484,40 +3637,21 @@ def assess_knowledge_report(
                     status_code=422,
                     detail="El PNJ no tiene una vía directa y registrada para conocer ese evento como evidencia."
                 )
-        if payload.stance == "contradicts" and evidence_report_id:
-            _, assessor_perception = _entity_perception_context(
-                conn, session_id, payload.assessor_entity_id
-            )
-            visible_reports = {
-                item["transmission_id"]: item
-                for item in assessor_perception.get("knowledge_reports", [])
-            }
-            current_report = visible_reports.get(transmission_id)
-            comparison_report = visible_reports.get(evidence_report_id)
-            if (
-                current_report is None
-                or comparison_report is None
-                or current_report.get("report_status") == "retracted"
-                or comparison_report.get("report_status") == "retracted"
-                or not current_report.get("current_reported_version")
-                or not comparison_report.get("current_reported_version")
-            ):
-                raise HTTPException(
-                    status_code=422,
-                    detail="Solo se pueden comparar versiones vigentes que ese PNJ recibió y que no fueron retiradas."
-                )
+            evidence_correction_id = ""
 
         assessment_id = new_id()
         assessment_created_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")
         conn.execute(
             "INSERT INTO session_knowledge_assessments("
             "id,session_id,request_id,transmission_id,assessor_entity_id,stance,confidence,"
-            "evidence_report_id,evidence_event_id,rationale,assessed_total_minutes,created_at"
-            ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+            "evidence_report_id,evidence_event_id,assessed_correction_id,evidence_correction_id,"
+            "version_refs_exact,rationale,assessed_total_minutes,created_at"
+            ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 assessment_id, session_id, payload.request_id, transmission_id,
                 payload.assessor_entity_id, payload.stance, payload.confidence,
-                evidence_report_id, evidence_event_id, payload.rationale, current_total,
+                evidence_report_id, evidence_event_id, assessed_correction_id,
+                evidence_correction_id, 1, payload.rationale, current_total,
                 assessment_created_at,
             ),
         )

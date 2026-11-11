@@ -7862,6 +7862,9 @@ def test_report_credibility_is_personal_evidence_linked_append_only_and_snapshot
         assert first_report["epistemic_status"] == "reported_not_verified"
         assert first_report["assessment"]["stance"] == "contradicts"
         assert first_report["assessment"]["confidence"] == 24
+        assert first_report["assessment"]["assessed_correction_id"] == ""
+        assert first_report["assessment"]["evidence_correction_id"] == ""
+        assert first_report["assessment"]["version_refs_exact"] is True
         assert len(first_report["assessment_history"]) == 1
         assert len(brina_perception["knowledge_comparisons"]) == 1
         comparison = brina_perception["knowledge_comparisons"][0]
@@ -7905,6 +7908,167 @@ def test_report_credibility_is_personal_evidence_linked_append_only_and_snapshot
         assert updated_comparison["comparison_status"] == "needs_reassessment"
         assert updated_comparison["assessment_is_current"] is False
         assert updated_comparison["assessment"]["stance"] == "contradicts"
+
+
+def test_report_comparison_keeps_the_exact_corrections_it_compared():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        ids = _entity_ids_by_name(client, world_id)
+        protagonist_id = next(
+            value for name, value in ids.items()
+            if name.lower() in {"protagonista", "protagonist"}
+        )
+        brina_id = ids["Brina Solcor"]
+        maelis_id = ids["Maelis Orven"]
+
+        source = NarratorResponse(
+            narration="El protagonista y Maelis observan la misma marca.",
+            events=[EventProposal(
+                ref="version-comparison-source",
+                kind="clue",
+                entity_id=protagonist_id,
+                description="Una marca aparece en el tronco del árbol.",
+                witness_ids=[protagonist_id, maelis_id],
+                continuity=True,
+                importance=4,
+            )],
+        )
+        source_turn, _, _ = _apply_synthetic_result(
+            session_id, "Observo la marca con Maelis.", source
+        )
+        with database.connection() as conn:
+            source_event = conn.execute(
+                "SELECT id,status FROM events WHERE session_id=? AND turn_id=?",
+                (session_id, source_turn),
+            ).fetchone()
+        assert source_event is not None and source_event["status"] == "recorded"
+
+        first_report_id = _approve_knowledge_testimony(
+            client, session_id, source_event["id"], protagonist_id, brina_id,
+            "version-comparison-first-report",
+            "Vi una marca reciente en el tronco.",
+        )
+        second_report_id = _approve_knowledge_testimony(
+            client, session_id, source_event["id"], maelis_id, brina_id,
+            "version-comparison-second-report",
+            "La marca parecía antigua y estaba cubierta de musgo.",
+        )
+        first_correction_text = "Rectifico: la marca estaba en la corteza exterior, no en el tronco central."
+        _, first_correction_id, _ = _approve_knowledge_correction(
+            client, session_id, first_report_id, protagonist_id, brina_id,
+            "version-comparison-first-correction", "corrected",
+            "Al observar mejor la marca, preciso su ubicación.",
+            first_correction_text,
+        )
+        evidence_correction_text = "Rectifico: la marca era antigua, pero el musgo solo cubría un borde."
+        _, evidence_correction_id, _ = _approve_knowledge_correction(
+            client, session_id, second_report_id, maelis_id, brina_id,
+            "version-comparison-evidence-correction", "corrected",
+            "Maelis precisa el estado de conservación de la marca.",
+            evidence_correction_text,
+        )
+
+        payload = {
+            "request_id": "version-comparison-brina-001",
+            "assessor_entity_id": brina_id,
+            "stance": "contradicts",
+            "confidence": 36,
+            "evidence_report_id": second_report_id,
+            "evidence_event_id": "",
+            "assessed_correction_id": first_correction_id,
+            "evidence_correction_id": evidence_correction_id,
+            "rationale": "Brina compara las dos versiones corregidas que recibió sobre la misma marca.",
+        }
+        compared = client.post(
+            f"/api/sessions/{session_id}/knowledge-reports/{first_report_id}/assessments",
+            json=payload,
+        )
+        assert compared.status_code == 200, compared.text
+        stored = compared.json()["assessment"]
+        assert stored["assessed_correction_id"] == first_correction_id
+        assert stored["evidence_correction_id"] == evidence_correction_id
+        assert stored["version_refs_exact"] == 1
+
+        # The evidence sender later adds another correction. The old assessment
+        # must continue to refer to the exact version Brina compared before.
+        newest_evidence_text = "Rectifico de nuevo: la marca era antigua y el musgo estaba solo en el borde inferior."
+        _, newest_evidence_correction_id, _ = _approve_knowledge_correction(
+            client, session_id, second_report_id, maelis_id, brina_id,
+            "version-comparison-evidence-correction-2", "corrected",
+            "Maelis revisa el detalle una segunda vez.",
+            newest_evidence_text,
+            parent_correction_id=evidence_correction_id,
+        )
+
+        with database.connection() as conn:
+            _, brina_perception = _entity_perception_context(conn, session_id, brina_id)
+        first_report = next(
+            item for item in brina_perception["knowledge_reports"]
+            if item["transmission_id"] == first_report_id
+        )
+        second_report = next(
+            item for item in brina_perception["knowledge_reports"]
+            if item["transmission_id"] == second_report_id
+        )
+        assessment = first_report["assessment"]
+        assert assessment["stance"] == "contradicts"
+        assert assessment["assessed_correction_id"] == first_correction_id
+        assert assessment["evidence_correction_id"] == evidence_correction_id
+        assert assessment["assessed_version_text"] == first_correction_text
+        assert assessment["evidence_version_text"] == evidence_correction_text
+        assert second_report["correction"]["correction_id"] == newest_evidence_correction_id
+        assert second_report["current_reported_version"] == newest_evidence_text
+        historical_replay = client.post(
+            f"/api/sessions/{session_id}/knowledge-reports/{first_report_id}/assessments",
+            json=payload,
+        )
+        assert historical_replay.status_code == 200, historical_replay.text
+        assert historical_replay.json()["replayed"] is True
+        assert historical_replay.json()["assessment"]["evidence_correction_id"] == evidence_correction_id
+        assert first_report["epistemic_status"] == "reported_not_verified"
+        assert second_report["epistemic_status"] == "reported_not_verified"
+
+        with database.transaction() as conn:
+            snapshot = main_module.capture_turn_state(conn, session_id)
+            conn.execute(
+                "DELETE FROM session_knowledge_assessments WHERE session_id=?",
+                (session_id,),
+            )
+            main_module.restore_turn_state(conn, session_id, snapshot)
+            restored_assessment = conn.execute(
+                "SELECT assessed_correction_id,evidence_correction_id,version_refs_exact "
+                "FROM session_knowledge_assessments WHERE session_id=? AND request_id=?",
+                (session_id, payload["request_id"]),
+            ).fetchone()
+        assert restored_assessment is not None
+        assert restored_assessment["assessed_correction_id"] == first_correction_id
+        assert restored_assessment["evidence_correction_id"] == evidence_correction_id
+        assert restored_assessment["version_refs_exact"] == 1
+
+        stale_comparison = {
+            **payload,
+            "request_id": "version-comparison-brina-stale-evidence",
+            "evidence_correction_id": evidence_correction_id,
+        }
+        stale = client.post(
+            f"/api/sessions/{session_id}/knowledge-reports/{first_report_id}/assessments",
+            json=stale_comparison,
+        )
+        assert stale.status_code == 409
+        assert "versión usada como evidencia cambió" in stale.json()["detail"]
+
+        stale_target = {
+            **payload,
+            "request_id": "version-comparison-brina-stale-target",
+            "assessed_correction_id": "",
+        }
+        stale_target_response = client.post(
+            f"/api/sessions/{session_id}/knowledge-reports/{first_report_id}/assessments",
+            json=stale_target,
+        )
+        assert stale_target_response.status_code == 409
+        assert "versión que intentas valorar" in stale_target_response.json()["detail"]
 
 
 def test_contradiction_requires_two_live_reports_from_different_senders():
@@ -8004,7 +8168,6 @@ def test_report_comparison_candidates_exclude_retracted_versions():
             if report["transmission_id"] == first_report_id
         )
         assert withdrawn["report_status"] == "retracted"
-
 
 def test_assessment_rejects_reports_or_evidence_the_character_does_not_know():
     with TestClient(app) as client:
@@ -8229,6 +8392,9 @@ def test_correction_chain_migration_upgrades_legacy_table_without_parent_column(
             "  parent_correction_id TEXT REFERENCES session_knowledge_corrections(id) ON DELETE RESTRICT,\n",
             "",
         ).replace(
+            "  assessed_correction_id TEXT NOT NULL DEFAULT '',\n  evidence_correction_id TEXT NOT NULL DEFAULT '',\n  version_refs_exact INTEGER NOT NULL DEFAULT 1 CHECK(version_refs_exact IN (0,1)),\n",
+            "",
+        ).replace(
             "  UNIQUE(session_id, request_id),\n  CHECK(sender_entity_id <> recipient_entity_id),",
             "  UNIQUE(session_id, request_id),\n  UNIQUE(session_id, original_transmission_id),\n  CHECK(sender_entity_id <> recipient_entity_id),",
         )
@@ -8246,7 +8412,17 @@ def test_correction_chain_migration_upgrades_legacy_table_without_parent_column(
             indexes = {row["name"] for row in conn.execute(
                 "PRAGMA index_list(session_knowledge_corrections)"
             ).fetchall()}
+            assessment_columns = {row["name"] for row in conn.execute(
+                "PRAGMA table_info(session_knowledge_assessments)"
+            ).fetchall()}
+            legacy_assessment_version_flag = conn.execute(
+                "SELECT dflt_value FROM pragma_table_info('session_knowledge_assessments') "
+                "WHERE name='version_refs_exact'"
+            ).fetchone()["dflt_value"]
         assert "parent_correction_id" in columns
+        assert "assessed_correction_id" in assessment_columns
+        assert "evidence_correction_id" in assessment_columns
+        assert legacy_assessment_version_flag == "0"
         with Database(str(path)).connection() as conn:
             transmission_columns = {row["name"] for row in conn.execute(
                 "PRAGMA table_info(session_knowledge_transmissions)"

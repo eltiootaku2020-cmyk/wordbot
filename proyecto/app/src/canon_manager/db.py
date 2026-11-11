@@ -86,6 +86,9 @@ CREATE TABLE IF NOT EXISTS session_knowledge_assessments (
   confidence INTEGER NOT NULL CHECK(confidence BETWEEN 0 AND 100),
   evidence_report_id TEXT NOT NULL DEFAULT '',
   evidence_event_id TEXT NOT NULL DEFAULT '',
+  assessed_correction_id TEXT NOT NULL DEFAULT '',
+  evidence_correction_id TEXT NOT NULL DEFAULT '',
+  version_refs_exact INTEGER NOT NULL DEFAULT 1 CHECK(version_refs_exact IN (0,1)),
   rationale TEXT NOT NULL CHECK(length(trim(rationale)) BETWEEN 1 AND 600),
   assessed_total_minutes INTEGER NOT NULL CHECK(assessed_total_minutes >= 0),
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -370,6 +373,29 @@ class Database:
                 except Exception:
                     conn.rollback()
                     raise
+
+            assessment_columns = {
+                row["name"] for row in conn.execute(
+                    "PRAGMA table_info(session_knowledge_assessments)"
+                ).fetchall()
+            }
+            if "assessed_correction_id" not in assessment_columns:
+                conn.execute(
+                    "ALTER TABLE session_knowledge_assessments "
+                    "ADD COLUMN assessed_correction_id TEXT NOT NULL DEFAULT ''"
+                )
+            if "evidence_correction_id" not in assessment_columns:
+                conn.execute(
+                    "ALTER TABLE session_knowledge_assessments "
+                    "ADD COLUMN evidence_correction_id TEXT NOT NULL DEFAULT ''"
+                )
+            if "version_refs_exact" not in assessment_columns:
+                # Old assessments did not store correction IDs. Do not pretend
+                # we can reconstruct their exact wording after the fact.
+                conn.execute(
+                    "ALTER TABLE session_knowledge_assessments "
+                    "ADD COLUMN version_refs_exact INTEGER NOT NULL DEFAULT 0 CHECK(version_refs_exact IN (0,1))"
+                )
 
             transmission_columns = {
                 row["name"] for row in conn.execute(

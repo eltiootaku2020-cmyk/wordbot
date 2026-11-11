@@ -813,8 +813,25 @@ def _entity_perception_context(
     # Assessments are personal judgements by the recipient. They never alter
     # the underlying event or another character's view of the same report.
     assessment_rows = conn.execute(
-        "SELECT a.* FROM session_knowledge_assessments a "
+        "SELECT a.*,t.version_text AS assessed_original_text,"
+        "evidence.version_text AS evidence_original_text,"
+        "assessed_c.correction_kind AS assessed_correction_kind,"
+        "assessed_c.replacement_text AS assessed_correction_text,"
+        "evidence_c.correction_kind AS evidence_correction_kind,"
+        "evidence_c.replacement_text AS evidence_correction_text,"
+        "evidence.sender_entity_id AS evidence_sender_entity_id,"
+        "evidence_sender.name AS evidence_sender_name,"
+        "evidence_event.description AS evidence_event_description "
+        "FROM session_knowledge_assessments a "
         "JOIN session_knowledge_transmissions t ON t.id=a.transmission_id "
+        "LEFT JOIN session_knowledge_transmissions evidence "
+        "ON evidence.id=a.evidence_report_id AND evidence.session_id=a.session_id "
+        "LEFT JOIN entities evidence_sender ON evidence_sender.id=evidence.sender_entity_id "
+        "LEFT JOIN events evidence_event ON evidence_event.id=a.evidence_event_id AND evidence_event.session_id=a.session_id "
+        "LEFT JOIN session_knowledge_corrections assessed_c "
+        "ON assessed_c.id=a.assessed_correction_id AND assessed_c.session_id=a.session_id "
+        "LEFT JOIN session_knowledge_corrections evidence_c "
+        "ON evidence_c.id=a.evidence_correction_id AND evidence_c.session_id=a.session_id "
         "WHERE a.session_id=? AND a.assessor_entity_id=? "
         "AND t.recipient_entity_id=a.assessor_entity_id "
         "ORDER BY a.assessed_total_minutes DESC,a.created_at DESC,a.id DESC LIMIT 200",
@@ -822,11 +839,49 @@ def _entity_perception_context(
     ).fetchall()
     assessments_by_report: dict[str, list[dict[str, Any]]] = {}
     for assessment in reversed(assessment_rows):
+        assessed_correction_id = str(assessment["assessed_correction_id"] or "")
+        evidence_correction_id = str(assessment["evidence_correction_id"] or "")
+        assessed_correction_kind = str(assessment["assessed_correction_kind"] or "")
+        evidence_correction_kind = str(assessment["evidence_correction_kind"] or "")
+        version_refs_exact = bool(assessment["version_refs_exact"])
+        assessed_version_text = (
+            str(assessment["assessed_original_text"] or "")
+            if version_refs_exact else "[versión histórica sin referencia exacta]"
+        )
+        if version_refs_exact and assessed_correction_id:
+            assessed_version_text = (
+                str(assessment["assessed_correction_text"] or "")
+                if assessed_correction_kind == "corrected"
+                else "[afirmación retirada]"
+            )
+        evidence_version_text = ""
+        if str(assessment["evidence_report_id"] or ""):
+            evidence_version_text = (
+                str(assessment["evidence_original_text"] or "")
+                if version_refs_exact else "[versión histórica sin referencia exacta]"
+            )
+            if version_refs_exact and evidence_correction_id:
+                evidence_version_text = (
+                    str(assessment["evidence_correction_text"] or "")
+                    if evidence_correction_kind == "corrected"
+                    else "[afirmación retirada]"
+                )
+        elif str(assessment["evidence_event_id"] or ""):
+            evidence_version_text = (
+                "Evento conocido: " + str(assessment["evidence_event_description"] or assessment["evidence_event_id"])
+            )
         assessments_by_report.setdefault(str(assessment["transmission_id"]), []).append({
             "stance": str(assessment["stance"]),
             "confidence": int(assessment["confidence"]),
             "evidence_report_id": str(assessment["evidence_report_id"] or ""),
             "evidence_event_id": str(assessment["evidence_event_id"] or ""),
+            "assessed_correction_id": assessed_correction_id,
+            "evidence_correction_id": evidence_correction_id,
+            "version_refs_exact": version_refs_exact,
+            "assessed_version_text": assessed_version_text,
+            "evidence_version_text": evidence_version_text,
+            "evidence_sender_entity_id": str(assessment["evidence_sender_entity_id"] or ""),
+            "evidence_sender_name": str(assessment["evidence_sender_name"] or ""),
             "rationale": str(assessment["rationale"]),
             "assessed_total_minutes": int(assessment["assessed_total_minutes"]),
             "created_at": str(assessment["created_at"]),
@@ -838,8 +893,7 @@ def _entity_perception_context(
     correction_rows = conn.execute(
         "SELECT c.*,t.transmission_kind AS target_transmission_kind,"
         "e.status AS correction_event_status,e.kind AS correction_event_kind,"
-        "e.created_at AS correction_event_created_at,"
-        "e.witnesses_json,e.source_message_id,"
+        "e.created_at AS correction_event_created_at,e.witnesses_json,e.source_message_id,"
         "m.recipient_entity_id AS source_recipient_id,m.metadata_json AS source_metadata_json "
         "FROM session_knowledge_corrections c "
         "JOIN session_knowledge_transmissions t ON t.id=c.original_transmission_id AND t.session_id=c.session_id "
@@ -1016,15 +1070,35 @@ def _entity_perception_context(
             assessment_is_current = bool(assessment)
             if assessment:
                 assessed_at = str(assessment.get("created_at") or "")
+                exact_version_refs = bool(assessment.get("version_refs_exact"))
                 for compared_report in (left, right):
                     history = compared_report.get("correction_history") or []
-                    latest_correction_at = (
-                        str(history[-1].get("correction_created_at") or "")
-                        if history else ""
+                    current_correction_id = (
+                        str(compared_report.get("correction", {}).get("correction_id") or "")
+                        if isinstance(compared_report.get("correction"), dict) else ""
                     )
-                    latest_correction_total = (
-                        int(history[-1].get("corrected_total_minutes") or 0)
-                        if history else 0
+                    if exact_version_refs:
+                        compared_correction_id = (
+                            str(assessment.get("assessed_correction_id") or "")
+                            if compared_report["transmission_id"] == assessment_report_id
+                            else str(assessment.get("evidence_correction_id") or "")
+                        )
+                        if compared_correction_id != current_correction_id:
+                            assessment_is_current = False
+                            break
+                    latest_correction_at = max(
+                        (
+                            str(entry.get("correction_created_at") or "")
+                            for entry in history
+                        ),
+                        default="",
+                    )
+                    latest_correction_total = max(
+                        (
+                            int(entry.get("corrected_total_minutes") or 0)
+                            for entry in history
+                        ),
+                        default=0,
                     )
                     if (
                         (latest_correction_at and latest_correction_at > assessed_at)
