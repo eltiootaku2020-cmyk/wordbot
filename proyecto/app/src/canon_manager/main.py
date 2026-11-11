@@ -810,9 +810,11 @@ def build_context(
     for participant in participants:
         _, perception = _entity_perception_context(conn, session["id"], participant["id"])
         participant["knowledge_reports"] = perception.get("knowledge_reports", [])
+        participant["knowledge_comparisons"] = perception.get("knowledge_comparisons", [])
     if recipient is not None:
         _, perception = _entity_perception_context(conn, session["id"], recipient["id"])
         recipient["knowledge_reports"] = perception.get("knowledge_reports", [])
+        recipient["knowledge_comparisons"] = perception.get("knowledge_comparisons", [])
 
     relationship = []
     if recipient_id:
@@ -1320,12 +1322,13 @@ def write_event(
     ]
     durable_kinds = {"promise", "quest", "injury", "clue", "secret", "deadline", "threat", "timeline_anchor", "knowledge", "tracked_fact"}
     continuity = bool(event.continuity or event.kind in durable_kinds)
+    created_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")
     conn.execute(
-        "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,witnesses_json,continuity,importance,status,source_message_id) "
-        "VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+        "INSERT INTO events(id,session_id,turn_id,external_ref,kind,entity_id,description,witnesses_json,continuity,importance,status,source_message_id,created_at) "
+        "VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
         (event_id, session_id, turn_id, event.ref, event.kind, event.entity_id,
          event.description, json.dumps(witnesses, ensure_ascii=False), int(continuity),
-         int(event.importance), status, source_message_id)
+         int(event.importance), status, source_message_id, created_at)
     )
     return event.ref, event_id, status
 
@@ -2648,6 +2651,7 @@ def load_state(conn, session_id: str) -> dict[str, Any]:
     for participant in participants:
         _, perception = _entity_perception_context(conn, session_id, participant["id"])
         participant["knowledge_reports"] = perception.get("knowledge_reports", [])
+        participant["knowledge_comparisons"] = perception.get("knowledge_comparisons", [])
         known_event_ids = perception.get("source_event_ids", [])
         participant["known_event_ids"] = known_event_ids
         if known_event_ids:
@@ -3497,7 +3501,7 @@ def assess_knowledge_report(
             return {"assessment": dict(existing), "replayed": True}
 
         report = conn.execute(
-            "SELECT t.id,t.source_event_id,t.recipient_entity_id,t.transmitted_total_minutes,"
+            "SELECT t.id,t.source_event_id,t.sender_entity_id,t.recipient_entity_id,t.transmitted_total_minutes,"
             "s.status AS source_status,c.status AS communication_status "
             "FROM session_knowledge_transmissions t "
             "JOIN events s ON s.id=t.source_event_id AND s.session_id=t.session_id "
@@ -3549,7 +3553,7 @@ def assess_knowledge_report(
             if evidence_report_id == transmission_id:
                 raise HTTPException(status_code=422, detail="Un informe no puede usarse como evidencia de sí mismo.")
             evidence = conn.execute(
-                "SELECT t.id,t.source_event_id,t.transmitted_total_minutes,"
+                "SELECT t.id,t.source_event_id,t.sender_entity_id,t.transmitted_total_minutes,"
                 "s.status AS source_status,c.status AS communication_status "
                 "FROM session_knowledge_transmissions t "
                 "JOIN events s ON s.id=t.source_event_id AND s.session_id=t.session_id "
@@ -3568,6 +3572,11 @@ def assess_knowledge_report(
                     status_code=422,
                     detail="El informe comparativo debe haber sido recibido por el mismo PNJ y referirse al mismo acontecimiento."
                 )
+            if payload.stance == "contradicts" and evidence["sender_entity_id"] == report["sender_entity_id"]:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Para registrar una contradicción, los dos informes deben proceder de emisores distintos."
+                )
             current_evidence_correction_id = _current_knowledge_report_correction_id(
                 conn, session_id, evidence_report_id, payload.assessor_entity_id, current_total
             )
@@ -3584,6 +3593,28 @@ def assess_knowledge_report(
                 if requested_evidence_correction_id is None
                 else requested_evidence_correction_id
             )
+            if payload.stance == "contradicts":
+                _, assessor_perception = _entity_perception_context(
+                    conn, session_id, payload.assessor_entity_id
+                )
+                visible_reports = {
+                    item["transmission_id"]: item
+                    for item in assessor_perception.get("knowledge_reports", [])
+                }
+                current_report = visible_reports.get(transmission_id)
+                comparison_report = visible_reports.get(evidence_report_id)
+                if (
+                    current_report is None
+                    or comparison_report is None
+                    or current_report.get("report_status") == "retracted"
+                    or comparison_report.get("report_status") == "retracted"
+                    or not current_report.get("current_reported_version")
+                    or not comparison_report.get("current_reported_version")
+                ):
+                    raise HTTPException(
+                        status_code=422,
+                        detail="Solo se pueden comparar versiones vigentes que ese PNJ recibió y que no fueron retiradas."
+                    )
         else:
             if requested_evidence_correction_id not in {None, ""}:
                 raise HTTPException(
@@ -3609,17 +3640,19 @@ def assess_knowledge_report(
             evidence_correction_id = ""
 
         assessment_id = new_id()
+        assessment_created_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")
         conn.execute(
             "INSERT INTO session_knowledge_assessments("
             "id,session_id,request_id,transmission_id,assessor_entity_id,stance,confidence,"
             "evidence_report_id,evidence_event_id,assessed_correction_id,evidence_correction_id,"
-            "version_refs_exact,rationale,assessed_total_minutes"
-            ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            "version_refs_exact,rationale,assessed_total_minutes,created_at"
+            ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 assessment_id, session_id, payload.request_id, transmission_id,
                 payload.assessor_entity_id, payload.stance, payload.confidence,
                 evidence_report_id, evidence_event_id, assessed_correction_id,
                 evidence_correction_id, 1, payload.rationale, current_total,
+                assessment_created_at,
             ),
         )
         assessment = conn.execute(
