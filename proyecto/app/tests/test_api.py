@@ -8100,6 +8100,9 @@ def test_correction_chain_migration_upgrades_legacy_table_without_parent_column(
     with tempfile.TemporaryDirectory(prefix="canon-correction-migration-") as directory:
         path = Path(directory) / "legacy.sqlite3"
         legacy_schema = SCHEMA.replace(
+            "  parent_correction_id TEXT NOT NULL DEFAULT '',\n  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  UNIQUE(session_id, request_id),\n  UNIQUE(session_id, communication_event_id, recipient_entity_id),",
+            "  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,\n  UNIQUE(session_id, request_id),\n  UNIQUE(session_id, communication_event_id, recipient_entity_id),",
+        ).replace(
             "  parent_correction_id TEXT REFERENCES session_knowledge_corrections(id) ON DELETE RESTRICT,\n",
             "",
         ).replace(
@@ -8121,13 +8124,18 @@ def test_correction_chain_migration_upgrades_legacy_table_without_parent_column(
                 "PRAGMA index_list(session_knowledge_corrections)"
             ).fetchall()}
         assert "parent_correction_id" in columns
+        with Database(str(path)).connection() as conn:
+            transmission_columns = {row["name"] for row in conn.execute(
+                "PRAGMA table_info(session_knowledge_transmissions)"
+            ).fetchall()}
+        assert "parent_correction_id" in transmission_columns
         assert "idx_knowledge_corrections_root" in indexes
         assert "idx_knowledge_corrections_child" in indexes
 
 
 def _approve_knowledge_rumor(
     client, session_id, source_event_id, parent_transmission_id,
-    sender_id, recipient_id, ref, version_text,
+    sender_id, recipient_id, ref, version_text, parent_correction_id="",
 ):
     proposal = NarratorResponse(
         narration="Un personaje retransmite a otro una versión que recibió previamente.",
@@ -8147,6 +8155,7 @@ def _approve_knowledge_rumor(
             transmission_kind="rumor",
             version_text=version_text,
             parent_transmission_id=parent_transmission_id,
+            parent_correction_id=parent_correction_id,
         )],
     )
     turn_id, _, notes = _apply_synthetic_result(
@@ -8164,12 +8173,13 @@ def _approve_knowledge_rumor(
     assert approved.status_code == 200, approved.text
     with database.connection() as conn:
         transmission = conn.execute(
-            "SELECT id,parent_transmission_id FROM session_knowledge_transmissions "
+            "SELECT id,parent_transmission_id,parent_correction_id FROM session_knowledge_transmissions "
             "WHERE session_id=? AND communication_event_id=?",
             (session_id, event["id"]),
         ).fetchone()
     assert transmission is not None
     assert transmission["parent_transmission_id"] == parent_transmission_id
+    assert transmission["parent_correction_id"] == parent_correction_id
     return str(transmission["id"])
 
 
