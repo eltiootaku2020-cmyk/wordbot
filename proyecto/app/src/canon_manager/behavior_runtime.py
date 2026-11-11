@@ -1022,7 +1022,17 @@ def _entity_perception_context(
                         str(history[-1].get("correction_created_at") or "")
                         if history else ""
                     )
-                    if latest_correction_at and latest_correction_at > assessed_at:
+                    latest_correction_total = (
+                        int(history[-1].get("corrected_total_minutes") or 0)
+                        if history else 0
+                    )
+                    if (
+                        (latest_correction_at and latest_correction_at > assessed_at)
+                        or (
+                            history
+                            and latest_correction_total > int(assessment.get("assessed_total_minutes") or 0)
+                        )
+                    ):
                         assessment_is_current = False
                         break
             comparison = {
