@@ -631,7 +631,7 @@ def _knowledge_transmission_provenance(
             "t.transmission_kind,t.version_text,t.transmitted_total_minutes,"
             "t.parent_transmission_id,t.parent_correction_id,es.name AS sender_name,er.name AS recipient_name,"
             "s.status AS source_status,c.status AS communication_status,c.kind AS communication_kind,"
-            "c.created_at AS communication_created_at "
+            "c.created_at AS communication_created_at,c.rowid AS communication_rowid "
             "FROM session_knowledge_transmissions t "
             "JOIN entities es ON es.id=t.sender_entity_id "
             "JOIN entities er ON er.id=t.recipient_entity_id "
@@ -668,7 +668,8 @@ def _knowledge_transmission_provenance(
             selected_source_correction = conn.execute(
                 "SELECT c.id,c.correction_kind,c.recipient_entity_id,c.corrected_total_minutes,"
                 "e.status AS correction_event_status,e.kind AS correction_event_kind,"
-                "e.created_at AS correction_created_at,p.transmission_kind AS parent_transmission_kind "
+                "e.created_at AS correction_created_at,e.rowid AS correction_event_rowid,"
+                "p.transmission_kind AS parent_transmission_kind "
                 "FROM session_knowledge_corrections c "
                 "JOIN events e ON e.id=c.correction_event_id AND e.session_id=c.session_id "
                 "JOIN session_knowledge_transmissions p ON p.id=c.original_transmission_id AND p.session_id=c.session_id "
@@ -682,15 +683,15 @@ def _knowledge_transmission_provenance(
                 "JOIN events e ON e.id=c.correction_event_id AND e.session_id=c.session_id "
                 "WHERE c.session_id=? AND c.original_transmission_id=? "
                 "AND c.corrected_total_minutes<=? "
-                "AND e.created_at<=? "
+                "AND e.rowid<=? "
                 "AND NOT EXISTS (SELECT 1 FROM session_knowledge_corrections child "
                 "JOIN events child_event ON child_event.id=child.correction_event_id "
                 "WHERE child.session_id=c.session_id AND child.parent_correction_id=c.id "
-                "AND child_event.created_at<=?) "
-                "ORDER BY c.corrected_total_minutes DESC,e.created_at DESC,c.id DESC LIMIT 1",
+                "AND child_event.rowid<=?) "
+                "ORDER BY c.corrected_total_minutes DESC,e.rowid DESC,c.id DESC LIMIT 1",
                 (
                     session_id, parent_id, int(row["transmitted_total_minutes"]),
-                    row["communication_created_at"], row["communication_created_at"]
+                    row["communication_rowid"], row["communication_rowid"]
                 ),
             ).fetchone()
             expected_parent_correction_event = (
@@ -706,7 +707,7 @@ def _knowledge_transmission_provenance(
                 or selected_source_correction["recipient_entity_id"] != row["sender_entity_id"]
                 or selected_source_correction["correction_event_status"] != "recorded"
                 or selected_source_correction["correction_event_kind"] != expected_parent_correction_event
-                or selected_source_correction["correction_created_at"] > row["communication_created_at"]
+                or int(selected_source_correction["correction_event_rowid"]) > int(row["communication_rowid"])
                 or int(selected_source_correction["corrected_total_minutes"]) > int(row["transmitted_total_minutes"])
             ):
                 complete = False
@@ -718,15 +719,15 @@ def _knowledge_transmission_provenance(
                     "FROM session_knowledge_corrections c "
                     "JOIN events e ON e.id=c.correction_event_id AND e.session_id=c.session_id "
                     "WHERE c.session_id=? AND c.original_transmission_id=? "
-                    "AND c.corrected_total_minutes<=? AND e.created_at<=? "
+                    "AND c.corrected_total_minutes<=? AND e.rowid<=? "
                     "AND NOT EXISTS (SELECT 1 FROM session_knowledge_corrections child "
                     "JOIN events child_event ON child_event.id=child.correction_event_id "
                     "WHERE child.session_id=c.session_id AND child.parent_correction_id=c.id "
-                    "AND child_event.created_at<=?) "
-                    "ORDER BY c.corrected_total_minutes DESC,e.created_at DESC,c.id DESC LIMIT 1",
+                    "AND child_event.rowid<=?) "
+                    "ORDER BY c.corrected_total_minutes DESC,e.rowid DESC,c.id DESC LIMIT 1",
                     (
                         session_id, parent_id, int(row["transmitted_total_minutes"]),
-                        row["communication_created_at"], row["communication_created_at"]
+                        row["communication_rowid"], row["communication_rowid"]
                     ),
                 ).fetchone()
                 if latest_source_correction is not None:
