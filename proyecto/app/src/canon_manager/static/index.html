@@ -982,8 +982,14 @@ function renderState(payload) {
           note.textContent = "Selecciona evidencia, confianza entre 0 y 100 y explica el motivo.";
           return;
         }
-        if (stance.value === "contradicts" && !chosen.startsWith("report:")) {
-          note.textContent = "Para registrar una contradicción entre versiones, elige otro informe recibido de una persona distinta.";
+        if (stance.value === "contradicts" && chosen.startsWith("report:") &&
+            !(person.knowledge_reports || []).some(other =>
+              other.transmission_id === chosen.slice(7) &&
+              other.sender_entity_id !== report.sender_entity_id &&
+              other.source_event_id === report.source_event_id &&
+              other.report_status !== "retracted"
+            )) {
+          note.textContent = "Para comparar dos informes, elige una versión vigente de otra persona sobre el mismo acontecimiento.";
           return;
         }
         const payload = {
