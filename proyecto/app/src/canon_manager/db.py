@@ -75,9 +75,7 @@ CREATE TABLE IF NOT EXISTS session_knowledge_transmissions (
 );
 CREATE INDEX IF NOT EXISTS idx_knowledge_transmissions_incoming
   ON session_knowledge_transmissions(session_id,recipient_entity_id,transmitted_total_minutes);
-CREATE INDEX IF NOT EXISTS idx_knowledge_transmissions_parent_correction
-  ON session_knowledge_transmissions(session_id,parent_correction_id)
-  WHERE parent_correction_id<>'';
+
 CREATE TABLE IF NOT EXISTS session_knowledge_assessments (
   id TEXT PRIMARY KEY,
   session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
