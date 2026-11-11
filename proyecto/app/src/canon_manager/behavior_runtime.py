@@ -829,6 +829,7 @@ def _entity_perception_context(
             "evidence_event_id": str(assessment["evidence_event_id"] or ""),
             "rationale": str(assessment["rationale"]),
             "assessed_total_minutes": int(assessment["assessed_total_minutes"]),
+            "created_at": str(assessment["created_at"]),
         })
 
     # A sender may later correct or withdraw the exact statement they gave.
@@ -837,6 +838,7 @@ def _entity_perception_context(
     correction_rows = conn.execute(
         "SELECT c.*,t.transmission_kind AS target_transmission_kind,"
         "e.status AS correction_event_status,e.kind AS correction_event_kind,"
+        "e.created_at AS correction_event_created_at,"
         "e.witnesses_json,e.source_message_id,"
         "m.recipient_entity_id AS source_recipient_id,m.metadata_json AS source_metadata_json "
         "FROM session_knowledge_corrections c "
@@ -868,6 +870,7 @@ def _entity_perception_context(
             "rationale": str(correction["rationale"]),
             "location": str(correction["location"]),
             "corrected_total_minutes": int(correction["corrected_total_minutes"]),
+            "correction_created_at": str(correction["correction_event_created_at"]),
         }
         correction_entries_by_report.setdefault(
             str(correction["original_transmission_id"]), {}
@@ -1010,6 +1013,18 @@ def _entity_perception_context(
                 assessment = right_assessment
                 assessment_report_id = right["transmission_id"]
 
+            assessment_is_current = bool(assessment)
+            if assessment:
+                assessed_at = str(assessment.get("created_at") or "")
+                for compared_report in (left, right):
+                    history = compared_report.get("correction_history") or []
+                    latest_correction_at = (
+                        str(history[-1].get("correction_created_at") or "")
+                        if history else ""
+                    )
+                    if latest_correction_at and latest_correction_at > assessed_at:
+                        assessment_is_current = False
+                        break
             comparison = {
                 "comparison_id": "|".join(sorted((
                     left["transmission_id"], right["transmission_id"]
@@ -1027,8 +1042,10 @@ def _entity_perception_context(
                 "right_version": right_version,
                 "right_transmission_kind": right["transmission_kind"],
                 "comparison_status": (
-                    "personally_assessed" if assessment else "different_versions"
+                    "personally_assessed" if assessment and assessment_is_current
+                    else ("needs_reassessment" if assessment else "different_versions")
                 ),
+                "assessment_is_current": assessment_is_current,
                 "assessment_report_id": assessment_report_id,
                 "assessment": assessment,
                 "epistemic_status": "reported_not_verified",
