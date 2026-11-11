@@ -969,6 +969,81 @@ def _entity_perception_context(
             "assessment_history": assessments_by_report.get(str(report["id"]), [])[-10:],
         })
 
+    # Compare only reports that this recipient personally received about the
+    # same source event from different senders. Different wording is a review
+    # candidate, never an automatic finding that either statement is false.
+    reports_by_id = {
+        item["transmission_id"]: item for item in knowledge_summary
+    }
+    knowledge_comparisons: list[dict[str, Any]] = []
+    for left_index, left in enumerate(knowledge_summary):
+        left_version = str(left.get("current_reported_version") or "").strip()
+        if left.get("report_status") == "retracted" or not left_version:
+            continue
+        left_normalized = " ".join(left_version.casefold().split())
+        for right in knowledge_summary[left_index + 1:]:
+            right_version = str(right.get("current_reported_version") or "").strip()
+            if (
+                right.get("report_status") == "retracted"
+                or not right_version
+                or left["source_event_id"] != right["source_event_id"]
+                or left["sender_entity_id"] == right["sender_entity_id"]
+            ):
+                continue
+            right_normalized = " ".join(right_version.casefold().split())
+            if left_normalized == right_normalized:
+                continue
+
+            assessment = None
+            assessment_report_id = ""
+            left_assessment = left.get("assessment")
+            right_assessment = right.get("assessment")
+            if (
+                isinstance(left_assessment, dict)
+                and left_assessment.get("evidence_report_id") == right["transmission_id"]
+            ):
+                assessment = left_assessment
+                assessment_report_id = left["transmission_id"]
+            elif (
+                isinstance(right_assessment, dict)
+                and right_assessment.get("evidence_report_id") == left["transmission_id"]
+            ):
+                assessment = right_assessment
+                assessment_report_id = right["transmission_id"]
+
+            comparison = {
+                "comparison_id": "|".join(sorted((
+                    left["transmission_id"], right["transmission_id"]
+                ))),
+                "source_event_id": left["source_event_id"],
+                "assessor_entity_id": entity_id,
+                "left_report_id": left["transmission_id"],
+                "left_sender_entity_id": left["sender_entity_id"],
+                "left_sender_name": next(
+                    (hop["sender_name"] for hop in left["provenance_chain"][-1:]),
+                    ""
+                ),
+                "left_version": left_version,
+                "left_transmission_kind": left["transmission_kind"],
+                "right_report_id": right["transmission_id"],
+                "right_sender_entity_id": right["sender_entity_id"],
+                "right_sender_name": next(
+                    (hop["sender_name"] for hop in right["provenance_chain"][-1:]),
+                    ""
+                ),
+                "right_version": right_version,
+                "right_transmission_kind": right["transmission_kind"],
+                "comparison_status": (
+                    "personally_assessed" if assessment else "different_versions"
+                ),
+                "assessment_report_id": assessment_report_id,
+                "assessment": assessment,
+                "epistemic_status": "reported_not_verified",
+            }
+            knowledge_comparisons.append(comparison)
+            left.setdefault("comparison_ids", []).append(comparison["comparison_id"])
+            right.setdefault("comparison_ids", []).append(comparison["comparison_id"])
+
     environment_summary: list[dict[str, Any]] = []
     if location:
         environment_rows = conn.execute(
@@ -1024,6 +1099,7 @@ def _entity_perception_context(
         "event_kinds": sorted(event_kinds),
         "environment_observations": environment_summary[:10],
         "knowledge_reports": knowledge_summary[:20],
+        "knowledge_comparisons": knowledge_comparisons[:40],
     }
 
 
