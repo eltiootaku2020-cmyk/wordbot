@@ -3372,6 +3372,67 @@ def get_session_state(session_id: str):
         return load_state(conn, session_id)
 
 
+def _current_knowledge_report_correction_id(
+    conn, session_id: str, transmission_id: str, recipient_entity_id: str,
+    current_total: int,
+) -> str:
+    """Return the exact latest correction visible to this recipient, or '' for the original."""
+    report = conn.execute(
+        "SELECT t.transmission_kind FROM session_knowledge_transmissions t "
+        "WHERE t.id=? AND t.session_id=? AND t.recipient_entity_id=?",
+        (transmission_id, session_id, recipient_entity_id),
+    ).fetchone()
+    if report is None:
+        raise HTTPException(status_code=404, detail="El informe no pertenece a ese destinatario.")
+    expected_event_kind = "knowledge" if report["transmission_kind"] == "testimony" else "rumor"
+    rows = conn.execute(
+        "SELECT c.id,c.parent_correction_id,c.correction_kind,c.recipient_entity_id,"
+        "e.status AS event_status,e.kind AS event_kind,e.witnesses_json,e.source_message_id,"
+        "m.recipient_entity_id AS source_recipient_id,m.metadata_json AS source_metadata_json "
+        "FROM session_knowledge_corrections c "
+        "JOIN events e ON e.id=c.correction_event_id AND e.session_id=c.session_id "
+        "LEFT JOIN messages m ON m.id=e.source_message_id "
+        "WHERE c.session_id=? AND c.original_transmission_id=? "
+        "AND c.recipient_entity_id=? AND c.corrected_total_minutes<=? "
+        "ORDER BY c.corrected_total_minutes,e.rowid,c.id",
+        (session_id, transmission_id, recipient_entity_id, current_total),
+    ).fetchall()
+    valid: dict[str, dict[str, Any]] = {}
+    children: dict[str, str] = {}
+    roots: list[str] = []
+    for row in rows:
+        correction_id = str(row["id"])
+        parent_id = str(row["parent_correction_id"] or "")
+        if (
+            row["event_status"] != "recorded"
+            or row["event_kind"] != expected_event_kind
+            or row["recipient_entity_id"] != recipient_entity_id
+            or not _event_known_to_entity(row, recipient_entity_id)
+        ):
+            continue
+        valid[correction_id] = dict(row)
+        if parent_id:
+            children[parent_id] = correction_id
+        else:
+            roots.append(correction_id)
+    if not valid:
+        return ""
+    # The schema enforces a single root and one child per version. Still fail
+    # closed if corrupted history somehow contains ambiguous roots or links.
+    if len(roots) != 1:
+        raise HTTPException(status_code=409, detail="El historial de versiones del informe no forma una cadena única.")
+    current_id = roots[0]
+    visited: set[str] = set()
+    while current_id in children:
+        if current_id in visited or children[current_id] not in valid:
+            raise HTTPException(status_code=409, detail="El historial de versiones del informe está dañado.")
+        visited.add(current_id)
+        current_id = children[current_id]
+    if len(visited) + 1 != len(valid):
+        raise HTTPException(status_code=409, detail="El historial de versiones del informe contiene ramas o versiones desconectadas.")
+    return current_id
+
+
 @app.post("/api/sessions/{session_id}/knowledge-reports/{transmission_id}/assessments")
 def assess_knowledge_report(
     session_id: str, transmission_id: str, payload: KnowledgeAssessmentRequest
