@@ -8005,6 +8005,23 @@ def test_report_comparison_keeps_the_exact_corrections_it_compared():
         assert first_report["epistemic_status"] == "reported_not_verified"
         assert second_report["epistemic_status"] == "reported_not_verified"
 
+        with database.transaction() as conn:
+            snapshot = main_module.capture_turn_state(conn, session_id)
+            conn.execute(
+                "DELETE FROM session_knowledge_assessments WHERE session_id=?",
+                (session_id,),
+            )
+            main_module.restore_turn_state(conn, session_id, snapshot)
+            restored_assessment = conn.execute(
+                "SELECT assessed_correction_id,evidence_correction_id,version_refs_exact "
+                "FROM session_knowledge_assessments WHERE session_id=? AND request_id=?",
+                (session_id, payload["request_id"]),
+            ).fetchone()
+        assert restored_assessment is not None
+        assert restored_assessment["assessed_correction_id"] == first_correction_id
+        assert restored_assessment["evidence_correction_id"] == evidence_correction_id
+        assert restored_assessment["version_refs_exact"] == 1
+
         stale_comparison = {
             **payload,
             "request_id": "version-comparison-brina-stale-evidence",
