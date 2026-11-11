@@ -4537,12 +4537,12 @@ def approve_event(session_id: str, event_id: str):
                         "JOIN events e ON e.id=c.correction_event_id AND e.session_id=c.session_id "
                         "WHERE c.session_id=? AND c.original_transmission_id=? "
                         "AND c.corrected_total_minutes<=? "
-                        "AND e.created_at<=(SELECT created_at FROM events WHERE id=?) "
+                        "AND e.rowid<=(SELECT rowid FROM events WHERE id=?) "
                         "AND NOT EXISTS (SELECT 1 FROM session_knowledge_corrections child "
                         "JOIN events child_event ON child_event.id=child.correction_event_id "
                         "WHERE child.session_id=c.session_id AND child.parent_correction_id=c.id "
-                        "AND child_event.created_at<=(SELECT created_at FROM events WHERE id=?)) "
-                        "ORDER BY c.corrected_total_minutes DESC,e.created_at DESC,c.id DESC "
+                        "AND child_event.rowid<=(SELECT rowid FROM events WHERE id=?)) "
+                        "ORDER BY c.corrected_total_minutes DESC,e.rowid DESC,c.id DESC "
                         "LIMIT 1",
                         (session_id, parent_id, transmitted_total, event_id, event_id),
                     ).fetchone()
