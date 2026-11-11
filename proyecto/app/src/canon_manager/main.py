@@ -810,9 +810,15 @@ def build_context(
     for participant in participants:
         _, perception = _entity_perception_context(conn, session["id"], participant["id"])
         participant["knowledge_reports"] = perception.get("knowledge_reports", [])
+        participant["knowledge_comparison_candidates"] = perception.get(
+            "knowledge_comparison_candidates", []
+        )
     if recipient is not None:
         _, perception = _entity_perception_context(conn, session["id"], recipient["id"])
         recipient["knowledge_reports"] = perception.get("knowledge_reports", [])
+        recipient["knowledge_comparison_candidates"] = perception.get(
+            "knowledge_comparison_candidates", []
+        )
 
     relationship = []
     if recipient_id:
@@ -2648,6 +2654,9 @@ def load_state(conn, session_id: str) -> dict[str, Any]:
     for participant in participants:
         _, perception = _entity_perception_context(conn, session_id, participant["id"])
         participant["knowledge_reports"] = perception.get("knowledge_reports", [])
+        participant["knowledge_comparison_candidates"] = perception.get(
+            "knowledge_comparison_candidates", []
+        )
         known_event_ids = perception.get("source_event_ids", [])
         participant["known_event_ids"] = known_event_ids
         if known_event_ids:

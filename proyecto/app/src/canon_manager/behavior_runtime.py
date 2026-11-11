@@ -774,7 +774,11 @@ def _entity_perception_context(
         (entity_id, session_id),
     ).fetchone()
     if session_state is None:
-        return {}, {"source_event_ids": [], "event_kinds": [], "environment_observations": [], "knowledge_reports": []}
+        return {}, {
+            "source_event_ids": [], "event_kinds": [],
+            "environment_observations": [], "knowledge_reports": [],
+            "knowledge_comparison_candidates": [],
+        }
 
     current_total = _total_minutes(
         int(session_state["day"]), int(session_state["minute_of_day"])
@@ -903,8 +907,9 @@ def _entity_perception_context(
         "SELECT t.id,t.sender_entity_id,t.recipient_entity_id,t.transmission_kind,"
         "t.version_text,t.location,t.transmitted_total_minutes,t.parent_transmission_id,"
         "t.parent_correction_id,s.id AS source_event_id,s.kind AS source_event_kind,"
-        "c.id AS communication_event_id,c.status AS communication_status "
+        "c.id AS communication_event_id,c.status AS communication_status,es.name AS sender_name "
         "FROM session_knowledge_transmissions t "
+        "JOIN entities es ON es.id=t.sender_entity_id "
         "JOIN events s ON s.id=t.source_event_id AND s.session_id=t.session_id "
         "JOIN events c ON c.id=t.communication_event_id AND c.session_id=t.session_id "
         "WHERE t.session_id=? AND t.recipient_entity_id=? "
@@ -939,6 +944,7 @@ def _entity_perception_context(
             "transmission_id": str(report["id"]),
             "transmission_kind": transmission_kind,
             "sender_entity_id": str(report["sender_entity_id"]),
+            "sender_name": str(report["sender_name"]),
             "recipient_entity_id": str(report["recipient_entity_id"]),
             "source_event_id": str(report["source_event_id"]),
             "source_event_kind": str(report["source_event_kind"]),
@@ -968,6 +974,65 @@ def _entity_perception_context(
             ),
             "assessment_history": assessments_by_report.get(str(report["id"]), [])[-10:],
         })
+
+    # Candidate groups are lexical, not truth judgements: the local engine only
+    # groups current versions for the same recorded event when distinct senders
+    # supplied materially different text. The narrator/character may decide
+    # whether accounts conflict or complement each other; no fact is changed.
+    reports_by_source: dict[str, list[dict[str, Any]]] = {}
+    for report in knowledge_summary:
+        if report["report_status"] == "retracted":
+            continue
+        current_version = str(report["current_reported_version"] or "").strip()
+        if not current_version:
+            continue
+        reports_by_source.setdefault(str(report["source_event_id"]), []).append({
+            "transmission_id": str(report["transmission_id"]),
+            "sender_entity_id": str(report["sender_entity_id"]),
+            "sender_name": str(report["sender_name"]),
+            "transmission_kind": str(report["transmission_kind"]),
+            "report_status": str(report["report_status"]),
+            "reported_version": str(report["reported_version"]),
+            "current_reported_version": current_version,
+            "origin_transmission_id": str(report["origin_transmission_id"] or ""),
+            "originator_entity_id": str(report["originator_entity_id"] or ""),
+            "originator_name": str(report["originator_name"] or ""),
+            "provenance_complete": bool(report["provenance_complete"]),
+            "transmitted_total_minutes": int(report["transmitted_total_minutes"]),
+        })
+
+    knowledge_comparison_candidates: list[dict[str, Any]] = []
+    for source_event_id, candidate_reports in reports_by_source.items():
+        distinct_senders = {item["sender_entity_id"] for item in candidate_reports}
+        distinct_versions = {
+            " ".join(item["current_reported_version"].casefold().split())
+            for item in candidate_reports
+        }
+        if len(distinct_senders) < 2 or len(distinct_versions) < 2:
+            continue
+        known_origins = [
+            item["origin_transmission_id"] for item in candidate_reports
+            if item["provenance_complete"] and item["origin_transmission_id"]
+        ]
+        knowledge_comparison_candidates.append({
+            "source_event_id": source_event_id,
+            "source_event_kind": next(
+                (item["source_event_kind"] for item in knowledge_summary
+                 if item["source_event_id"] == source_event_id),
+                "",
+            ),
+            "report_count": len(candidate_reports),
+            "distinct_sender_count": len(distinct_senders),
+            "distinct_origin_count": len(set(known_origins)),
+            "same_origin_chain": (
+                len(known_origins) == len(candidate_reports)
+                and len(set(known_origins)) == 1
+            ),
+            "all_provenance_complete": len(known_origins) == len(candidate_reports),
+            "comparison_status": "different_current_wording",
+            "reports": candidate_reports,
+        })
+    knowledge_comparison_candidates = knowledge_comparison_candidates[:10]
 
     environment_summary: list[dict[str, Any]] = []
     if location:
@@ -1024,6 +1089,7 @@ def _entity_perception_context(
         "event_kinds": sorted(event_kinds),
         "environment_observations": environment_summary[:10],
         "knowledge_reports": knowledge_summary[:20],
+        "knowledge_comparison_candidates": knowledge_comparison_candidates,
     }
 
 

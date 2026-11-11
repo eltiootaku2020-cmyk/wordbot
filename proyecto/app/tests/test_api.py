@@ -8985,3 +8985,138 @@ def test_new_report_assessment_replans_agendas_without_advancing_clock_or_replay
         assert replay.json()["replayed"] is True
         # A duplicate request must not run the planner or append another opinion.
         assert planned_calls == [(session_id, current_total)]
+
+def test_npc_comparison_candidates_use_current_versions_and_remain_recipient_specific():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        ids = _entity_ids_by_name(client, world_id)
+        protagonist_id = next(
+            value for name, value in ids.items()
+            if name.lower() in {"protagonista", "protagonist"}
+        )
+        brina_id = ids["Brina Solcor"]
+        maelis_id = ids["Maelis Orven"]
+
+        source = NarratorResponse(
+            narration="El protagonista y Maelis observan la misma marca.",
+            events=[EventProposal(
+                ref="comparison-candidate-source",
+                kind="clue",
+                entity_id=protagonist_id,
+                description="Una marca reciente aparece en el tronco.",
+                witness_ids=[protagonist_id, maelis_id],
+                continuity=True,
+                importance=4,
+            )],
+        )
+        source_turn, _, _ = _apply_synthetic_result(
+            session_id, "Observo la marca junto a Maelis.", source
+        )
+        with database.connection() as conn:
+            source_event = conn.execute(
+                "SELECT id,status FROM events WHERE session_id=? AND turn_id=?",
+                (session_id, source_turn),
+            ).fetchone()
+        assert source_event is not None and source_event["status"] == "recorded"
+
+        first_report_id = _approve_knowledge_testimony(
+            client, session_id, source_event["id"], protagonist_id, brina_id,
+            "comparison-candidate-protagonist",
+            "Vi una marca reciente en el tronco.",
+        )
+        second_report_id = _approve_knowledge_testimony(
+            client, session_id, source_event["id"], maelis_id, brina_id,
+            "comparison-candidate-maelis",
+            "La marca parecía antigua y estaba cubierta de musgo.",
+        )
+        corrected_text = "La marca parecía antigua, pero el musgo era reciente."
+        _approve_knowledge_correction(
+            client, session_id, second_report_id, maelis_id, brina_id,
+            "comparison-candidate-maelis-correction", "corrected",
+            "Al mirar mejor, distinguí la edad de la marca de la del musgo.",
+            corrected_text,
+        )
+
+        with database.connection() as conn:
+            _, brina_perception = _entity_perception_context(conn, session_id, brina_id)
+            _, maelis_perception = _entity_perception_context(conn, session_id, maelis_id)
+            stored_assessments = conn.execute(
+                "SELECT COUNT(*) AS n FROM session_knowledge_assessments WHERE session_id=?",
+                (session_id,),
+            ).fetchone()["n"]
+            unchanged_source = conn.execute(
+                "SELECT status,description FROM events WHERE id=?",
+                (source_event["id"],),
+            ).fetchone()
+
+        candidates = brina_perception["knowledge_comparison_candidates"]
+        assert len(candidates) == 1
+        candidate = candidates[0]
+        assert candidate["source_event_id"] == source_event["id"]
+        assert candidate["comparison_status"] == "different_current_wording"
+        assert candidate["distinct_sender_count"] == 2
+        assert candidate["distinct_origin_count"] == 2
+        assert candidate["same_origin_chain"] is False
+        assert candidate["all_provenance_complete"] is True
+        by_id = {item["transmission_id"]: item for item in candidate["reports"]}
+        assert by_id[first_report_id]["current_reported_version"] == "Vi una marca reciente en el tronco."
+        assert by_id[second_report_id]["reported_version"] == "La marca parecía antigua y estaba cubierta de musgo."
+        assert by_id[second_report_id]["current_reported_version"] == corrected_text
+        assert by_id[second_report_id]["report_status"] == "corrected"
+        assert maelis_perception["knowledge_comparison_candidates"] == []
+        assert stored_assessments == 0
+        assert unchanged_source["status"] == "recorded"
+        assert unchanged_source["description"] == "Una marca reciente aparece en el tronco."
+
+
+def test_npc_comparison_candidates_ignore_retracted_versions_and_identical_wording():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        ids = _entity_ids_by_name(client, world_id)
+        protagonist_id = next(
+            value for name, value in ids.items()
+            if name.lower() in {"protagonista", "protagonist"}
+        )
+        brina_id = ids["Brina Solcor"]
+        maelis_id = ids["Maelis Orven"]
+
+        source = NarratorResponse(
+            narration="Dos personajes observan una señal.",
+            events=[EventProposal(
+                ref="comparison-retracted-source",
+                kind="clue",
+                entity_id=protagonist_id,
+                description="Una señal está tallada en el tronco.",
+                witness_ids=[protagonist_id, maelis_id],
+            )],
+        )
+        source_turn, _, _ = _apply_synthetic_result(
+            session_id, "Observo la señal.", source
+        )
+        with database.connection() as conn:
+            source_event = conn.execute(
+                "SELECT id FROM events WHERE session_id=? AND turn_id=?",
+                (session_id, source_turn),
+            ).fetchone()
+        first_report_id = _approve_knowledge_testimony(
+            client, session_id, source_event["id"], protagonist_id, brina_id,
+            "comparison-retracted-protagonist", "La señal está tallada en el tronco.",
+        )
+        second_report_id = _approve_knowledge_testimony(
+            client, session_id, source_event["id"], maelis_id, brina_id,
+            "comparison-retracted-maelis", "La señal está tallada en el tronco.",
+        )
+        _approve_knowledge_correction(
+            client, session_id, second_report_id, maelis_id, brina_id,
+            "comparison-retracted-maelis-withdrawal", "retracted",
+            "Maelis ya no puede sostener que leyó correctamente la señal.",
+        )
+
+        with database.connection() as conn:
+            _, perception = _entity_perception_context(conn, session_id, brina_id)
+        assert perception["knowledge_comparison_candidates"] == []
+        reports = {item["transmission_id"]: item for item in perception["knowledge_reports"]}
+        assert reports[first_report_id]["report_status"] == "active"
+        assert reports[second_report_id]["report_status"] == "retracted"

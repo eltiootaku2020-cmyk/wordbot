@@ -778,7 +778,13 @@ function renderState(payload) {
         " de " + (entityNames[report.sender_entity_id] || report.sender_entity_id);
       item.appendChild(title);
       const version = document.createElement("p");
-      version.textContent = "Versión recibida: «" + report.reported_version + "» · no verificada";
+      const activeVersion = report.current_reported_version || report.reported_version;
+      const versionLabel = report.report_status === "corrected"
+        ? "Versión vigente atribuida"
+        : report.report_status === "retracted"
+          ? "Versión original retirada"
+          : "Versión recibida";
+      version.textContent = versionLabel + ": «" + activeVersion + "» · no verificada";
       item.appendChild(version);
       const provenanceChain = Array.isArray(report.provenance_chain)
         ? report.provenance_chain
@@ -879,11 +885,14 @@ function renderState(payload) {
       addOption(evidence, "", "Selecciona una evidencia");
       (person.knowledge_reports || []).filter(other =>
         other.transmission_id !== report.transmission_id &&
-        other.source_event_id === report.source_event_id
+        other.source_event_id === report.source_event_id &&
+        other.report_status !== "retracted" &&
+        Boolean(other.current_reported_version)
       ).forEach(other => {
         const sender = entityNames[other.sender_entity_id] || other.sender_entity_id;
+        const currentVersion = other.current_reported_version || other.reported_version;
         addOption(evidence, "report:" + other.transmission_id,
-          "Otro informe de " + sender + ": " + other.reported_version.slice(0, 90));
+          "Otro informe vigente de " + sender + ": " + currentVersion.slice(0, 90));
       });
       (person.known_events || []).forEach(event => {
         addOption(evidence, "event:" + event.id,
@@ -964,6 +973,50 @@ function renderState(payload) {
       list.appendChild(item);
     });
     section.appendChild(list);
+
+    const comparisonGroups = payload.participants.flatMap(person =>
+      (person.knowledge_comparison_candidates || []).map(candidate => ({person, candidate}))
+    );
+    if (comparisonGroups.length) {
+      const comparisonSection = document.createElement("div");
+      comparisonSection.className = "assessment-list";
+      const comparisonHeading = document.createElement("strong");
+      comparisonHeading.textContent = "Posibles discrepancias entre versiones";
+      comparisonSection.appendChild(comparisonHeading);
+      const comparisonHelp = document.createElement("p");
+      comparisonHelp.className = "muted";
+      comparisonHelp.textContent =
+        "Se muestran textos vigentes distintos sobre el mismo acontecimiento. Es una señal para comparar, no una contradicción confirmada ni una decisión sobre quién tiene razón.";
+      comparisonSection.appendChild(comparisonHelp);
+      comparisonGroups.forEach(({person, candidate}) => {
+        const group = document.createElement("div");
+        group.className = "assessment-item";
+        const groupTitle = document.createElement("strong");
+        groupTitle.textContent = person.name + " puede comparar " +
+          candidate.report_count + " versiones del mismo acontecimiento.";
+        group.appendChild(groupTitle);
+        candidate.reports.forEach(entry => {
+          const sender = entityNames[entry.sender_entity_id] || entry.sender_name ||
+            entry.sender_entity_id;
+          const statement = document.createElement("p");
+          statement.textContent = sender + " (" +
+            (entry.transmission_kind === "testimony" ? "testimonio" : "rumor") +
+            (entry.report_status === "corrected" ? ", rectificado" : "") +
+            "): «" + entry.current_reported_version + "»";
+          group.appendChild(statement);
+        });
+        const provenance = document.createElement("p");
+        provenance.className = "muted";
+        provenance.textContent = candidate.same_origin_chain
+          ? "Las versiones derivan de una misma transmisión original; no son fuentes independientes."
+          : candidate.all_provenance_complete
+            ? "Las cadenas de procedencia están disponibles; aun así, la diferencia no determina qué versión es correcta."
+            : "Hay procedencia incompleta; no se debe asumir independencia entre las versiones.";
+        group.appendChild(provenance);
+        comparisonSection.appendChild(group);
+      });
+      section.appendChild(comparisonSection);
+    }
     el("state").appendChild(section);
   }
   const previousRecipient = el("recipientSelect").value;
