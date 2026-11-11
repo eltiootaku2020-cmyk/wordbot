@@ -105,6 +105,9 @@ class KnowledgeAssessmentRequest(StrictModel):
     confidence: int = Field(ge=0, le=100, description="Grado de confianza personal del PNJ en la versión, no probabilidad objetiva.")
     evidence_report_id: str = Field(default="", max_length=80)
     evidence_event_id: str = Field(default="", max_length=80)
+    # None keeps legacy clients compatible; an explicit empty string means the original version.
+    assessed_correction_id: str | None = Field(default=None, max_length=80)
+    evidence_correction_id: str | None = Field(default=None, max_length=80)
     rationale: str = Field(min_length=1, max_length=600)
 
 
