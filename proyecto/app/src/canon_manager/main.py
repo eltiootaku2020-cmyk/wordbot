@@ -2648,6 +2648,7 @@ def load_state(conn, session_id: str) -> dict[str, Any]:
     for participant in participants:
         _, perception = _entity_perception_context(conn, session_id, participant["id"])
         participant["knowledge_reports"] = perception.get("knowledge_reports", [])
+        participant["knowledge_comparisons"] = perception.get("knowledge_comparisons", [])
         known_event_ids = perception.get("source_event_ids", [])
         participant["known_event_ids"] = known_event_ids
         if known_event_ids:
@@ -3413,7 +3414,7 @@ def assess_knowledge_report(
             return {"assessment": dict(existing), "replayed": True}
 
         report = conn.execute(
-            "SELECT t.id,t.source_event_id,t.recipient_entity_id,t.transmitted_total_minutes,"
+            "SELECT t.id,t.source_event_id,t.sender_entity_id,t.recipient_entity_id,t.transmitted_total_minutes,"
             "s.status AS source_status,c.status AS communication_status "
             "FROM session_knowledge_transmissions t "
             "JOIN events s ON s.id=t.source_event_id AND s.session_id=t.session_id "
@@ -3439,7 +3440,7 @@ def assess_knowledge_report(
             if evidence_report_id == transmission_id:
                 raise HTTPException(status_code=422, detail="Un informe no puede usarse como evidencia de sí mismo.")
             evidence = conn.execute(
-                "SELECT t.id,t.source_event_id,t.transmitted_total_minutes,"
+                "SELECT t.id,t.source_event_id,t.sender_entity_id,t.transmitted_total_minutes,"
                 "s.status AS source_status,c.status AS communication_status "
                 "FROM session_knowledge_transmissions t "
                 "JOIN events s ON s.id=t.source_event_id AND s.session_id=t.session_id "
@@ -3458,6 +3459,11 @@ def assess_knowledge_report(
                     status_code=422,
                     detail="El informe comparativo debe haber sido recibido por el mismo PNJ y referirse al mismo acontecimiento."
                 )
+            if payload.stance == "contradicts" and evidence["sender_entity_id"] == report["sender_entity_id"]:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Para registrar una contradicción, los dos informes deben proceder de emisores distintos."
+                )
         else:
             evidence = conn.execute(
                 "SELECT e.id,e.status,e.kind,e.witnesses_json,e.source_message_id,"
@@ -3474,6 +3480,34 @@ def assess_knowledge_report(
                 raise HTTPException(
                     status_code=422,
                     detail="El PNJ no tiene una vía directa y registrada para conocer ese evento como evidencia."
+                )
+            if payload.stance == "contradicts":
+                raise HTTPException(
+                    status_code=422,
+                    detail="Una contradicción entre testimonios o rumores debe compararse con otro informe recibido, no solo con un evento conocido."
+                )
+
+        if payload.stance == "contradicts":
+            _, assessor_perception = _entity_perception_context(
+                conn, session_id, payload.assessor_entity_id
+            )
+            visible_reports = {
+                item["transmission_id"]: item
+                for item in assessor_perception.get("knowledge_reports", [])
+            }
+            current_report = visible_reports.get(transmission_id)
+            comparison_report = visible_reports.get(evidence_report_id)
+            if (
+                current_report is None
+                or comparison_report is None
+                or current_report.get("report_status") == "retracted"
+                or comparison_report.get("report_status") == "retracted"
+                or not current_report.get("current_reported_version")
+                or not comparison_report.get("current_reported_version")
+            ):
+                raise HTTPException(
+                    status_code=422,
+                    detail="Solo se pueden comparar versiones vigentes que ese PNJ recibió y que no fueron retiradas."
                 )
 
         assessment_id = new_id()
