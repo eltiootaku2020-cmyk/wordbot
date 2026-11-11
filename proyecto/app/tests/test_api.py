@@ -7995,6 +7995,13 @@ def test_report_comparison_keeps_the_exact_corrections_it_compared():
         assert assessment["evidence_version_text"] == evidence_correction_text
         assert second_report["correction"]["correction_id"] == newest_evidence_correction_id
         assert second_report["current_reported_version"] == newest_evidence_text
+        historical_replay = client.post(
+            f"/api/sessions/{session_id}/knowledge-reports/{first_report_id}/assessments",
+            json=payload,
+        )
+        assert historical_replay.status_code == 200, historical_replay.text
+        assert historical_replay.json()["replayed"] is True
+        assert historical_replay.json()["assessment"]["evidence_correction_id"] == evidence_correction_id
         assert first_report["epistemic_status"] == "reported_not_verified"
         assert second_report["epistemic_status"] == "reported_not_verified"
 
