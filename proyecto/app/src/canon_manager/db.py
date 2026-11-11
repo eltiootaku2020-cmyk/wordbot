@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS session_knowledge_transmissions (
   location TEXT NOT NULL CHECK(length(trim(location)) > 0),
   transmitted_total_minutes INTEGER NOT NULL CHECK(transmitted_total_minutes >= 0),
   parent_transmission_id TEXT NOT NULL DEFAULT '',
+  parent_correction_id TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
   UNIQUE(session_id, request_id),
   UNIQUE(session_id, communication_event_id, recipient_entity_id),
@@ -74,6 +75,9 @@ CREATE TABLE IF NOT EXISTS session_knowledge_transmissions (
 );
 CREATE INDEX IF NOT EXISTS idx_knowledge_transmissions_incoming
   ON session_knowledge_transmissions(session_id,recipient_entity_id,transmitted_total_minutes);
+CREATE INDEX IF NOT EXISTS idx_knowledge_transmissions_parent_correction
+  ON session_knowledge_transmissions(session_id,parent_correction_id)
+  WHERE parent_correction_id<>'';
 CREATE TABLE IF NOT EXISTS session_knowledge_assessments (
   id TEXT PRIMARY KEY,
   session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
@@ -368,6 +372,22 @@ class Database:
                 except Exception:
                     conn.rollback()
                     raise
+
+            transmission_columns = {
+                row["name"] for row in conn.execute(
+                    "PRAGMA table_info(session_knowledge_transmissions)"
+                ).fetchall()
+            }
+            if "parent_correction_id" not in transmission_columns:
+                conn.execute(
+                    "ALTER TABLE session_knowledge_transmissions "
+                    "ADD COLUMN parent_correction_id TEXT NOT NULL DEFAULT ''"
+                )
+            conn.execute(
+                "CREATE INDEX IF NOT EXISTS idx_knowledge_transmissions_parent_correction "
+                "ON session_knowledge_transmissions(session_id,parent_correction_id) "
+                "WHERE parent_correction_id<>''"
+            )
 
             conn.execute(
                 "CREATE INDEX IF NOT EXISTS idx_knowledge_corrections_by_recipient "
