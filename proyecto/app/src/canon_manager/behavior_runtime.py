@@ -884,6 +884,7 @@ def _entity_perception_context(
             "evidence_sender_name": str(assessment["evidence_sender_name"] or ""),
             "rationale": str(assessment["rationale"]),
             "assessed_total_minutes": int(assessment["assessed_total_minutes"]),
+            "created_at": str(assessment["created_at"]),
         })
 
     # A sender may later correct or withdraw the exact statement they gave.
@@ -892,7 +893,7 @@ def _entity_perception_context(
     correction_rows = conn.execute(
         "SELECT c.*,t.transmission_kind AS target_transmission_kind,"
         "e.status AS correction_event_status,e.kind AS correction_event_kind,"
-        "e.witnesses_json,e.source_message_id,"
+        "e.created_at AS correction_event_created_at,e.witnesses_json,e.source_message_id,"
         "m.recipient_entity_id AS source_recipient_id,m.metadata_json AS source_metadata_json "
         "FROM session_knowledge_corrections c "
         "JOIN session_knowledge_transmissions t ON t.id=c.original_transmission_id AND t.session_id=c.session_id "
@@ -923,6 +924,7 @@ def _entity_perception_context(
             "rationale": str(correction["rationale"]),
             "location": str(correction["location"]),
             "corrected_total_minutes": int(correction["corrected_total_minutes"]),
+            "correction_created_at": str(correction["correction_event_created_at"]),
         }
         correction_entries_by_report.setdefault(
             str(correction["original_transmission_id"]), {}
@@ -956,10 +958,11 @@ def _entity_perception_context(
     knowledge_summary: list[dict[str, Any]] = []
     report_rows = conn.execute(
         "SELECT t.id,t.sender_entity_id,t.recipient_entity_id,t.transmission_kind,"
-        "t.version_text,t.location,t.transmitted_total_minutes,t.parent_transmission_id,"
+        "es.name AS sender_name,t.version_text,t.location,t.transmitted_total_minutes,t.parent_transmission_id,"
         "t.parent_correction_id,s.id AS source_event_id,s.kind AS source_event_kind,"
         "c.id AS communication_event_id,c.status AS communication_status "
         "FROM session_knowledge_transmissions t "
+        "JOIN entities es ON es.id=t.sender_entity_id "
         "JOIN events s ON s.id=t.source_event_id AND s.session_id=t.session_id "
         "JOIN events c ON c.id=t.communication_event_id AND c.session_id=t.session_id "
         "WHERE t.session_id=? AND t.recipient_entity_id=? "
@@ -994,6 +997,7 @@ def _entity_perception_context(
             "transmission_id": str(report["id"]),
             "transmission_kind": transmission_kind,
             "sender_entity_id": str(report["sender_entity_id"]),
+            "sender_name": str(report["sender_name"]),
             "recipient_entity_id": str(report["recipient_entity_id"]),
             "source_event_id": str(report["source_event_id"]),
             "source_event_kind": str(report["source_event_kind"]),
@@ -1023,6 +1027,96 @@ def _entity_perception_context(
             ),
             "assessment_history": assessments_by_report.get(str(report["id"]), [])[-10:],
         })
+
+    # Compare only reports that this recipient personally received about the
+    # same source event from different senders. Different wording is a review
+    # candidate, never an automatic finding that either statement is false.
+    knowledge_comparisons: list[dict[str, Any]] = []
+    for left_index, left in enumerate(knowledge_summary):
+        left_version = str(left.get("current_reported_version") or "").strip()
+        if left.get("report_status") == "retracted" or not left_version:
+            continue
+        left_normalized = " ".join(left_version.casefold().split())
+        for right in knowledge_summary[left_index + 1:]:
+            right_version = str(right.get("current_reported_version") or "").strip()
+            if (
+                right.get("report_status") == "retracted"
+                or not right_version
+                or left["source_event_id"] != right["source_event_id"]
+                or left["sender_entity_id"] == right["sender_entity_id"]
+            ):
+                continue
+            right_normalized = " ".join(right_version.casefold().split())
+            if left_normalized == right_normalized:
+                continue
+
+            assessment = None
+            assessment_report_id = ""
+            left_assessment = left.get("assessment")
+            right_assessment = right.get("assessment")
+            if (
+                isinstance(left_assessment, dict)
+                and left_assessment.get("evidence_report_id") == right["transmission_id"]
+            ):
+                assessment = left_assessment
+                assessment_report_id = left["transmission_id"]
+            elif (
+                isinstance(right_assessment, dict)
+                and right_assessment.get("evidence_report_id") == left["transmission_id"]
+            ):
+                assessment = right_assessment
+                assessment_report_id = right["transmission_id"]
+
+            assessment_is_current = bool(assessment)
+            if assessment:
+                assessed_at = str(assessment.get("created_at") or "")
+                for compared_report in (left, right):
+                    history = compared_report.get("correction_history") or []
+                    latest_correction_at = (
+                        str(history[-1].get("correction_created_at") or "")
+                        if history else ""
+                    )
+                    latest_correction_total = (
+                        int(history[-1].get("corrected_total_minutes") or 0)
+                        if history else 0
+                    )
+                    if (
+                        (latest_correction_at and latest_correction_at > assessed_at)
+                        or (
+                            history
+                            and latest_correction_total > int(assessment.get("assessed_total_minutes") or 0)
+                        )
+                    ):
+                        assessment_is_current = False
+                        break
+            comparison = {
+                "comparison_id": "|".join(sorted((
+                    left["transmission_id"], right["transmission_id"]
+                ))),
+                "source_event_id": left["source_event_id"],
+                "assessor_entity_id": entity_id,
+                "left_report_id": left["transmission_id"],
+                "left_sender_entity_id": left["sender_entity_id"],
+                "left_sender_name": left["sender_name"],
+                "left_version": left_version,
+                "left_transmission_kind": left["transmission_kind"],
+                "right_report_id": right["transmission_id"],
+                "right_sender_entity_id": right["sender_entity_id"],
+                "right_sender_name": right["sender_name"],
+                "right_version": right_version,
+                "right_transmission_kind": right["transmission_kind"],
+                "comparison_status": (
+                    "personally_assessed" if assessment and assessment_is_current
+                    else ("needs_reassessment" if assessment else "different_versions")
+                ),
+                "assessment_is_current": assessment_is_current,
+                "assessment_report_id": assessment_report_id,
+                "assessment": assessment,
+                "epistemic_status": "reported_not_verified",
+            }
+            knowledge_comparisons.append(comparison)
+            left.setdefault("comparison_ids", []).append(comparison["comparison_id"])
+            right.setdefault("comparison_ids", []).append(comparison["comparison_id"])
 
     environment_summary: list[dict[str, Any]] = []
     if location:
@@ -1079,6 +1173,7 @@ def _entity_perception_context(
         "event_kinds": sorted(event_kinds),
         "environment_observations": environment_summary[:10],
         "knowledge_reports": knowledge_summary[:20],
+        "knowledge_comparisons": knowledge_comparisons[:40],
     }
 
 
@@ -1098,6 +1193,7 @@ def _planner_perception_metadata(
             return perception_summary
         legacy = dict(perception_summary)
         legacy.pop("knowledge_reports", None)
+        legacy.pop("knowledge_comparisons", None)
         return legacy
     return None
 
