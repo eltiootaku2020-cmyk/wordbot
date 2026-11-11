@@ -3437,7 +3437,7 @@ def _current_knowledge_report_correction_id(
 def assess_knowledge_report(
     session_id: str, transmission_id: str, payload: KnowledgeAssessmentRequest
 ):
-    """Record one recipient's evidence-backed opinion without changing world truth."""
+    """Record one recipient's evidence-backed opinion about exact received versions."""
     with database.transaction() as conn:
         ensure_no_turn_in_progress(conn, session_id)
         session = session_row(conn, session_id)
@@ -3451,27 +3451,6 @@ def assess_knowledge_report(
                 status_code=422,
                 detail="Indica exactamente una evidencia: otro informe recibido o un evento conocido directamente."
             )
-
-        existing = conn.execute(
-            "SELECT * FROM session_knowledge_assessments WHERE session_id=? AND request_id=?",
-            (session_id, payload.request_id),
-        ).fetchone()
-        if existing is not None:
-            same_request = (
-                str(existing["transmission_id"]) == transmission_id
-                and str(existing["assessor_entity_id"]) == payload.assessor_entity_id
-                and str(existing["stance"]) == payload.stance
-                and int(existing["confidence"]) == payload.confidence
-                and str(existing["evidence_report_id"] or "") == evidence_report_id
-                and str(existing["evidence_event_id"] or "") == evidence_event_id
-                and str(existing["rationale"]) == payload.rationale
-            )
-            if not same_request:
-                raise HTTPException(
-                    status_code=409,
-                    detail="El identificador de solicitud ya se utilizó para otra evaluación."
-                )
-            return {"assessment": dict(existing), "replayed": True}
 
         report = conn.execute(
             "SELECT t.id,t.source_event_id,t.recipient_entity_id,t.transmitted_total_minutes,"
@@ -3496,6 +3475,32 @@ def assess_knowledge_report(
         if int(report["transmitted_total_minutes"]) > current_total:
             raise HTTPException(status_code=422, detail="El informe todavía no era conocido en el minuto actual.")
 
+        current_assessed_correction_id = _current_knowledge_report_correction_id(
+            conn, session_id, transmission_id, payload.assessor_entity_id, current_total
+        )
+        requested_assessed_correction_id = (
+            None if payload.assessed_correction_id is None
+            else payload.assessed_correction_id.strip()
+        )
+        if (
+            requested_assessed_correction_id is not None
+            and requested_assessed_correction_id != current_assessed_correction_id
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="La versión que intentas valorar ya no es la versión recibida vigente. Actualiza el informe y vuelve a comparar."
+            )
+        assessed_correction_id = (
+            current_assessed_correction_id
+            if requested_assessed_correction_id is None
+            else requested_assessed_correction_id
+        )
+
+        current_evidence_correction_id = ""
+        requested_evidence_correction_id = (
+            None if payload.evidence_correction_id is None
+            else payload.evidence_correction_id.strip()
+        )
         if evidence_report_id:
             if evidence_report_id == transmission_id:
                 raise HTTPException(status_code=422, detail="Un informe no puede usarse como evidencia de sí mismo.")
@@ -3519,7 +3524,28 @@ def assess_knowledge_report(
                     status_code=422,
                     detail="El informe comparativo debe haber sido recibido por el mismo PNJ y referirse al mismo acontecimiento."
                 )
+            current_evidence_correction_id = _current_knowledge_report_correction_id(
+                conn, session_id, evidence_report_id, payload.assessor_entity_id, current_total
+            )
+            if (
+                requested_evidence_correction_id is not None
+                and requested_evidence_correction_id != current_evidence_correction_id
+            ):
+                raise HTTPException(
+                    status_code=409,
+                    detail="La versión usada como evidencia cambió. Actualiza los informes y vuelve a comparar."
+                )
+            evidence_correction_id = (
+                current_evidence_correction_id
+                if requested_evidence_correction_id is None
+                else requested_evidence_correction_id
+            )
         else:
+            if requested_evidence_correction_id not in {None, ""}:
+                raise HTTPException(
+                    status_code=422,
+                    detail="Una evidencia de tipo evento no puede incluir un ID de rectificación."
+                )
             evidence = conn.execute(
                 "SELECT e.id,e.status,e.kind,e.witnesses_json,e.source_message_id,"
                 "m.recipient_entity_id AS source_recipient_id,m.metadata_json AS source_metadata_json "
@@ -3536,17 +3562,43 @@ def assess_knowledge_report(
                     status_code=422,
                     detail="El PNJ no tiene una vía directa y registrada para conocer ese evento como evidencia."
                 )
+            evidence_correction_id = ""
+
+        existing = conn.execute(
+            "SELECT * FROM session_knowledge_assessments WHERE session_id=? AND request_id=?",
+            (session_id, payload.request_id),
+        ).fetchone()
+        if existing is not None:
+            same_request = (
+                str(existing["transmission_id"]) == transmission_id
+                and str(existing["assessor_entity_id"]) == payload.assessor_entity_id
+                and str(existing["stance"]) == payload.stance
+                and int(existing["confidence"]) == payload.confidence
+                and str(existing["evidence_report_id"] or "") == evidence_report_id
+                and str(existing["evidence_event_id"] or "") == evidence_event_id
+                and str(existing["assessed_correction_id"] or "") == assessed_correction_id
+                and str(existing["evidence_correction_id"] or "") == evidence_correction_id
+                and str(existing["rationale"]) == payload.rationale
+            )
+            if not same_request:
+                raise HTTPException(
+                    status_code=409,
+                    detail="El identificador de solicitud ya se utilizó para otra evaluación."
+                )
+            return {"assessment": dict(existing), "replayed": True}
 
         assessment_id = new_id()
         conn.execute(
             "INSERT INTO session_knowledge_assessments("
             "id,session_id,request_id,transmission_id,assessor_entity_id,stance,confidence,"
-            "evidence_report_id,evidence_event_id,rationale,assessed_total_minutes"
-            ") VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+            "evidence_report_id,evidence_event_id,assessed_correction_id,evidence_correction_id,"
+            "rationale,assessed_total_minutes"
+            ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
             (
                 assessment_id, session_id, payload.request_id, transmission_id,
                 payload.assessor_entity_id, payload.stance, payload.confidence,
-                evidence_report_id, evidence_event_id, payload.rationale, current_total,
+                evidence_report_id, evidence_event_id, assessed_correction_id,
+                evidence_correction_id, payload.rationale, current_total,
             ),
         )
         assessment = conn.execute(
