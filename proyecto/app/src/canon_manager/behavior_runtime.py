@@ -820,12 +820,14 @@ def _entity_perception_context(
         "evidence_c.correction_kind AS evidence_correction_kind,"
         "evidence_c.replacement_text AS evidence_correction_text,"
         "evidence.sender_entity_id AS evidence_sender_entity_id,"
-        "evidence_sender.name AS evidence_sender_name "
+        "evidence_sender.name AS evidence_sender_name,"
+        "evidence_event.description AS evidence_event_description "
         "FROM session_knowledge_assessments a "
         "JOIN session_knowledge_transmissions t ON t.id=a.transmission_id "
         "LEFT JOIN session_knowledge_transmissions evidence "
         "ON evidence.id=a.evidence_report_id AND evidence.session_id=a.session_id "
         "LEFT JOIN entities evidence_sender ON evidence_sender.id=evidence.sender_entity_id "
+        "LEFT JOIN events evidence_event ON evidence_event.id=a.evidence_event_id AND evidence_event.session_id=a.session_id "
         "LEFT JOIN session_knowledge_corrections assessed_c "
         "ON assessed_c.id=a.assessed_correction_id AND assessed_c.session_id=a.session_id "
         "LEFT JOIN session_knowledge_corrections evidence_c "
@@ -865,7 +867,9 @@ def _entity_perception_context(
                     else "[afirmación retirada]"
                 )
         elif str(assessment["evidence_event_id"] or ""):
-            evidence_version_text = "Evento conocido: " + str(assessment["evidence_event_id"])
+            evidence_version_text = (
+                "Evento conocido: " + str(assessment["evidence_event_description"] or assessment["evidence_event_id"])
+            )
         assessments_by_report.setdefault(str(assessment["transmission_id"]), []).append({
             "stance": str(assessment["stance"]),
             "confidence": int(assessment["confidence"]),
