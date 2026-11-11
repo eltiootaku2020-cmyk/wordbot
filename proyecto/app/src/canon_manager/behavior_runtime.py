@@ -901,10 +901,11 @@ def _entity_perception_context(
     knowledge_summary: list[dict[str, Any]] = []
     report_rows = conn.execute(
         "SELECT t.id,t.sender_entity_id,t.recipient_entity_id,t.transmission_kind,"
-        "t.version_text,t.location,t.transmitted_total_minutes,t.parent_transmission_id,"
+        "es.name AS sender_name,t.version_text,t.location,t.transmitted_total_minutes,t.parent_transmission_id,"
         "t.parent_correction_id,s.id AS source_event_id,s.kind AS source_event_kind,"
         "c.id AS communication_event_id,c.status AS communication_status "
         "FROM session_knowledge_transmissions t "
+        "JOIN entities es ON es.id=t.sender_entity_id "
         "JOIN events s ON s.id=t.source_event_id AND s.session_id=t.session_id "
         "JOIN events c ON c.id=t.communication_event_id AND c.session_id=t.session_id "
         "WHERE t.session_id=? AND t.recipient_entity_id=? "
@@ -939,6 +940,7 @@ def _entity_perception_context(
             "transmission_id": str(report["id"]),
             "transmission_kind": transmission_kind,
             "sender_entity_id": str(report["sender_entity_id"]),
+            "sender_name": str(report["sender_name"]),
             "recipient_entity_id": str(report["recipient_entity_id"]),
             "source_event_id": str(report["source_event_id"]),
             "source_event_kind": str(report["source_event_kind"]),
@@ -972,9 +974,6 @@ def _entity_perception_context(
     # Compare only reports that this recipient personally received about the
     # same source event from different senders. Different wording is a review
     # candidate, never an automatic finding that either statement is false.
-    reports_by_id = {
-        item["transmission_id"]: item for item in knowledge_summary
-    }
     knowledge_comparisons: list[dict[str, Any]] = []
     for left_index, left in enumerate(knowledge_summary):
         left_version = str(left.get("current_reported_version") or "").strip()
@@ -1019,18 +1018,12 @@ def _entity_perception_context(
                 "assessor_entity_id": entity_id,
                 "left_report_id": left["transmission_id"],
                 "left_sender_entity_id": left["sender_entity_id"],
-                "left_sender_name": next(
-                    (hop["sender_name"] for hop in left["provenance_chain"][-1:]),
-                    ""
-                ),
+                "left_sender_name": left["sender_name"],
                 "left_version": left_version,
                 "left_transmission_kind": left["transmission_kind"],
                 "right_report_id": right["transmission_id"],
                 "right_sender_entity_id": right["sender_entity_id"],
-                "right_sender_name": next(
-                    (hop["sender_name"] for hop in right["provenance_chain"][-1:]),
-                    ""
-                ),
+                "right_sender_name": right["sender_name"],
                 "right_version": right_version,
                 "right_transmission_kind": right["transmission_kind"],
                 "comparison_status": (
