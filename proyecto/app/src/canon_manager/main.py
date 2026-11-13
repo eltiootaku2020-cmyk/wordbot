@@ -3717,6 +3717,22 @@ def assess_knowledge_comparison(
         if session is None:
             raise HTTPException(status_code=404, detail="Partida no encontrada.")
 
+        assessor = conn.execute(
+            "SELECT e.kind FROM entities e JOIN sessions s ON s.world_id=e.world_id "
+            "WHERE s.id=? AND e.id=?",
+            (session_id, payload.assessor_entity_id),
+        ).fetchone()
+        if assessor is None:
+            raise HTTPException(
+                status_code=404,
+                detail="El personaje evaluador no pertenece al mundo de esta partida."
+            )
+        if str(assessor["kind"]).strip().casefold() == "protagonist":
+            raise HTTPException(
+                status_code=422,
+                detail="Las conclusiones persistentes de esta función están reservadas a PNJ."
+            )
+
         existing = conn.execute(
             "SELECT * FROM session_knowledge_reasoning_assessments "
             "WHERE session_id=? AND request_id=?",
