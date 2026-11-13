@@ -126,6 +126,20 @@ La primera fase sigue siendo un **evaluador de propuestas**, pero ahora existe u
 
 API: `POST /api/sessions/{session_id}/entities/{entity_id}/agendas`, `GET /api/sessions/{session_id}/agendas` y `DELETE /api/sessions/{session_id}/agendas/{agenda_id}`. API ambiental: `POST /api/sessions/{session_id}/environment/observations`.
 
+### Razonamiento semántico individual y procedencia de evidencias
+
+- `knowledge_reasoning.py` añade un analizador local y determinista, sin servicios externos ni modelos generativos. Por ahora reconoce una gramática acotada de afirmaciones de estado en español/inglés: sujeto, propiedad de estado, valor, negación, periodo temporal y ubicación opcional. Los valores se normalizan mediante un vocabulario explícito; una frase fuera de esa gramática queda como `unstructured`, no se fuerza una interpretación.
+- Las comparaciones diferencian `possible_conflict`, `compatible`, `different_time`, `different_location`, `different_claim`, `insufficient_context` y `unstructured`. Una diferencia de redacción no basta para concluir incompatibilidad; una ausencia de dato no se convierte en negación. Los intervalos de tiempo aproximados son filtros conservadores, no una cronología objetiva.
+- El análisis usa el mismo evento fuente y las versiones textuales recibidas. Un conflicto semántico es solo un candidato. No selecciona al emisor verdadero ni modifica el evento registrado, el canon o el estado del mundo.
+- La independencia se calcula desde la raíz de la cadena de transmisiones, no contando retransmisiones. Si dos versiones descienden de la misma transmisión original, se muestran como `same_lineage` y cuentan como una sola procedencia; si falta algún eslabón, el resultado es `unknown`, nunca corroboración independiente.
+- La clasificación actualmente distingue observación/evento registrado, testimonio directo y rumor retransmitido a partir de los tipos y vínculos ya almacenados. Todavía no existe un registro de primera clase para documentos ni para inspecciones de evidencia física; el motor no inventa esas categorías ni las suma como pruebas separadas.
+- `session_knowledge_reasoning_assessments` guarda conclusiones personales append-only: PNJ evaluador, ambos IDs de transmisión, los IDs exactos de corrección usados, raíces de procedencia, independencia, postura, confianza, motivo y minuto. Las conclusiones se consultan únicamente dentro de la percepción de ese PNJ. Dos personajes pueden interpretar de manera distinta los mismos tipos de evidencia.
+- La API `POST /api/sessions/{session_id}/knowledge-comparisons/{left_transmission_id}/{right_transmission_id}/reasoning` rechaza informes que el evaluador no recibió, informes retirados, acontecimientos distintos y versiones obsoletas. La postura `contradiction` exige un conflicto semántico candidato y dos cadenas completas e independientes; las dudas y conclusiones compatibles siguen siendo decisiones personales.
+- La ruta también protege la API de valoración previa: `stance=contradicts` ya no acepta dos retransmisiones como fuentes independientes cuando comparten origen o la procedencia está incompleta.
+- Una corrección posterior conserva la conclusión anterior y la marca como histórica al cambiar uno de los IDs de versión. Repetir una solicitud con el mismo `request_id` devuelve el registro previo sin duplicarlo ni volver a planificar.
+- Las conclusiones se incluyen en snapshots de turno y restauración. Una nueva valoración cambia la percepción individual y llama al planificador existente para revisar actividades autónomas futuras autorizadas; no avanza el reloj, no mueve PNJ, no modifica al protagonista ni interrumpe tareas manuales o en curso.
+- El panel de conocimiento muestra el resultado semántico como candidato, la procedencia compartida/independiente, las versiones comparadas, la opinión individual y su historial. No convierte el resultado del analizador en una verdad objetiva.
+
 ### Límites pendientes
 
 - La planificación cubre el resto del día actual, hasta seis tareas, sin programar automáticamente días futuros. Un PNJ sin perfil válido o sin acciones autorizadas permanece inactivo.
