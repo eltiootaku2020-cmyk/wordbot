@@ -9331,6 +9331,115 @@ def _save_semantic_reasoning(
     )
 
 
+def test_protagonist_cannot_record_private_npc_reasoning():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        ids = _entity_ids_by_name(client, world_id)
+        protagonist_id = next(
+            value for name, value in ids.items()
+            if name.lower() in {"protagonista", "protagonist"}
+        )
+        brina_id = ids["Brina Solcor"]
+        maelis_id = ids["Maelis Orven"]
+        source_event_id = _record_shared_witness_source(
+            session_id, protagonist_id,
+            [protagonist_id, brina_id, maelis_id],
+            "protagonist-must-not-assess-source",
+        )
+        left_id = _approve_knowledge_testimony(
+            client, session_id, source_event_id, brina_id, protagonist_id,
+            "protagonist-assessment-left",
+            "El puente estaba intacto por la mañana.",
+        )
+        right_id = _approve_knowledge_testimony(
+            client, session_id, source_event_id, maelis_id, protagonist_id,
+            "protagonist-assessment-right",
+            "El puente estaba destruido por la mañana.",
+        )
+
+        response = _save_semantic_reasoning(
+            client, session_id, protagonist_id, left_id, right_id,
+            outcome="uncertain",
+            request_id="protagonist-private-reasoning-rejected-001",
+        )
+        assert response.status_code == 422, response.text
+        assert "reservadas a PNJ" in response.json()["detail"]
+        with database.connection() as conn:
+            saved = conn.execute(
+                "SELECT COUNT(*) AS n FROM session_knowledge_reasoning_assessments "
+                "WHERE session_id=? AND assessor_entity_id=?",
+                (session_id, protagonist_id),
+            ).fetchone()["n"]
+        assert saved == 0
+
+
+def test_reasoning_history_context_keeps_the_latest_300_records():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        ids = _entity_ids_by_name(client, world_id)
+        protagonist_id = next(
+            value for name, value in ids.items()
+            if name.lower() in {"protagonista", "protagonist"}
+        )
+        brina_id = ids["Brina Solcor"]
+        maelis_id = ids["Maelis Orven"]
+        source_event_id = _record_shared_witness_source(
+            session_id, protagonist_id, [protagonist_id, brina_id, maelis_id],
+            "reasoning-history-retention-source",
+        )
+        left_id = _approve_knowledge_testimony(
+            client, session_id, source_event_id, protagonist_id, brina_id,
+            "reasoning-history-retention-left",
+            "El puente estaba intacto por la mañana.",
+        )
+        right_id = _approve_knowledge_testimony(
+            client, session_id, source_event_id, maelis_id, brina_id,
+            "reasoning-history-retention-right",
+            "El puente estaba destruido por la mañana.",
+        )
+
+        with database.connection() as conn:
+            session = conn.execute(
+                "SELECT day,minute_of_day FROM sessions WHERE id=?",
+                (session_id,),
+            ).fetchone()
+            current_total = (int(session["day"]) - 1) * 1440 + int(session["minute_of_day"])
+            for index in range(305):
+                conn.execute(
+                    "INSERT INTO session_knowledge_reasoning_assessments("
+                    "id,session_id,request_id,assessor_entity_id,left_transmission_id,left_correction_id,"
+                    "right_transmission_id,right_correction_id,left_source_root_id,right_source_root_id,"
+                    "source_independence,outcome,confidence,rationale,assessed_total_minutes,created_at"
+                    ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (
+                        f"reasoning-history-retention-{index}",
+                        session_id,
+                        f"reasoning-history-request-{index}",
+                        brina_id,
+                        left_id,
+                        "",
+                        right_id,
+                        "",
+                        "root-left",
+                        "root-right",
+                        "independent",
+                        "uncertain",
+                        50,
+                        "Registro sintético para comprobar retención del historial.",
+                        current_total + index,
+                        f"2026-11-13 00:{index // 60:02d}:{index % 60:02d}",
+                    ),
+                )
+            _, perception = _entity_perception_context(conn, session_id, brina_id)
+
+        history = perception["knowledge_reasoning_history"]
+        assert len(history) == 100
+        assert history[0]["request_id"] == "reasoning-history-request-205"
+        assert history[-1]["request_id"] == "reasoning-history-request-304"
+
+
 def test_semantic_reasoning_is_personal_idempotent_snapshot_safe_and_clock_neutral(monkeypatch):
     planner_calls = []
 
