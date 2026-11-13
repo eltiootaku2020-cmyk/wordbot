@@ -14,6 +14,7 @@ import uuid
 from typing import Any, Mapping
 
 from .db import Database
+from .knowledge_reasoning import analyze_report_pair, parse_claim_text
 from .behavior_engine import (
     BehaviorValidationError,
     advance_emotions,
@@ -993,6 +994,12 @@ def _entity_perception_context(
             conn, session_id, str(report["id"]), current_total
         )
         origin = provenance_chain[0] if provenance_chain else None
+        current_reported_version = (
+            correction["replacement_text"]
+            if correction and correction["correction_kind"] == "corrected"
+            else ("" if correction and correction["correction_kind"] == "retracted" else str(report["version_text"]))
+        )
+        structured_claim = parse_claim_text(current_reported_version) if current_reported_version else None
         knowledge_summary.append({
             "transmission_id": str(report["id"]),
             "transmission_kind": transmission_kind,
@@ -1016,11 +1023,8 @@ def _entity_perception_context(
             "report_status": report_status,
             "correction": correction,
             "correction_history": correction_history,
-            "current_reported_version": (
-                correction["replacement_text"]
-                if correction and correction["correction_kind"] == "corrected"
-                else ("" if correction and correction["correction_kind"] == "retracted" else str(report["version_text"]))
-            ),
+            "current_reported_version": current_reported_version,
+            "structured_claim": structured_claim,
             "assessment": (
                 assessments_by_report.get(str(report["id"]), [])[-1]
                 if assessments_by_report.get(str(report["id"])) else None
@@ -1109,10 +1113,29 @@ def _entity_perception_context(
                     ):
                         assessment_is_current = False
                         break
+            semantic_analysis = analyze_report_pair(
+                left_version,
+                right_version,
+                left_root_id=str(left.get("origin_transmission_id") or ""),
+                right_root_id=str(right.get("origin_transmission_id") or ""),
+                left_provenance_complete=bool(left.get("provenance_complete")),
+                right_provenance_complete=bool(right.get("provenance_complete")),
+            )
+            left_correction_id = (
+                str(left.get("correction", {}).get("correction_id") or "")
+                if isinstance(left.get("correction"), dict) else ""
+            )
+            right_correction_id = (
+                str(right.get("correction", {}).get("correction_id") or "")
+                if isinstance(right.get("correction"), dict) else ""
+            )
             comparison = {
                 "comparison_id": "|".join(sorted((
                     left["transmission_id"], right["transmission_id"]
                 ))),
+                "left_correction_id": left_correction_id,
+                "right_correction_id": right_correction_id,
+                "semantic_analysis": semantic_analysis,
                 "source_event_id": left["source_event_id"],
                 "assessor_entity_id": entity_id,
                 "left_report_id": left["transmission_id"],
@@ -1137,6 +1160,50 @@ def _entity_perception_context(
             knowledge_comparisons.append(comparison)
             left.setdefault("comparison_ids", []).append(comparison["comparison_id"])
             right.setdefault("comparison_ids", []).append(comparison["comparison_id"])
+
+    # Personal reasoning is append-only and scoped to the assessor plus the
+    # exact two report versions. A later correction makes it historical; it
+    # does not rewrite the old conclusion or transfer it to another NPC.
+    reasoning_rows = conn.execute(
+        "SELECT * FROM session_knowledge_reasoning_assessments "
+        "WHERE session_id=? AND assessor_entity_id=? "
+        "ORDER BY assessed_total_minutes,created_at,id LIMIT 300",
+        (session_id, entity_id),
+    ).fetchall()
+    reasoning_by_pair: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for reasoning_row in reasoning_rows:
+        key = (
+            str(reasoning_row["left_transmission_id"]),
+            str(reasoning_row["right_transmission_id"]),
+        )
+        reasoning_by_pair.setdefault(key, []).append(dict(reasoning_row))
+    reports_by_id = {item["transmission_id"]: item for item in knowledge_summary}
+    for comparison in knowledge_comparisons:
+        key = (comparison["left_report_id"], comparison["right_report_id"])
+        history = reasoning_by_pair.get(key, [])
+        if not history:
+            reverse_key = (key[1], key[0])
+            history = reasoning_by_pair.get(reverse_key, [])
+        comparison["reasoning_history"] = history[-20:]
+        comparison["reasoning"] = history[-1] if history else None
+        if history:
+            latest = history[-1]
+            stored_left = reports_by_id.get(str(latest["left_transmission_id"]), {})
+            stored_right = reports_by_id.get(str(latest["right_transmission_id"]), {})
+            current_left_id = (
+                str(stored_left.get("correction", {}).get("correction_id") or "")
+                if isinstance(stored_left.get("correction"), dict) else ""
+            )
+            current_right_id = (
+                str(stored_right.get("correction", {}).get("correction_id") or "")
+                if isinstance(stored_right.get("correction"), dict) else ""
+            )
+            comparison["reasoning_is_current"] = (
+                current_left_id == str(latest["left_correction_id"] or "")
+                and current_right_id == str(latest["right_correction_id"] or "")
+            )
+        else:
+            comparison["reasoning_is_current"] = False
 
     environment_summary: list[dict[str, Any]] = []
     if location:
