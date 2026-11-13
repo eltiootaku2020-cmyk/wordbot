@@ -1,5 +1,6 @@
 from canon_manager.knowledge_reasoning import (
     analyze_report_pair,
+    classify_evidence_origin,
     classify_source_independence,
     compare_claims,
     parse_claim_text,
@@ -180,4 +181,25 @@ def test_two_different_root_witnesses_on_different_events_are_not_comparable_as_
         right_originator_id="witness-b",
         left_source_event_id="event-a",
         right_source_event_id="event-b",
+    ) == "unknown"
+
+
+def test_evidence_origin_distinguishes_recorded_observation_physical_document_testimony_and_rumor():
+    assert classify_evidence_origin(
+        "testimony", "observation", provenance_complete=True
+    ) == "direct_observation"
+    assert classify_evidence_origin(
+        "testimony", "physical_evidence", provenance_complete=True
+    ) == "registered_physical_evidence"
+    assert classify_evidence_origin(
+        "testimony", "document", provenance_complete=True
+    ) == "registered_document"
+    assert classify_evidence_origin(
+        "testimony", "clue", provenance_complete=True
+    ) == "received_testimony"
+    assert classify_evidence_origin(
+        "rumor", "clue", provenance_complete=True, parent_transmission_id="parent"
+    ) == "relayed_rumor"
+    assert classify_evidence_origin(
+        "testimony", "document", provenance_complete=False
     ) == "unknown"
