@@ -12,6 +12,10 @@ def test_same_bridge_same_morning_with_incompatible_states_is_candidate_conflict
         "El puente estaba intacto por la mañana.",
         left_root_id="origin-a",
         right_root_id="origin-b",
+        left_originator_id="witness-a",
+        right_originator_id="witness-b",
+        left_source_event_id="event-1",
+        right_source_event_id="event-1",
         left_provenance_complete=True,
         right_provenance_complete=True,
     )
@@ -76,6 +80,10 @@ def test_ten_relays_of_the_same_origin_count_as_one_lineage():
         "original-transmission-1",
         "original-transmission-1",
         left_complete=True,
+        left_originator_id="witness-a",
+        right_originator_id="witness-a",
+        left_source_event_id="event-1",
+        right_source_event_id="event-1",
         right_complete=True,
     )
     assert independence == "same_lineage"
@@ -84,6 +92,10 @@ def test_ten_relays_of_the_same_origin_count_as_one_lineage():
         "El puente estaba destruido por la mañana.",
         left_root_id="original-transmission-1",
         right_root_id="original-transmission-1",
+        left_originator_id="witness-a",
+        right_originator_id="witness-a",
+        left_source_event_id="event-1",
+        right_source_event_id="event-1",
         left_provenance_complete=True,
         right_provenance_complete=True,
     )
@@ -95,12 +107,20 @@ def test_independent_roots_are_counted_as_two_sources():
     assert classify_source_independence(
         "origin-a", "origin-b",
         left_complete=True, right_complete=True,
+        left_originator_id="witness-a",
+        right_originator_id="witness-b",
+        left_source_event_id="event-1",
+        right_source_event_id="event-1",
     ) == "independent"
     result = analyze_report_pair(
         "El puente estaba intacto por la mañana.",
         "El puente estaba destruido por la mañana.",
         left_root_id="origin-a",
         right_root_id="origin-b",
+        left_originator_id="witness-a",
+        right_originator_id="witness-b",
+        left_source_event_id="event-1",
+        right_source_event_id="event-1",
         left_provenance_complete=True,
         right_provenance_complete=True,
     )
