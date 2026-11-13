@@ -752,7 +752,8 @@ function renderState(payload) {
     (person.knowledge_reports || []).map(report => ({person, report}))
   );
   const comparisonCandidates = payload.participants.flatMap(person =>
-    (person.knowledge_comparisons || []).map(comparison => ({person, comparison}))
+    person.kind === "protagonist" ? [] :
+      (person.knowledge_comparisons || []).map(comparison => ({person, comparison}))
   );
   if (comparisonCandidates.length) {
     const comparisonSection = document.createElement("div");
