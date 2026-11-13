@@ -9512,21 +9512,6 @@ def test_semantic_reasoning_is_personal_idempotent_snapshot_safe_and_clock_neutr
             _, retracted_perception = _entity_perception_context(
                 conn, session_id, brina_id
             )
-            correction_debug = [
-                dict(row) for row in conn.execute(
-                    "SELECT c.id,c.parent_correction_id,c.correction_kind,c.corrected_total_minutes,"
-                    "e.status AS event_status,e.kind AS event_kind,e.witnesses_json "
-                    "FROM session_knowledge_corrections c "
-                    "JOIN events e ON e.id=c.correction_event_id "
-                    "WHERE c.session_id=? AND c.original_transmission_id=? "
-                    "ORDER BY c.corrected_total_minutes,e.rowid",
-                    (session_id, left_id),
-                ).fetchall()
-            ]
-            current_total_debug = conn.execute(
-                "SELECT (day-1)*1440+minute_of_day AS total FROM sessions WHERE id=?",
-                (session_id,),
-            ).fetchone()["total"]
         assert not any(
             {item["left_report_id"], item["right_report_id"]} == {left_id, right_id}
             for item in retracted_perception["knowledge_comparisons"]
@@ -9537,12 +9522,12 @@ def test_semantic_reasoning_is_personal_idempotent_snapshot_safe_and_clock_neutr
             and item["right_transmission_id"] == right_report_id
         )
         assert historical["is_current"] is False
-        assert historical["left_report_status"] == "retracted", (
-            f"corrections={correction_debug!r}; current_total={current_total_debug}; "
-            f"report={next(r for r in retracted_perception['knowledge_reports'] if r['transmission_id']==left_id)!r}"
+        withdrawn_side = (
+            "left" if historical["left_transmission_id"] == left_id else "right"
         )
+        assert historical[f"{withdrawn_side}_report_status"] == "retracted"
         assert historical["outcome"] == "contradiction"
-        assert historical["left_version_text"] == "El puente estaba destruido por la mañana."
+        assert historical[f"{withdrawn_side}_version_text"] == "El puente estaba destruido por la mañana."
 
 
 def test_two_npcs_can_keep_different_private_conclusions_about_the_same_evidence():
