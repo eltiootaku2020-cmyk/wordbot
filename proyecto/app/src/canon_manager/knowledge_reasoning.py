@@ -82,8 +82,43 @@ def _extract_scope(text: str, markers: Mapping[str, tuple[str, ...]]) -> tuple[s
     return "", text
 
 
+_ACTION_VERBS = {
+    "cruzo": "cross", "atraveso": "cross", "paso": "cross",
+    "entro": "enter", "ingreso": "enter",
+    "salio": "leave", "partio": "depart",
+    "llego": "arrive", "aparecio": "appear", "cayo": "fall",
+    "murio": "die", "durmio": "sleep", "espero": "wait",
+    "ataco": "attack", "golpeo": "strike", "encontro": "find",
+    "tomo": "take", "robo": "steal", "entrego": "give", "dio": "give",
+    "prometio": "promise", "hablo": "speak", "aviso": "warn",
+    "ayudo": "help", "siguio": "follow", "vio": "see",
+    "crossed": "cross", "entered": "enter", "left": "leave",
+    "departed": "depart", "arrived": "arrive", "appeared": "appear",
+    "fell": "fall", "died": "die", "slept": "sleep", "waited": "wait",
+    "attacked": "attack", "struck": "strike", "found": "find",
+    "took": "take", "stole": "steal", "gave": "give",
+    "promised": "promise", "spoke": "speak", "warned": "warn",
+    "helped": "help", "followed": "follow", "saw": "see",
+}
+_INTRANSITIVE_ACTIONS = {"arrive", "depart", "appear", "fall", "die", "sleep", "wait"}
+
+
+def _split_action_scope(tail: str, action: str) -> tuple[str, str]:
+    prefixes = (" dentro del ", " dentro de ", " en el ", " en la ", " en los ", " en las ", " within ", " inside ", " at ", " en ")
+    for prefix in prefixes:
+        position = tail.rfind(prefix)
+        if position > 0:
+            return tail[:position].strip(), _clean_phrase(tail[position + len(prefix):])
+    for prefix in ("dentro del ", "dentro de ", "en el ", "en la ", "en los ", "en las ", "within ", "inside ", "at ", "en "):
+        if tail.startswith(prefix):
+            if action in _INTRANSITIVE_ACTIONS:
+                return "", _clean_phrase(tail[len(prefix):])
+            return tail, ""
+    return tail, ""
+
+
 def parse_claim_text(text: str) -> dict[str, Any] | None:
-    """Parse only a supported single state assertion; unknown wording stays unknown."""
+    """Parse a conservative state or explicit action assertion; unsupported prose stays unknown."""
     if not isinstance(text, str) or not text.strip() or len(text) > 600:
         return None
     folded = _fold(text).strip()
@@ -91,9 +126,10 @@ def parse_claim_text(text: str) -> dict[str, Any] | None:
     time_scope, folded = _extract_scope(folded, _TIME_SCOPES)
     folded = re.sub(r"\s+", " ", folded).strip()
 
-    verb_pattern = "|".join(re.escape(verb) for verb in sorted(set(_STATE_VERBS), key=len, reverse=True))
+    verbs = set(_STATE_VERBS) | set(_ACTION_VERBS)
+    verb_pattern = "|".join(re.escape(verb) for verb in sorted(verbs, key=len, reverse=True))
     match = re.match(
-        rf"^(?P<subject>[a-z0-9][a-z0-9 '\\-]{{0,90}}?)\s+(?P<pre_negation>no\s+|not\s+)?(?P<verb>{verb_pattern})\s+(?P<tail>.+)$",
+        rf"^(?P<subject>[a-z0-9][a-z0-9 '\-]{{0,90}}?)\s+(?P<pre_negation>no\s+|not\s+)?(?P<verb>{verb_pattern})\s+(?P<tail>.+)$",
         folded,
     )
     if not match:
@@ -110,37 +146,45 @@ def parse_claim_text(text: str) -> dict[str, Any] | None:
         negated = True
         tail = tail[negative.end():]
 
-    value_match = re.match(r"^(?P<value>[a-z]+)\b(?P<rest>.*)$", tail)
-    if not value_match:
-        return None
-    value_token = value_match.group("value")
-    value = _VALUE_ALIASES.get(value_token)
-    if not value:
-        return None
-    rest = value_match.group("rest").strip(" .!?")
-
+    verb = match.group("verb")
     location = ""
-    if rest:
-        for prefix in _LOCATION_PREFIXES:
-            if rest.startswith(prefix):
-                location = _clean_phrase(rest[len(prefix):])
-                rest = ""
-                break
-    # Other qualifiers are not guessed or silently discarded.
-    if rest:
-        return None
+    if verb in _STATE_VERBS:
+        value_match = re.match(r"^(?P<value>[a-z]+)\b(?P<rest>.*)$", tail)
+        if not value_match:
+            return None
+        value = _VALUE_ALIASES.get(value_match.group("value"))
+        if not value:
+            return None
+        rest = value_match.group("rest").strip(" .!?")
+        if rest:
+            for prefix in _LOCATION_PREFIXES:
+                if rest.startswith(prefix):
+                    location = _clean_phrase(rest[len(prefix):])
+                    rest = ""
+                    break
+        if rest:
+            return None
+        predicate = "state"
+    else:
+        action = _ACTION_VERBS.get(verb)
+        if not action:
+            return None
+        target, location = _split_action_scope(tail, action)
+        value = _clean_phrase(target)
+        if not value and action not in _INTRANSITIVE_ACTIONS:
+            return None
+        predicate = "action:" + action
 
     return {
         "parse_version": 1,
         "subject": subject,
-        "predicate": "state",
+        "predicate": predicate,
         "value": value,
         "negated": negated,
         "time_scope": time_scope,
         "location_scope": location,
         "source_text": text.strip(),
     }
-
 
 def compare_claims(
     left: Mapping[str, Any] | None,
@@ -172,7 +216,9 @@ def compare_claims(
 
     left_value, right_value = str(left.get("value") or ""), str(right.get("value") or "")
     left_negated, right_negated = bool(left.get("negated")), bool(right.get("negated"))
-    if not left_value or not right_value:
+    if left.get("predicate", "").startswith("action:") and left_value != right_value:
+        return {"relation": "different_claim", "comparable": False, "reason": "Las acciones se refieren a objetivos distintos."}
+    if left.get("predicate") == "state" and (not left_value or not right_value):
         return {"relation": "insufficient_context", "comparable": False, "reason": "Falta el valor afirmado."}
 
     conflict = False
