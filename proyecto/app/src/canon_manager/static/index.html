@@ -752,7 +752,8 @@ function renderState(payload) {
     (person.knowledge_reports || []).map(report => ({person, report}))
   );
   const comparisonCandidates = payload.participants.flatMap(person =>
-    (person.knowledge_comparisons || []).map(comparison => ({person, comparison}))
+    person.kind === "protagonist" ? [] :
+      (person.knowledge_comparisons || []).map(comparison => ({person, comparison}))
   );
   if (comparisonCandidates.length) {
     const comparisonSection = document.createElement("div");
@@ -778,9 +779,61 @@ function renderState(payload) {
       right.textContent = (comparison.right_sender_name || entityNames[comparison.right_sender_entity_id] || comparison.right_sender_entity_id) +
         " (" + comparison.right_transmission_kind + "): «" + comparison.right_version + "»";
       item.appendChild(right);
+      const exactRefs = document.createElement("p");
+      exactRefs.className = "muted";
+      exactRefs.textContent = "Evento fuente: " + (comparison.source_event_id || "sin referencia") +
+        " (" + (comparison.source_event_kind || "tipo desconocido") + ")" +
+        " · versiones exactas: " + comparison.left_report_id + " ↔ " + comparison.right_report_id;
+      item.appendChild(exactRefs);
+      const evidenceOriginLabels = {
+        direct_observation: "observación directa",
+        registered_physical_evidence: "evidencia física registrada",
+        registered_document: "documento/registro",
+        received_testimony: "testimonio recibido",
+        relayed_rumor: "rumor retransmitido",
+        unknown: "procedencia incompleta/desconocida"
+      };
+      const evidenceOrigins = document.createElement("p");
+      evidenceOrigins.className = "muted";
+      evidenceOrigins.textContent = "Origen de evidencia: " +
+        (evidenceOriginLabels[comparison.left_evidence_origin] || "desconocido") +
+        " ↔ " +
+        (evidenceOriginLabels[comparison.right_evidence_origin] || "desconocido");
+      item.appendChild(evidenceOrigins);
+      const semantic = comparison.semantic_analysis || {};
+      const relationLabels = {
+        possible_conflict: "Posible conflicto semántico",
+        same_source_possible_conflict: "Diferencia dentro de una misma cadena de origen",
+        compatible: "Afirmaciones compatibles",
+        different_time: "Periodos diferentes",
+        different_location: "Lugares diferentes",
+        different_claim: "Afirmaciones sobre propiedades distintas",
+        insufficient_context: "Contexto insuficiente para comparar",
+        unstructured: "Texto no interpretable con seguridad"
+      };
+      const semanticNote = document.createElement("p");
+      semanticNote.className = "muted";
+      semanticNote.textContent = "Análisis local: " + (relationLabels[semantic.relation] || "sin clasificación") +
+        " · " + (semantic.reason || "No hay una conclusión automática.") +
+        " · fuentes: " + (semantic.source_independence === "independent"
+          ? "procedencias independientes"
+          : semantic.source_independence === "same_lineage"
+            ? "misma procedencia original"
+            : "procedencia incompleta o desconocida") +
+        ". Este análisis no decide quién tiene razón.";
+      item.appendChild(semanticNote);
+
       const result = document.createElement("p");
       result.className = "muted";
-      if (comparison.assessment && !comparison.assessment_is_current) {
+      if (comparison.reasoning && !comparison.reasoning_is_current) {
+        result.textContent = "Conclusión histórica de " + person.name +
+          ": las versiones cambiaron después de esta valoración. Se conserva: " +
+          comparison.reasoning.outcome + " · " + comparison.reasoning.rationale;
+      } else if (comparison.reasoning) {
+        result.textContent = "Conclusión personal actual de " + person.name + ": " +
+          comparison.reasoning.outcome + " · confianza " + comparison.reasoning.confidence +
+          "/100 · " + comparison.reasoning.rationale + " · no es una verdad objetiva.";
+      } else if (comparison.assessment && !comparison.assessment_is_current) {
         result.textContent = "Valoración histórica de " + person.name + ": las versiones cambiaron después de esta comparación; requiere una nueva valoración. Se conserva el razonamiento anterior: " +
           comparison.assessment.rationale;
       } else if (comparison.assessment && comparison.assessment.stance === "contradicts") {
@@ -795,10 +848,171 @@ function renderState(payload) {
         result.textContent = "Diferencia detectada entre versiones; este personaje todavía no registró una conclusión personal.";
       }
       item.appendChild(result);
+
+      const reasoningHistory = Array.isArray(comparison.reasoning_history)
+        ? comparison.reasoning_history : [];
+      reasoningHistory.forEach((entry, index) => {
+        const historyLine = document.createElement("p");
+        historyLine.className = "muted";
+        historyLine.textContent = "Historial " + (index + 1) + ": " + entry.outcome +
+          " · confianza " + entry.confidence + "/100 · versión " +
+          (entry.left_correction_id || "original") + " ↔ " +
+          (entry.right_correction_id || "original") + " · " + entry.rationale;
+        item.appendChild(historyLine);
+      });
+
+      const controls = document.createElement("div");
+      controls.className = "assessment-controls";
+      const outcomeLabel = document.createElement("label");
+      outcomeLabel.textContent = "Conclusión individual de " + person.name;
+      const outcome = document.createElement("select");
+      const outcomes = [
+        ["believes_left", "Confía más en la primera afirmación"],
+        ["believes_right", "Confía más en la segunda afirmación"],
+        ["uncertain", "Tiene dudas"],
+        ["compatible", "Considera que ambas pueden ser compatibles"],
+        ["insufficient_information", "No tiene información suficiente"],
+        ["no_conclusion", "Prefiere no sacar una conclusión"]
+      ];
+      if (semantic.relation === "possible_conflict" &&
+          semantic.source_independence === "independent") {
+        outcomes.push(["contradiction", "Considera que existe una contradicción"]);
+      }
+      outcomes.forEach(([value, label]) => addOption(outcome, value, label));
+      const previousReasoning = comparison.reasoning && comparison.reasoning_is_current
+        ? comparison.reasoning : null;
+      outcome.value = previousReasoning ? previousReasoning.outcome : "uncertain";
+      outcomeLabel.appendChild(outcome);
+      controls.appendChild(outcomeLabel);
+
+      const reasoningConfidenceLabel = document.createElement("label");
+      reasoningConfidenceLabel.textContent = "Confianza personal (0–100)";
+      const reasoningConfidence = document.createElement("input");
+      reasoningConfidence.type = "number";
+      reasoningConfidence.min = "0";
+      reasoningConfidence.max = "100";
+      reasoningConfidence.step = "1";
+      reasoningConfidence.value = previousReasoning ? previousReasoning.confidence : "50";
+      reasoningConfidenceLabel.appendChild(reasoningConfidence);
+      controls.appendChild(reasoningConfidenceLabel);
+
+      const reasoningTextLabel = document.createElement("label");
+      reasoningTextLabel.className = "wide";
+      reasoningTextLabel.textContent = "Motivo y evidencia conocida";
+      const reasoningText = document.createElement("input");
+      reasoningText.type = "text";
+      reasoningText.maxLength = 600;
+      reasoningText.placeholder = "Explica qué sabe este personaje y qué le falta comprobar";
+      reasoningText.value = previousReasoning ? previousReasoning.rationale : "";
+      reasoningTextLabel.appendChild(reasoningText);
+      controls.appendChild(reasoningTextLabel);
+      item.appendChild(controls);
+
+      const reasoningActions = document.createElement("div");
+      reasoningActions.className = "assessment-actions";
+      const saveReasoning = document.createElement("button");
+      saveReasoning.type = "button";
+      saveReasoning.textContent = "Guardar conclusión personal";
+      const reasoningNote = document.createElement("span");
+      reasoningNote.className = "muted";
+      reasoningNote.textContent = "Se guarda solo para este PNJ y para estas versiones exactas.";
+      saveReasoning.addEventListener("click", async () => {
+        const score = Number(reasoningConfidence.value);
+        const rationale = reasoningText.value.trim();
+        if (!Number.isInteger(score) || score < 0 || score > 100 || !rationale) {
+          reasoningNote.textContent = "Indica una confianza entre 0 y 100 y una justificación.";
+          return;
+        }
+        const payload = {
+          request_id: "reasoning-" + Date.now().toString(36) + "-" +
+            Math.random().toString(36).slice(2, 10),
+          assessor_entity_id: person.id,
+          left_correction_id: comparison.left_correction_id || "",
+          right_correction_id: comparison.right_correction_id || "",
+          outcome: outcome.value,
+          confidence: score,
+          rationale
+        };
+        saveReasoning.disabled = true;
+        reasoningNote.textContent = "Guardando conclusión…";
+        try {
+          await api("/api/sessions/" + currentSession + "/knowledge-comparisons/" +
+            encodeURIComponent(comparison.left_report_id) + "/" +
+            encodeURIComponent(comparison.right_report_id) + "/reasoning", {
+              method: "POST", body: JSON.stringify(payload)
+            });
+          await loadState();
+          setStatus("Conclusión individual de " + person.name + " guardada.", true);
+        } catch (err) {
+          saveReasoning.disabled = false;
+          reasoningNote.textContent = "No se pudo guardar: " + err.message;
+          setStatus("Error al guardar la conclusión: " + err.message, false);
+        }
+      });
+      reasoningActions.appendChild(saveReasoning);
+      reasoningActions.appendChild(reasoningNote);
+      item.appendChild(reasoningActions);
       comparisonSection.appendChild(item);
     });
     el("state").appendChild(comparisonSection);
   }
+
+  const historicalReasonings = payload.participants.flatMap(person =>
+    (person.knowledge_reasoning_history || [])
+      .filter(entry => !entry.is_current)
+      .map(entry => ({person, entry}))
+  );
+  if (historicalReasonings.length) {
+    const historySection = document.createElement("div");
+    historySection.className = "card";
+    const historyHeading = document.createElement("strong");
+    historyHeading.textContent = "Conclusiones históricas de PNJ";
+    historySection.appendChild(historyHeading);
+    const historyHelp = document.createElement("p");
+    historyHelp.className = "muted";
+    historyHelp.textContent = "Las opiniones siguientes se conservan aunque una versión haya sido corregida o retirada. No se aplican a una versión nueva sin una revisión personal.";
+    historySection.appendChild(historyHelp);
+    historicalReasonings.forEach(({person, entry}) => {
+      const item = document.createElement("div");
+      item.className = "assessment-item";
+      const title = document.createElement("strong");
+      title.textContent = person.name + " · " + entry.outcome +
+        " · confianza " + entry.confidence + "/100";
+      item.appendChild(title);
+      const leftStatus = entry.left_report_status || "unavailable";
+      const rightStatus = entry.right_report_status || "unavailable";
+      const statusLabels = {
+        active: "vigente",
+        corrected: "corregido posteriormente",
+        retracted: "retractado",
+        unavailable: "ya no está en la vista actual"
+      };
+      const versions = document.createElement("p");
+      versions.textContent = "Primera versión [" + entry.left_transmission_id + "] (" +
+        (statusLabels[leftStatus] || leftStatus) + "): «" +
+        (entry.left_version_text || "texto histórico no disponible en el contexto actual") +
+        "» · segunda versión [" + entry.right_transmission_id + "] (" +
+        (statusLabels[rightStatus] || rightStatus) + "): «" +
+        (entry.right_version_text || "texto histórico no disponible en el contexto actual") + "»";
+      item.appendChild(versions);
+      const refs = document.createElement("p");
+      refs.className = "muted";
+      refs.textContent = "Correcciones evaluadas: " +
+        (entry.left_correction_id || "original") + " ↔ " +
+        (entry.right_correction_id || "original") +
+        " · raíces: " + (entry.left_source_root_id || "desconocida") +
+        " ↔ " + (entry.right_source_root_id || "desconocida");
+      item.appendChild(refs);
+      const rationale = document.createElement("p");
+      rationale.className = "muted";
+      rationale.textContent = entry.rationale + " · minuto de juego " +
+        entry.assessed_total_minutes;
+      item.appendChild(rationale);
+      historySection.appendChild(item);
+    });
+    el("state").appendChild(historySection);
+  }
+
   if (receivedReports.length) {
     const section = document.createElement("div");
     section.className = "card";

@@ -9,7 +9,7 @@ class StrictModel(BaseModel):
 
 class EventProposal(StrictModel):
     ref: str = Field(min_length=1, max_length=40)
-    kind: Literal["dialogue", "reaction", "observation", "rumor", "location", "object", "resource", "power", "major_change", "promise", "quest", "injury", "clue", "secret", "deadline", "threat", "timeline_anchor", "knowledge", "tracked_fact", "other"]
+    kind: Literal["dialogue", "reaction", "observation", "physical_evidence", "document", "rumor", "location", "object", "resource", "power", "major_change", "promise", "quest", "injury", "clue", "secret", "deadline", "threat", "timeline_anchor", "knowledge", "tracked_fact", "other"]
     entity_id: str = Field(default="", max_length=120)
     description: str = Field(min_length=1, max_length=1000)
     witness_ids: list[Annotated[str, Field(max_length=120)]] = Field(default_factory=list, max_length=30)
@@ -108,6 +108,19 @@ class KnowledgeAssessmentRequest(StrictModel):
     # None keeps legacy clients compatible; an explicit empty string means the original version.
     assessed_correction_id: str | None = Field(default=None, max_length=80)
     evidence_correction_id: str | None = Field(default=None, max_length=80)
+    rationale: str = Field(min_length=1, max_length=600)
+
+
+class KnowledgeReasoningRequest(StrictModel):
+    request_id: str = Field(min_length=8, max_length=100)
+    assessor_entity_id: str = Field(min_length=1, max_length=120)
+    left_correction_id: str = Field(default="", max_length=80)
+    right_correction_id: str = Field(default="", max_length=80)
+    outcome: Literal[
+        "believes_left", "believes_right", "uncertain", "contradiction",
+        "compatible", "insufficient_information", "no_conclusion",
+    ]
+    confidence: int = Field(ge=0, le=100)
     rationale: str = Field(min_length=1, max_length=600)
 
 

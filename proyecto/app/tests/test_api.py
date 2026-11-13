@@ -9284,3 +9284,693 @@ def test_new_report_assessment_replans_agendas_without_advancing_clock_or_replay
         assert replay.json()["replayed"] is True
         # A duplicate request must not run the planner or append another opinion.
         assert planned_calls == [(session_id, current_total)]
+
+
+
+def _record_shared_witness_source(session_id, protagonist_id, witness_ids, event_ref):
+    result = NarratorResponse(
+        narration="Varios personajes presencian el mismo acontecimiento.",
+        elapsed_minutes=0,
+        events=[EventProposal(
+            ref=event_ref,
+            kind="clue",
+            entity_id=protagonist_id,
+            description="El estado del puente queda observado por los testigos presentes.",
+            witness_ids=witness_ids,
+            continuity=True,
+            importance=4,
+        )],
+    )
+    turn_id, _, _ = _apply_synthetic_result(
+        session_id, "Observo el puente junto a los demás.", result
+    )
+    with database.connection() as conn:
+        event = conn.execute(
+            "SELECT id,status FROM events WHERE session_id=? AND turn_id=?",
+            (session_id, turn_id),
+        ).fetchone()
+    assert event is not None and event["status"] == "recorded"
+    return str(event["id"])
+
+
+def _save_semantic_reasoning(
+    client, session_id, assessor_id, left_id, right_id, left_correction_id="",
+    right_correction_id="", outcome="uncertain", request_id="semantic-reasoning-0001",
+):
+    return client.post(
+        f"/api/sessions/{session_id}/knowledge-comparisons/{left_id}/{right_id}/reasoning",
+        json={
+            "request_id": request_id,
+            "assessor_entity_id": assessor_id,
+            "left_correction_id": left_correction_id,
+            "right_correction_id": right_correction_id,
+            "outcome": outcome,
+            "confidence": 63,
+            "rationale": "Comparé únicamente las versiones que recibí y la procedencia disponible.",
+        },
+    )
+
+
+def test_protagonist_cannot_record_private_npc_reasoning():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        ids = _entity_ids_by_name(client, world_id)
+        protagonist_id = next(
+            value for name, value in ids.items()
+            if name.lower() in {"protagonista", "protagonist"}
+        )
+        brina_id = ids["Brina Solcor"]
+        maelis_id = ids["Maelis Orven"]
+        source_event_id = _record_shared_witness_source(
+            session_id, protagonist_id,
+            [protagonist_id, brina_id, maelis_id],
+            "protagonist-must-not-assess-source",
+        )
+        left_id = _approve_knowledge_testimony(
+            client, session_id, source_event_id, brina_id, protagonist_id,
+            "protagonist-assessment-left",
+            "El puente estaba intacto por la mañana.",
+        )
+        right_id = _approve_knowledge_testimony(
+            client, session_id, source_event_id, maelis_id, protagonist_id,
+            "protagonist-assessment-right",
+            "El puente estaba destruido por la mañana.",
+        )
+
+        response = _save_semantic_reasoning(
+            client, session_id, protagonist_id, left_id, right_id,
+            outcome="uncertain",
+            request_id="protagonist-private-reasoning-rejected-001",
+        )
+        assert response.status_code == 422, response.text
+        assert "reservadas a PNJ" in response.json()["detail"]
+        with database.connection() as conn:
+            saved = conn.execute(
+                "SELECT COUNT(*) AS n FROM session_knowledge_reasoning_assessments "
+                "WHERE session_id=? AND assessor_entity_id=?",
+                (session_id, protagonist_id),
+            ).fetchone()["n"]
+        assert saved == 0
+
+
+def test_reasoning_history_context_keeps_the_latest_300_records():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        ids = _entity_ids_by_name(client, world_id)
+        protagonist_id = next(
+            value for name, value in ids.items()
+            if name.lower() in {"protagonista", "protagonist"}
+        )
+        brina_id = ids["Brina Solcor"]
+        maelis_id = ids["Maelis Orven"]
+        source_event_id = _record_shared_witness_source(
+            session_id, protagonist_id, [protagonist_id, brina_id, maelis_id],
+            "reasoning-history-retention-source",
+        )
+        left_id = _approve_knowledge_testimony(
+            client, session_id, source_event_id, protagonist_id, brina_id,
+            "reasoning-history-retention-left",
+            "El puente estaba intacto por la mañana.",
+        )
+        right_id = _approve_knowledge_testimony(
+            client, session_id, source_event_id, maelis_id, brina_id,
+            "reasoning-history-retention-right",
+            "El puente estaba destruido por la mañana.",
+        )
+
+        with database.connection() as conn:
+            session = conn.execute(
+                "SELECT day,minute_of_day FROM sessions WHERE id=?",
+                (session_id,),
+            ).fetchone()
+            current_total = (int(session["day"]) - 1) * 1440 + int(session["minute_of_day"])
+            for index in range(305):
+                conn.execute(
+                    "INSERT INTO session_knowledge_reasoning_assessments("
+                    "id,session_id,request_id,assessor_entity_id,left_transmission_id,left_correction_id,"
+                    "right_transmission_id,right_correction_id,left_source_root_id,right_source_root_id,"
+                    "source_independence,outcome,confidence,rationale,assessed_total_minutes,created_at"
+                    ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (
+                        f"reasoning-history-retention-{index}",
+                        session_id,
+                        f"reasoning-history-request-{index}",
+                        brina_id,
+                        left_id,
+                        "",
+                        right_id,
+                        "",
+                        "root-left",
+                        "root-right",
+                        "independent",
+                        "uncertain",
+                        50,
+                        "Registro sintético para comprobar retención del historial.",
+                        current_total + index,
+                        f"2026-11-13 00:{index // 60:02d}:{index % 60:02d}",
+                    ),
+                )
+            # Push the two reports referenced by these old opinions outside the
+            # compact latest-20 report list. The historical audit must still
+            # reconstruct their exact original wording from persistent records.
+            for index in range(21):
+                communication_event_id = f"history-retention-communication-{index:03d}"
+                conn.execute(
+                    "INSERT INTO events("
+                    "id,session_id,turn_id,external_ref,kind,entity_id,description,"
+                    "witnesses_json,continuity,importance,status"
+                    ") VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                    (
+                        communication_event_id,
+                        session_id,
+                        f"history-retention-turn-{index:03d}",
+                        "communication",
+                        "knowledge",
+                        maelis_id,
+                        "Maelis entrega un informe reciente a Brina.",
+                        f'["{maelis_id}","{brina_id}"]',
+                        0,
+                        1,
+                        "recorded",
+                    ),
+                )
+                conn.execute(
+                    "INSERT INTO session_knowledge_transmissions("
+                    "id,session_id,request_id,source_event_id,communication_event_id,"
+                    "sender_entity_id,recipient_entity_id,transmission_kind,version_text,"
+                    "location,transmitted_total_minutes,parent_transmission_id,parent_correction_id,created_at"
+                    ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (
+                        f"history-retention-report-{index:03d}",
+                        session_id,
+                        f"history-retention-request-{index:03d}",
+                        source_event_id,
+                        communication_event_id,
+                        maelis_id,
+                        brina_id,
+                        "testimony",
+                        f"Informe reciente número {index}.",
+                        "Bosque de los Siete Ecos",
+                        current_total,
+                        "",
+                        "",
+                        f"9999-01-01 00:{index // 60:02d}:{index % 60:02d}",
+                    ),
+                )
+            _, perception = _entity_perception_context(conn, session_id, brina_id)
+
+        assert len(perception["knowledge_reports"]) == 20
+        assert all(
+            item["transmission_id"] not in {left_id, right_id}
+            for item in perception["knowledge_reports"]
+        )
+        history = perception["knowledge_reasoning_history"]
+        assert len(history) == 100
+        assert history[0]["request_id"] == "reasoning-history-request-205"
+        assert history[-1]["request_id"] == "reasoning-history-request-304"
+        assert history[0]["left_version_text"] == "El puente estaba intacto por la mañana."
+        assert history[0]["right_version_text"] == "El puente estaba destruido por la mañana."
+        assert history[0]["left_report_status"] == "active"
+        assert history[0]["right_report_status"] == "active"
+
+
+def test_semantic_reasoning_is_personal_idempotent_snapshot_safe_and_clock_neutral(monkeypatch):
+    planner_calls = []
+
+    def record_planner_call(conn, session_id, current_total_minutes):
+        planner_calls.append((session_id, current_total_minutes))
+        return 1
+
+    monkeypatch.setattr(
+        main_module, "plan_autonomous_behavior_agendas", record_planner_call
+    )
+
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        ids = _entity_ids_by_name(client, world_id)
+        protagonist_id = next(
+            value for name, value in ids.items()
+            if name.lower() in {"protagonista", "protagonist"}
+        )
+        brina_id = ids["Brina Solcor"]
+        maelis_id = ids["Maelis Orven"]
+        sera_id = ids["Sera Linde"]
+
+        source_event_id = _record_shared_witness_source(
+            session_id, protagonist_id, [protagonist_id, maelis_id],
+            "semantic-reasoning-source",
+        )
+        left_id = _approve_knowledge_testimony(
+            client, session_id, source_event_id, protagonist_id, brina_id,
+            "semantic-reasoning-left", "El puente estaba destruido por la mañana.",
+        )
+        right_id = _approve_knowledge_testimony(
+            client, session_id, source_event_id, maelis_id, brina_id,
+            "semantic-reasoning-right", "El puente estaba intacto por la mañana.",
+        )
+
+        with database.connection() as conn:
+            _, brina_perception = _entity_perception_context(conn, session_id, brina_id)
+            _, maelis_perception = _entity_perception_context(conn, session_id, maelis_id)
+            before_session = conn.execute(
+                "SELECT day,minute_of_day,current_location FROM sessions WHERE id=?",
+                (session_id,),
+            ).fetchone()
+            before_presence = conn.execute(
+                "SELECT location,presence_status FROM session_presence "
+                "WHERE session_id=? AND entity_id=?",
+                (session_id, protagonist_id),
+            ).fetchone()
+            before_inventory = [
+                tuple(row) for row in conn.execute(
+                    "SELECT item_key,quantity,condition,carrier_entity_id,location "
+                    "FROM inventory_items WHERE session_id=? ORDER BY item_key",
+                    (session_id,),
+                ).fetchall()
+            ]
+
+        comparison = next(
+            item for item in brina_perception["knowledge_comparisons"]
+            if {item["left_report_id"], item["right_report_id"]} == {left_id, right_id}
+        )
+        assert comparison["semantic_analysis"]["relation"] == "possible_conflict"
+        assert comparison["semantic_analysis"]["source_independence"] == "independent"
+        assert comparison["semantic_analysis"]["independent_corroboration_count"] == 2
+        assert comparison["left_correction_id"] == ""
+        assert comparison["right_correction_id"] == ""
+        assert maelis_perception["knowledge_reports"] == []
+        assert maelis_perception["knowledge_comparisons"] == []
+
+        left_report_id = comparison["left_report_id"]
+        right_report_id = comparison["right_report_id"]
+        # Test only planner calls caused by the new reasoning request; approvals
+        # while creating the two reports legitimately planned their own agendas.
+        planner_calls.clear()
+        payload = {
+            "request_id": "brina-semantic-reasoning-request-001",
+            "assessor_entity_id": brina_id,
+            "left_correction_id": comparison["left_correction_id"],
+            "right_correction_id": comparison["right_correction_id"],
+            "outcome": "contradiction",
+            "confidence": 63,
+            "rationale": "Dos testimonios recibidos por mí se refieren al mismo puente y periodo con estados incompatibles.",
+        }
+        response = client.post(
+            f"/api/sessions/{session_id}/knowledge-comparisons/"
+            f"{left_report_id}/{right_report_id}/reasoning",
+            json=payload,
+        )
+        assert response.status_code == 200, response.text
+        assert response.json()["semantic_analysis"]["relation"] == "possible_conflict"
+        assert response.json()["reasoning"]["assessor_entity_id"] == brina_id
+        assert response.json()["planned_activities"] == 1
+        assert len(planner_calls) == 1
+
+        replay = client.post(
+            f"/api/sessions/{session_id}/knowledge-comparisons/"
+            f"{left_report_id}/{right_report_id}/reasoning",
+            json=payload,
+        )
+        assert replay.status_code == 200, replay.text
+        assert replay.json()["replayed"] is True
+        assert len(planner_calls) == 1
+
+        # Another NPC cannot use reports that were only delivered to Brina.
+        unseen = _save_semantic_reasoning(
+            client, session_id, maelis_id, left_report_id, right_report_id,
+            outcome="uncertain", request_id="maelis-cannot-use-brina-evidence-001",
+        )
+        assert unseen.status_code == 404
+
+        with database.connection() as conn:
+            after_session = conn.execute(
+                "SELECT day,minute_of_day,current_location FROM sessions WHERE id=?",
+                (session_id,),
+            ).fetchone()
+            after_presence = conn.execute(
+                "SELECT location,presence_status FROM session_presence "
+                "WHERE session_id=? AND entity_id=?",
+                (session_id, protagonist_id),
+            ).fetchone()
+            after_inventory = [
+                tuple(row) for row in conn.execute(
+                    "SELECT item_key,quantity,condition,carrier_entity_id,location "
+                    "FROM inventory_items WHERE session_id=? ORDER BY item_key",
+                    (session_id,),
+                ).fetchall()
+            ]
+            assert tuple(after_session) == tuple(before_session)
+            assert tuple(after_presence) == tuple(before_presence)
+            assert after_inventory == before_inventory
+
+            snapshot = main_module.capture_turn_state(conn, session_id)
+            assert len(snapshot["knowledge_reasoning_assessments"]) == 1
+            conn.execute(
+                "DELETE FROM session_knowledge_reasoning_assessments WHERE session_id=?",
+                (session_id,),
+            )
+            main_module.restore_turn_state(conn, session_id, snapshot)
+            restored = conn.execute(
+                "SELECT * FROM session_knowledge_reasoning_assessments WHERE session_id=?",
+                (session_id,),
+            ).fetchall()
+            assert len(restored) == 1
+            assert restored[0]["left_transmission_id"] == left_report_id
+            assert restored[0]["right_transmission_id"] == right_report_id
+            assert restored[0]["left_correction_id"] == ""
+            assert restored[0]["right_correction_id"] == ""
+
+        # A subsequent approved correction cannot rewrite this opinion; it
+        # makes the prior exact-version conclusion historical instead.
+        corrected_text = "El puente estaba íntegro por la mañana."
+        _, correction_id, _ = _approve_knowledge_correction(
+            client, session_id, left_id, protagonist_id, brina_id,
+            "semantic-reasoning-left-correction", "corrected",
+            "Al revisar lo observado, precisé el estado del puente.",
+            corrected_text,
+        )
+        with database.connection() as conn:
+            _, corrected_perception = _entity_perception_context(
+                conn, session_id, brina_id
+            )
+        updated = next(
+            item for item in corrected_perception["knowledge_comparisons"]
+            if {item["left_report_id"], item["right_report_id"]} == {left_id, right_id}
+        )
+        assert updated["reasoning_is_current"] is False
+        assert len(updated["reasoning_history"]) == 1
+        assert updated["reasoning_history"][0]["outcome"] == "contradiction"
+        assert updated["reasoning_history"][0]["left_correction_id"] == ""
+
+        # New evidence changes the exact version to an equivalent state.
+        # Brina can revise her private view instead of inheriting the old one.
+        revised_opinion = _save_semantic_reasoning(
+            client, session_id, brina_id,
+            updated["left_report_id"], updated["right_report_id"],
+            updated["left_correction_id"], updated["right_correction_id"],
+            "compatible", "brina-revises-after-new-evidence-001",
+        )
+        assert revised_opinion.status_code == 200, revised_opinion.text
+        with database.connection() as conn:
+            _, reassessed_perception = _entity_perception_context(
+                conn, session_id, brina_id
+            )
+        reassessed_pair = next(
+            item for item in reassessed_perception["knowledge_comparisons"]
+            if {item["left_report_id"], item["right_report_id"]} == {left_id, right_id}
+        )
+        assert reassessed_pair["reasoning"]["outcome"] == "compatible"
+        assert [item["outcome"] for item in reassessed_pair["reasoning_history"]] == [
+            "contradiction", "compatible"
+        ]
+        revised_history = reassessed_pair["reasoning_history"][-1]
+        revised_side = (
+            "left" if revised_history["left_transmission_id"] == left_id else "right"
+        )
+        assert revised_history[f"{revised_side}_correction_id"] == correction_id
+
+        # Retraction removes the assertion from current comparisons, but never
+        # erases the character's historical opinion or its exact old version.
+        _approve_knowledge_correction(
+            client, session_id, left_id, protagonist_id, brina_id,
+            "semantic-reasoning-left-retraction", "retracted",
+            "Retiro la comunicación original tras descubrir que no podía respaldarla.",
+            "", correction_id,
+        )
+        with database.connection() as conn:
+            _, retracted_perception = _entity_perception_context(
+                conn, session_id, brina_id
+            )
+        assert not any(
+            {item["left_report_id"], item["right_report_id"]} == {left_id, right_id}
+            for item in retracted_perception["knowledge_comparisons"]
+        )
+        historical_rows = [
+            item for item in retracted_perception["knowledge_reasoning_history"]
+            if {item["left_transmission_id"], item["right_transmission_id"]}
+            == {left_report_id, right_report_id}
+        ]
+        assert len(historical_rows) == 2
+        historical_by_outcome = {item["outcome"]: item for item in historical_rows}
+        original_opinion = historical_by_outcome["contradiction"]
+        revised_opinion = historical_by_outcome["compatible"]
+        for historical in historical_rows:
+            withdrawn_side = (
+                "left" if historical["left_transmission_id"] == left_id else "right"
+            )
+            assert historical["is_current"] is False
+            assert historical[f"{withdrawn_side}_report_status"] == "retracted"
+        original_side = (
+            "left" if original_opinion["left_transmission_id"] == left_id else "right"
+        )
+        revised_side = (
+            "left" if revised_opinion["left_transmission_id"] == left_id else "right"
+        )
+        assert original_opinion[f"{original_side}_version_text"] == (
+            "El puente estaba destruido por la mañana."
+        )
+        assert revised_opinion[f"{revised_side}_version_text"] == corrected_text
+
+        # The state API must surface each NPC's private historical conclusions
+        # after the current comparison has disappeared due to a retraction.
+        state = client.get(f"/api/sessions/{session_id}/state")
+        assert state.status_code == 200, state.text
+        participants_by_id = {
+            item["id"]: item for item in state.json()["participants"]
+        }
+        brina_history = participants_by_id[brina_id]["knowledge_reasoning_history"]
+        assert [
+            item["outcome"] for item in brina_history
+            if {item["left_transmission_id"], item["right_transmission_id"]}
+            == {left_report_id, right_report_id}
+        ] == ["contradiction", "compatible"]
+        assert any(
+            item["left_version_text"] == "El puente estaba destruido por la mañana."
+            or item["right_version_text"] == "El puente estaba destruido por la mañana."
+            for item in brina_history
+        )
+        assert participants_by_id[maelis_id]["knowledge_reasoning_history"] == []
+
+
+def test_two_npcs_can_keep_different_private_conclusions_about_the_same_evidence():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        ids = _entity_ids_by_name(client, world_id)
+        protagonist_id = next(
+            value for name, value in ids.items()
+            if name.lower() in {"protagonista", "protagonist"}
+        )
+        brina_id = ids["Brina Solcor"]
+        maelis_id = ids["Maelis Orven"]
+        sera_id = ids["Sera Linde"]
+        source_event_id = _record_shared_witness_source(
+            session_id, protagonist_id, [protagonist_id, maelis_id],
+            "different-npc-opinion-source",
+        )
+        brina_left = _approve_knowledge_testimony(
+            client, session_id, source_event_id, protagonist_id, brina_id,
+            "different-opinion-brina-left", "El puente estaba destruido por la mañana.",
+        )
+        brina_right = _approve_knowledge_testimony(
+            client, session_id, source_event_id, maelis_id, brina_id,
+            "different-opinion-brina-right", "El puente estaba intacto por la mañana.",
+        )
+        sera_left = _approve_knowledge_testimony(
+            client, session_id, source_event_id, protagonist_id, sera_id,
+            "different-opinion-sera-left", "El puente estaba destruido por la mañana.",
+        )
+        sera_right = _approve_knowledge_testimony(
+            client, session_id, source_event_id, maelis_id, sera_id,
+            "different-opinion-sera-right", "El puente estaba intacto por la mañana.",
+        )
+
+        with database.connection() as conn:
+            _, brina_view = _entity_perception_context(conn, session_id, brina_id)
+            _, sera_view = _entity_perception_context(conn, session_id, sera_id)
+        brina_pair = next(
+            item for item in brina_view["knowledge_comparisons"]
+            if {item["left_report_id"], item["right_report_id"]} == {brina_left, brina_right}
+        )
+        sera_pair = next(
+            item for item in sera_view["knowledge_comparisons"]
+            if {item["left_report_id"], item["right_report_id"]} == {sera_left, sera_right}
+        )
+
+        brina_save = _save_semantic_reasoning(
+            client, session_id, brina_id, brina_pair["left_report_id"],
+            brina_pair["right_report_id"], brina_pair["left_correction_id"],
+            brina_pair["right_correction_id"], "contradiction",
+            "brina-private-conclusion-001",
+        )
+        sera_save = _save_semantic_reasoning(
+            client, session_id, sera_id, sera_pair["left_report_id"],
+            sera_pair["right_report_id"], sera_pair["left_correction_id"],
+            sera_pair["right_correction_id"], "compatible",
+            "sera-private-conclusion-001",
+        )
+        assert brina_save.status_code == 200, brina_save.text
+        assert sera_save.status_code == 200, sera_save.text
+
+        with database.connection() as conn:
+            _, brina_after = _entity_perception_context(conn, session_id, brina_id)
+            _, sera_after = _entity_perception_context(conn, session_id, sera_id)
+            rows = conn.execute(
+                "SELECT assessor_entity_id,outcome FROM session_knowledge_reasoning_assessments "
+                "WHERE session_id=? ORDER BY assessor_entity_id",
+                (session_id,),
+            ).fetchall()
+        assert len(rows) == 2
+        assert {row["assessor_entity_id"]: row["outcome"] for row in rows} == {
+            brina_id: "contradiction",
+            sera_id: "compatible",
+        }
+        assert brina_after["knowledge_comparisons"][0]["reasoning"]["outcome"] == "contradiction"
+        assert sera_after["knowledge_comparisons"][0]["reasoning"]["outcome"] == "compatible"
+        assert brina_after["knowledge_comparisons"][0]["reasoning"]["assessor_entity_id"] == brina_id
+        assert sera_after["knowledge_comparisons"][0]["reasoning"]["assessor_entity_id"] == sera_id
+
+
+
+def _approve_npc_rumor(
+    client, session_id, source_event_id, sender_id, recipient_id,
+    parent_transmission_id, ref, version_text,
+):
+    result = NarratorResponse(
+        narration="Un PNJ retransmite una versión que recibió.",
+        elapsed_minutes=0,
+        events=[EventProposal(
+            ref=ref,
+            kind="rumor",
+            entity_id=sender_id,
+            description=f"{sender_id} retransmite a {recipient_id} una versión recibida.",
+            witness_ids=[sender_id, recipient_id],
+        )],
+        knowledge_transmissions=[KnowledgeTransmissionProposal(
+            event_ref=ref,
+            source_event_id=source_event_id,
+            sender_entity_id=sender_id,
+            recipient_entity_id=recipient_id,
+            transmission_kind="rumor",
+            version_text=version_text,
+            parent_transmission_id=parent_transmission_id,
+        )],
+    )
+    turn_id, _, _ = _apply_synthetic_result(
+        session_id, "Retransmito lo que escuché.", result
+    )
+    with database.connection() as conn:
+        event = conn.execute(
+            "SELECT id,status FROM events WHERE session_id=? AND turn_id=?",
+            (session_id, turn_id),
+        ).fetchone()
+    assert event is not None and event["status"] == "pending"
+    approved = client.post(
+        f"/api/sessions/{session_id}/events/{event['id']}/approve"
+    )
+    assert approved.status_code == 200, approved.text
+    with database.connection() as conn:
+        transmission = conn.execute(
+            "SELECT id FROM session_knowledge_transmissions "
+            "WHERE session_id=? AND communication_event_id=?",
+            (session_id, event["id"]),
+        ).fetchone()
+    assert transmission is not None
+    return str(transmission["id"])
+
+
+def test_retransmitted_versions_from_one_origin_are_not_independent_evidence():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        ids = _entity_ids_by_name(client, world_id)
+        protagonist_id = next(
+            value for name, value in ids.items()
+            if name.lower() in {"protagonista", "protagonist"}
+        )
+        brina_id = ids["Brina Solcor"]
+        maelis_id = ids["Maelis Orven"]
+        sera_id = ids["Sera Linde"]
+        source_event_id = _record_shared_witness_source(
+            session_id, protagonist_id, [protagonist_id],
+            "one-origin-rumor-source",
+        )
+        root_report_id = _approve_knowledge_testimony(
+            client, session_id, source_event_id, protagonist_id, brina_id,
+            "one-origin-root-report", "El puente estaba intacto por la mañana.",
+        )
+        brina_to_sera = _approve_npc_rumor(
+            client, session_id, source_event_id, brina_id, sera_id,
+            root_report_id, "one-origin-brina-to-sera",
+            "El puente estaba intacto por la mañana.",
+        )
+        brina_to_maelis = _approve_npc_rumor(
+            client, session_id, source_event_id, brina_id, maelis_id,
+            root_report_id, "one-origin-brina-to-maelis",
+            "Brina afirma que el puente estaba intacto por la mañana.",
+        )
+        maelis_to_sera = _approve_npc_rumor(
+            client, session_id, source_event_id, maelis_id, sera_id,
+            brina_to_maelis, "one-origin-maelis-to-sera",
+            "El puente estaba destruido por la mañana.",
+        )
+        # Separate root transmission IDs do not make one witness independent
+        # of themselves when they describe the same source event.
+        protagonist_second_root = _approve_knowledge_testimony(
+            client, session_id, source_event_id, protagonist_id, maelis_id,
+            "one-origin-second-root", "El puente estaba destruido por la mañana.",
+        )
+        maelis_second_route = _approve_npc_rumor(
+            client, session_id, source_event_id, maelis_id, sera_id,
+            protagonist_second_root, "one-origin-maelis-second-route",
+            "El puente estaba destruido por la mañana.",
+        )
+
+        with database.connection() as conn:
+            _, sera_perception = _entity_perception_context(conn, session_id, sera_id)
+        pair = next(
+            item for item in sera_perception["knowledge_comparisons"]
+            if {item["left_report_id"], item["right_report_id"]}
+            == {brina_to_sera, maelis_to_sera}
+        )
+        analysis = pair["semantic_analysis"]
+        assert analysis["relation"] == "same_source_possible_conflict"
+        assert analysis["source_independence"] == "same_lineage"
+        assert analysis["independent_corroboration_count"] == 1
+        assert analysis["is_truth_finding"] is False
+
+        payload = {
+            "request_id": "sera-legacy-contradiction-one-origin",
+            "assessor_entity_id": sera_id,
+            "stance": "contradicts",
+            "confidence": 70,
+            "evidence_report_id": maelis_to_sera,
+            "evidence_event_id": "",
+            "rationale": "Los rumores retransmitidos parecen incompatibles.",
+        }
+        legacy = client.post(
+            f"/api/sessions/{session_id}/knowledge-reports/"
+            f"{brina_to_sera}/assessments",
+            json=payload,
+        )
+        assert legacy.status_code == 422
+        assert "fuente independiente" in legacy.json()["detail"]
+
+        refused = _save_semantic_reasoning(
+            client, session_id, sera_id, brina_to_sera, maelis_to_sera,
+            pair["left_correction_id"], pair["right_correction_id"],
+            "contradiction", "sera-cannot-overcount-one-origin-001",
+        )
+        assert refused.status_code == 422
+        assert "procedencia independiente completa" in refused.json()["detail"]
+
+        separate_root_pair = next(
+            item for item in sera_perception["knowledge_comparisons"]
+            if {item["left_report_id"], item["right_report_id"]}
+            == {brina_to_sera, maelis_second_route}
+        )
+        assert separate_root_pair["semantic_analysis"]["source_independence"] == "same_lineage"
+        assert separate_root_pair["semantic_analysis"]["independent_corroboration_count"] == 1
