@@ -1118,6 +1118,10 @@ def _entity_perception_context(
                 right_version,
                 left_root_id=str(left.get("origin_transmission_id") or ""),
                 right_root_id=str(right.get("origin_transmission_id") or ""),
+                left_originator_id=str(left.get("originator_entity_id") or ""),
+                right_originator_id=str(right.get("originator_entity_id") or ""),
+                left_source_event_id=str(left.get("source_event_id") or ""),
+                right_source_event_id=str(right.get("source_event_id") or ""),
                 left_provenance_complete=bool(left.get("provenance_complete")),
                 right_provenance_complete=bool(right.get("provenance_complete")),
             )
