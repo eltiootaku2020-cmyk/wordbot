@@ -9481,7 +9481,7 @@ def test_semantic_reasoning_is_personal_idempotent_snapshot_safe_and_clock_neutr
         # A subsequent approved correction cannot rewrite this opinion; it
         # makes the prior exact-version conclusion historical instead.
         corrected_text = "El puente estaba íntegro por la mañana."
-        _approve_knowledge_correction(
+        _, correction_id, _ = _approve_knowledge_correction(
             client, session_id, left_id, protagonist_id, brina_id,
             "semantic-reasoning-left-correction", "corrected",
             "Al revisar lo observado, precisé el estado del puente.",
@@ -9499,6 +9499,32 @@ def test_semantic_reasoning_is_personal_idempotent_snapshot_safe_and_clock_neutr
         assert len(updated["reasoning_history"]) == 1
         assert updated["reasoning_history"][0]["outcome"] == "contradiction"
         assert updated["reasoning_history"][0]["left_correction_id"] == ""
+
+        # Retraction removes the assertion from current comparisons, but never
+        # erases the character's historical opinion or its exact old version.
+        _approve_knowledge_correction(
+            client, session_id, left_id, protagonist_id, brina_id,
+            "semantic-reasoning-left-retraction", "retracted",
+            "Retiro la comunicación original tras descubrir que no podía respaldarla.",
+            "", correction_id,
+        )
+        with database.connection() as conn:
+            _, retracted_perception = _entity_perception_context(
+                conn, session_id, brina_id
+            )
+        assert not any(
+            {item["left_report_id"], item["right_report_id"]} == {left_id, right_id}
+            for item in retracted_perception["knowledge_comparisons"]
+        )
+        historical = next(
+            item for item in retracted_perception["knowledge_reasoning_history"]
+            if item["left_transmission_id"] == left_report_id
+            and item["right_transmission_id"] == right_report_id
+        )
+        assert historical["is_current"] is False
+        assert historical["left_report_status"] == "retracted"
+        assert historical["outcome"] == "contradiction"
+        assert historical["left_version_text"] == "El puente estaba destruido por la mañana."
 
 
 def test_two_npcs_can_keep_different_private_conclusions_about_the_same_evidence():
