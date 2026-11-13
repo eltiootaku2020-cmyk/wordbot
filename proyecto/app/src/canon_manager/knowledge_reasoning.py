@@ -194,6 +194,29 @@ def compare_claims(
     }
 
 
+def classify_evidence_origin(
+    transmission_kind: str,
+    source_event_kind: str,
+    *,
+    provenance_complete: bool,
+    parent_transmission_id: str = "",
+) -> str:
+    """Classify only evidence types explicitly represented in the event ledger."""
+    if not provenance_complete:
+        return "unknown"
+    if transmission_kind == "rumor" or parent_transmission_id:
+        return "relayed_rumor"
+    if source_event_kind == "observation":
+        return "direct_observation"
+    if source_event_kind == "physical_evidence":
+        return "registered_physical_evidence"
+    if source_event_kind == "document":
+        return "registered_document"
+    if transmission_kind == "testimony":
+        return "received_testimony"
+    return "unknown"
+
+
 def classify_source_independence(
     left_root_id: str,
     right_root_id: str,
