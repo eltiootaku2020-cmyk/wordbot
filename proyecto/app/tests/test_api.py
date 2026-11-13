@@ -9575,3 +9575,126 @@ def test_two_npcs_can_keep_different_private_conclusions_about_the_same_evidence
         assert sera_after["knowledge_comparisons"][0]["reasoning"]["outcome"] == "compatible"
         assert brina_after["knowledge_comparisons"][0]["reasoning"]["assessor_entity_id"] == brina_id
         assert sera_after["knowledge_comparisons"][0]["reasoning"]["assessor_entity_id"] == sera_id
+
+
+
+def _approve_npc_rumor(
+    client, session_id, source_event_id, sender_id, recipient_id,
+    parent_transmission_id, ref, version_text,
+):
+    result = NarratorResponse(
+        narration="Un PNJ retransmite una versión que recibió.",
+        elapsed_minutes=0,
+        events=[EventProposal(
+            ref=ref,
+            kind="rumor",
+            entity_id=sender_id,
+            description=f"{sender_id} retransmite a {recipient_id} una versión recibida.",
+            witness_ids=[sender_id, recipient_id],
+        )],
+        knowledge_transmissions=[KnowledgeTransmissionProposal(
+            event_ref=ref,
+            source_event_id=source_event_id,
+            sender_entity_id=sender_id,
+            recipient_entity_id=recipient_id,
+            transmission_kind="rumor",
+            version_text=version_text,
+            parent_transmission_id=parent_transmission_id,
+        )],
+    )
+    turn_id, _, _ = _apply_synthetic_result(
+        session_id, "Retransmito lo que escuché.", result
+    )
+    with database.connection() as conn:
+        event = conn.execute(
+            "SELECT id,status FROM events WHERE session_id=? AND turn_id=?",
+            (session_id, turn_id),
+        ).fetchone()
+    assert event is not None and event["status"] == "pending"
+    approved = client.post(
+        f"/api/sessions/{session_id}/events/{event['id']}/approve"
+    )
+    assert approved.status_code == 200, approved.text
+    with database.connection() as conn:
+        transmission = conn.execute(
+            "SELECT id FROM session_knowledge_transmissions "
+            "WHERE session_id=? AND communication_event_id=?",
+            (session_id, event["id"]),
+        ).fetchone()
+    assert transmission is not None
+    return str(transmission["id"])
+
+
+def test_retransmitted_versions_from_one_origin_are_not_independent_evidence():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        ids = _entity_ids_by_name(client, world_id)
+        protagonist_id = next(
+            value for name, value in ids.items()
+            if name.lower() in {"protagonista", "protagonist"}
+        )
+        brina_id = ids["Brina Solcor"]
+        maelis_id = ids["Maelis Orven"]
+        sera_id = ids["Sera Linde"]
+        source_event_id = _record_shared_witness_source(
+            session_id, protagonist_id, [protagonist_id],
+            "one-origin-rumor-source",
+        )
+        root_report_id = _approve_knowledge_testimony(
+            client, session_id, source_event_id, protagonist_id, brina_id,
+            "one-origin-root-report", "El puente estaba intacto por la mañana.",
+        )
+        brina_to_sera = _approve_npc_rumor(
+            client, session_id, source_event_id, brina_id, sera_id,
+            root_report_id, "one-origin-brina-to-sera",
+            "Brina afirma que el puente estaba intacto por la mañana.",
+        )
+        brina_to_maelis = _approve_npc_rumor(
+            client, session_id, source_event_id, brina_id, maelis_id,
+            root_report_id, "one-origin-brina-to-maelis",
+            "Brina afirma que el puente estaba intacto por la mañana.",
+        )
+        maelis_to_sera = _approve_npc_rumor(
+            client, session_id, source_event_id, maelis_id, sera_id,
+            brina_to_maelis, "one-origin-maelis-to-sera",
+            "Maelis afirma que el puente estaba destruido por la mañana.",
+        )
+
+        with database.connection() as conn:
+            _, sera_perception = _entity_perception_context(conn, session_id, sera_id)
+        pair = next(
+            item for item in sera_perception["knowledge_comparisons"]
+            if {item["left_report_id"], item["right_report_id"]}
+            == {brina_to_sera, maelis_to_sera}
+        )
+        analysis = pair["semantic_analysis"]
+        assert analysis["relation"] == "same_source_possible_conflict"
+        assert analysis["source_independence"] == "same_lineage"
+        assert analysis["independent_corroboration_count"] == 1
+        assert analysis["is_truth_finding"] is False
+
+        payload = {
+            "request_id": "sera-legacy-contradiction-one-origin",
+            "assessor_entity_id": sera_id,
+            "stance": "contradicts",
+            "confidence": 70,
+            "evidence_report_id": maelis_to_sera,
+            "evidence_event_id": "",
+            "rationale": "Los rumores retransmitidos parecen incompatibles.",
+        }
+        legacy = client.post(
+            f"/api/sessions/{session_id}/knowledge-reports/"
+            f"{brina_to_sera}/assessments",
+            json=payload,
+        )
+        assert legacy.status_code == 422
+        assert "fuente independiente" in legacy.json()["detail"]
+
+        refused = _save_semantic_reasoning(
+            client, session_id, sera_id, brina_to_sera, maelis_to_sera,
+            pair["left_correction_id"], pair["right_correction_id"],
+            "contradiction", "sera-cannot-overcount-one-origin-001",
+        )
+        assert refused.status_code == 422
+        assert "procedencia independiente completa" in refused.json()["detail"]
