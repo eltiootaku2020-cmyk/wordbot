@@ -9660,6 +9660,17 @@ def test_retransmitted_versions_from_one_origin_are_not_independent_evidence():
             brina_to_maelis, "one-origin-maelis-to-sera",
             "El puente estaba destruido por la mañana.",
         )
+        # Separate root transmission IDs do not make one witness independent
+        # of themselves when they describe the same source event.
+        protagonist_second_root = _approve_knowledge_testimony(
+            client, session_id, source_event_id, protagonist_id, maelis_id,
+            "one-origin-second-root", "El puente estaba destruido por la mañana.",
+        )
+        maelis_second_route = _approve_npc_rumor(
+            client, session_id, source_event_id, maelis_id, sera_id,
+            protagonist_second_root, "one-origin-maelis-second-route",
+            "El puente estaba destruido por la mañana.",
+        )
 
         with database.connection() as conn:
             _, sera_perception = _entity_perception_context(conn, session_id, sera_id)
@@ -9698,3 +9709,11 @@ def test_retransmitted_versions_from_one_origin_are_not_independent_evidence():
         )
         assert refused.status_code == 422
         assert "procedencia independiente completa" in refused.json()["detail"]
+
+        separate_root_pair = next(
+            item for item in sera_perception["knowledge_comparisons"]
+            if {item["left_report_id"], item["right_report_id"]}
+            == {brina_to_sera, maelis_second_route}
+        )
+        assert separate_root_pair["semantic_analysis"]["source_independence"] == "same_lineage"
+        assert separate_root_pair["semantic_analysis"]["independent_corroboration_count"] == 1
