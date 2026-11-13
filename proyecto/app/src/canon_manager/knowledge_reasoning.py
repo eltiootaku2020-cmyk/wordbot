@@ -200,11 +200,24 @@ def classify_source_independence(
     *,
     left_complete: bool,
     right_complete: bool,
+    left_originator_id: str = "",
+    right_originator_id: str = "",
+    left_source_event_id: str = "",
+    right_source_event_id: str = "",
 ) -> str:
-    """Group retransmissions by their original transmission, not by relay count."""
-    if not left_complete or not right_complete or not left_root_id or not right_root_id:
+    """Count an originator once even when their account was sent through two roots."""
+    if (
+        not left_complete or not right_complete
+        or not left_root_id or not right_root_id
+        or not left_originator_id or not right_originator_id
+        or not left_source_event_id or not right_source_event_id
+    ):
         return "unknown"
-    return "same_lineage" if left_root_id == right_root_id else "independent"
+    if left_root_id == right_root_id:
+        return "same_lineage"
+    if left_source_event_id != right_source_event_id:
+        return "unknown"
+    return "same_lineage" if left_originator_id == right_originator_id else "independent"
 
 
 def analyze_report_pair(
@@ -213,6 +226,10 @@ def analyze_report_pair(
     *,
     left_root_id: str = "",
     right_root_id: str = "",
+    left_originator_id: str = "",
+    right_originator_id: str = "",
+    left_source_event_id: str = "",
+    right_source_event_id: str = "",
     left_provenance_complete: bool = False,
     right_provenance_complete: bool = False,
 ) -> dict[str, Any]:
@@ -223,6 +240,10 @@ def analyze_report_pair(
         left_root_id, right_root_id,
         left_complete=left_provenance_complete,
         right_complete=right_provenance_complete,
+        left_originator_id=left_originator_id,
+        right_originator_id=right_originator_id,
+        left_source_event_id=left_source_event_id,
+        right_source_event_id=right_source_event_id,
     )
     if relation["relation"] == "possible_conflict" and independence == "same_lineage":
         relation = {
