@@ -14,7 +14,7 @@ import uuid
 from typing import Any, Mapping
 
 from .db import Database
-from .knowledge_reasoning import analyze_report_pair, parse_claim_text
+from .knowledge_reasoning import analyze_report_pair, classify_evidence_origin, parse_claim_text
 from .behavior_engine import (
     BehaviorValidationError,
     advance_emotions,
@@ -1008,6 +1008,12 @@ def _entity_perception_context(
             "recipient_entity_id": str(report["recipient_entity_id"]),
             "source_event_id": str(report["source_event_id"]),
             "source_event_kind": str(report["source_event_kind"]),
+            "evidence_origin": classify_evidence_origin(
+                transmission_kind,
+                str(report["source_event_kind"]),
+                provenance_complete=provenance_complete,
+                parent_transmission_id=str(report["parent_transmission_id"] or ""),
+            ),
             "reported_version": str(report["version_text"]),
             "location": str(report["location"]),
             "transmitted_total_minutes": int(report["transmitted_total_minutes"]),
@@ -1141,6 +1147,9 @@ def _entity_perception_context(
                 "right_correction_id": right_correction_id,
                 "semantic_analysis": semantic_analysis,
                 "source_event_id": left["source_event_id"],
+                "source_event_kind": left["source_event_kind"],
+                "left_evidence_origin": left["evidence_origin"],
+                "right_evidence_origin": right["evidence_origin"],
                 "assessor_entity_id": entity_id,
                 "left_report_id": left["transmission_id"],
                 "left_sender_entity_id": left["sender_entity_id"],
