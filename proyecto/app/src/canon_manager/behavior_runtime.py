@@ -1193,6 +1193,40 @@ def _entity_perception_context(
         reasoning_by_pair.setdefault(key, []).append(dict(reasoning_row))
     reports_by_id = {item["transmission_id"]: item for item in knowledge_summary}
 
+    # The narrator-facing report summary is intentionally capped at 20 items.
+    # Historical private opinions must not lose their exact source wording when
+    # an older report falls outside that compact current-context window.
+    referenced_report_ids = {
+        str(reasoning_row[column])
+        for reasoning_row in reasoning_rows
+        for column in ("left_transmission_id", "right_transmission_id")
+    }
+    missing_report_ids = sorted(referenced_report_ids - set(reports_by_id))
+    for offset in range(0, len(missing_report_ids), 400):
+        report_batch = missing_report_ids[offset:offset + 400]
+        placeholders = ",".join("?" for _ in report_batch)
+        archived_reports = conn.execute(
+            "SELECT id,version_text FROM session_knowledge_transmissions "
+            "WHERE session_id=? AND recipient_entity_id=? "
+            f"AND id IN ({placeholders})",
+            [session_id, entity_id, *report_batch],
+        ).fetchall()
+        for archived_report in archived_reports:
+            report_id = str(archived_report["id"])
+            correction_history = corrections_by_report.get(report_id, [])
+            correction = correction_history[-1] if correction_history else None
+            report_status = (
+                "active" if correction is None
+                else ("corrected" if correction["correction_kind"] == "corrected" else "retracted")
+            )
+            reports_by_id[report_id] = {
+                "transmission_id": report_id,
+                "reported_version": str(archived_report["version_text"]),
+                "correction": correction,
+                "correction_history": correction_history,
+                "report_status": report_status,
+            }
+
     def _reasoning_version_text(report: dict[str, Any], correction_id: str) -> str:
         if not correction_id:
             return str(report.get("reported_version") or "")
