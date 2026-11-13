@@ -98,6 +98,28 @@ CREATE TABLE IF NOT EXISTS session_knowledge_assessments (
 );
 CREATE INDEX IF NOT EXISTS idx_knowledge_assessments_by_report
   ON session_knowledge_assessments(session_id,assessor_entity_id,transmission_id,assessed_total_minutes);
+CREATE TABLE IF NOT EXISTS session_knowledge_reasoning_assessments (
+  id TEXT PRIMARY KEY,
+  session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
+  request_id TEXT NOT NULL,
+  assessor_entity_id TEXT NOT NULL REFERENCES entities(id) ON DELETE CASCADE,
+  left_transmission_id TEXT NOT NULL REFERENCES session_knowledge_transmissions(id) ON DELETE RESTRICT,
+  left_correction_id TEXT NOT NULL DEFAULT '',
+  right_transmission_id TEXT NOT NULL REFERENCES session_knowledge_transmissions(id) ON DELETE RESTRICT,
+  right_correction_id TEXT NOT NULL DEFAULT '',
+  left_source_root_id TEXT NOT NULL DEFAULT '',
+  right_source_root_id TEXT NOT NULL DEFAULT '',
+  source_independence TEXT NOT NULL CHECK(source_independence IN ('independent','same_lineage','unknown')),
+  outcome TEXT NOT NULL CHECK(outcome IN ('believes_left','believes_right','uncertain','contradiction','compatible','insufficient_information','no_conclusion')),
+  confidence INTEGER NOT NULL CHECK(confidence BETWEEN 0 AND 100),
+  rationale TEXT NOT NULL CHECK(length(trim(rationale)) BETWEEN 1 AND 600),
+  assessed_total_minutes INTEGER NOT NULL CHECK(assessed_total_minutes >= 0),
+  created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  UNIQUE(session_id, request_id),
+  CHECK(left_transmission_id <> right_transmission_id)
+);
+CREATE INDEX IF NOT EXISTS idx_knowledge_reasoning_pair
+  ON session_knowledge_reasoning_assessments(session_id,assessor_entity_id,left_transmission_id,right_transmission_id,assessed_total_minutes);
 CREATE TABLE IF NOT EXISTS session_knowledge_corrections (
   id TEXT PRIMARY KEY,
   session_id TEXT NOT NULL REFERENCES sessions(id) ON DELETE CASCADE,
