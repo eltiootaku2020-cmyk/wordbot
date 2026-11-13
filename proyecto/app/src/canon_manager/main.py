@@ -35,8 +35,9 @@ from .behavior_runtime import (
     list_behavior_agendas, plan_autonomous_behavior_agendas, schedule_behavior_agenda,
     tick_behavior_runtime,
 )
-from .models import ApprovalRequest, BehaviorAgendaCreateRequest, BehaviorCatalogRequest, BehaviorPreviewRequest, BehaviorProfileRequest, ContextPreviewRequest, EntityCreate, EnvironmentObservationProposal, EnvironmentObservationRequest, KnowledgeAssessmentRequest, KnowledgeCorrectionProposal, KnowledgeTransmissionProposal, LocalCommandRequest, LocalSettingsUpdate, ManualPromptRequest, MapRegionConfigRequest, NarratorResponse, SessionCreate, SessionRestoreRequest, TravelPlanRequest, TravelStepRequest, TurnRequest, WorldCreate, WorldStartCreate, WorldTimelineEventCreate, WorldTimelineEventUpdate
+from .models import ApprovalRequest, BehaviorAgendaCreateRequest, BehaviorCatalogRequest, BehaviorPreviewRequest, BehaviorProfileRequest, ContextPreviewRequest, EntityCreate, EnvironmentObservationProposal, EnvironmentObservationRequest, KnowledgeAssessmentRequest, KnowledgeCorrectionProposal, KnowledgeReasoningRequest, KnowledgeTransmissionProposal, LocalCommandRequest, LocalSettingsUpdate, ManualPromptRequest, MapRegionConfigRequest, NarratorResponse, SessionCreate, SessionRestoreRequest, TravelPlanRequest, TravelStepRequest, TurnRequest, WorldCreate, WorldStartCreate, WorldTimelineEventCreate, WorldTimelineEventUpdate
 from .providers import ProviderError, build_manual_prompt, make_provider
+from .knowledge_reasoning import analyze_report_pair
 from .timeline import fire_due_world_events
 from .travel_controller import (
     MapRegionNotFoundError, TravelConflictError, TravelNotFoundError,
@@ -643,6 +644,11 @@ def capture_turn_state(conn, session_id: str) -> dict[str, Any]:
             "ORDER BY assessed_total_minutes,id",
             (session_id,)
         ).fetchall()],
+        "knowledge_reasoning_assessments": [dict(row) for row in conn.execute(
+            "SELECT * FROM session_knowledge_reasoning_assessments WHERE session_id=? "
+            "ORDER BY assessed_total_minutes,id",
+            (session_id,)
+        ).fetchall()],
         "knowledge_corrections": [dict(row) for row in conn.execute(
             "SELECT * FROM session_knowledge_corrections WHERE session_id=? "
             "ORDER BY corrected_total_minutes,id",
@@ -691,7 +697,8 @@ def restore_turn_state(conn, session_id: str, state: dict[str, Any]) -> None:
         ("session_environment_observations", state.get("environment_observations", [])),
         ("session_knowledge_transmissions", state.get("knowledge_transmissions", [])),
         ("session_knowledge_assessments", state.get("knowledge_assessments", [])),
-        ("session_knowledge_corrections", state.get("knowledge_corrections", []))
+        ("session_knowledge_corrections", state.get("knowledge_corrections", [])),
+        ("session_knowledge_reasoning_assessments", state.get("knowledge_reasoning_assessments", []))
     ]
     # Delete children before parents, then restore parents before children.
     # Knowledge assessments reference transmissions and must follow this order.
@@ -3668,6 +3675,156 @@ def assess_knowledge_report(
         )
     return {
         "assessment": dict(assessment),
+        "replayed": False,
+        "planned_activities": planned_activities,
+    }
+
+
+@app.post("/api/sessions/{session_id}/knowledge-comparisons/{left_transmission_id}/{right_transmission_id}/reasoning")
+def assess_knowledge_comparison(
+    session_id: str,
+    left_transmission_id: str,
+    right_transmission_id: str,
+    payload: KnowledgeReasoningRequest,
+):
+    """Append one NPC's opinion about two exact, personally received report versions."""
+    if left_transmission_id == right_transmission_id:
+        raise HTTPException(status_code=422, detail="Una afirmación no puede compararse consigo misma.")
+
+    with database.transaction() as conn:
+        ensure_no_turn_in_progress(conn, session_id)
+        session = session_row(conn, session_id)
+        if session is None:
+            raise HTTPException(status_code=404, detail="Partida no encontrada.")
+
+        existing = conn.execute(
+            "SELECT * FROM session_knowledge_reasoning_assessments "
+            "WHERE session_id=? AND request_id=?",
+            (session_id, payload.request_id),
+        ).fetchone()
+        if existing is not None:
+            same_request = (
+                str(existing["assessor_entity_id"]) == payload.assessor_entity_id
+                and str(existing["left_transmission_id"]) == left_transmission_id
+                and str(existing["right_transmission_id"]) == right_transmission_id
+                and str(existing["left_correction_id"] or "") == payload.left_correction_id
+                and str(existing["right_correction_id"] or "") == payload.right_correction_id
+                and str(existing["outcome"]) == payload.outcome
+                and int(existing["confidence"]) == payload.confidence
+                and str(existing["rationale"]) == payload.rationale
+            )
+            if not same_request:
+                raise HTTPException(
+                    status_code=409,
+                    detail="El identificador de solicitud ya se utilizó para otra conclusión."
+                )
+            return {"reasoning": dict(existing), "replayed": True, "planned_activities": 0}
+
+        _, perception = _entity_perception_context(
+            conn, session_id, payload.assessor_entity_id
+        )
+        visible_reports = {
+            item["transmission_id"]: item
+            for item in perception.get("knowledge_reports", [])
+        }
+        left = visible_reports.get(left_transmission_id)
+        right = visible_reports.get(right_transmission_id)
+        if left is None or right is None:
+            raise HTTPException(
+                status_code=404,
+                detail="El PNJ solo puede razonar sobre informes que recibió personalmente."
+            )
+        if (
+            left.get("report_status") == "retracted"
+            or right.get("report_status") == "retracted"
+            or not left.get("current_reported_version")
+            or not right.get("current_reported_version")
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="Una afirmación retirada no puede tratarse como versión vigente."
+            )
+        if left.get("source_event_id") != right.get("source_event_id"):
+            raise HTTPException(
+                status_code=422,
+                detail="La comparación debe referirse al mismo acontecimiento registrado."
+            )
+        if left.get("sender_entity_id") == right.get("sender_entity_id"):
+            raise HTTPException(
+                status_code=422,
+                detail="Para comparar dos testimonios hacen falta emisores distintos."
+            )
+
+        current_left_correction = (
+            str(left["correction"].get("correction_id") or "")
+            if isinstance(left.get("correction"), dict) else ""
+        )
+        current_right_correction = (
+            str(right["correction"].get("correction_id") or "")
+            if isinstance(right.get("correction"), dict) else ""
+        )
+        if (
+            payload.left_correction_id != current_left_correction
+            or payload.right_correction_id != current_right_correction
+        ):
+            raise HTTPException(
+                status_code=409,
+                detail="Una versión comparada cambió. Actualiza el panel antes de guardar la conclusión."
+            )
+
+        analysis = analyze_report_pair(
+            str(left["current_reported_version"]),
+            str(right["current_reported_version"]),
+            left_root_id=str(left.get("origin_transmission_id") or ""),
+            right_root_id=str(right.get("origin_transmission_id") or ""),
+            left_provenance_complete=bool(left.get("provenance_complete")),
+            right_provenance_complete=bool(right.get("provenance_complete")),
+        )
+        if payload.outcome == "contradiction" and (
+            analysis["relation"] != "possible_conflict"
+            or analysis["source_independence"] != "independent"
+        ):
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    "No se puede registrar una contradicción verificada por el sistema: "
+                    "se requiere un conflicto semántico candidato y procedencia independiente completa. "
+                    "El PNJ puede conservar dudas o pedir más información."
+                )
+            )
+
+        current_total = (int(session["day"]) - 1) * 1440 + int(session["minute_of_day"])
+        reasoning_id = new_id()
+        created_at = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S.%f")
+        conn.execute(
+            "INSERT INTO session_knowledge_reasoning_assessments("
+            "id,session_id,request_id,assessor_entity_id,left_transmission_id,left_correction_id,"
+            "right_transmission_id,right_correction_id,left_source_root_id,right_source_root_id,"
+            "source_independence,outcome,confidence,rationale,assessed_total_minutes,created_at"
+            ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (
+                reasoning_id, session_id, payload.request_id, payload.assessor_entity_id,
+                left_transmission_id, current_left_correction,
+                right_transmission_id, current_right_correction,
+                str(left.get("origin_transmission_id") or ""),
+                str(right.get("origin_transmission_id") or ""),
+                analysis["source_independence"], payload.outcome, payload.confidence,
+                payload.rationale, current_total, created_at,
+            ),
+        )
+        saved = conn.execute(
+            "SELECT * FROM session_knowledge_reasoning_assessments WHERE id=?",
+            (reasoning_id,),
+        ).fetchone()
+        # This changes only this NPC's perception signature. The existing
+        # planner reconsiders future NPC activities; it does not move actors or
+        # advance time, and it never schedules an autonomous protagonist.
+        planned_activities = plan_autonomous_behavior_agendas(
+            conn, session_id, current_total
+        )
+    return {
+        "reasoning": dict(saved),
+        "semantic_analysis": analysis,
         "replayed": False,
         "planned_activities": planned_activities,
     }
