@@ -9521,7 +9521,11 @@ def test_semantic_reasoning_is_personal_idempotent_snapshot_safe_and_clock_neutr
         assert [item["outcome"] for item in reassessed_pair["reasoning_history"]] == [
             "contradiction", "compatible"
         ]
-        assert reassessed_pair["reasoning_history"][-1]["left_correction_id"] == correction_id
+        revised_history = reassessed_pair["reasoning_history"][-1]
+        revised_side = (
+            "left" if revised_history["left_transmission_id"] == left_id else "right"
+        )
+        assert revised_history[f"{revised_side}_correction_id"] == correction_id
 
         # Retraction removes the assertion from current comparisons, but never
         # erases the character's historical opinion or its exact old version.
