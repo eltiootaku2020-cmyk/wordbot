@@ -1,0 +1,141 @@
+from canon_manager.knowledge_reasoning import (
+    analyze_report_pair,
+    classify_source_independence,
+    compare_claims,
+    parse_claim_text,
+)
+
+
+def test_same_bridge_same_morning_with_incompatible_states_is_candidate_conflict():
+    result = analyze_report_pair(
+        "El puente estaba destruido por la mañana.",
+        "El puente estaba intacto por la mañana.",
+        left_root_id="origin-a",
+        right_root_id="origin-b",
+        left_provenance_complete=True,
+        right_provenance_complete=True,
+    )
+    assert result["relation"] == "possible_conflict"
+    assert result["source_independence"] == "independent"
+    assert result["is_truth_finding"] is False
+
+
+def test_synonyms_and_wording_variants_are_compatible():
+    left = parse_claim_text("El puente estaba íntegro por la mañana.")
+    right = parse_claim_text("El puente estaba intacto por la mañana.")
+    assert left is not None and right is not None
+    assert compare_claims(left, right)["relation"] == "compatible"
+
+
+def test_different_periods_are_not_automatically_a_contradiction():
+    result = analyze_report_pair(
+        "El puente estaba intacto por la mañana.",
+        "El puente estaba destruido por la tarde.",
+    )
+    assert result["relation"] == "different_time"
+
+
+def test_natural_spanish_negation_conflicts_with_positive_claim():
+    negative = parse_claim_text("El puente no estaba destruido por la mañana.")
+    positive = parse_claim_text("El puente estaba destruido por la mañana.")
+    assert negative is not None and positive is not None
+    assert negative["negated"] is True
+    assert compare_claims(negative, positive)["relation"] == "possible_conflict"
+
+
+def test_two_positive_claims_with_different_incompatible_values_conflict():
+    left = parse_claim_text("La puerta estaba abierta por la mañana.")
+    right = parse_claim_text("La puerta estaba cerrada por la mañana.")
+    assert left is not None and right is not None
+    assert compare_claims(left, right)["relation"] == "possible_conflict"
+
+
+def test_different_locations_are_not_mixed():
+    left = parse_claim_text("El puente estaba intacto en el bosque por la mañana.")
+    right = parse_claim_text("El puente estaba destruido en la ciudad por la mañana.")
+    assert left is not None and right is not None
+    assert compare_claims(left, right)["relation"] == "different_location"
+
+
+def test_different_subjects_are_different_claims():
+    left = parse_claim_text("El puente estaba intacto por la mañana.")
+    right = parse_claim_text("La torre estaba destruida por la mañana.")
+    assert left is not None and right is not None
+    assert compare_claims(left, right)["relation"] == "different_claim"
+
+
+def test_absence_of_a_statement_is_not_converted_into_a_negative_claim():
+    assert parse_claim_text("") is None
+    assert parse_claim_text("No sé qué ocurrió con el puente.") is None
+    result = compare_claims(None, parse_claim_text("El puente estaba intacto por la mañana."))
+    assert result["relation"] == "unstructured"
+
+
+def test_ten_relays_of_the_same_origin_count_as_one_lineage():
+    independence = classify_source_independence(
+        "original-transmission-1",
+        "original-transmission-1",
+        left_complete=True,
+        right_complete=True,
+    )
+    assert independence == "same_lineage"
+    result = analyze_report_pair(
+        "El puente estaba intacto por la mañana.",
+        "El puente estaba destruido por la mañana.",
+        left_root_id="original-transmission-1",
+        right_root_id="original-transmission-1",
+        left_provenance_complete=True,
+        right_provenance_complete=True,
+    )
+    assert result["relation"] == "same_source_possible_conflict"
+    assert result["independent_corroboration_count"] == 1
+
+
+def test_independent_roots_are_counted_as_two_sources():
+    assert classify_source_independence(
+        "origin-a", "origin-b",
+        left_complete=True, right_complete=True,
+    ) == "independent"
+    result = analyze_report_pair(
+        "El puente estaba intacto por la mañana.",
+        "El puente estaba destruido por la mañana.",
+        left_root_id="origin-a",
+        right_root_id="origin-b",
+        left_provenance_complete=True,
+        right_provenance_complete=True,
+    )
+    assert result["independent_corroboration_count"] == 2
+
+
+def test_incomplete_provenance_is_unknown_not_independent():
+    assert classify_source_independence(
+        "origin-a", "origin-b",
+        left_complete=False, right_complete=True,
+    ) == "unknown"
+
+
+def test_unrecognized_modifiers_fail_closed_instead_of_being_ignored():
+    assert parse_claim_text(
+        "El puente estaba destruido y había soldados cerca por la mañana."
+    ) is None
+
+
+def test_english_assertions_are_supported_without_external_models():
+    left = parse_claim_text("The bridge was destroyed in the morning.")
+    right = parse_claim_text("The bridge was intact in the morning.")
+    assert left is not None and right is not None
+    assert compare_claims(left, right)["relation"] == "possible_conflict"
+
+
+def test_only_matching_negation_is_a_conflict_when_values_match():
+    negative = parse_claim_text("La puerta no estaba abierta por la mañana.")
+    positive = parse_claim_text("La puerta estaba abierta por la mañana.")
+    assert negative is not None and positive is not None
+    assert compare_claims(negative, positive)["relation"] == "possible_conflict"
+
+
+def test_missing_time_on_one_side_requires_more_context():
+    left = parse_claim_text("El puente estaba intacto por la mañana.")
+    right = parse_claim_text("El puente estaba destruido.")
+    assert left is not None and right is not None
+    assert compare_claims(left, right)["relation"] == "insufficient_context"
