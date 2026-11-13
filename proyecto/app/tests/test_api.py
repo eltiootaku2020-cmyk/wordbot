@@ -9648,7 +9648,7 @@ def test_retransmitted_versions_from_one_origin_are_not_independent_evidence():
         brina_to_sera = _approve_npc_rumor(
             client, session_id, source_event_id, brina_id, sera_id,
             root_report_id, "one-origin-brina-to-sera",
-            "Brina afirma que el puente estaba intacto por la mañana.",
+            "El puente estaba intacto por la mañana.",
         )
         brina_to_maelis = _approve_npc_rumor(
             client, session_id, source_event_id, brina_id, maelis_id,
@@ -9658,7 +9658,7 @@ def test_retransmitted_versions_from_one_origin_are_not_independent_evidence():
         maelis_to_sera = _approve_npc_rumor(
             client, session_id, source_event_id, maelis_id, sera_id,
             brina_to_maelis, "one-origin-maelis-to-sera",
-            "Maelis afirma que el puente estaba destruido por la mañana.",
+            "El puente estaba destruido por la mañana.",
         )
 
         with database.connection() as conn:
