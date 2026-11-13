@@ -203,3 +203,34 @@ def test_evidence_origin_distinguishes_recorded_observation_physical_document_te
     assert classify_evidence_origin(
         "testimony", "document", provenance_complete=False
     ) == "unknown"
+
+
+def test_explicit_action_negation_detects_a_candidate_conflict():
+    positive = parse_claim_text("Brina cruzó el puente por la mañana.")
+    negative = parse_claim_text("Brina no cruzó el puente por la mañana.")
+    assert positive is not None and negative is not None
+    assert positive["predicate"] == "action:cross"
+    assert positive["value"] == "puente"
+    assert compare_claims(positive, negative)["relation"] == "possible_conflict"
+
+
+def test_same_action_towards_a_different_target_is_a_different_claim():
+    left = parse_claim_text("Brina cruzó el puente por la mañana.")
+    right = parse_claim_text("Brina cruzó el río por la mañana.")
+    assert left is not None and right is not None
+    assert compare_claims(left, right)["relation"] == "different_claim"
+
+
+def test_action_claims_keep_time_and_location_scopes():
+    morning = parse_claim_text("Brina cruzó el puente por la mañana.")
+    afternoon = parse_claim_text("Brina cruzó el puente por la tarde.")
+    forest = parse_claim_text("Brina cruzó el puente en el bosque por la mañana.")
+    city = parse_claim_text("Brina cruzó el puente en la ciudad por la mañana.")
+    assert morning is not None and afternoon is not None
+    assert forest is not None and city is not None
+    assert compare_claims(morning, afternoon)["relation"] == "different_time"
+    assert compare_claims(forest, city)["relation"] == "different_location"
+
+
+def test_unknown_action_wording_is_not_guessed():
+    assert parse_claim_text("Brina hizo algo extraño junto al puente por la mañana.") is None
