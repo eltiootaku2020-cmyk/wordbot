@@ -93,7 +93,7 @@ def parse_claim_text(text: str) -> dict[str, Any] | None:
 
     verb_pattern = "|".join(re.escape(verb) for verb in sorted(set(_STATE_VERBS), key=len, reverse=True))
     match = re.match(
-        rf"^(?P<subject>[a-z0-9][a-z0-9 '\\-]{{0,90}}?)\s+(?P<verb>{verb_pattern})\s+(?P<tail>.+)$",
+        rf"^(?P<subject>[a-z0-9][a-z0-9 '\\-]{{0,90}}?)\s+(?P<pre_negation>no\s+|not\s+)?(?P<verb>{verb_pattern})\s+(?P<tail>.+)$",
         folded,
     )
     if not match:
@@ -104,7 +104,7 @@ def parse_claim_text(text: str) -> dict[str, Any] | None:
     if not subject or not tail:
         return None
 
-    negated = False
+    negated = bool(match.group("pre_negation"))
     negative = re.match(r"^(?:no|not)\s+", tail)
     if negative:
         negated = True
