@@ -111,6 +111,19 @@ class KnowledgeAssessmentRequest(StrictModel):
     rationale: str = Field(min_length=1, max_length=600)
 
 
+class KnowledgeReasoningRequest(StrictModel):
+    request_id: str = Field(min_length=8, max_length=100)
+    assessor_entity_id: str = Field(min_length=1, max_length=120)
+    left_correction_id: str = Field(default="", max_length=80)
+    right_correction_id: str = Field(default="", max_length=80)
+    outcome: Literal[
+        "believes_left", "believes_right", "uncertain", "contradiction",
+        "compatible", "insufficient_information", "no_conclusion",
+    ]
+    confidence: int = Field(ge=0, le=100)
+    rationale: str = Field(min_length=1, max_length=600)
+
+
 class KnowledgeCorrectionProposal(StrictModel):
     event_ref: str = Field(min_length=1, max_length=40)
     original_transmission_id: str = Field(min_length=1, max_length=80)
