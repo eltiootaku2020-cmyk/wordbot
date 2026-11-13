@@ -1191,6 +1191,48 @@ def _entity_perception_context(
         )
         reasoning_by_pair.setdefault(key, []).append(dict(reasoning_row))
     reports_by_id = {item["transmission_id"]: item for item in knowledge_summary}
+
+    def _reasoning_version_text(report: dict[str, Any], correction_id: str) -> str:
+        if not correction_id:
+            return str(report.get("reported_version") or "")
+        for entry in report.get("correction_history", []):
+            if str(entry.get("correction_id") or "") == correction_id:
+                if entry.get("correction_kind") == "corrected":
+                    return str(entry.get("replacement_text") or "")
+                return ""
+        return ""
+
+    knowledge_reasoning_history: list[dict[str, Any]] = []
+    for reasoning_row in reasoning_rows:
+        record = dict(reasoning_row)
+        left_id = str(record["left_transmission_id"])
+        right_id = str(record["right_transmission_id"])
+        left_report = reports_by_id.get(left_id, {})
+        right_report = reports_by_id.get(right_id, {})
+        left_correction_id = str(record.get("left_correction_id") or "")
+        right_correction_id = str(record.get("right_correction_id") or "")
+        current_left_id = (
+            str(left_report.get("correction", {}).get("correction_id") or "")
+            if isinstance(left_report.get("correction"), dict) else ""
+        )
+        current_right_id = (
+            str(right_report.get("correction", {}).get("correction_id") or "")
+            if isinstance(right_report.get("correction"), dict) else ""
+        )
+        record.update({
+            "left_version_text": _reasoning_version_text(left_report, left_correction_id),
+            "right_version_text": _reasoning_version_text(right_report, right_correction_id),
+            "left_report_status": str(left_report.get("report_status") or "unavailable"),
+            "right_report_status": str(right_report.get("report_status") or "unavailable"),
+            "is_current": (
+                current_left_id == left_correction_id
+                and current_right_id == right_correction_id
+                and left_report.get("report_status") != "retracted"
+                and right_report.get("report_status") != "retracted"
+            ),
+        })
+        knowledge_reasoning_history.append(record)
+
     for comparison in knowledge_comparisons:
         key = (comparison["left_report_id"], comparison["right_report_id"])
         history = reasoning_by_pair.get(key, [])
@@ -1274,6 +1316,7 @@ def _entity_perception_context(
         "environment_observations": environment_summary[:10],
         "knowledge_reports": knowledge_summary[:20],
         "knowledge_comparisons": knowledge_comparisons[:40],
+        "knowledge_reasoning_history": knowledge_reasoning_history[-100:],
     }
 
 
