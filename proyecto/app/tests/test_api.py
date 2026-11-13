@@ -9734,6 +9734,26 @@ def test_semantic_reasoning_is_personal_idempotent_snapshot_safe_and_clock_neutr
         )
         assert revised_opinion[f"{revised_side}_version_text"] == corrected_text
 
+        # The state API must surface each NPC's private historical conclusions
+        # after the current comparison has disappeared due to a retraction.
+        state = client.get(f"/api/sessions/{session_id}/state")
+        assert state.status_code == 200, state.text
+        participants_by_id = {
+            item["id"]: item for item in state.json()["participants"]
+        }
+        brina_history = participants_by_id[brina_id]["knowledge_reasoning_history"]
+        assert [
+            item["outcome"] for item in brina_history
+            if {item["left_transmission_id"], item["right_transmission_id"]}
+            == {left_report_id, right_report_id}
+        ] == ["contradiction", "compatible"]
+        assert any(
+            item["left_version_text"] == "El puente estaba destruido por la mañana."
+            or item["right_version_text"] == "El puente estaba destruido por la mañana."
+            for item in brina_history
+        )
+        assert participants_by_id[maelis_id]["knowledge_reasoning_history"] == []
+
 
 def test_two_npcs_can_keep_different_private_conclusions_about_the_same_evidence():
     with TestClient(app) as client:
