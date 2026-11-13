@@ -3627,14 +3627,19 @@ def assess_knowledge_report(
                     or not comparison_report.get("provenance_complete")
                     or not current_report.get("origin_transmission_id")
                     or not comparison_report.get("origin_transmission_id")
+                    or not current_report.get("originator_entity_id")
+                    or not comparison_report.get("originator_entity_id")
+                    or current_report.get("source_event_id") != comparison_report.get("source_event_id")
                     or current_report.get("origin_transmission_id")
                     == comparison_report.get("origin_transmission_id")
+                    or current_report.get("originator_entity_id")
+                    == comparison_report.get("originator_entity_id")
                 ):
                     raise HTTPException(
                         status_code=422,
                         detail=(
-                            "No se puede tratar una retransmisión como fuente independiente. "
-                            "Hace falta procedencia completa y dos transmisiones de origen distintas."
+                            "No se puede tratar una retransmisión o un segundo envío del mismo testigo "
+                            "como fuente independiente. Hace falta procedencia completa y dos originadores distintos."
                         )
                     )
         else:
@@ -3792,6 +3797,10 @@ def assess_knowledge_comparison(
             str(right["current_reported_version"]),
             left_root_id=str(left.get("origin_transmission_id") or ""),
             right_root_id=str(right.get("origin_transmission_id") or ""),
+            left_originator_id=str(left.get("originator_entity_id") or ""),
+            right_originator_id=str(right.get("originator_entity_id") or ""),
+            left_source_event_id=str(left.get("source_event_id") or ""),
+            right_source_event_id=str(right.get("source_event_id") or ""),
             left_provenance_complete=bool(left.get("provenance_complete")),
             right_provenance_complete=bool(right.get("provenance_complete")),
         )
