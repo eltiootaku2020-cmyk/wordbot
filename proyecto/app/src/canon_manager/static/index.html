@@ -955,6 +955,63 @@ function renderState(payload) {
     });
     el("state").appendChild(comparisonSection);
   }
+
+  const historicalReasonings = payload.participants.flatMap(person =>
+    (person.knowledge_reasoning_history || [])
+      .filter(entry => !entry.is_current)
+      .map(entry => ({person, entry}))
+  );
+  if (historicalReasonings.length) {
+    const historySection = document.createElement("div");
+    historySection.className = "card";
+    const historyHeading = document.createElement("strong");
+    historyHeading.textContent = "Conclusiones históricas de PNJ";
+    historySection.appendChild(historyHeading);
+    const historyHelp = document.createElement("p");
+    historyHelp.className = "muted";
+    historyHelp.textContent = "Las opiniones siguientes se conservan aunque una versión haya sido corregida o retirada. No se aplican a una versión nueva sin una revisión personal.";
+    historySection.appendChild(historyHelp);
+    historicalReasonings.forEach(({person, entry}) => {
+      const item = document.createElement("div");
+      item.className = "assessment-item";
+      const title = document.createElement("strong");
+      title.textContent = person.name + " · " + entry.outcome +
+        " · confianza " + entry.confidence + "/100";
+      item.appendChild(title);
+      const leftStatus = entry.left_report_status || "unavailable";
+      const rightStatus = entry.right_report_status || "unavailable";
+      const statusLabels = {
+        active: "vigente",
+        corrected: "corregido posteriormente",
+        retracted: "retractado",
+        unavailable: "ya no está en la vista actual"
+      };
+      const versions = document.createElement("p");
+      versions.textContent = "Primera versión [" + entry.left_transmission_id + "] (" +
+        (statusLabels[leftStatus] || leftStatus) + "): «" +
+        (entry.left_version_text || "texto histórico no disponible en el contexto actual") +
+        "» · segunda versión [" + entry.right_transmission_id + "] (" +
+        (statusLabels[rightStatus] || rightStatus) + "): «" +
+        (entry.right_version_text || "texto histórico no disponible en el contexto actual") + "»";
+      item.appendChild(versions);
+      const refs = document.createElement("p");
+      refs.className = "muted";
+      refs.textContent = "Correcciones evaluadas: " +
+        (entry.left_correction_id || "original") + " ↔ " +
+        (entry.right_correction_id || "original") +
+        " · raíces: " + (entry.left_source_root_id || "desconocida") +
+        " ↔ " + (entry.right_source_root_id || "desconocida");
+      item.appendChild(refs);
+      const rationale = document.createElement("p");
+      rationale.className = "muted";
+      rationale.textContent = entry.rationale + " · minuto de juego " +
+        entry.assessed_total_minutes;
+      item.appendChild(rationale);
+      historySection.appendChild(item);
+    });
+    el("state").appendChild(historySection);
+  }
+
   if (receivedReports.length) {
     const section = document.createElement("div");
     section.className = "card";
