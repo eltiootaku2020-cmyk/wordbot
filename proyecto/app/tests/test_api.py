@@ -9500,6 +9500,29 @@ def test_semantic_reasoning_is_personal_idempotent_snapshot_safe_and_clock_neutr
         assert updated["reasoning_history"][0]["outcome"] == "contradiction"
         assert updated["reasoning_history"][0]["left_correction_id"] == ""
 
+        # New evidence changes the exact version to an equivalent state.
+        # Brina can revise her private view instead of inheriting the old one.
+        revised_opinion = _save_semantic_reasoning(
+            client, session_id, brina_id,
+            updated["left_report_id"], updated["right_report_id"],
+            updated["left_correction_id"], updated["right_correction_id"],
+            "compatible", "brina-revises-after-new-evidence-001",
+        )
+        assert revised_opinion.status_code == 200, revised_opinion.text
+        with database.connection() as conn:
+            _, reassessed_perception = _entity_perception_context(
+                conn, session_id, brina_id
+            )
+        reassessed_pair = next(
+            item for item in reassessed_perception["knowledge_comparisons"]
+            if {item["left_report_id"], item["right_report_id"]} == {left_id, right_id}
+        )
+        assert reassessed_pair["reasoning"]["outcome"] == "compatible"
+        assert [item["outcome"] for item in reassessed_pair["reasoning_history"]] == [
+            "contradiction", "compatible"
+        ]
+        assert reassessed_pair["reasoning_history"][-1]["left_correction_id"] == correction_id
+
         # Retraction removes the assertion from current comparisons, but never
         # erases the character's historical opinion or its exact old version.
         _approve_knowledge_correction(
@@ -9516,18 +9539,31 @@ def test_semantic_reasoning_is_personal_idempotent_snapshot_safe_and_clock_neutr
             {item["left_report_id"], item["right_report_id"]} == {left_id, right_id}
             for item in retracted_perception["knowledge_comparisons"]
         )
-        historical = next(
+        historical_rows = [
             item for item in retracted_perception["knowledge_reasoning_history"]
-            if item["left_transmission_id"] == left_report_id
-            and item["right_transmission_id"] == right_report_id
+            if {item["left_transmission_id"], item["right_transmission_id"]}
+            == {left_report_id, right_report_id}
+        ]
+        assert len(historical_rows) == 2
+        historical_by_outcome = {item["outcome"]: item for item in historical_rows}
+        original_opinion = historical_by_outcome["contradiction"]
+        revised_opinion = historical_by_outcome["compatible"]
+        for historical in historical_rows:
+            withdrawn_side = (
+                "left" if historical["left_transmission_id"] == left_id else "right"
+            )
+            assert historical["is_current"] is False
+            assert historical[f"{withdrawn_side}_report_status"] == "retracted"
+        original_side = (
+            "left" if original_opinion["left_transmission_id"] == left_id else "right"
         )
-        assert historical["is_current"] is False
-        withdrawn_side = (
-            "left" if historical["left_transmission_id"] == left_id else "right"
+        revised_side = (
+            "left" if revised_opinion["left_transmission_id"] == left_id else "right"
         )
-        assert historical[f"{withdrawn_side}_report_status"] == "retracted"
-        assert historical["outcome"] == "contradiction"
-        assert historical[f"{withdrawn_side}_version_text"] == "El puente estaba destruido por la mañana."
+        assert original_opinion[f"{original_side}_version_text"] == (
+            "El puente estaba destruido por la mañana."
+        )
+        assert revised_opinion[f"{revised_side}_version_text"] == corrected_text
 
 
 def test_two_npcs_can_keep_different_private_conclusions_about_the_same_evidence():
