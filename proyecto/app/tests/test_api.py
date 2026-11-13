@@ -9401,6 +9401,9 @@ def test_semantic_reasoning_is_personal_idempotent_snapshot_safe_and_clock_neutr
 
         left_report_id = comparison["left_report_id"]
         right_report_id = comparison["right_report_id"]
+        # Test only planner calls caused by the new reasoning request; approvals
+        # while creating the two reports legitimately planned their own agendas.
+        planner_calls.clear()
         payload = {
             "request_id": "brina-semantic-reasoning-request-001",
             "assessor_entity_id": brina_id,
