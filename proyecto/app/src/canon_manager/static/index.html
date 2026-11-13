@@ -778,6 +778,11 @@ function renderState(payload) {
       right.textContent = (comparison.right_sender_name || entityNames[comparison.right_sender_entity_id] || comparison.right_sender_entity_id) +
         " (" + comparison.right_transmission_kind + "): «" + comparison.right_version + "»";
       item.appendChild(right);
+      const exactRefs = document.createElement("p");
+      exactRefs.className = "muted";
+      exactRefs.textContent = "Evento fuente: " + (comparison.source_event_id || "sin referencia") +
+        " · versiones exactas: " + comparison.left_report_id + " ↔ " + comparison.right_report_id;
+      item.appendChild(exactRefs);
       const semantic = comparison.semantic_analysis || {};
       const relationLabels = {
         possible_conflict: "Posible conflicto semántico",
