@@ -9432,12 +9432,68 @@ def test_reasoning_history_context_keeps_the_latest_300_records():
                         f"2026-11-13 00:{index // 60:02d}:{index % 60:02d}",
                     ),
                 )
+            # Push the two reports referenced by these old opinions outside the
+            # compact latest-20 report list. The historical audit must still
+            # reconstruct their exact original wording from persistent records.
+            for index in range(21):
+                communication_event_id = f"history-retention-communication-{index:03d}"
+                conn.execute(
+                    "INSERT INTO events("
+                    "id,session_id,turn_id,external_ref,kind,entity_id,description,"
+                    "witnesses_json,continuity,importance,status"
+                    ") VALUES(?,?,?,?,?,?,?,?,?,?,?)",
+                    (
+                        communication_event_id,
+                        session_id,
+                        f"history-retention-turn-{index:03d}",
+                        "communication",
+                        "knowledge",
+                        maelis_id,
+                        "Maelis entrega un informe reciente a Brina.",
+                        f'["{maelis_id}","{brina_id}"]',
+                        0,
+                        1,
+                        "recorded",
+                    ),
+                )
+                conn.execute(
+                    "INSERT INTO session_knowledge_transmissions("
+                    "id,session_id,request_id,source_event_id,communication_event_id,"
+                    "sender_entity_id,recipient_entity_id,transmission_kind,version_text,"
+                    "location,transmitted_total_minutes,parent_transmission_id,parent_correction_id,created_at"
+                    ") VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+                    (
+                        f"history-retention-report-{index:03d}",
+                        session_id,
+                        f"history-retention-request-{index:03d}",
+                        source_event_id,
+                        communication_event_id,
+                        maelis_id,
+                        brina_id,
+                        "testimony",
+                        f"Informe reciente número {index}.",
+                        "Bosque de los Siete Ecos",
+                        current_total,
+                        "",
+                        "",
+                        f"9999-01-01 00:{index // 60:02d}:{index % 60:02d}",
+                    ),
+                )
             _, perception = _entity_perception_context(conn, session_id, brina_id)
 
+        assert len(perception["knowledge_reports"]) == 20
+        assert all(
+            item["transmission_id"] not in {left_id, right_id}
+            for item in perception["knowledge_reports"]
+        )
         history = perception["knowledge_reasoning_history"]
         assert len(history) == 100
         assert history[0]["request_id"] == "reasoning-history-request-205"
         assert history[-1]["request_id"] == "reasoning-history-request-304"
+        assert history[0]["left_version_text"] == "El puente estaba intacto por la mañana."
+        assert history[0]["right_version_text"] == "El puente estaba destruido por la mañana."
+        assert history[0]["left_report_status"] == "active"
+        assert history[0]["right_report_status"] == "active"
 
 
 def test_semantic_reasoning_is_personal_idempotent_snapshot_safe_and_clock_neutral(monkeypatch):
