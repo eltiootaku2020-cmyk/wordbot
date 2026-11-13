@@ -159,3 +159,25 @@ def test_missing_time_on_one_side_requires_more_context():
     right = parse_claim_text("El puente estaba destruido.")
     assert left is not None and right is not None
     assert compare_claims(left, right)["relation"] == "insufficient_context"
+
+
+def test_two_root_transmissions_from_the_same_witness_are_still_one_source():
+    assert classify_source_independence(
+        "origin-a", "origin-b",
+        left_complete=True, right_complete=True,
+        left_originator_id="same-witness",
+        right_originator_id="same-witness",
+        left_source_event_id="same-event",
+        right_source_event_id="same-event",
+    ) == "same_lineage"
+
+
+def test_two_different_root_witnesses_on_different_events_are_not_comparable_as_independent():
+    assert classify_source_independence(
+        "origin-a", "origin-b",
+        left_complete=True, right_complete=True,
+        left_originator_id="witness-a",
+        right_originator_id="witness-b",
+        left_source_event_id="event-a",
+        right_source_event_id="event-b",
+    ) == "unknown"
