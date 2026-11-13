@@ -3622,6 +3622,21 @@ def assess_knowledge_report(
                         status_code=422,
                         detail="Solo se pueden comparar versiones vigentes que ese PNJ recibió y que no fueron retiradas."
                     )
+                if (
+                    not current_report.get("provenance_complete")
+                    or not comparison_report.get("provenance_complete")
+                    or not current_report.get("origin_transmission_id")
+                    or not comparison_report.get("origin_transmission_id")
+                    or current_report.get("origin_transmission_id")
+                    == comparison_report.get("origin_transmission_id")
+                ):
+                    raise HTTPException(
+                        status_code=422,
+                        detail=(
+                            "No se puede tratar una retransmisión como fuente independiente. "
+                            "Hace falta procedencia completa y dos transmisiones de origen distintas."
+                        )
+                    )
         else:
             if requested_evidence_correction_id not in {None, ""}:
                 raise HTTPException(
