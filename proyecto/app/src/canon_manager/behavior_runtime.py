@@ -1180,9 +1180,10 @@ def _entity_perception_context(
     reasoning_rows = conn.execute(
         "SELECT * FROM session_knowledge_reasoning_assessments "
         "WHERE session_id=? AND assessor_entity_id=? "
-        "ORDER BY assessed_total_minutes,created_at,id LIMIT 300",
+        "ORDER BY assessed_total_minutes DESC,created_at DESC,id DESC LIMIT 300",
         (session_id, entity_id),
     ).fetchall()
+    reasoning_rows = list(reversed(reasoning_rows))
     reasoning_by_pair: dict[tuple[str, str], list[dict[str, Any]]] = {}
     for reasoning_row in reasoning_rows:
         key = (
