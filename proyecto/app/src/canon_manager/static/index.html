@@ -781,8 +781,24 @@ function renderState(payload) {
       const exactRefs = document.createElement("p");
       exactRefs.className = "muted";
       exactRefs.textContent = "Evento fuente: " + (comparison.source_event_id || "sin referencia") +
+        " (" + (comparison.source_event_kind || "tipo desconocido") + ")" +
         " · versiones exactas: " + comparison.left_report_id + " ↔ " + comparison.right_report_id;
       item.appendChild(exactRefs);
+      const evidenceOriginLabels = {
+        direct_observation: "observación directa",
+        registered_physical_evidence: "evidencia física registrada",
+        registered_document: "documento/registro",
+        received_testimony: "testimonio recibido",
+        relayed_rumor: "rumor retransmitido",
+        unknown: "procedencia incompleta/desconocida"
+      };
+      const evidenceOrigins = document.createElement("p");
+      evidenceOrigins.className = "muted";
+      evidenceOrigins.textContent = "Origen de evidencia: " +
+        (evidenceOriginLabels[comparison.left_evidence_origin] || "desconocido") +
+        " ↔ " +
+        (evidenceOriginLabels[comparison.right_evidence_origin] || "desconocido");
+      item.appendChild(evidenceOrigins);
       const semantic = comparison.semantic_analysis || {};
       const relationLabels = {
         possible_conflict: "Posible conflicto semántico",
