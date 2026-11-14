@@ -1003,8 +1003,8 @@ function renderState(payload) {
       item.appendChild(refs);
       const level = document.createElement("p");
       level.className = "muted";
-      level.textContent = "Corroboración trazable: " +
-        (corroboration.independent_source_count || 0) + " origen(es) independiente(s) · " +
+      level.textContent = "Orígenes trazables: " +
+        (corroboration.independent_source_count || 0) + " · " +
         (corroboration.unverified_report_count || 0) + " informe(s) sin procedencia completa. " +
         (corroborationStatusLabels[corroboration.corroboration_status] || corroboration.corroboration_note || "Sin clasificación");
       item.appendChild(level);
