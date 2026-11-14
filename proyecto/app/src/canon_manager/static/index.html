@@ -957,6 +957,79 @@ function renderState(payload) {
     el("state").appendChild(comparisonSection);
   }
 
+  const corroborationCandidates = payload.participants.flatMap(person =>
+    person.kind === "protagonist" ? [] :
+      (person.knowledge_corroborations || []).map(corroboration => ({person, corroboration}))
+  );
+  if (corroborationCandidates.length) {
+    const corroborationSection = document.createElement("div");
+    corroborationSection.className = "card";
+    const corroborationHeading = document.createElement("strong");
+    corroborationHeading.textContent = "Testimonios coincidentes y corroboración";
+    corroborationSection.appendChild(corroborationHeading);
+    const corroborationHelp = document.createElement("p");
+    corroborationHelp.className = "muted";
+    corroborationHelp.textContent = "Se agrupan versiones textualmente iguales sobre el mismo evento fuente, normalizando solo mayúsculas y espacios. La coincidencia no demuestra que el contenido sea verdadero.";
+    corroborationSection.appendChild(corroborationHelp);
+    const corroborationStatusLabels = {
+      independent_sources: "Concordancia de varios orígenes independientes",
+      independent_sources_with_unverified_reports: "Varios orígenes independientes; hay informes adicionales sin procedencia confirmada",
+      single_origin: "Una sola procedencia original; las retransmisiones no suman testigos",
+      one_confirmed_origin_with_unverified_reports: "Un origen acreditado; los demás informes no tienen procedencia confirmada",
+      unknown: "No se puede establecer la independencia de las fuentes"
+    };
+    const evidenceOriginLabels = {
+      direct_observation: "observación directa",
+      registered_physical_evidence: "evidencia física registrada",
+      registered_document: "documento/registro",
+      received_testimony: "testimonio recibido",
+      relayed_rumor: "rumor retransmitido",
+      unknown: "procedencia incompleta/desconocida"
+    };
+    corroborationCandidates.forEach(({person, corroboration}) => {
+      const item = document.createElement("div");
+      item.className = "assessment-item";
+      const heading = document.createElement("strong");
+      heading.textContent = person.name + " recibió " + corroboration.transmission_count +
+        " versiones coincidentes de " + corroboration.distinct_sender_count + " emisores";
+      item.appendChild(heading);
+      const statement = document.createElement("p");
+      statement.textContent = "Contenido coincidente: «" + corroboration.reported_text + "»";
+      item.appendChild(statement);
+      const refs = document.createElement("p");
+      refs.className = "muted";
+      refs.textContent = "Evento fuente: " + corroboration.source_event_id +
+        " (" + corroboration.source_event_kind + ")";
+      item.appendChild(refs);
+      const level = document.createElement("p");
+      level.className = "muted";
+      level.textContent = "Corroboración trazable: " +
+        (corroboration.independent_source_count || 0) + " origen(es) independiente(s) · " +
+        (corroboration.unverified_report_count || 0) + " informe(s) sin procedencia completa. " +
+        (corroborationStatusLabels[corroboration.corroboration_status] || corroboration.corroboration_note || "Sin clasificación");
+      item.appendChild(level);
+      (corroboration.reports || []).forEach(report => {
+        const source = document.createElement("p");
+        source.className = "muted";
+        const originator = report.originator_name || "origen no identificado";
+        source.textContent = (report.sender_name || report.sender_entity_id) +
+          " (" + report.transmission_kind + ")" +
+          " · origen: " + originator +
+          " · evidencia: " + (evidenceOriginLabels[report.evidence_origin] || "desconocida") +
+          " · retransmisiones: " + report.relay_count +
+          " · informe: " + report.transmission_id +
+          " · versión: " + (report.correction_id || "original");
+        item.appendChild(source);
+      });
+      const limit = document.createElement("p");
+      limit.className = "muted";
+      limit.textContent = "La procedencia independiente indica que las versiones no descienden de un mismo testigo/origen conocido; no autentica el relato ni decide quién tiene razón.";
+      item.appendChild(limit);
+      corroborationSection.appendChild(item);
+    });
+    el("state").appendChild(corroborationSection);
+  }
+
   const historicalReasonings = payload.participants.flatMap(person =>
     (person.knowledge_reasoning_history || [])
       .filter(entry => !entry.is_current)
