@@ -328,3 +328,104 @@ def analyze_report_pair(
         "independent_corroboration_count": 2 if independence == "independent" else (1 if independence == "same_lineage" else None),
         "is_truth_finding": False,
     }
+
+
+
+def normalize_report_text(text: str) -> str:
+    """Normalize only case and whitespace for strict textual-match detection.
+
+    Accents, punctuation, words, and word order remain significant. This is a
+    display grouping aid, not semantic equivalence or proof of truth.
+    """
+    if not isinstance(text, str):
+        return ""
+    normalized = unicodedata.normalize("NFKC", text).casefold()
+    return " ".join(normalized.split())
+
+
+def summarize_corroboration_sources(reports: list[Mapping[str, Any]]) -> dict[str, Any]:
+    """Count independently traceable origins without double-counting relays.
+
+    Reports are expected to describe the same registered source event and
+    already have a strict textual match. Missing provenance never increases
+    the independent-origin count.
+    """
+    entries = [item for item in reports if isinstance(item, Mapping)]
+    source_event_ids = {str(item.get("source_event_id") or "") for item in entries}
+    eligible = [
+        (index, item) for index, item in enumerate(entries)
+        if bool(item.get("provenance_complete"))
+        and str(item.get("origin_transmission_id") or "")
+        and str(item.get("originator_entity_id") or "")
+        and str(item.get("source_event_id") or "")
+    ]
+    unverified_count = len(entries) - len(eligible)
+
+    if not entries or len(source_event_ids) != 1 or "" in source_event_ids:
+        return {
+            "source_independence": "unknown",
+            "corroboration_status": "unknown",
+            "independent_source_count": 0,
+            "unverified_report_count": len(entries),
+            "corroboration_note": "No se puede establecer una procedencia común y completa para contar orígenes independientes.",
+            "is_truth_finding": False,
+        }
+
+    parents = {index: index for index, _ in eligible}
+
+    def find(index: int) -> int:
+        while parents[index] != index:
+            parents[index] = parents[parents[index]]
+            index = parents[index]
+        return index
+
+    def union(left_index: int, right_index: int) -> None:
+        left_root = find(left_index)
+        right_root = find(right_index)
+        if left_root != right_root:
+            parents[right_root] = left_root
+
+    for position, (left_index, left) in enumerate(eligible):
+        for right_index, right in eligible[position + 1:]:
+            relation = classify_source_independence(
+                str(left.get("origin_transmission_id") or ""),
+                str(right.get("origin_transmission_id") or ""),
+                left_complete=True,
+                right_complete=True,
+                left_originator_id=str(left.get("originator_entity_id") or ""),
+                right_originator_id=str(right.get("originator_entity_id") or ""),
+                left_source_event_id=str(left.get("source_event_id") or ""),
+                right_source_event_id=str(right.get("source_event_id") or ""),
+            )
+            if relation == "same_lineage":
+                union(left_index, right_index)
+
+    independent_count = len({find(index) for index, _ in eligible})
+    if independent_count >= 2:
+        status = "independent_sources" if unverified_count == 0 else "independent_sources_with_unverified_reports"
+        independence = "independent"
+        note = (
+            f"Se identifican {independent_count} orígenes independientes entre los informes con procedencia completa."
+            + (f" Hay {unverified_count} informe(s) cuya procedencia no puede confirmarse." if unverified_count else "")
+        )
+    elif independent_count == 1 and unverified_count == 0:
+        status = "single_origin"
+        independence = "same_lineage"
+        note = "Los informes identificables descienden de un único origen; las retransmisiones no añaden testigos independientes."
+    elif independent_count == 1:
+        status = "one_confirmed_origin_with_unverified_reports"
+        independence = "unknown"
+        note = f"Solo se acredita un origen; {unverified_count} informe(s) tienen procedencia incompleta o desconocida."
+    else:
+        status = "unknown"
+        independence = "unknown"
+        note = "La procedencia disponible no permite contar orígenes independientes."
+
+    return {
+        "source_independence": independence,
+        "corroboration_status": status,
+        "independent_source_count": independent_count,
+        "unverified_report_count": unverified_count,
+        "corroboration_note": note,
+        "is_truth_finding": False,
+    }

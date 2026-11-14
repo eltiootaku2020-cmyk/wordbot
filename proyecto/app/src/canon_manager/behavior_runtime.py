@@ -14,7 +14,10 @@ import uuid
 from typing import Any, Mapping
 
 from .db import Database
-from .knowledge_reasoning import analyze_report_pair, classify_evidence_origin, parse_claim_text
+from .knowledge_reasoning import (
+    analyze_report_pair, classify_evidence_origin, normalize_report_text,
+    parse_claim_text, summarize_corroboration_sources,
+)
 from .behavior_engine import (
     BehaviorValidationError,
     advance_emotions,
@@ -1174,6 +1177,66 @@ def _entity_perception_context(
             left.setdefault("comparison_ids", []).append(comparison["comparison_id"])
             right.setdefault("comparison_ids", []).append(comparison["comparison_id"])
 
+    # Exact textual matches are shown separately from differing-version
+    # comparisons. Group only current reports about the same source event;
+    # normalization ignores only case and whitespace, not wording or punctuation.
+    corroboration_groups: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    for report in knowledge_summary:
+        report_text = str(report.get("current_reported_version") or "")
+        source_event_id = str(report.get("source_event_id") or "")
+        normalized_text = normalize_report_text(report_text)
+        if report.get("report_status") == "retracted" or not source_event_id or not normalized_text:
+            continue
+        corroboration_groups.setdefault((source_event_id, normalized_text), []).append(report)
+
+    knowledge_corroborations: list[dict[str, Any]] = []
+    for (source_event_id, _), matched_reports in corroboration_groups.items():
+        distinct_senders = {
+            str(report.get("sender_entity_id") or "") for report in matched_reports
+            if str(report.get("sender_entity_id") or "")
+        }
+        if len(distinct_senders) < 2:
+            continue
+        source_summary = summarize_corroboration_sources(matched_reports)
+        report_details = []
+        for report in matched_reports:
+            correction = report.get("correction")
+            report_details.append({
+                "transmission_id": str(report.get("transmission_id") or ""),
+                "correction_id": (
+                    str(correction.get("correction_id") or "")
+                    if isinstance(correction, dict) else ""
+                ),
+                "sender_entity_id": str(report.get("sender_entity_id") or ""),
+                "sender_name": str(report.get("sender_name") or ""),
+                "transmission_kind": str(report.get("transmission_kind") or ""),
+                "version_text": str(report.get("current_reported_version") or ""),
+                "evidence_origin": str(report.get("evidence_origin") or "unknown"),
+                "origin_transmission_id": str(report.get("origin_transmission_id") or ""),
+                "originator_entity_id": str(report.get("originator_entity_id") or ""),
+                "originator_name": str(report.get("originator_name") or ""),
+                "provenance_complete": bool(report.get("provenance_complete")),
+                "relay_count": int(report.get("relay_count") or 0),
+                "report_status": str(report.get("report_status") or "unknown"),
+                "transmitted_total_minutes": int(report.get("transmitted_total_minutes") or 0),
+            })
+        knowledge_corroborations.append({
+            "corroboration_id": "|".join(sorted(
+                str(report.get("transmission_id") or "") for report in matched_reports
+            )),
+            "assessor_entity_id": entity_id,
+            "source_event_id": source_event_id,
+            "source_event_kind": str(matched_reports[0].get("source_event_kind") or "unknown"),
+            "reported_text": str(matched_reports[0].get("current_reported_version") or ""),
+            "text_match": "normalized_exact",
+            "text_match_rule": "case_and_whitespace_only",
+            "reports": report_details,
+            "transmission_count": len(report_details),
+            "distinct_sender_count": len(distinct_senders),
+            **source_summary,
+            "epistemic_status": "reported_not_verified",
+        })
+
     # Personal reasoning is append-only and scoped to the assessor plus the
     # exact two report versions. A later correction makes it historical; it
     # does not rewrite the old conclusion or transfer it to another NPC.
@@ -1351,6 +1414,7 @@ def _entity_perception_context(
         "environment_observations": environment_summary[:10],
         "knowledge_reports": knowledge_summary[:20],
         "knowledge_comparisons": knowledge_comparisons[:40],
+        "knowledge_corroborations": knowledge_corroborations[:40],
         "knowledge_reasoning_history": knowledge_reasoning_history[-100:],
     }
 

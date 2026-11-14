@@ -4,6 +4,8 @@ from canon_manager.knowledge_reasoning import (
     classify_source_independence,
     compare_claims,
     parse_claim_text,
+    normalize_report_text,
+    summarize_corroboration_sources,
 )
 
 
@@ -234,3 +236,105 @@ def test_action_claims_keep_time_and_location_scopes():
 
 def test_unknown_action_wording_is_not_guessed():
     assert parse_claim_text("Brina hizo algo extraño junto al puente por la mañana.") is None
+
+
+
+def test_textual_match_normalizes_only_case_and_whitespace():
+    assert normalize_report_text("  El puente\tESTABA intacto.  ") == normalize_report_text(
+        "el puente estaba intacto."
+    )
+    assert normalize_report_text("El puente estaba intacto.") != normalize_report_text(
+        "El puente estaba intacto!"
+    )
+    assert normalize_report_text("El puente íntegro.") != normalize_report_text(
+        "El puente integro."
+    )
+
+
+def test_corroboration_counts_distinct_independent_origins_not_transmissions():
+    reports = [
+        {
+            "source_event_id": "event-1",
+            "origin_transmission_id": "root-a",
+            "originator_entity_id": "witness-a",
+            "provenance_complete": True,
+        },
+        {
+            "source_event_id": "event-1",
+            "origin_transmission_id": "root-b",
+            "originator_entity_id": "witness-b",
+            "provenance_complete": True,
+        },
+        {
+            "source_event_id": "event-1",
+            "origin_transmission_id": "root-a",
+            "originator_entity_id": "witness-a",
+            "provenance_complete": True,
+        },
+    ]
+    result = summarize_corroboration_sources(reports)
+    assert result["corroboration_status"] == "independent_sources"
+    assert result["source_independence"] == "independent"
+    assert result["independent_source_count"] == 2
+    assert result["unverified_report_count"] == 0
+    assert result["is_truth_finding"] is False
+
+
+def test_corroboration_does_not_count_two_roots_from_the_same_witness_twice():
+    result = summarize_corroboration_sources([
+        {
+            "source_event_id": "event-1",
+            "origin_transmission_id": "root-a",
+            "originator_entity_id": "witness-a",
+            "provenance_complete": True,
+        },
+        {
+            "source_event_id": "event-1",
+            "origin_transmission_id": "root-b",
+            "originator_entity_id": "witness-a",
+            "provenance_complete": True,
+        },
+    ])
+    assert result["corroboration_status"] == "single_origin"
+    assert result["source_independence"] == "same_lineage"
+    assert result["independent_source_count"] == 1
+
+
+def test_corroboration_does_not_inflate_counts_with_incomplete_provenance():
+    result = summarize_corroboration_sources([
+        {
+            "source_event_id": "event-1",
+            "origin_transmission_id": "root-a",
+            "originator_entity_id": "witness-a",
+            "provenance_complete": True,
+        },
+        {
+            "source_event_id": "event-1",
+            "origin_transmission_id": "",
+            "originator_entity_id": "",
+            "provenance_complete": False,
+        },
+    ])
+    assert result["corroboration_status"] == "one_confirmed_origin_with_unverified_reports"
+    assert result["source_independence"] == "unknown"
+    assert result["independent_source_count"] == 1
+    assert result["unverified_report_count"] == 1
+
+
+def test_corroboration_rejects_mixed_source_events():
+    result = summarize_corroboration_sources([
+        {
+            "source_event_id": "event-1",
+            "origin_transmission_id": "root-a",
+            "originator_entity_id": "witness-a",
+            "provenance_complete": True,
+        },
+        {
+            "source_event_id": "event-2",
+            "origin_transmission_id": "root-b",
+            "originator_entity_id": "witness-b",
+            "provenance_complete": True,
+        },
+    ])
+    assert result["corroboration_status"] == "unknown"
+    assert result["independent_source_count"] == 0

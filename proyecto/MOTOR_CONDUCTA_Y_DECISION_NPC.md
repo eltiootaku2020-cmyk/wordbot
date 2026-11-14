@@ -177,3 +177,10 @@ Isekai puede aportar perfiles, capacidades y patrones propios de Brina, Maelis y
 Las tres fichas aún requieren que el autor confirme motivaciones personales concretas y estados iniciales desconocidos. No deben inventarse traumas, relaciones entre ellas, hambre, miedo, cansancio ni objetivos secretos para llenar el sistema.
 
 El diseño narrativo de autonomía sigue siendo la fuente de requisitos, no una afirmación de que ya existe simulación fuera de escena.
+
+
+## Corroboración de testimonios coincidentes
+
+La percepción individual de cada destinatario agrupa informes vigentes que tienen el mismo texto tras normalizar únicamente mayúsculas y espacios, y que apuntan al mismo evento fuente. Los pares con redacciones diferentes siguen en la comparación semántica existente; los grupos coincidentes se muestran en una sección separada.
+
+El resumen cuenta orígenes trazables, no cantidad de mensajes: retransmisiones del mismo linaje o del mismo testigo no incrementan el número; la procedencia incompleta queda como no verificada y nunca se cuenta como fuente independiente. La interfaz y el contexto del narrador mantienen la información en el ámbito del PNJ que recibió los informes. Una coincidencia de fuentes independientes significa concordancia entre relatos, no autenticidad ni verdad objetiva. Es un resumen derivado, no una nueva decisión persistente ni un cambio del canon.

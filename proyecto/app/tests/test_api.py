@@ -9974,3 +9974,53 @@ def test_retransmitted_versions_from_one_origin_are_not_independent_evidence():
         )
         assert separate_root_pair["semantic_analysis"]["source_independence"] == "same_lineage"
         assert separate_root_pair["semantic_analysis"]["independent_corroboration_count"] == 1
+
+
+
+def test_identical_testimonies_get_private_corroboration_summary_without_becoming_contradictions():
+    with TestClient(app) as client:
+        seeded = client.post("/api/demo/seed", json={}).json()
+        world_id, session_id = seeded["world_id"], seeded["session_id"]
+        ids = _entity_ids_by_name(client, world_id)
+        protagonist_id = next(
+            value for name, value in ids.items()
+            if name.lower() in {"protagonista", "protagonist"}
+        )
+        brina_id = ids["Brina Solcor"]
+        maelis_id = ids["Maelis Orven"]
+
+        source_event_id = _record_shared_witness_source(
+            session_id, protagonist_id,
+            [protagonist_id, maelis_id, brina_id],
+            "identical-testimony-source",
+        )
+        first_id = _approve_knowledge_testimony(
+            client, session_id, source_event_id, protagonist_id, brina_id,
+            "identical-testimony-first", "El puente estaba intacto por la mañana.",
+        )
+        second_id = _approve_knowledge_testimony(
+            client, session_id, source_event_id, maelis_id, brina_id,
+            "identical-testimony-second", "  EL PUENTE estaba intacto por la mañana.  ",
+        )
+
+        with database.connection() as conn:
+            _, brina_perception = _entity_perception_context(conn, session_id, brina_id)
+            _, maelis_perception = _entity_perception_context(conn, session_id, maelis_id)
+        assert brina_perception["knowledge_comparisons"] == []
+        assert len(brina_perception["knowledge_corroborations"]) == 1
+        group = brina_perception["knowledge_corroborations"][0]
+        assert set(item["transmission_id"] for item in group["reports"]) == {first_id, second_id}
+        assert group["text_match"] == "normalized_exact"
+        assert group["source_event_id"] == source_event_id
+        assert group["distinct_sender_count"] == 2
+        assert group["independent_source_count"] == 2
+        assert group["corroboration_status"] == "independent_sources"
+        assert group["is_truth_finding"] is False
+        assert maelis_perception["knowledge_corroborations"] == []
+
+        state = client.get(f"/api/sessions/{session_id}/state")
+        assert state.status_code == 200, state.text
+        brina_state = next(
+            person for person in state.json()["participants"] if person["id"] == brina_id
+        )
+        assert len(brina_state["knowledge_corroborations"]) == 1

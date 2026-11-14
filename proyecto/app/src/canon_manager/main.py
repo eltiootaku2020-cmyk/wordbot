@@ -818,11 +818,13 @@ def build_context(
         _, perception = _entity_perception_context(conn, session["id"], participant["id"])
         participant["knowledge_reports"] = perception.get("knowledge_reports", [])
         participant["knowledge_comparisons"] = perception.get("knowledge_comparisons", [])
+        participant["knowledge_corroborations"] = perception.get("knowledge_corroborations", [])
         participant["knowledge_reasoning_history"] = perception.get("knowledge_reasoning_history", [])[-10:]
     if recipient is not None:
         _, perception = _entity_perception_context(conn, session["id"], recipient["id"])
         recipient["knowledge_reports"] = perception.get("knowledge_reports", [])
         recipient["knowledge_comparisons"] = perception.get("knowledge_comparisons", [])
+        recipient["knowledge_corroborations"] = perception.get("knowledge_corroborations", [])
         recipient["knowledge_reasoning_history"] = perception.get("knowledge_reasoning_history", [])[-10:]
 
     relationship = []
@@ -2661,6 +2663,7 @@ def load_state(conn, session_id: str) -> dict[str, Any]:
         _, perception = _entity_perception_context(conn, session_id, participant["id"])
         participant["knowledge_reports"] = perception.get("knowledge_reports", [])
         participant["knowledge_comparisons"] = perception.get("knowledge_comparisons", [])
+        participant["knowledge_corroborations"] = perception.get("knowledge_corroborations", [])
         participant["knowledge_reasoning_history"] = perception.get("knowledge_reasoning_history", [])
         known_event_ids = perception.get("source_event_ids", [])
         participant["known_event_ids"] = known_event_ids
